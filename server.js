@@ -12,7 +12,7 @@ const is_prefix = (url, prefix)=>{
 
 const server = http.createServer((req, res)=>{
   const opt = {directoryListing: false, cleanUrls: false};
-  const url = req.url;
+  let url = req.url;
   res.on('finish', ()=>console.log(
     `${log_url} ${res.statusCode} ${res.statusMessage}`));
   let file, v;

@@ -8,5 +8,8 @@
     "url": "https://jungo.center"
   },
   "license": "JPL",
-  "module": "boot.js"
+  "module": "boot.js",
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
 }
