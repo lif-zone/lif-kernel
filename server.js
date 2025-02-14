@@ -10,6 +10,7 @@ const is_prefix = (url, prefix)=>{
     return {prefix: prefix, rest: url.substr(prefix.length)};
 };
 
+let app_name = 'app-os';
 const server = http.createServer((req, res)=>{
   const opt = {directoryListing: false, cleanUrls: false};
   let url = req.url;
@@ -23,7 +24,7 @@ const server = http.createServer((req, res)=>{
   else if (v=is_prefix(url, '/lif-kernel/'))
     file = '/lif-kernel/'+v.rest;
   else
-    file = '/lif-kernel/app-basic'+url;
+    file = '/lif-kernel/'+app_name+url;
   if (file)
     opt.rewrites = [{source: '**', destination: file}];
   let log_url = url+(file && file!=url ? '->'+file : '');
@@ -40,8 +41,13 @@ while (argv[0]!=undefined){
   if (argv[0]=='-p'){
     argv.shift();
     port = +argv.shift();
-  }
-  else
+  } else if (argv[0]=='app-basic'){
+    app_name = 'app-basic';
+    argv.shift();
+  } else if (argv[0]=='app-os'){
+    app_name = 'app-os';
+    argv.shift();
+  } else
     break;
 }
 if (argv[0]!=undefined)
