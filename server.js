@@ -23,7 +23,7 @@ const server = http.createServer((req, res)=>{
   else if (v=is_prefix(url, '/lif-kernel/'))
     file = '/lif-kernel/'+v.rest;
   else
-    file = '/public'+url;
+    file = '/lif-kernel/app-basic'+url;
   if (file)
     opt.rewrites = [{source: '**', destination: file}];
   let log_url = url+(file && file!=url ? '->'+file : '');
