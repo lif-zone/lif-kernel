@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.63';
+let lif_version = '0.2.70';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -695,7 +695,7 @@ async function _kernel_fetch(event){
 async function kernel_fetch(event){
   let slow;
   try {
-    slow = eslow(5000, ['_kernel_fetch', event.request.url]);
+    slow = eslow(15000, ['_kernel_fetch', event.request.url]);
     let res = await _kernel_fetch(event);
     slow.end();
     return res;
