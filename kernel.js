@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.72';
+let lif_version = '0.2.75';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -81,7 +81,8 @@ let import_module = async(url)=>{
 
 let Babel = await import_module('https://unpkg.com/@babel/standalone@7.26.4/babel.js');
 let util = await import_module('/lif-kernel/util.js');
-let {postmessage_chan, str, OF, path_ext, path_file, path_dir, path_is_dir,
+let {postmessage_chan, str, OF,
+  path_ext, path_file, path_dir, path_is_dir, path_prefix,
   url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
   esleep, eslow, Scroll, _debugger, assert_eq} = util;
 let {qw, diff_pos} = str;
@@ -346,6 +347,14 @@ let npm_dep_lookup = (pkg, uri)=>{
   return uri;
 };
 
+let modmap_lookup = (pkg, uri)=>{
+  for (let [pre, base] of OF(pkg.lif?.modmap)){
+    let v;
+    if (v=path_prefix(uri, pre))
+      return '/lif-app'+base+v.rest;
+  }
+};
+
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v;
   for (let d of f.ast_imports){
@@ -468,9 +477,8 @@ let pkg_export_lookup = (pkg, file)=>{
       check_val(res, v.require, 'amd');
   };
   let parse_section = val=>{
-    let v, res = [];
-    for (let match in val){
-      v = val[match];
+    let res = [];
+    for (let [match, v] of OF(val)){
       if (!patmatch(match))
         continue;
       parse_val(res, v);
@@ -611,6 +619,26 @@ async function npm_file_load(log, uri, test_alt){
   return file.wait.return(file);
 }
 
+let _npm_pkg_load = async function(modver, dep){
+  let npm;
+  modver ||= 'lif-app';
+  let slow;
+  try {
+    slow = eslow(5000, ['_npm_pkg_load', modver, dep]);
+    npm = await npm_pkg_load(()=>{}, modver);
+    slow.end();
+    slow = eslow(5000, ['_npm_pkg_load', modver, dep]);
+    if (npm.redirect)
+      npm = await npm_pkg_load(()=>{}, npm.redirect);
+    slow.end();
+  } catch(err){
+    slow.end();
+    console.error('_npm_pkg_load err:', err);
+    return null;
+  }
+  return npm;
+};
+
 let new_response = ({body, type, name})=>{
   let ctype_map = { // content-type
     js: 'application/javascript',
@@ -697,6 +725,12 @@ async function _kernel_fetch(event){
   }
   if (path=='/favicon.ico')
     return await fetch('https://raw.githubusercontent.com/DustinBrett/daedalOS/refs/heads/main/public/favicon.ico');
+  let app_pkg = (await _npm_pkg_load()).pkg;
+  let _path = modmap_lookup(app_pkg, path);
+  if (_path){
+    log('modmap '+path+' -> '+_path);
+    return await fetch(_path);
+  }
   console.log('req default', url);
   return await fetch(request);
 }
@@ -716,22 +750,9 @@ async function kernel_fetch(event){
 }
 
 let do_module_dep = async function({modver, dep}){
-  let npm;
-  modver ||= 'lif-app';
-  let slow;
-  try {
-    slow = eslow(5000, ['do_module_dep', modver, dep]);
-    npm = await npm_pkg_load(()=>{}, modver);
-    slow.end();
-    slow = eslow(5000, ['npm_pkg_load', modver, dep]);
-    if (npm.redirect)
-      npm = await npm_pkg_load(()=>{}, npm.redirect);
-    slow.end();
-  } catch(err){
-    slow.end();
-    console.error('do_module_dep err:', err);
-    return null;
-  }
+  let npm = await _npm_pkg_load(modver, dep);
+  if (!npm)
+    return;
   return npm_dep_lookup(npm.pkg, dep);
 };
 

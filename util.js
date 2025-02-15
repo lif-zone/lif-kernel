@@ -55,7 +55,7 @@ exports.eslow = eslow;
 self.esb = eslow;
 
 // shortcuts
-const OF = Object.entries;
+const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
 
 // str.js
@@ -163,6 +163,13 @@ const path_ext = path=>path.match(/\.[^./]*$/)?.[0];
 const path_file = path=>path.match(/(^|\/)?([^/]*)$/)?.[2];
 const path_dir = path=>path.slice(0, path.length-path_file(path).length);
 const path_is_dir = path=>path.endsWith('/');
+const path_prefix = (path, prefix)=>{
+  let v;
+  if (!(v=str.prefix(path, prefix)))
+    return;
+  if (!v.rest || v.rest[0]=='/')
+    return v;
+};
 const url_parse = (url, base)=>{
   const u = URL.parse(url, base);
   if (!u)
@@ -206,6 +213,7 @@ exports.path_ext = path_ext;
 exports.path_file = path_file;
 exports.path_dir = path_dir;
 exports.path_is_dir = path_is_dir;
+exports.path_prefix = path_prefix;
 exports.url_parse = url_parse;
 exports.uri_parse = uri_parse;
 exports.url_uri_parse = url_uri_parse;
