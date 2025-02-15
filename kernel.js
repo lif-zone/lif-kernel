@@ -267,7 +267,7 @@ const file_tr_cjs_shim = async(f)=>{
   let _exports = '';
   let npm_cjs_uri = '/.lif/npm.cjs/'+f.uri;
   f.log('call import('+npm_cjs_uri+')');
-  let res = await kern_chan.cmd('import', {url: npm_cjs_uri});
+  let res = await boot_chan.cmd('import', {url: npm_cjs_uri});
   f.log('ret  import('+npm_cjs_uri+')', res);
   f.exports_cjs_shim = res.exports;
   f.exports_cjs_shim.forEach(e=>{
@@ -628,7 +628,7 @@ let new_response = ({body, type, name})=>{
   return new Response(body, opt);
 };
  
-let kern_chan;
+let boot_chan;
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = url_parse(url);
@@ -736,11 +736,11 @@ let do_module_dep = async function({modver, dep}){
 };
 
 function sw_init_post(){
-  kern_chan = new util.postmessage_chan();
-  kern_chan.add_server_cmd('version', arg=>({version: lif_version}));
-  kern_chan.add_server_cmd('module_dep', ({arg})=>do_module_dep(arg));
+  boot_chan = new util.postmessage_chan();
+  boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
+  boot_chan.add_server_cmd('module_dep', ({arg})=>do_module_dep(arg));
   lif_kernel.on_message = event=>{
-    if (kern_chan.listen(event))
+    if (boot_chan.listen(event))
       return;
   };
   lif_kernel.on_fetch = event=>{
