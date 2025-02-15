@@ -1,6 +1,6 @@
 // LIF bootloader: Boot the kernel and then load the application
 let lif = window.lif = {};
-let lif_version = '0.2.70';
+let lif_version = '0.2.72';
 let D = 0; // Debug
 
 import util from './util.js';
@@ -100,7 +100,7 @@ function require_cjs_amd(mod_self, args){
 }
 
 let npm_pkg = {};
-async function module_get_modver(mod_self, module_id){
+async function module_dep(mod_self, module_id){
   let u = url_uri_parse(module_id, '/'+mod_self);
   if (u.is_based=='url')
     return module_id;
@@ -127,7 +127,7 @@ async function require_single(mod_self, module_id){
     loaded: false, module: {exports: {}}};
   let slow;
   slow = eslow(1000, ['require_single modver('+module_id+')']);
-  let url = await module_get_modver(mod_self, module_id);
+  let url = await module_dep(mod_self, module_id);
   slow.end();
   try {
     slow = eslow(15000, ['require_single import('+module_id+')', url]);
@@ -153,7 +153,7 @@ function require_cjs_shim(mod_self, module_id){
 }
 
 async function _import(mod_self, [url, opt]){
-  let _url = await module_get_modver(mod_self, url);
+  let _url = await module_dep(mod_self, url);
   let slow;
   try {
     slow = eslow(15000, ['_import('+_url+')']);
