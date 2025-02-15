@@ -1,6 +1,6 @@
 // LIF bootloader: Boot the kernel and then load the application
 let lif = window.lif = {};
-let lif_version = '0.2.63';
+let lif_version = '0.2.70';
 let D = 0; // Debug
 
 import util from './util.js';
@@ -126,11 +126,11 @@ async function require_single(mod_self, module_id){
   m = modules[module_id] = {module_id, deps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let slow;
-  slow = eslow(5000, ['require_single modver('+module_id+')']);
+  slow = eslow(1000, ['require_single modver('+module_id+')']);
   let url = await module_get_modver(mod_self, module_id);
   slow.end();
   try {
-    slow = eslow(5000, ['require_single import('+module_id+')', url]);
+    slow = eslow(15000, ['require_single import('+module_id+')', url]);
     m.mod = await import(url);
     slow.end();
   } catch(err){
@@ -156,7 +156,7 @@ async function _import(mod_self, [url, opt]){
   let _url = await module_get_modver(mod_self, url);
   let slow;
   try {
-    slow = eslow(5000, ['_import('+_url+')']);
+    slow = eslow(15000, ['_import('+_url+')']);
     let ret = await import(_url, opt);
     slow.end();
     return ret;
@@ -190,7 +190,7 @@ let do_import = async({url, opt})=>{
   let slow;
   try {
     let ret = {};
-    slow = eslow(5000, ['do_import', url]);
+    slow = eslow(15000, ['do_import', url]);
     let exports = await import(url, opt);
     slow.end();
     ret.exports = [];
