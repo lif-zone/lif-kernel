@@ -649,8 +649,6 @@ async function _kernel_fetch(event){
     console.log('external fetch', url);
     return fetch(request);
   }
-  if (path=='/favicon.ico')
-    return await fetch('https://raw.githubusercontent.com/DustinBrett/daedalOS/refs/heads/main/public/favicon.ico');
   if (v=str.prefix(path, '/.lif/npm/')){
     let uri = v.rest;
     let f = await npm_file_load(log, uri);
@@ -697,6 +695,8 @@ async function _kernel_fetch(event){
       export default null; //TODO here we can export CSS module instead
     `});
   }
+  if (path=='/favicon.ico')
+    return await fetch('https://raw.githubusercontent.com/DustinBrett/daedalOS/refs/heads/main/public/favicon.ico');
   console.log('req default', url);
   return await fetch(request);
 }
