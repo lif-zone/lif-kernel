@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.70';
+let lif_version = '0.2.72';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -166,6 +166,24 @@ let file_ast = f=>{
     f.ast_imports = [];
     f.ast_imports_dyn = [];
     let has_require, has_import, has_export, has_await;
+    let _handle_import_source = path=>{
+      let n = path.node;
+      if (n.source.type=='StringLiteral'){
+        let s = n.source;
+        let v = s.value;
+        let type = ast_get_scope_type(path);
+        f.ast_imports.push({module: v, start: s.start, end: s.end, type});
+      }
+    };
+    let handle_import_source = path=>{
+      has_import = true;
+      _handle_import_source(path);
+    };
+    let handle_export_source = (path)=>{
+      has_export ||= true;
+      if (path.node.source)
+        _handle_import_source(path);
+    };
     traverse(f.ast, {
       AssignmentExpression: path=>{
         let n = path.node, l = n.left, r = n.right;
@@ -190,19 +208,10 @@ let file_ast = f=>{
         if (n.callee.type=='Import')
           f.ast_imports_dyn.push({start: n.callee.start, end: n.callee.end});
       },
-      ImportDeclaration: path=>{
-        has_import = true;
-        let n = path.node, v;
-        if (n.source.type=='StringLiteral'){
-          let s = n.source;
-          v = s.value;
-          let type = ast_get_scope_type(path);
-          f.ast_imports.push({module: v, start: s.start, end: s.end, type});
-        }
-      },
-      ExportNamedDeclaration: path=>{ has_export = true; },
-      ExportDefaultDeclaration: path=>{ has_export = true; },
-      ExportAllDeclaration: path=>{ has_export = true; },
+      ImportDeclaration: path=>handle_import_source(path),
+      ExportNamedDeclaration: path=>handle_export_source(path),
+      ExportDefaultDeclaration: path=>handle_export_source(path),
+      ExportAllDeclaration: path=>handle_export_source(path),
       AwaitExpression: path=>{
         let type = ast_get_scope_type(path);
         if (type=='program')
