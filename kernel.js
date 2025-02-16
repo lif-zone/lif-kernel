@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.85';
+let lif_version = '0.2.86';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -372,22 +372,9 @@ const file_tr_mjs = f=>{
     return f.tr_mjs;
   let uri_s = json(f.uri);
   let tr = tr_mjs_import(f);
-    if (0){
-  return f.tr_mjs = `
-    let lif_boot = window.lif.boot;
-    let import_lif = function(){ return lif_boot._import(${uri_s}, arguments); };
-    //console.log(${uri_s}, 'start');
-    //let slow = lif_boot.util.eslow(5000, ['load module', ${uri_s}]);
-    ${tr}
-    //console.log(${uri_s}, 'end');
-    //slow.end();
-  `;
-  }
-  else
-  {
   let slow = 0, log = 0, pre = '', post = '';
   let _import = f.ast_imports.length;
-  if (_import)
+  if (f.ast_imports.length)
     pre += `let import_lif = function(){ return window.lif.boot._import(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
@@ -397,10 +384,7 @@ const file_tr_mjs = f=>{
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
     post += `slow.end(); `;
-  if (!(_import || log || slow))
-    return f.tr_msg = tr;
   return f.tr_mjs = pre+tr+post;
-  }
 };
 
 let content_type_get = destination=>{
