@@ -1,6 +1,6 @@
 // LIF bootloader: Boot the kernel and then load the application
-let lif = window.lif = {};
-let lif_version = '0.2.72';
+let lif = globalThis.lif = {};
+let lif_version = '0.2.89';
 let D = 0; // Debug
 
 import util from './util.js';
@@ -182,9 +182,9 @@ lif.boot = {
   util,
 };
 lb = lif.boot;
-window.define = define;
-window.require = require;
-window.process = process;
+globalThis.define = define;
+globalThis.require = require;
+globalThis.process = process;
 
 let do_import = async({url, opt})=>{
   let slow;
@@ -207,7 +207,7 @@ let do_import = async({url, opt})=>{
   }
 };
 let lif_app_boot = async()=>{
-  let url = window.lif_boot_url || 'lif-app/pages/index.tsx';
+  let url = globalThis.lif_boot_url || 'lif-app/pages/index.tsx';
   console.log('boot: boot '+url);
   try {
     return await _import('lif-app', [url]);
