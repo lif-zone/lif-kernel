@@ -13,21 +13,21 @@ const is_prefix = (url, prefix)=>{
 let app_name = 'app-os';
 const server = http.createServer((req, res)=>{
   const opt = {directoryListing: false, cleanUrls: false};
-  let url = req.url;
+  let uri = decodeURIComponent(req.url);
   res.on('finish', ()=>console.log(
     `${log_url} ${res.statusCode} ${res.statusMessage}`));
   let file, v;
-  if (url=='/')
-    url = '/index.html';
-  if (v=is_prefix(url, '/lif-app/'))
+  if (uri=='/')
+    uri = '/index.html';
+  if (v=is_prefix(uri, '/lif-app/'))
     file = '/'+v.rest;
-  else if (v=is_prefix(url, '/lif-kernel/'))
+  else if (v=is_prefix(uri, '/lif-kernel/'))
     file = '/lif-kernel/'+v.rest;
   else
-    file = '/lif-kernel/'+app_name+url;
+    file = '/lif-kernel/'+app_name+uri;
   if (file)
     opt.rewrites = [{source: '**', destination: file}];
-  let log_url = url+(file && file!=url ? '->'+file : '');
+  let log_url = uri+(file && file!=uri ? '->'+file : '');
   // You pass two more arguments for config and middleware
   // More details here: https://github.com/vercel/serve-handler#options
   return serve(req, res, opt);
