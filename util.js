@@ -242,6 +242,9 @@ const _debugger = function(stop){
   }
 };
 exports._debugger = _debugger;
+// useful for locating who is changes window.location
+const detect_unload = ()=>addEventListener('beforeunload',()=>{debugger});
+exports.detect_unload = detect_unload;
 
 function Scroll(s){
   if (!(this instanceof Scroll))
