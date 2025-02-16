@@ -27,6 +27,7 @@ function sw_init_pre(){
   // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
   self.addEventListener('activate', event=>event.waitUntil((async()=>{
     await lif_kernel.wait_activate;
+    0 && self.skipWaiting(); // works with and without
     await self.clients.claim();
   })()));
   self.addEventListener("message", event=>{
