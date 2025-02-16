@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.86';
+let lif_version = '0.2.88';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -248,7 +248,7 @@ const file_tr_amd = f=>{
   });
   _exports += `export default mod.exports;\n`;
   return f.tr_amd = `
-    let lif_boot = window.lif.boot;
+    let lif_boot = globalThis.lif.boot;
     let define = function(id, deps, factory){
       return lif_boot.define_amd(${uri_s}, arguments); };
     define.amd = {};
@@ -305,7 +305,7 @@ const file_tr_cjs = f=>{
       pre += 'await require_async('+json(r.module)+');\n';
   }
   return f.tr_cjs = `
-    let lif_boot = window.lif.boot;
+    let lif_boot = globalThis.lif.boot;
     let module = {exports: {}};
     let exports = module.exports;
     let process = lif_boot.process;
@@ -374,12 +374,12 @@ const file_tr_mjs = f=>{
   let tr = tr_mjs_import(f);
   let slow = 0, log = 0, pre = '', post = '';
   let _import = f.ast_imports.length;
-  if (f.ast_imports.length)
-    pre += `let import_lif = function(){ return window.lif.boot._import(${uri_s}, arguments); }; `;
+  if (f.ast_imports_dyn.length)
+    pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
   if (slow)
-    pre += `let slow = window.lif.boot.util.eslow(5000, ['load module', ${uri_s}]); `;
+    pre += `let slow = globalThis.lif.boot.util.eslow(5000, ['load module', ${uri_s}]); `;
   if (log) 
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
@@ -429,11 +429,8 @@ let file_match = (file, match)=>{
     f = v.rest;
   while (v=str.prefix(m, './'))
     m = v.rest;
-  if (!(v=str.prefix(f, m)))
-    return;
-  if (v.rest && !path_is_dir(f))
-    return;
-  return true;
+  if (path_prefix(f, m))
+    return true;
 };
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
