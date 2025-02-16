@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.75';
+let lif_version = '0.2.85';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -27,8 +27,8 @@ function sw_init_pre(){
   // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
   self.addEventListener('activate', event=>event.waitUntil((async()=>{
     await lif_kernel.wait_activate;
-    0 && self.skipWaiting(); // works with and without
     await self.clients.claim();
+    await self.skipWaiting(); // works with and without
   })()));
   self.addEventListener("message", event=>{
     if (!lif_kernel.on_message)
@@ -85,6 +85,7 @@ let util = await import_module('/lif-kernel/util.js');
 let {postmessage_chan, str, OF,
   path_ext, path_file, path_dir, path_is_dir, path_prefix,
   url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
+  uri_enc, uri_dec,
   esleep, eslow, Scroll, _debugger, assert_eq} = util;
 let {qw, diff_pos} = str;
 let json = JSON.stringify;
@@ -290,8 +291,7 @@ let tr_cjs_require = f=>{
     if (!(d.type=='sync' || d.type=='try'))
       s.splice(d.start, d.end, '(await require_async('+json(d.module)+'))');
   }
-  let out = s.out();
-  return out;
+  return s.out();
 };
 
 const file_tr_cjs = f=>{
@@ -372,6 +372,7 @@ const file_tr_mjs = f=>{
     return f.tr_mjs;
   let uri_s = json(f.uri);
   let tr = tr_mjs_import(f);
+    if (0){
   return f.tr_mjs = `
     let lif_boot = window.lif.boot;
     let import_lif = function(){ return lif_boot._import(${uri_s}, arguments); };
@@ -381,6 +382,25 @@ const file_tr_mjs = f=>{
     //console.log(${uri_s}, 'end');
     //slow.end();
   `;
+  }
+  else
+  {
+  let slow = 0, log = 0, pre = '', post = '';
+  let _import = f.ast_imports.length;
+  if (_import)
+    pre += `let import_lif = function(){ return window.lif.boot._import(${uri_s}, arguments); }; `;
+  if (log) 
+    pre += `console.log(${uri_s}, 'start'); `;
+  if (slow)
+    pre += `let slow = window.lif.boot.util.eslow(5000, ['load module', ${uri_s}]); `;
+  if (log) 
+    post += `console.log(${uri_s}, 'end'); `;
+  if (slow)
+    post += `slow.end(); `;
+  if (!(_import || log || slow))
+    return f.tr_msg = tr;
+  return f.tr_mjs = pre+tr+post;
+  }
 };
 
 let content_type_get = destination=>{
@@ -664,26 +684,30 @@ async function _kernel_fetch(event){
   let ref = request.headers.get('referer');
   let external = u.origin!=self.location.origin;
   let log_mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
-  let path = u.path;
+  let path = uri_dec(u.path);
   let log = function(){
     if (url.includes(' none '))
       return console.log(url, ...arguments), 1;
   };
   log.mod = log_mod;
-  if (request.method!='GET')
+  if (request.method!='GET'){
+    console.log('non GET fetch', url);
     return fetch(request);
-  let v;
-  log('Req');
+  }
   if (external){
     console.log('external fetch', url);
     return fetch(request);
   }
+  log('Req');
+  let v;
   if (v=str.prefix(path, '/.lif/npm/')){
     let uri = v.rest;
     let f = await npm_file_load(log, uri);
     if (f.redirect){
-      log(`module ${uri} -> ${f.redirect}`);
-      return Response.redirect(f.redirect);
+      let redirect = 0 && f.redirect[0]=='/' ? uri_enc(f.redirect)
+        : f.redirect;
+      log(`module ${uri} -> ${redirect}`);
+      return Response.redirect(redirect);
     }
     file_ast(f);
     log('npm', f.type);
@@ -697,7 +721,7 @@ async function _kernel_fetch(event){
       tr = file_tr_mjs(f);
     else
       throw Error('invalid type '+f.type);
-    log(`module ${uri} served ${f.url} url ${url}`);
+    log(`module ${uri} served ${f.url}`);
     return new_response({body: tr, type: f.type});
   }
   if (v=str.prefix(path, '/.lif/npm.cjs/')){
@@ -708,29 +732,13 @@ async function _kernel_fetch(event){
     log(`module ${uri} served ${f.url}`);
     return new_response({body: tr});
   }
-  if (0 && u.ext=='.css'){
-    let response = await fetch(path);
-    if (response.status!=200)
-      throw Error('failed fetch '+path);
-    let body = await response.text();
-    return new_response({body: `
-      //TODO We don't track instances, so 2x imports will result
-      // in 2x style tags
-      const head = document.getElementsByTagName('head')[0];
-      const style = document.createElement('style');
-      style.setAttribute('type', 'text/css');
-      style.appendChild(document.createTextNode(${json(body)}));
-      head.appendChild(style);
-      export default null; //TODO here we can export CSS module instead
-    `});
-  }
   if (path=='/favicon.ico')
     return await fetch('https://raw.githubusercontent.com/DustinBrett/daedalOS/refs/heads/main/public/favicon.ico');
   let app_pkg = (await _npm_pkg_load()).pkg;
   let _path = modmap_lookup(app_pkg, path);
   if (_path){
     log('modmap '+path+' -> '+_path);
-    return await fetch(_path);
+    return await fetch(uri_enc(_path));
   }
   console.log('req default', url);
   return await fetch(request);

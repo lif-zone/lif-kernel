@@ -209,14 +209,18 @@ const url_uri_parse = (url_uri, base)=>{
     u.is_based = 'url';
   return u;
 };
+const uri_enc = path=>encodeURIComponent(path)
+  .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
+const uri_dec = uri=>decodeURIComponent(uri);
 exports.path_ext = path_ext;
 exports.path_file = path_file;
 exports.path_dir = path_dir;
 exports.path_is_dir = path_is_dir;
 exports.path_prefix = path_prefix;
 exports.url_parse = url_parse;
-exports.uri_parse = uri_parse;
 exports.url_uri_parse = url_uri_parse;
+exports.uri_enc = uri_enc;
+exports.uri_dec = uri_dec;
 
 // parse-package-name
 const npm_uri_parse = path=>{
