@@ -243,7 +243,7 @@ const _debugger = function(stop){
 };
 exports._debugger = _debugger;
 // useful for locating who is changes window.location
-const detect_unload = ()=>addEventListener('beforeunload',()=>{debugger});
+const detect_unload = ()=>addEventListener('beforeunload',()=>{debugger}); // eslint-disable-line no-debugger
 exports.detect_unload = detect_unload;
 
 function Scroll(s){
