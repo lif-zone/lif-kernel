@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.89';
+let lif_version = '0.2.93';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -23,12 +23,16 @@ let lif_kernel = {
 
 // service worker must register handlers on first run (not async)
 function sw_init_pre(){
+  self.addEventListener('install', event=>event.waitUntil((async()=>{
+    await self.skipWaiting(); // force sw reload - dont wait for pages to close
+    console.log('kernel install', lif_version);
+  })()));
   // this is needed to activate the worker immediately without reload
   // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
   self.addEventListener('activate', event=>event.waitUntil((async()=>{
     await lif_kernel.wait_activate;
-    await self.clients.claim();
-    await self.skipWaiting(); // works with and without
+    await self.clients.claim(); // move all pages immediatly to new sw
+    console.log('kernel activate', lif_version);
   })()));
   self.addEventListener("message", event=>{
     if (!lif_kernel.on_message)
@@ -43,9 +47,9 @@ function sw_init_pre(){
 }
 sw_init_pre();
 
-let fetch_opt = url=>(url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
 (async()=>{try {
 // service worker import() implementation
+let fetch_opt = url=>(url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
 let import_modules = {};
 let import_module = async(url)=>{
   let mod;
