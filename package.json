@@ -1,14 +1,15 @@
 {
   "name": "lif-kernel",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "kernel hi דבר חי",
   "author": {
-    "name": "Hola Jungo Publishing",
+    "name": "Jungo Publishing Labs",
     "email": "lif@jungo.center",
     "url": "https://jungo.center"
   },
   "license": "JPL",
   "module": "boot.js",
+  "type": "module",
   "dependencies": {
     "serve": "^14.2.4"
   }

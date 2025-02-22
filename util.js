@@ -167,9 +167,10 @@ const path_prefix = (path, prefix)=>{
   let v;
   if (!(v=str.prefix(path, prefix)))
     return;
-  if (!v.rest || v.rest[0]=='/')
+  if (!v.rest || v.rest[0]=='/' || prefix.endsWith('/'))
     return v;
 };
+
 const url_parse = (url, base)=>{
   const u = URL.parse(url, base);
   if (!u)
@@ -212,6 +213,19 @@ const url_uri_parse = (url_uri, base)=>{
 const uri_enc = path=>encodeURIComponent(path)
   .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
 const uri_dec = uri=>decodeURIComponent(uri);
+
+const esc_regex = s=>s.replace(/[[\]{}()*+?.\\^$|\/]/g, '\\$&');
+
+const match_glob_to_regex_str = glob=>{
+  return '^(?:'
+  +glob.replace(/(\?|\*\*|\*)|([^?*]+)/g,
+    m=>m=='?' ? '[^/]' : m=='**' ? '(.*)' : m=='*' ? '([^/]*)' : esc_regex(m))
+  +')$';
+};
+const match_glob_to_regex = glob=>new RegExp(match_glob_to_regex_str(glob));
+const match_glob = (glob, value)=>
+    match_glob_to_regex(glob).test(value);
+
 exports.path_ext = path_ext;
 exports.path_file = path_file;
 exports.path_dir = path_dir;
@@ -221,6 +235,8 @@ exports.url_parse = url_parse;
 exports.url_uri_parse = url_uri_parse;
 exports.uri_enc = uri_enc;
 exports.uri_dec = uri_dec;
+exports.match_glob_to_regex = match_glob_to_regex;
+exports.match_glob = match_glob;
 
 // parse-package-name
 const npm_uri_parse = path=>{

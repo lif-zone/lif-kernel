@@ -207,12 +207,16 @@ let do_import = async({url, opt})=>{
   }
 };
 let lif_app_boot = async()=>{
-  let url = globalThis.lif_boot_url || 'lif-app/pages/index.tsx';
-  console.log('boot: boot '+url);
+  let uri = globalThis.lif_boot_uri || 'lif-os/pages/index.tsx';
+  console.log('boot: boot '+uri);
+  let _uri = npm_uri_parse(uri);
+  let map = globalThis.lif_boot_map;
+  if (map)
+    await kernel_chan.cmd('pkg_map', {map: map});
   try {
-    return await _import('lif-app', [url]);
+    return await _import(uri /*_uri.name*/, [uri]);
   } catch (err){
-    console.error('import('+url+') failed', err);
+    console.error('import('+uri+') failed', err);
     throw err;
   }
 };
@@ -247,3 +251,4 @@ let lif_boot_boot = async()=>{
 await lif_boot_boot();
 await lif_app_boot();
 console.log('boot: boot complete');
+export default lif;

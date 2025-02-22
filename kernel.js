@@ -36,12 +36,16 @@ function sw_init_pre(){
   })()));
   self.addEventListener("message", event=>{
     if (!lif_kernel.on_message)
-      console.error('sw message event before inited', event);
+      return console.error('sw message event before inited', event);
     lif_kernel.on_message(event);
   });
   self.addEventListener('fetch', event=>{
-    if (!lif_kernel.on_fetch)
+    if (!lif_kernel.on_fetch){
       console.error('sw fetch('+event.request.url+') event before inited');
+      event.respondWith(new Response('sw fetch before init',
+        {status: 500, statusText: 'sw fetch before init'}));
+      return;
+    }
     lif_kernel.on_fetch(event);
   });
 }
@@ -89,7 +93,7 @@ let util = await import_module('/lif-kernel/util.js');
 let {postmessage_chan, str, OF,
   path_ext, path_file, path_dir, path_is_dir, path_prefix,
   url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
-  uri_enc, uri_dec,
+  uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq} = util;
 let {qw, diff_pos} = str;
 let json = JSON.stringify;
@@ -99,10 +103,8 @@ let cerr = console.error.bind(console);
 let npm_cdn = ['https://cdn.jsdelivr.net/npm',
   //'https://unpkg.com',
 ];
-let npm_map = {
-  'lif-app': {base: '/lif-app'},
-  'lif-kernel': {base: '/lif-kernel'},
-};
+let npm_default;
+let npm_map = {};
 let npm_pkg = {};
 let npm_file = {};
 
@@ -342,7 +344,7 @@ let npm_dep_lookup = (pkg, uri)=>{
     return '/.lif/npm'+v+u.path;
   if (v = pkg.lif?.modmap?.[modver]){
     if (v.startsWith('/'))
-      v = 'lif-app'+v;
+      v = npm_default+v;
     return '/.lif/npm/'+v+u.path;
   }
   if (!u.version){
@@ -356,7 +358,7 @@ let modmap_lookup = (pkg, uri)=>{
   for (let [pre, base] of OF(pkg.lif?.modmap)){
     let v;
     if (v=path_prefix(uri, pre))
-      return '/lif-app'+base+v.rest;
+      return '/'+npm_default+base+v.rest;
   }
 };
 
@@ -426,8 +428,7 @@ let npm_dep_ver_lookup = (pkg, module)=>{
     return ver;
 };
 
-let file_match = (file, match)=>{
-  // TODO support longer matches first /a/b/c matches before /a/b
+let file_match = (file, match, tr)=>{
   let v, f = file, m = match;
   while (v=str.prefix(f, './'))
     f = v.rest;
@@ -436,6 +437,20 @@ let file_match = (file, match)=>{
   if (path_prefix(f, m))
     return true;
 };
+let path_match = (path, match, tr)=>{
+  let v, f = path, m = match;
+  while (v=str.prefix(f, './'))
+    f = v.rest;
+  while (v=str.prefix(m, './'))
+    m = v.rest;
+  let re = match_glob_to_regex(m);
+  if (!(v = f.match(re)))
+    return;
+  if (!tr)
+    return true;
+  return tr.replace('*', v[1]);
+};
+
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
 let pkg_export_lookup = (pkg, file)=>{
@@ -483,11 +498,11 @@ let pkg_export_lookup = (pkg, file)=>{
       check_val(res, v.require, 'amd');
   };
   let parse_section = val=>{
-    let res = [];
+    let res = [], tr;
     for (let [match, v] of OF(val)){
-      if (!patmatch(match))
+      if (!(tr = path_match(file, match, typeof v=='string' ? v : null)))
         continue;
-      parse_val(res, v);
+      parse_val(res, typeof tr=='string' ? tr : v);
     }
     let best = res[0];
     if (!best)
@@ -528,6 +543,9 @@ let pkg_export_lookup = (pkg, file)=>{
   return {file: f, type, alt};
 };
 
+0&&console.log(pkg_export_lookup({"exports": {"./esm/*": "./ESM/*.js"}},
+  './esm/interop.js'));
+
 async function npm_pkg_load(log, modver){
   let npm, npm_s;
   if (npm = npm_pkg[modver])
@@ -548,7 +566,7 @@ async function npm_pkg_load(log, modver){
   try {
     let pkg, v;
     let map = npm_map[npm.modver];
-    npm.base = map?.base || npm_cdn+'/'+npm.modver;
+    npm.base = map?.base || (npm?.net||npm_cdn)+'/'+npm.modver;
     if (map){
       log('map', map, 'modver', modver);
       npm.pkg = map.pkg;
@@ -626,9 +644,7 @@ async function npm_file_load(log, uri, test_alt){
 }
 
 let _npm_pkg_load = async function(modver, dep){
-  let npm;
-  modver ||= 'lif-app';
-  let slow;
+  let npm, slow;
   try {
     slow = eslow(5000, ['_npm_pkg_load', modver, dep]);
     npm = await npm_pkg_load(()=>{}, modver);
@@ -671,7 +687,7 @@ async function _kernel_fetch(event){
   let log_mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
   let path = uri_dec(u.path);
   let log = function(){
-    if (url.includes(' none '))
+    if (url.includes('swc/helpers'))
       return console.log(url, ...arguments), 1;
   };
   log.mod = log_mod;
@@ -719,7 +735,7 @@ async function _kernel_fetch(event){
   }
   if (path=='/favicon.ico')
     return await fetch('https://raw.githubusercontent.com/DustinBrett/daedalOS/refs/heads/main/public/favicon.ico');
-  let app_pkg = (await _npm_pkg_load()).pkg;
+  let app_pkg = (await _npm_pkg_load(npm_default)).pkg;
   let _path = modmap_lookup(app_pkg, path);
   if (_path){
     log('modmap '+path+' -> '+_path);
@@ -750,10 +766,24 @@ let do_module_dep = async function({modver, dep}){
   return npm_dep_lookup(npm.pkg, dep);
 };
 
+let do_pkg_map = function({map}){
+  npm_map = {...map};
+  let i = 0;
+  for (let [name, mod] of OF(map)){
+    if (!i++)
+      npm_default = name;
+    if (typeof mod=='string')
+      npm_map[name] = mod = mod.endsWith('/') ? {net: mod} : {base: mod};
+    if (!mod.base && mod.net)
+      mod.base = mod.net+name;
+  }
+};
+do_pkg_map({map: {'lif-kernel': '/'}});
 function sw_init_post(){
   boot_chan = new util.postmessage_chan();
   boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
   boot_chan.add_server_cmd('module_dep', ({arg})=>do_module_dep(arg));
+  boot_chan.add_server_cmd('pkg_map', async({arg})=>do_pkg_map(arg));
   lif_kernel.on_message = event=>{
     if (boot_chan.listen(event))
       return;
