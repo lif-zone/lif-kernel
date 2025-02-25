@@ -26,7 +26,7 @@ exports.esleep = esleep;
 const eslow = (ms, arg)=>{
   eslow.seq ||= 0;
   let seq = eslow.seq++;
-  let done, timeout, at_end, enable = 1;
+  let done, timeout, at_end, enable = 0;
   let p = (async()=>{
     await esleep(ms);
     timeout = true;
