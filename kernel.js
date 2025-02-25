@@ -543,9 +543,6 @@ let pkg_export_lookup = (pkg, file)=>{
   return {file: f, type, alt};
 };
 
-0&&console.log(pkg_export_lookup({"exports": {"./esm/*": "./ESM/*.js"}},
-  './esm/interop.js'));
-
 async function npm_pkg_load(log, modver){
   let npm, npm_s;
   if (npm = npm_pkg[modver])
@@ -615,7 +612,9 @@ async function npm_file_load(log, uri, test_alt){
   if (file.redirect)
     return file.wait.return(file);
   // fetch the file
+  let slow = eslow(5000, ['fetch', file.url]);
   let response = await fetch(file.url, fetch_opt(file.url));
+  slow.end();
   if (response.status!=200){
     if (test_alt)
       throw file.wait.throw(Error('fetch failed '+file.url));
@@ -687,7 +686,7 @@ async function _kernel_fetch(event){
   let log_mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
   let path = uri_dec(u.path);
   let log = function(){
-    if (url.includes('swc/helpers'))
+    if (url.includes(' none '))
       return console.log(url, ...arguments), 1;
   };
   log.mod = log_mod;
@@ -779,6 +778,7 @@ let do_pkg_map = function({map}){
   }
 };
 do_pkg_map({map: {'lif-kernel': '/'}});
+
 function sw_init_post(){
   boot_chan = new util.postmessage_chan();
   boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
