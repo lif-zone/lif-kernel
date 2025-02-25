@@ -24,12 +24,14 @@ const esleep = ms=>{
 exports.esleep = esleep;
 
 const eslow = (ms, arg)=>{
+  eslow.seq ||= 0;
+  let seq = eslow.seq++;
   let done, timeout, at_end, enable = 1;
   let p = (async()=>{
     await esleep(ms);
     timeout = true;
     if (!done)
-      enable && console.error('slow '+ms+' stuck', ...arg, p.err);
+      enable && console.error('slow('+seq+') '+ms+' stuck', ...(arg||[]), p.err);
   })();
   eslow.set.add(p);
   p.now = Date.now();
@@ -41,8 +43,8 @@ const eslow = (ms, arg)=>{
       enable && console.error('slow completed '+(Date.now()-p.now)+'>'+ms, ...arg);
     done = true;
   };
-  p.print = ()=>console.log('slow '+(done?'completed ':'')+ms
-    +' passed '+((at_end||Date.now())-p.now), ...arg);
+  p.print = ()=>console.log('slow('+seq+') '+(done?'completed ':'')+ms
+    +' passed '+((at_end||Date.now())-p.now), ...(arg||[]));
   return p;
 };
 eslow.set = new Set();
