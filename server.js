@@ -20,7 +20,7 @@ let map;
 const server = http.createServer((req, res)=>{
   const opt = {directoryListing: false, cleanUrls: false};
   let uri = decodeURIComponent(req.url), _uri, root;
-  let log_url;
+  let log_url = uri;
   res.on('finish', ()=>console.log(
     `${log_url} ${res.statusCode} ${res.statusMessage}`));
   let v, cwd = import.meta.dirname;
@@ -37,10 +37,8 @@ const server = http.createServer((req, res)=>{
       }
     }
   }
-  if (!_uri){
-    console.error('no map for uri', uri);
-    return res.writeHead(404, 'not found: no map for uri '+uri);
-  }
+  if (!_uri)
+    return res.writeHead(404, 'no map found').end();
   req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
   opt.public = root;
   log_url = uri+(uri!=_uri ? '->'+root+' '+_uri : '');
