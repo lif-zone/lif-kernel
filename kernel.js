@@ -670,28 +670,6 @@ let _npm_pkg_load = async function(modver, dep){
   return npm;
 };
 
-let ctype_get_old = ({type, name})=>{
-  let ctype_map = { // content-type
-    js: 'application/javascript',
-    json: 'application/json',
-    text: 'plain/text',
-  };
-  let opt = {}, v, ctype, h = {};
-  if (type && (v=ctype_map[type]))
-    ctype ||= v;
-  if (name && (v=_path_ext(name)))
-    ctype ||= v;
-  ctype ||= ctype_map.js;
-  return ctype;
-};
-
-let new_response_old = ({body, type, name})=>{
-  let opt = {}, v, ctype, h = {};
-  h['content-type'] = ctype_get_old({type, name});
-  opt.headers = new Headers(h);
-  return new Response(body, opt);
-};
-
 let ctype_get = uri=>{
   let ctype_map = { // content-type
     js: {ctype: 'application/javascript'},
