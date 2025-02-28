@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.93';
+let lif_version = '0.2.97';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -358,7 +358,7 @@ let modmap_lookup = (pkg, uri)=>{
   for (let [pre, base] of OF(pkg.lif?.modmap)){
     let v;
     if (v=path_prefix(uri, pre))
-      return '/'+npm_default+base+v.rest;
+      return npm_default+base+v.rest;
   }
 };
 
@@ -613,7 +613,14 @@ async function npm_file_load(log, uri, test_alt){
     return file.wait.return(file);
   // fetch the file
   let slow = eslow(5000, ['fetch', file.url]);
-  let response = await fetch(file.url, fetch_opt(file.url));
+  let response;
+  try {
+    response = await fetch(file.url, fetch_opt(file.url));
+  } catch(err){
+    slow.end();
+    err.message = 'fetch('+file.url+')'+err.message;
+    throw file.wait.throw(err);
+  }
   slow.end();
   if (response.status!=200){
     if (test_alt)
@@ -637,7 +644,9 @@ async function npm_file_load(log, uri, test_alt){
     console.error(e);
     throw file.wait.throw(Error(e));
   }
-  file.body = await response.text();
+  let response2 = response.clone();
+  file.blob = await response.blob();
+  file.body = await response2.text();
   D && console.log('fetch OK '+file.url);
   return file.wait.return(file);
 }
@@ -673,6 +682,34 @@ let new_response = ({body, type, name})=>{
     ctype ||= v.slice(1);
   ctype ||= ctype_map.js;
   h['content-type'] = ctype;
+  opt.headers = new Headers(h);
+  return new Response(body, opt);
+};
+
+let ctype_get = uri=>{
+  let ctype_map = { // content-type
+    js: {ctype: 'application/javascript'},
+    mjs: {ctype: 'application/javascript', js_module: true},
+    ts: {tr: 'ts', ctype: 'application/javascript'},
+    tsx: {tr: ['ts', 'jsx'], ctype: 'application/javascript'},
+    jsx: {tr: 'jsx', ctype: 'application/javascript'},
+    json: {ctype: 'application/json'},
+    text: {ctype: 'plain/text'},
+    webp: {ctype: 'image/webp'},
+  };
+  let ext = path_ext(uri).slice(1);
+  if (!ext)
+    return;
+  let t = ctype_map[ext];
+  if (!t)
+    return;
+  t = {...t};
+  t.ext = ext;
+  return t;
+};
+let new_response_ext = ({body, uri})=>{
+  let opt = {}, v, ctype = ctype_get(uri), h = {};
+  h['content-type'] = ctype.ctype;
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
@@ -732,13 +769,17 @@ async function _kernel_fetch(event){
     log(`module ${uri} served ${f.url}`);
     return new_response({body: tr});
   }
-  if (path=='/favicon.ico')
-    return await fetch('https://raw.githubusercontent.com/DustinBrett/daedalOS/refs/heads/main/public/favicon.ico');
+  if (v=str.prefix(path, '/.lif/npm.raw/')){
+    log('npm.raw');
+    let uri = v.rest;
+    let f = await npm_file_load(log, uri);
+    log(`module ${uri} served ${f.url}`);
+    return new_response_ext({body: f.blob, uri});
+  }
   let app_pkg = (await _npm_pkg_load(npm_default)).pkg;
-  let _path = modmap_lookup(app_pkg, path);
-  if (_path){
-    log('modmap '+path+' -> '+_path);
-    return await fetch(uri_enc(_path));
+  if (v = modmap_lookup(app_pkg, path)){
+    log('modmap '+path+' -> '+v);
+    return Response.redirect('/.lif/npm.raw/'+v);
   }
   console.log('req default', url);
   return await fetch(request);
