@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.104';
+let lif_version = '0.2.107';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -191,7 +191,7 @@ let file_ast = f=>{
       _handle_import_source(path);
     };
     let handle_export_source = (path)=>{
-      has.export ||= true;
+      has.export = true;
       if (path.node.source)
         _handle_import_source(path);
     };
@@ -204,10 +204,17 @@ let file_ast = f=>{
           l.property.type=='Identifier')
         {
           ast.exports.push(l.property.name);
+          has.exports = true;
+        }
+        if (n.operator=='=' &&
+          l.type=='MemberExpression' &&
+          l.object.name=='module' && l.object.type=='Identifier' &&
+          l.property.name=='exports' && l.property.type=='Identifier')
+        {
+          has.module = true;
         }
       },
       CallExpression: path=>{
-        has.require = true;
         let n = path.node, v;
         if (n.callee.type=='Identifier' && n.callee.name=='require' &&
           n.arguments.length==1 && n.arguments[0].type=='StringLiteral')
@@ -215,9 +222,12 @@ let file_ast = f=>{
           v = n.arguments[0].value;
           let type = ast_get_scope_type(path);
           ast.requires.push({module: v, start: n.start, end: n.end, type});
+          has.require = true;
         }
         if (n.callee.type=='Import')
           ast.imports_dyn.push({start: n.callee.start, end: n.callee.end});
+        if (n.callee.type=='Identifier' && n.callee.name=='define')
+          has.define = true;
       },
       ImportDeclaration: path=>handle_import_source(path),
       ExportNamedDeclaration: path=>handle_export_source(path),
@@ -237,32 +247,6 @@ let file_ast = f=>{
   parse_ast();
   scan_ast();
   return ast;
-};
-
-const file_tr_amd = f=>{
-  if (f.tr_amd)
-    return f.tr_amd;
-  let _exports = '';
-  let uri_s = json(f.uri);
-  f.ast.exports.forEach(e=>{
-    if (e=='default')
-      return;
-    _exports += `export const ${e} = mod.exports.${e};\n`;
-  });
-  _exports += `export default mod.exports;\n`;
-  return f.tr_amd = `
-    let lif_boot = globalThis.lif.boot;
-    let define = function(id, deps, factory){
-      return lif_boot.define_amd(${uri_s}, arguments); };
-    define.amd = {};
-    let require = function(deps, cb){
-      return lif_boot.require_cjs_amd(${uri_s}, arguments); };
-    (()=>{
-    ${f.js}
-    })();
-    let mod = await lif_boot.module_get(${uri_s});
-    ${_exports}
-  `;
 };
 
 const file_tr_cjs_shim = async(f)=>{
@@ -736,10 +720,9 @@ async function _kernel_fetch(event){
         let ast = file_ast(f);
         let type = ast.type;
         let tr = f.js || f.body;
-        if (type=='raw');
-        else if (type=='amd')
-          tr = file_tr_amd(f);
-        else if (type=='cjs' || !type)
+        if (type=='amd' || !type)
+          tr = file_tr_cjs(f);
+        else if (type=='cjs')
           tr = await file_tr_cjs_shim(f);
         else if (type=='mjs')
           tr = file_tr_mjs(f);
