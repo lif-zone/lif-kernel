@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.97';
+let lif_version = '0.2.98';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -764,13 +764,7 @@ async function _kernel_fetch(event){
     else
       throw Error('invalid type '+f.type);
     log(`module ${uri} served ${f.url}`);
-    let ctype_old = ctype_get_old({body: tr, type: f.type});
-    let ctype_new = ctype_get(uri);
-    if (!ctype_new)
-      console.log('no ctype new: '+uri+' (ctype old '+ctype_old+')');
-    else if (ctype_old!=ctype_new.ctype)
-      console.log('ctype diff('+uri+') old '+ctype_old+' new '+ctype_new.ctype);
-    return new_response_old({body: tr, type: f.type});
+    return new_response({body: tr, uri});
   }
   if (v=str.prefix(path, '/.lif/npm.cjs/')){
     log('npm.cjs');
