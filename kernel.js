@@ -669,7 +669,7 @@ let _npm_pkg_load = async function(modver, dep){
   return npm;
 };
 
-let new_response = ({body, type, name})=>{
+let ctype_get_old = ({type, name})=>{
   let ctype_map = { // content-type
     js: 'application/javascript',
     json: 'application/json',
@@ -681,7 +681,12 @@ let new_response = ({body, type, name})=>{
   if (name && (v=path_ext(name)))
     ctype ||= v.slice(1);
   ctype ||= ctype_map.js;
-  h['content-type'] = ctype;
+  return ctype;
+};
+
+let new_response_old = ({body, type, name})=>{
+  let opt = {}, v, ctype, h = {};
+  h['content-type'] = ctype_get_old({type, name});
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
@@ -689,7 +694,7 @@ let new_response = ({body, type, name})=>{
 let ctype_get = uri=>{
   let ctype_map = { // content-type
     js: {ctype: 'application/javascript'},
-    mjs: {ctype: 'application/javascript', js_module: true},
+    mjs: {ctype: 'application/javascript', js_module: 'mjs'},
     ts: {tr: 'ts', ctype: 'application/javascript'},
     tsx: {tr: ['ts', 'jsx'], ctype: 'application/javascript'},
     jsx: {tr: 'jsx', ctype: 'application/javascript'},
@@ -707,7 +712,7 @@ let ctype_get = uri=>{
   t.ext = ext;
   return t;
 };
-let new_response_ext = ({body, uri})=>{
+let new_response = ({body, uri})=>{
   let opt = {}, v, ctype = ctype_get(uri), h = {};
   h['content-type'] = ctype.ctype;
   opt.headers = new Headers(h);
@@ -759,7 +764,13 @@ async function _kernel_fetch(event){
     else
       throw Error('invalid type '+f.type);
     log(`module ${uri} served ${f.url}`);
-    return new_response({body: tr, type: f.type});
+    let ctype_old = ctype_get_old({body: tr, type: f.type});
+    let ctype_new = ctype_get(uri);
+    if (!ctype_new)
+      console.log('no ctype new: '+uri+' (ctype old '+ctype_old+')');
+    else if (ctype_old!=ctype_new.ctype)
+      console.log('ctype diff('+uri+') old '+ctype_old+' new '+ctype_new.ctype);
+    return new_response_old({body: tr, type: f.type});
   }
   if (v=str.prefix(path, '/.lif/npm.cjs/')){
     log('npm.cjs');
@@ -767,14 +778,14 @@ async function _kernel_fetch(event){
     let f = await npm_file_load(log, uri);
     let tr = file_tr_cjs(f);
     log(`module ${uri} served ${f.url}`);
-    return new_response({body: tr});
+    return new_response({body: tr, uri: 'x.js'});
   }
   if (v=str.prefix(path, '/.lif/npm.raw/')){
     log('npm.raw');
     let uri = v.rest;
     let f = await npm_file_load(log, uri);
     log(`module ${uri} served ${f.url}`);
-    return new_response_ext({body: f.blob, uri});
+    return new_response({body: f.blob, uri});
   }
   let app_pkg = (await _npm_pkg_load(npm_default)).pkg;
   if (v = modmap_lookup(app_pkg, path)){
