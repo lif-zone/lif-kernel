@@ -132,7 +132,7 @@ let ast_get_scope_type = path=>{
 
 let file_ast = f=>{
   if (f.ast)
-    return;
+    return f.ast;
   let ast = f.ast = {};
   let tr_jsx_ts = ()=>{
     let ext = _path_ext(f.uri);
@@ -236,7 +236,7 @@ let file_ast = f=>{
   tr_jsx_ts();
   parse_ast();
   scan_ast();
-  f.type = ast.type||f.type_lookup||f.npm.type;
+  return ast;
 };
 
 const file_tr_amd = f=>{
@@ -553,8 +553,7 @@ async function npm_pkg_load(log, modver){
     let redirect;
     if (nfile && nfile!=ofile)
       redirect = '/.lif/npm/'+npm.modver+'/'+nfile;
-    let mix = 'ext '+_path_ext(ofile)+' export '+type+' npm '+npm.type;
-    return {type, redirect, nfile, alt, mix};
+    return {type, redirect, nfile, alt};
   };
   // load package.json to locate module's index.js
   try {
@@ -600,13 +599,12 @@ async function npm_file_load(log, uri, test_alt){
     log(u, 'npm.redir', npm.redirect);
     return file.wait.return({redirect: npm.redirect+u.path});
   }
-  let {nfile, type, redirect, alt, mix} = npm.file_lookup(uri);
+  let {nfile, type, redirect, alt} = npm.file_lookup(uri);
   file.nfile = nfile;
   file.url = npm.base+'/'+nfile;
   file.type_lookup = type;
   file.redirect = redirect;
   file.alt = alt;
-  file.mix = mix;
   if (file.redirect)
     return file.wait.return(file);
   // fetch the file
@@ -735,8 +733,8 @@ async function _kernel_fetch(event){
         }
         if (ext=='json')
           return new_response({body: f.blob, ext});
-        file_ast(f);
-        let type = f.ast.type;
+        let ast = file_ast(f);
+        let type = ast.type;
         let tr = f.js || f.body;
         if (type=='raw');
         else if (type=='amd')
