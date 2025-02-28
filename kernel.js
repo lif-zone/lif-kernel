@@ -706,6 +706,7 @@ async function _kernel_fetch(event){
   let external = u.origin!=self.location.origin;
   let log_mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
   let path = uri_dec(u.path);
+  let ext = _path_ext(path);
   let log = function(){
     if (url.includes(' none '))
       return console.log(url, ...arguments), 1;
@@ -737,9 +738,11 @@ async function _kernel_fetch(event){
           log(`module ${uri} -> ${redirect}`);
           return Response.redirect(redirect);
         }
+        if (ext=='json')
+          return new_response({body: f.blob, uri});
         file_ast(f);
         let tr = f.js || f.body;
-        if (f.type=='raw' || f.type=='json');
+        if (f.type=='raw');
         else if (f.type=='amd')
           tr = file_tr_amd(f);
         else if (f.type=='cjs' || !f.type)
