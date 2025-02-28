@@ -172,6 +172,12 @@ const path_prefix = (path, prefix)=>{
   if (!v.rest || v.rest[0]=='/' || prefix.endsWith('/'))
     return v;
 };
+const path_next = path=>{
+  let p = path.split('/');
+  if (p.length==1)
+    return {dir: p[0], rest: null, last: true};
+  return {dir: p[0], rest: path.slice(p[0].length+1), last: false};
+};
 
 const url_parse = (url, base)=>{
   const u = URL.parse(url, base);
@@ -233,6 +239,7 @@ exports.path_file = path_file;
 exports.path_dir = path_dir;
 exports.path_is_dir = path_is_dir;
 exports.path_prefix = path_prefix;
+exports.path_next = path_next;
 exports.url_parse = url_parse;
 exports.url_uri_parse = url_uri_parse;
 exports.uri_enc = uri_enc;

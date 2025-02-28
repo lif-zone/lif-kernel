@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.98';
+let lif_version = '0.2.99';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -91,7 +91,7 @@ let import_module = async(url)=>{
 let Babel = await import_module('https://unpkg.com/@babel/standalone@7.26.4/babel.js');
 let util = await import_module('/lif-kernel/util.js');
 let {postmessage_chan, str, OF,
-  path_ext, path_file, path_dir, path_is_dir, path_prefix,
+  path_ext, path_file, path_dir, path_is_dir, path_prefix, path_next,
   url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq} = util;
@@ -742,44 +742,47 @@ async function _kernel_fetch(event){
   }
   log('Req');
   let v;
-  if (v=str.prefix(path, '/.lif/npm/')){
-    let uri = v.rest;
-    let f = await npm_file_load(log, uri);
-    if (f.redirect){
-      let redirect = 0 && f.redirect[0]=='/' ? uri_enc(f.redirect)
-        : f.redirect;
-      log(`module ${uri} -> ${redirect}`);
-      return Response.redirect(redirect);
+  if (v = str.prefix(path, '/.lif/')){
+    v = path_next(v.rest);
+    let lpm = v.dir;
+    if (lpm=='npm' || lpm.startsWith('npm.')){
+      log(lpm);
+      let uri = v.rest;
+      if (!uri)
+        throw Error('invalid uri '+path);
+      let f = await npm_file_load(log, uri);
+      if (lpm=='npm'){
+        if (f.redirect){
+          let redirect = 0 && f.redirect[0]=='/' ? uri_enc(f.redirect)
+            : f.redirect;
+          log(`module ${uri} -> ${redirect}`);
+          return Response.redirect(redirect);
+        }
+        file_ast(f);
+        let tr = f.js || f.body;
+        if (f.type=='raw' || f.type=='json');
+        else if (f.type=='amd')
+          tr = file_tr_amd(f);
+        else if (f.type=='cjs' || !f.type)
+          tr = await file_tr_cjs_shim(f);
+        else if (f.type=='mjs')
+          tr = file_tr_mjs(f);
+        else
+          throw Error('invalid type '+f.type);
+        log(`module ${uri} served ${f.url}`);
+        return new_response({body: tr, uri});
+      }
+      if (lpm=='npm.cjs'){
+        let tr = file_tr_cjs(f);
+        log(`module ${uri} served ${f.url}`);
+        return new_response({body: tr, uri: 'x.js'});
+      }
+      if (lpm=='npm.raw'){
+        log(`module ${uri} served ${f.url}`);
+        return new_response({body: f.blob, uri});
+      }
     }
-    file_ast(f);
-    log('npm', f.type);
-    let tr = f.js || f.body;
-    if (f.type=='raw' || f.type=='json');
-    else if (f.type=='amd')
-      tr = file_tr_amd(f);
-    else if (f.type=='cjs' || !f.type)
-      tr = await file_tr_cjs_shim(f);
-    else if (f.type=='mjs')
-      tr = file_tr_mjs(f);
-    else
-      throw Error('invalid type '+f.type);
-    log(`module ${uri} served ${f.url}`);
-    return new_response({body: tr, uri});
-  }
-  if (v=str.prefix(path, '/.lif/npm.cjs/')){
-    log('npm.cjs');
-    let uri = v.rest;
-    let f = await npm_file_load(log, uri);
-    let tr = file_tr_cjs(f);
-    log(`module ${uri} served ${f.url}`);
-    return new_response({body: tr, uri: 'x.js'});
-  }
-  if (v=str.prefix(path, '/.lif/npm.raw/')){
-    log('npm.raw');
-    let uri = v.rest;
-    let f = await npm_file_load(log, uri);
-    log(`module ${uri} served ${f.url}`);
-    return new_response({body: f.blob, uri});
+    throw Error('invalid lpm '+lpm);
   }
   let app_pkg = (await _npm_pkg_load(npm_default)).pkg;
   if (v = modmap_lookup(app_pkg, path)){
