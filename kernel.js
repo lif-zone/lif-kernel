@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.101';
+let lif_version = '0.2.104';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -236,7 +236,7 @@ let file_ast = f=>{
   tr_jsx_ts();
   parse_ast();
   scan_ast();
-  f.type = ast.type||f.type_lookup;
+  f.type = ast.type||f.type_lookup||f.npm.type;
 };
 
 const file_tr_amd = f=>{
@@ -554,7 +554,6 @@ async function npm_pkg_load(log, modver){
     if (nfile && nfile!=ofile)
       redirect = '/.lif/npm/'+npm.modver+'/'+nfile;
     let mix = 'ext '+_path_ext(ofile)+' export '+type+' npm '+npm.type;
-    type ||= npm.type;
     return {type, redirect, nfile, alt, mix};
   };
   // load package.json to locate module's index.js
@@ -737,18 +736,17 @@ async function _kernel_fetch(event){
         if (ext=='json')
           return new_response({body: f.blob, ext});
         file_ast(f);
-        let mix = f.type+' '+f.mix;
-        if (!pp[mix]) { pp[mix] = 1; console.log('PARSE', mix, f.uri); }
+        let type = f.ast.type;
         let tr = f.js || f.body;
-        if (f.type=='raw');
-        else if (f.type=='amd')
+        if (type=='raw');
+        else if (type=='amd')
           tr = file_tr_amd(f);
-        else if (f.type=='cjs' || !f.type)
+        else if (type=='cjs' || !type)
           tr = await file_tr_cjs_shim(f);
-        else if (f.type=='mjs')
+        else if (type=='mjs')
           tr = file_tr_mjs(f);
         else
-          throw Error('invalid type '+f.type);
+          throw Error('invalid type '+type);
         log(`module ${uri} served ${f.url}`);
         return new_response({body: tr, uri});
       }
