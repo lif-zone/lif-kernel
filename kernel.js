@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.99';
+let lif_version = '0.2.100';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -91,7 +91,8 @@ let import_module = async(url)=>{
 let Babel = await import_module('https://unpkg.com/@babel/standalone@7.26.4/babel.js');
 let util = await import_module('/lif-kernel/util.js');
 let {postmessage_chan, str, OF,
-  path_ext, path_file, path_dir, path_is_dir, path_prefix, path_next,
+  path_ext, _path_ext, path_file, path_dir, path_is_dir,
+  path_prefix, path_next,
   url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq} = util;
@@ -133,9 +134,9 @@ let file_ast = f=>{
   if (f.ast)
     return;
   let tr_jsx_ts = ()=>{
-    let ext = path_ext(f.uri);
-    f.ast_is_ts = ext=='.ts' || ext=='.tsx';
-    f.ast_is_jsx = ext=='.jsx' || ext=='.tsx';
+    let ext = _path_ext(f.uri);
+    f.ast_is_ts = ext=='ts' || ext=='tsx';
+    f.ast_is_jsx = ext=='jsx' || ext=='tsx';
     f.js = f.body;
     if (f.ast_is_ts || f.ast_is_jsx){
       let opt = {presets: [], plugins: [], sourceMaps: true,
@@ -231,8 +232,8 @@ let file_ast = f=>{
       has_require ? 'cjs' : '';
   };
 
-  let ext = path_ext(f.uri);
-  if (ext=='.json'){
+  let ext = _path_ext(f.uri);
+  if (ext=='json'){
     f.type = 'json';
     return;
   }
@@ -678,8 +679,8 @@ let ctype_get_old = ({type, name})=>{
   let opt = {}, v, ctype, h = {};
   if (type && (v=ctype_map[type]))
     ctype ||= v;
-  if (name && (v=path_ext(name)))
-    ctype ||= v.slice(1);
+  if (name && (v=_path_ext(name)))
+    ctype ||= v;
   ctype ||= ctype_map.js;
   return ctype;
 };
@@ -702,7 +703,7 @@ let ctype_get = uri=>{
     text: {ctype: 'plain/text'},
     webp: {ctype: 'image/webp'},
   };
-  let ext = path_ext(uri).slice(1);
+  let ext = _path_ext(uri);
   if (!ext)
     return;
   let t = ctype_map[ext];

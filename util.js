@@ -162,6 +162,7 @@ class postmessage_chan {
 exports.postmessage_chan = postmessage_chan;
 
 const path_ext = path=>path.match(/\.[^./]*$/)?.[0];
+const _path_ext = path=>path.match(/\.([^./]*)$/)?.[1];
 const path_file = path=>path.match(/(^|\/)?([^/]*)$/)?.[2];
 const path_dir = path=>path.slice(0, path.length-path_file(path).length);
 const path_is_dir = path=>path.endsWith('/');
@@ -235,6 +236,7 @@ const match_glob = (glob, value)=>
     match_glob_to_regex(glob).test(value);
 
 exports.path_ext = path_ext;
+exports._path_ext = _path_ext;
 exports.path_file = path_file;
 exports.path_dir = path_dir;
 exports.path_is_dir = path_is_dir;
