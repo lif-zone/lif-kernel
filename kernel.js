@@ -567,7 +567,11 @@ async function npm_pkg_load(log, modver){
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
       throw Error('module('+log.mod+') failed fetch '+url);
-    pkg = npm.pkg = await response.json();
+    try {
+      pkg = npm.pkg = await response.json();
+    } catch(err){
+      throw Error('fetch.json('+url+'): '+err);
+    }
     if (!pkg)
       throw Error('empty package.json '+url);
     if (!(npm.version = pkg.version))
