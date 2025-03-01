@@ -1,6 +1,6 @@
 // LIF bootloader: Boot the kernel and then load the application
 let lif = globalThis.lif = {};
-let lif_version = '0.2.89';
+let lif_version = '0.2.111';
 let D = 0; // Debug
 
 import util from './util.js';
@@ -11,8 +11,9 @@ let modules = {};
 let lb;
 let kernel_chan;
 
-let process =  {env: {}};
-function define(){ return define_amd(arguments[0], arguments); }
+let process = globalThis.process ||= {env: {}};
+
+function define(){ return define_amd(null, arguments); }
 define.amd = {};
 function require(){ return require_cjs_amd(null, arguments); }
 
@@ -182,9 +183,8 @@ lif.boot = {
   util,
 };
 lb = lif.boot;
-globalThis.define = define;
-globalThis.require = require;
-globalThis.process = process;
+// globalThis.define = define;
+// globalThis.require = require;
 
 let do_import = async({url, opt})=>{
   let slow;

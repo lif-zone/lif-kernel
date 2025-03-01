@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.107';
+let lif_version = '0.2.110';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -198,6 +198,13 @@ let file_ast = f=>{
     traverse(ast.ast, {
       AssignmentExpression: path=>{
         let n = path.node, l = n.left, r = n.right;
+        // AMD detection code: 'module' / 'exports' used from global scope:
+        // if (typeof exports === 'object' && typeof module === 'object')
+        //   module.exports = WDOSBOX;
+        // else if (typeof define === 'function' && define['amd'])
+        //   define([], function() { return WDOSBOX; });
+        // else if (typeof exports === 'object')
+        //   exports["WDOSBOX"] = WDOSBOX;
         if (n.operator=='=' &&
           l.type=='MemberExpression' &&
           l.object.name=='exports' && l.object.type=='Identifier' &&
@@ -226,6 +233,9 @@ let file_ast = f=>{
         }
         if (n.callee.type=='Import')
           ast.imports_dyn.push({start: n.callee.start, end: n.callee.end});
+        // AMD detection code: 'define' used and called from global scope:
+        // else if (typeof define === 'function' && define['amd'])
+        //   define([], function() { return WDOSBOX; });
         if (n.callee.type=='Identifier' && n.callee.name=='define')
           has.define = true;
       },
@@ -295,7 +305,6 @@ const file_tr_cjs = f=>{
     let lif_boot = globalThis.lif.boot;
     let module = {exports: {}};
     let exports = module.exports;
-    let process = lif_boot.process;
     let require = module=>lif_boot.require_cjs(${uri_s}, module);
     let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);
     let define = function(id, deps, factory){
@@ -657,6 +666,7 @@ let ctype_get = ext=>{
     tsx: {tr: ['ts', 'jsx'], ctype: 'application/javascript'},
     jsx: {tr: 'jsx', ctype: 'application/javascript'},
     json: {ctype: 'application/json'},
+    wasm: {ctype: 'appliaction/wasm'},
     text: {ctype: 'plain/text'},
     webp: {ctype: 'image/webp'},
   };
@@ -669,6 +679,10 @@ let ctype_get = ext=>{
 };
 let new_response = ({body, uri, ext})=>{
   let opt = {}, v, ctype = ctype_get(ext||_path_ext(uri)), h = {};
+  if (!ctype){
+    console.error('no ctype for '+ext+': '+uri);
+    ctype = ctype_get('text');
+  }
   h['content-type'] = ctype.ctype;
   opt.headers = new Headers(h);
   return new Response(body, opt);
