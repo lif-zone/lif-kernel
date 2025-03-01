@@ -389,17 +389,6 @@ const file_tr_mjs = f=>{
   return f.tr_mjs = pre+tr+post;
 };
 
-let content_type_get = destination=>{
-  // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
-  // image, json, manifest, object, paintworklet, report, script,
-  // sharedworker, style, track, video, worker, xslt
-  let types = {
-    script: 'application/javascript',
-    json: 'application/json',
-  };
-  return types[destination] || types.script;
-};
-
 let npm_dep_ver_lookup = (pkg, module)=>{
   let get_dep = dep=>{
     let ver, m, op;
@@ -668,6 +657,10 @@ let _npm_pkg_load = async function(modver, dep){
   return npm;
 };
 
+// fetch event.request.destination strings:
+// audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
+// image, json, manifest, object, paintworklet, report, script,
+// sharedworker, style, track, video, worker, xslt
 let ctype_get = ext=>{
   let ctype_map = { // content-type
     js: {ctype: 'application/javascript'},
