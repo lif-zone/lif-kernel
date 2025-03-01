@@ -336,6 +336,8 @@ let npm_dep_lookup = (pkg, uri)=>{
   if (v = pkg.lif?.modmap?.[modver]){
     if (v.startsWith('/'))
       v = npm_default+v;
+    if (v.endsWith('/'))
+      v += path_file(modver);
     return '/.lif/npm/'+v+u.path;
   }
   if (!u.version){
@@ -346,10 +348,13 @@ let npm_dep_lookup = (pkg, uri)=>{
 };
 
 let modmap_lookup = (pkg, uri)=>{
-  for (let [pre, base] of OF(pkg.lif?.modmap)){
+  for (let [from, to] of OF(pkg.lif?.modmap)){
     let v;
-    if (v=path_prefix(uri, pre))
-      return npm_default+base+v.rest;
+    if (v=path_prefix(uri, from)){
+      if (to.endsWith('/'))
+        to += path_file(from);
+      return npm_default+to+v.rest;
+    }
   }
 };
 
