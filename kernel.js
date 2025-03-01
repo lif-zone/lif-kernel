@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.110';
+let lif_version = '0.2.112';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -90,12 +90,13 @@ let import_module = async(url)=>{
 
 let Babel = await import_module('https://unpkg.com/@babel/standalone@7.26.4/babel.js');
 let util = await import_module('/lif-kernel/util.js');
+let mime_db = await import_module('/lif-kernel/mime_db.js');
 let {postmessage_chan, str, OF,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
   path_prefix, path_next,
   url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
-  esleep, eslow, Scroll, _debugger, assert_eq} = util;
+  esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
 let {qw, diff_pos} = str;
 let json = JSON.stringify;
 let clog = console.log.bind(console);
@@ -668,19 +669,23 @@ let ctype_get = ext=>{
     json: {ctype: 'application/json'},
     wasm: {ctype: 'appliaction/wasm'},
     text: {ctype: 'plain/text'},
-    webp: {ctype: 'image/webp'},
+    bin: {ctype: 'application/octet-stream'},
   };
   let t = ctype_map[ext];
-  if (!t)
-    return;
+  if (!t){
+    if (!(t = mime_db.ext2mime[ext]))
+      return;
+    return {ctype: t};
+  }
   t = {...t};
   t.ext = ext;
   return t;
 };
 let new_response = ({body, uri, ext})=>{
-  let opt = {}, v, ctype = ctype_get(ext||_path_ext(uri)), h = {};
+  ext ||= _path_ext(uri);
+  let opt = {}, v, ctype = ctype_get(ext), h = {};
   if (!ctype){
-    console.error('no ctype for '+ext+': '+uri);
+    Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
     ctype = ctype_get('text');
   }
   h['content-type'] = ctype.ctype;
@@ -700,7 +705,7 @@ async function _kernel_fetch(event){
   let ext = _path_ext(path);
   let log = function(){
     if (url.includes(' none '))
-      return console.log(url, ...arguments), 1;
+      return void console.log(url, ...arguments), 1;
   };
   log.mod = log_mod;
   if (request.method!='GET'){

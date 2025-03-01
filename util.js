@@ -1,4 +1,4 @@
-let util_version = '0.2.89';
+let util_version = '0.2.112';
 let exports = {};
 exports.version = util_version;
 let D = 0; // Debug
@@ -47,6 +47,28 @@ const eslow = (ms, arg)=>{
     +' passed '+((at_end||Date.now())-p.now), ...(arg||[]));
   return p;
 };
+
+let once_obj = {};
+let once_set = new Set();
+const Donce = (once, fn)=>{
+  if (typeof once=='object'){
+    if (!once_set.has(once)){
+      once_set.add(once);
+      return void fn();
+    }
+  } else if (typeof once=='string'){
+    if (!once_obj[once]){
+      once_obj[once] = true;
+      return void fn();
+    }
+  } else if (once===true || once===1)
+    return void fn();
+  else if (once==false || once===0);
+  else
+    console.error('invalid once', once);
+};
+exports.Donce = Donce;
+
 eslow.set = new Set();
 eslow.print = ()=>{
   console.log('eslow print');
