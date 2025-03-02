@@ -187,39 +187,39 @@ let do_import = async({url, opt})=>{
     throw err;
   }
 };
-let lif_boot_wait;
-let lif_boot_boot = async()=>{
-  if (lif_boot_wait)
-    return await lif_boot_wait;
-  lif_boot_wait = ewait();
+
+let boot_kernel = async()=>{
+  if (boot_kernel.wait)
+    return await boot_kernel.wait;
+  let wait = boot_kernel.wait = ewait();
   try {
     const registration = await navigator.serviceWorker.register('/lif_kernel_sw.js');
     await navigator.serviceWorker.ready;
-    const boot_kernel = async()=>{
+    const conn_kernel = async()=>{
       kernel_chan = new postmessage_chan();
       kernel_chan.connect(navigator.serviceWorker.controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
       kernel_chan.add_server_cmd('import', async({arg})=>await do_import(arg));
       console.log('lif boot version: '+lif_version+' util '+util.version);
       console.log('lif kernel sw version: '+(await kernel_chan.cmd('version')).version);
-      lif_boot_wait.return();
+      wait.return();
     };
     // this boots the React app if the SW has been installed before or
     // immediately after registration
     // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
     if (navigator.serviceWorker.controller)
-      await boot_kernel();
+      await conn_kernel();
     else
-      navigator.serviceWorker.addEventListener('controllerchange', boot_kernel);
-    return await lif_boot_wait;
+      navigator.serviceWorker.addEventListener('controllerchange', conn_kernel);
+    return await wait;
   } catch (err){
     console.error('ServiceWorker registration failed', err, err.stack);
-    throw lif_boot_wait.throw(err);
+    throw wait.throw(err);
   }
 };
 
-let lif_app_boot = async({app, map})=>{
-  await lif_boot_boot();
+let boot_app = async({app, map})=>{
+  await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
   if (map)
@@ -247,8 +247,8 @@ lif.boot = {
   _import,
   version: lif_version,
   util,
-  lif_boot_boot,
-  lif_app_boot,
+  boot_kernel,
+  boot_app,
 };
 // globalThis.define = define;
 // globalThis.require = require;
