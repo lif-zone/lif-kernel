@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.112';
+let lif_version = '0.2.113';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -102,8 +102,9 @@ let json = JSON.stringify;
 let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
 
-let npm_cdn = ['https://cdn.jsdelivr.net/npm',
-  //'https://unpkg.com',
+let npm_cdn = [
+  'https://cdn.jsdelivr.net/npm',
+  // 'https://unpkg.com',
 ];
 let npm_default;
 let npm_map = {};
@@ -303,7 +304,7 @@ const file_tr_cjs = f=>{
       pre += 'await require_async('+json(r.module)+');\n';
   }
   return f.tr_cjs = `
-    let lif_boot = globalThis.lif.boot;
+    let lif_boot = globalThis.lif?.boot;
     let module = {exports: {}};
     let exports = module.exports;
     let require = module=>lif_boot.require_cjs(${uri_s}, module);

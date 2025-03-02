@@ -1,6 +1,6 @@
 // LIF bootloader: Boot the kernel and then load the application
 let lif = globalThis.lif = {};
-let lif_version = '0.2.111';
+let lif_version = '0.2.112';
 let D = 0; // Debug
 
 import util from './util.js';
@@ -8,7 +8,6 @@ let {ewait, esleep, eslow, postmessage_chan, path_file,
   url_uri_parse, npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
-let lb;
 let kernel_chan;
 
 let process = globalThis.process ||= {env: {}};
@@ -167,24 +166,6 @@ async function _import(mod_self, [url, opt]){
     throw err;
   }
 }
-lif.boot = {
-  process,
-  define,
-  require,
-  define_amd,
-  require_amd,
-  module_get,
-  require_cjs,
-  require_cjs_amd,
-  require_single,
-  require_cjs_shim,
-  _import,
-  version: lif_version,
-  util,
-};
-lb = lif.boot;
-// globalThis.define = define;
-// globalThis.require = require;
 
 let do_import = async({url, opt})=>{
   let slow;
@@ -206,22 +187,11 @@ let do_import = async({url, opt})=>{
     throw err;
   }
 };
-let lif_app_boot = async()=>{
-  let uri = globalThis.lif_boot_uri || 'lif-os/pages/index.tsx';
-  console.log('boot: boot '+uri);
-  let _uri = npm_uri_parse(uri);
-  let map = globalThis.lif_boot_map;
-  if (map)
-    await kernel_chan.cmd('pkg_map', {map: map});
-  try {
-    return await _import(uri /*_uri.name*/, [uri]);
-  } catch (err){
-    console.error('import('+uri+') failed', err);
-    throw err;
-  }
-};
+let lif_boot_wait;
 let lif_boot_boot = async()=>{
-  let wait = ewait();
+  if (lif_boot_wait)
+    return await lif_boot_wait;
+  lif_boot_wait = ewait();
   try {
     const registration = await navigator.serviceWorker.register('/lif_kernel_sw.js');
     await navigator.serviceWorker.ready;
@@ -232,7 +202,7 @@ let lif_boot_boot = async()=>{
       kernel_chan.add_server_cmd('import', async({arg})=>await do_import(arg));
       console.log('lif boot version: '+lif_version+' util '+util.version);
       console.log('lif kernel sw version: '+(await kernel_chan.cmd('version')).version);
-      wait.return();
+      lif_boot_wait.return();
     };
     // this boots the React app if the SW has been installed before or
     // immediately after registration
@@ -241,14 +211,46 @@ let lif_boot_boot = async()=>{
       await boot_kernel();
     else
       navigator.serviceWorker.addEventListener('controllerchange', boot_kernel);
-    return wait;
+    return await lif_boot_wait;
   } catch (err){
     console.error('ServiceWorker registration failed', err, err.stack);
-    wait.throw(err);
+    throw lif_boot_wait.throw(err);
   }
-  return await wait;
 };
-await lif_boot_boot();
-await lif_app_boot();
-console.log('boot: boot complete');
+
+let lif_app_boot = async({app, map})=>{
+  await lif_boot_boot();
+  console.log('boot: boot '+app);
+  let _app = npm_uri_parse(app);
+  if (map)
+    await kernel_chan.cmd('pkg_map', {map: map});
+  try {
+    return await _import(app, [app]);
+  } catch (err){
+    console.error('import('+app+') failed', err);
+    throw err;
+  }
+  console.log('boot: boot complete');
+};
+
+lif.boot = {
+  process,
+  define,
+  require,
+  define_amd,
+  require_amd,
+  module_get,
+  require_cjs,
+  require_cjs_amd,
+  require_single,
+  require_cjs_shim,
+  _import,
+  version: lif_version,
+  util,
+  lif_boot_boot,
+  lif_app_boot,
+};
+// globalThis.define = define;
+// globalThis.require = require;
+
 export default lif;
