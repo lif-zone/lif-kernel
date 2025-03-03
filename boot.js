@@ -240,9 +240,9 @@ class lif_Worker extends Worker {
     console.log('worker', worker);
     let worker_chan = new postmessage_chan();
     worker_chan.connect(worker);
-    worker_chan.add_server_cmd('version', arg=>({version: lif_version}));
+    worker_chan.add_server_cmd('version', ()=>({version: lif_version}));
     worker_chan.add_server_cmd('module_dep',
-      async arg=>await kernel_chan.cmd('module_dep', arg));
+      async({arg})=>await kernel_chan.cmd('module_dep', arg));
   }
 }
 globalThis.Worker = lif_Worker;

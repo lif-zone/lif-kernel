@@ -12,5 +12,8 @@
   "type": "module",
   "dependencies": {
     "serve": "^14.2.4"
+  },
+  "lif": {
+    "raw": true
   }
 }

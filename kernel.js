@@ -549,6 +549,8 @@ async function npm_pkg_load(log, modver){
     let redirect;
     if (nfile && nfile!=ofile)
       redirect = '/.lif/npm/'+npm.modver+'/'+nfile;
+    if (npm.pkg.lif?.raw)
+      type = 'raw';
     return {type, redirect, nfile, alt};
   };
   // load package.json to locate module's index.js
@@ -602,7 +604,7 @@ async function npm_file_load(log, uri, test_alt){
   let {nfile, type, redirect, alt} = npm.file_lookup(uri);
   file.nfile = nfile;
   file.url = npm.base+'/'+nfile;
-  file.type_lookup = type;
+  file.type = type;
   file.redirect = redirect;
   file.alt = alt;
   if (file.redirect)
@@ -745,6 +747,8 @@ async function _kernel_fetch(event){
         }
         if (ext=='json')
           return new_response({body: f.blob, ext});
+        if (f.type=='raw')
+          return new_response({body: f.blob, uri});
         let ast = file_ast(f);
         let type = ast.type;
         let tr = f.js || f.body;
