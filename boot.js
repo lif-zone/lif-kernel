@@ -233,6 +233,20 @@ let boot_app = async({app, map})=>{
   console.log('boot: boot complete');
 };
 
+let _Worker = Worker;
+class lif_Worker extends Worker {
+  constructor(){
+    let worker = super(...arguments);
+    console.log('worker', worker);
+    let worker_chan = new postmessage_chan();
+    worker_chan.connect(worker);
+    worker_chan.add_server_cmd('version', arg=>({version: lif_version}));
+    worker_chan.add_server_cmd('module_dep',
+      async arg=>await kernel_chan.cmd('module_dep', arg));
+  }
+}
+globalThis.Worker = lif_Worker;
+
 lif.boot = {
   process,
   define,

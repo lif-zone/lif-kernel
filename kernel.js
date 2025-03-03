@@ -21,6 +21,21 @@ let lif_kernel = {
   version: lif_version,
 };
 
+function on_fetch(event){
+  if (lif_kernel.on_fetch)
+    return lif_kernel.on_fetch(event);
+  let {request, request: {url}} = event;
+  let u = URL.parse(url);
+  let external = u.origin!=self.location.origin;
+  let path = u.pathname;
+  if (external || path=='/' || request.method!='GET'){
+    console.log('passed req', url);
+    return fetch(request);
+  }
+  console.error('sw fetch('+event.request.url+') event before inited');
+  event.respondWith(new Response('sw fetch before init',
+    {status: 500, statusText: 'sw fetch before init'}));
+}
 // service worker must register handlers on first run (not async)
 function sw_init_pre(){
   self.addEventListener('install', event=>event.waitUntil((async()=>{
@@ -39,15 +54,7 @@ function sw_init_pre(){
       return console.error('sw message event before inited', event);
     lif_kernel.on_message(event);
   });
-  self.addEventListener('fetch', event=>{
-    if (!lif_kernel.on_fetch){
-      console.error('sw fetch('+event.request.url+') event before inited');
-      event.respondWith(new Response('sw fetch before init',
-        {status: 500, statusText: 'sw fetch before init'}));
-      return;
-    }
-    lif_kernel.on_fetch(event);
-  });
+  self.addEventListener('fetch', on_fetch);
 }
 sw_init_pre();
 
@@ -703,14 +710,13 @@ async function _kernel_fetch(event){
   let u = url_parse(url);
   let ref = request.headers.get('referer');
   let external = u.origin!=self.location.origin;
-  let log_mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
   let path = uri_dec(u.path);
   let ext = _path_ext(path);
   let log = function(){
     if (url.includes(' none '))
       return void console.log(url, ...arguments), 1;
   };
-  log.mod = log_mod;
+  log.mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
   if (request.method!='GET'){
     console.log('non GET fetch', url);
     return fetch(request);

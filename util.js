@@ -139,7 +139,7 @@ class postmessage_chan {
     if (!cmd_cb)
       throw Error('invalid cmd', msg.cmd);
     try {
-      let res = await cmd_cb({chan: this, cmd: msg.cmd, arg: msg.arg});
+      let res = await cmd_cb({cmd: msg.cmd, arg: msg.arg});
       this.port.postMessage({cmd_res: msg.cmd, id_res: msg.id, res});
     } catch(err){
       console.error('cmd failed', msg);
@@ -148,11 +148,11 @@ class postmessage_chan {
     }
   }
   on_msg(event){
-    let msg = event.data, id = msg.id_res;
-    //console.log('got msg', msg);
-    if (msg.cmd)
+    let msg = event.data;
+    if (typeof msg.cmd=='string' && typeof msg.id=='string')
       return this.cmd_server_cb(msg);
-    if (id){
+    if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string'){
+      let id = msg.id_res;
       if (!this.req[id])
         throw Error('invalid req msg.id', id);
       let req = this.req[id];
