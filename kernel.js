@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.113';
+let lif_version = '0.2.114';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -108,6 +108,19 @@ let {qw, diff_pos} = str;
 let json = JSON.stringify;
 let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
+
+// br: lif-os/pages/index.tsx
+//     /.lif/npm/lif-os/pages/index.tsx
+// sw: /lif-os/pages/index.tsx
+//
+// req:         react 
+// rewrite:     /.lif/npm/react?self=/lif-os/components/file.js
+// kernel 302:  /.lif/npm/react@0.18.1
+// kernel 302:  /.lif/npm/react@0.18.1/index.js
+// out:         https://unpkg.com/react
+//
+// br: /.lif/npm.cjs/react
+// sw:  https://unpkg.com/react
 
 let npm_cdn = [
   'https://cdn.jsdelivr.net/npm',
@@ -719,7 +732,7 @@ async function _kernel_fetch(event){
       return void console.log(url, ...arguments), 1;
   };
   log.mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
-  if (request.method!='GET'){
+  if (request.method!='GET' && request.method!='HEAD'){
     console.log('non GET fetch', url);
     return fetch(request);
   }

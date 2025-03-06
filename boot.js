@@ -233,11 +233,12 @@ let boot_app = async({app, map})=>{
   console.log('boot: boot complete');
 };
 
+// TODO: add SharedWorker
 let _Worker = Worker;
 class lif_Worker extends Worker {
-  constructor(){
-    let worker = super(...arguments);
-    console.log('worker', worker);
+  constructor(url, ...arg){
+    let worker = super(url, ...arg);
+    console.log('Worker start', url);
     let worker_chan = new postmessage_chan();
     worker_chan.connect(worker);
     worker_chan.add_server_cmd('version', ()=>({version: lif_version}));
