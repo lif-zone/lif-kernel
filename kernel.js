@@ -87,7 +87,7 @@ let import_module = async(url)=>{
     throw mod.wait.throw(err);
   }
   try {
-    mod.exports = await eval(mod.script);
+    mod.exports = await eval?.(mod.script);
     return mod.wait.return(mod.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
