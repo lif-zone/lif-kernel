@@ -81,6 +81,15 @@ self.esb = eslow;
 // shortcuts
 const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
+const TE_to_null = fn=>{ // convert throw Error to null
+  return function(){
+    try {
+      return fn(...arguments);
+    } catch(err){
+      return null;
+    }
+  };
+};
 
 // str.js
 const str = {};
@@ -202,7 +211,7 @@ const path_next = path=>{
   return {dir: p[0], rest: path.slice(p[0].length+1), last: false};
 };
 
-const url_parse = (url, base)=>{
+const TE_url_parse = (url, base)=>{
   const u = URL.parse(url, base);
   if (!u)
     throw Error('cannot parse url: '+url);
@@ -219,7 +228,10 @@ const url_parse = (url, base)=>{
   _u.dir = path_dir(_u.path);
   return _u;
 };
-const uri_parse = (uri, base)=>{
+const url_parse = TE_url_parse; // XXX remove
+const __url_parse = TE_to_null(TE_url_parse);
+
+const TE_uri_parse = (uri, base)=>{
   base ||= '';
   if (base && base[0]!='/')
     throw Error('invalid base uri '+base);
@@ -227,7 +239,10 @@ const uri_parse = (uri, base)=>{
   u.host = u.hostname = u.origin = u.href = u.protocol = '';
   return u;
 };
-const url_uri_parse = (url_uri, base)=>{
+const uri_parse = TE_uri_parse; // XXX remove
+const __uri_parse = TE_to_null(TE_uri_parse);
+
+const TE_url_uri_parse = (url_uri, base)=>{
   base ||= '';
   if (base && base[0]!='/')
     throw Error('invalid base uri '+base);
@@ -241,6 +256,29 @@ const url_uri_parse = (url_uri, base)=>{
     u.is_based = 'url';
   return u;
 };
+const TE_url_uri_parse2 = (url_uri, base_uri)=>{
+  if (base_uri[0]!='/')
+    throw Error('invalid base uri '+base_uri);
+  let u = __url_parse(url_uri);
+  if (u){
+    u.is_based = 'url';
+    u.is = 'url';
+    return u;
+  }
+  u = TE_url_parse(url_uri, 'XxX://XxX'+base_uri);
+  if (u.host!='XxX' || u.protocol!='XxX')
+    throw Error('invalid url/uri '+url_uri);
+  u.host = u.hostname = u.origin = u.href = u.protocol = '';
+  u.is_uri = true;
+  u.is = 'uri';
+  let dir = url_uri.split('/')[0];
+  u.is_based = dir=='.' || dir=='..' ? 'uri_rel': dir=='' ? 'uri' : null;
+  return u;
+};
+const url_uri_parse = TE_url_uri_parse; // XXX remove
+const url_uri_parse2 = TE_url_uri_parse2; // XXX remove
+const __url_uri_parse = TE_to_null(TE_url_uri_parse);
+
 const uri_enc = path=>encodeURIComponent(path)
   .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
 const uri_dec = uri=>decodeURIComponent(uri);
@@ -256,6 +294,14 @@ const match_glob_to_regex_str = glob=>{
 const match_glob_to_regex = glob=>new RegExp(match_glob_to_regex_str(glob));
 const match_glob = (glob, value)=>
     match_glob_to_regex(glob).test(value);
+const uri_q_enc = (q, qmark)=>{
+  let s = '';
+  for (let [k, v] of OF(q))
+    s += (s?'&':'')+uri_enc(k)+'='+uri_enc(v);
+  if (s && qmark)
+    s = '?'+s;
+  return s;
+};
 
 exports.path_ext = path_ext;
 exports._path_ext = _path_ext;
@@ -268,6 +314,7 @@ exports.url_parse = url_parse;
 exports.url_uri_parse = url_uri_parse;
 exports.uri_enc = uri_enc;
 exports.uri_dec = uri_dec;
+exports.uri_q_enc = uri_q_enc;
 exports.match_glob_to_regex = match_glob_to_regex;
 exports.match_glob = match_glob;
 

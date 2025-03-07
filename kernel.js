@@ -728,7 +728,7 @@ async function _kernel_fetch(event){
   let path = uri_dec(u.path);
   let ext = _path_ext(path);
   let log = function(){
-    if (url.includes(' none '))
+    if (url.includes(''))
       return void console.log(url, ...arguments), 1;
   };
   log.mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');

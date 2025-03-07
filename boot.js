@@ -5,7 +5,8 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, path_file,
-  url_uri_parse, npm_uri_parse, npm_modver, _debugger} = util;
+  url_uri_parse, TE_url_uri_parse2, uri_enc, uri_q_enc,
+  npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
 let kernel_chan;
@@ -152,8 +153,18 @@ function require_cjs_shim(mod_self, module_id){
   return m.module;
 }
 
+const lpm_2url = url=>{
+  let u = TE_url_uri_parse2(url);
+  if (u.is=='url')
+    return url;
+  u.uri = '/.lif/npm'+u.path;
+};
+
 async function _import(mod_self, [url, opt]){
+  let q = {mod_self};
   let _url = await module_dep(mod_self, url);
+  //let _url = url+uri_q_enc(q, '?');
+  //_url = lpm_2url(url);
   let slow;
   try {
     slow = eslow(15000, ['_import('+_url+')']);
@@ -161,7 +172,7 @@ async function _import(mod_self, [url, opt]){
     slow.end();
     return ret;
   } catch(err){
-    console.error('_import('+mod_self+' '+url+' -> '+_url+')', err);
+    console.error('_import('+_url+')', err);
     slow.end();
     throw err;
   }
