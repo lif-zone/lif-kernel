@@ -344,8 +344,8 @@ let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 
 let npm_dep_lookup = (pkg, uri)=>{
   let v, u = TE_url_uri_parse(uri);
-  if (u.is_based)
-    return uri;
+  if (!u.is=='mod')
+    return;
   if (!(u = npm_uri_parse(uri))){
     console.error('invalid npm uri import('+uri+')');
     return uri;

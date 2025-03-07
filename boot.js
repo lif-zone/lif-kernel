@@ -103,10 +103,9 @@ function require_cjs_amd(mod_self, args){
 let npm_pkg = {};
 async function module_dep(mod_self, module_id){
   let u = TE_url_uri_parse(module_id, '/'+mod_self);
-  if (u.is_based=='url')
+  if (u.is=='url')
     return module_id;
-  let uri = u.is_based ? u.pathname.slice(1) : // skip leading '/'
-    module_id; // no leading '/'
+  let uri = u.is=='mod'? module_id : u.pathname.slice(1); // skip leading '/'
   let _uri = npm_uri_parse(uri);
   if (_uri.version)
     return '/.lif/npm/'+uri;
