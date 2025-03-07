@@ -226,14 +226,13 @@ const TE_url_parse = (url, base)=>{
   _u.dir = path_dir(_u.path);
   return _u;
 };
-const url_parse = TE_url_parse; // XXX remove
-const __url_parse = TE_to_null(TE_url_parse);
+const url_parse = TE_to_null(TE_url_parse);
 
 const TE_url_uri_parse = (url_uri, base)=>{
   base ||= '';
   if (base && base[0]!='/')
     throw Error('invalid base uri '+base);
-  let u = url_parse(url_uri, 'http://x'+base);
+  let u = TE_url_parse(url_uri, 'http://x'+base);
   if (u.host=='x'){
     u.host = u.hostname = u.origin = u.href = u.protocol = '';
     u.is_uri = true;
@@ -243,10 +242,11 @@ const TE_url_uri_parse = (url_uri, base)=>{
     u.is_based = 'url';
   return u;
 };
+const url_uri_parse = TE_to_null(TE_url_uri_parse);
 const TE_url_uri_parse2 = (url_uri, base_uri)=>{
   if (base_uri[0]!='/')
     throw Error('invalid base uri '+base_uri);
-  let u = __url_parse(url_uri);
+  let u = url_parse(url_uri);
   if (u){
     u.is_based = 'url';
     u.is = 'url';
@@ -262,8 +262,7 @@ const TE_url_uri_parse2 = (url_uri, base_uri)=>{
   u.is_based = dir=='.' || dir=='..' ? 'uri_rel': dir=='' ? 'uri' : null;
   return u;
 };
-const url_uri_parse = TE_to_null(TE_url_uri_parse);
-const url_uri_parse2 = TE_url_uri_parse2; // XXX remove
+const url_uri_parse2 = TE_to_null(TE_url_uri_parse2);
 
 const uri_enc = path=>encodeURIComponent(path)
   .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');

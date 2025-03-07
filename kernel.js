@@ -101,7 +101,7 @@ let mime_db = await import_module('/lif-kernel/mime_db.js');
 let {postmessage_chan, str, OF,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
   path_prefix, path_next,
-  url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver,
+  TE_url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
 let {qw, diff_pos} = str;
@@ -722,7 +722,7 @@ let pp = {};
 let boot_chan;
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
-  let u = url_parse(url);
+  let u = TE_url_parse(url);
   let ref = request.headers.get('referer');
   let external = u.origin!=self.location.origin;
   let path = uri_dec(u.path);
