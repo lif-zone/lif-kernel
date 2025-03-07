@@ -252,10 +252,9 @@ const TE_url_uri_parse = (url_uri, base)=>{
     u.is = 'url';
     return u;
   }
-  base ||= '';
   if (base && base[0]!='/')
     throw Error('invalid base uri '+base);
-  u = TE_url_parse(url_uri, 'XxX://XxX'+base);
+  u = TE_url_parse(url_uri, 'XxX://XxX'+(base||''));
   if (u.host!='XxX' || u.protocol=='XxX')
     throw Error('invalid url/uri '+url_uri);
   u.host = u.hostname = u.origin = u.href = u.protocol = '';
