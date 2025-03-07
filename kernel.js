@@ -101,7 +101,7 @@ let mime_db = await import_module('/lif-kernel/mime_db.js');
 let {postmessage_chan, str, OF,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
   path_prefix, path_next,
-  url_parse, uri_parse, url_uri_parse, npm_uri_parse, npm_modver,
+  url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
 let {qw, diff_pos} = str;
@@ -343,7 +343,7 @@ const file_tr_cjs = f=>{
 let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 
 let npm_dep_lookup = (pkg, uri)=>{
-  let v, u = url_uri_parse(uri);
+  let v, u = TE_url_uri_parse(uri);
   if (u.is_based)
     return uri;
   if (!(u = npm_uri_parse(uri))){

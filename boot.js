@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, path_file,
-  url_uri_parse, TE_url_uri_parse2, uri_enc, uri_q_enc,
+  TE_url_uri_parse, TE_url_uri_parse2, uri_enc, uri_q_enc,
   npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
@@ -102,7 +102,7 @@ function require_cjs_amd(mod_self, args){
 
 let npm_pkg = {};
 async function module_dep(mod_self, module_id){
-  let u = url_uri_parse(module_id, '/'+mod_self);
+  let u = TE_url_uri_parse(module_id, '/'+mod_self);
   if (u.is_based=='url')
     return module_id;
   let uri = u.is_based ? u.pathname.slice(1) : // skip leading '/'
