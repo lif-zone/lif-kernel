@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '0.2.114';
+let lif_version = '0.2.124';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -87,7 +87,7 @@ let import_module = async(url)=>{
     throw mod.wait.throw(err);
   }
   try {
-    mod.exports = await eval?.(mod.script);
+    mod.exports = await eval?.("'use strict';"+mod.script);
     return mod.wait.return(mod.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
@@ -342,7 +342,8 @@ const file_tr_cjs = f=>{
 
 let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 
-let npm_dep_lookup = (pkg, uri)=>{
+let npm_dep_lookup = (pkg, uri, opt)=>{
+  let m2u = opt?.mod2uri ? '/.lif/npm/' : '';
   let v, u = TE_url_uri_parse(uri);
   if (!u.is=='mod')
     return;
@@ -352,18 +353,24 @@ let npm_dep_lookup = (pkg, uri)=>{
   }
   let modver = u.name+u.version;
   let map = npm_map[modver];
-  if ((v=map?.base) && map.pkg)
-    return '/.lif/npm'+v+u.path;
+  if ((v=map?.base) && map.pkg){
+    if (v[0]!='/')
+      throw Error('invalid base');
+    v = v.slice(1);
+    return m2u+v+u.path;
+  }
   if (v = pkg.lif?.modmap?.[modver]){
     if (v.startsWith('/'))
       v = npm_default+v;
     if (v.endsWith('/'))
       v += path_file(modver);
-    return '/.lif/npm/'+v+u.path;
+    return m2u+v+u.path;
   }
   if (!u.version){
     let version = npm_dep_ver_lookup(pkg, u.name)||'';
-    return '/.lif/npm/'+u.name+version+u.path;
+    if (!version)
+      return m2u+u.name+u.path+'?err=no_dep_in_'+pkg?.name;
+    return m2u+u.name+version+u.path;
   }
   return uri;
 };
@@ -382,7 +389,7 @@ let modmap_lookup = (pkg, uri)=>{
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v;
   for (let d of f.ast.imports){
-    if (v=npm_dep_lookup(f.npm.pkg, d.module))
+    if (v=npm_dep_lookup(f.npm.pkg, d.module, {mod2uri: true}))
       s.splice(d.start, d.end, json(v));
   }
   for (let d of f.ast.imports_dyn)
@@ -570,6 +577,7 @@ async function npm_pkg_load(log, modver){
   try {
     let pkg, v;
     let map = npm_map[npm.modver];
+    // XXX npm.net -> map.net npm_map[modver].net
     npm.base = map?.base || (npm?.net||npm_cdn)+'/'+npm.modver;
     if (map){
       log('map', map, 'modver', modver);
@@ -603,7 +611,7 @@ async function npm_pkg_load(log, modver){
   }
 }
 
-async function npm_file_load(log, uri, test_alt){
+async function npm_file_load({log, uri, test_alt}){
   let file, D = 0, npm;
   if (file = npm_file[uri])
     return await file.wait;
@@ -640,7 +648,7 @@ async function npm_file_load(log, uri, test_alt){
       let afile, err;
       loop: for (let a of alt){
         try {
-          afile = await npm_file_load(log, uri+a, true);
+          afile = await npm_file_load({log, uri: uri+a, test_alt: true});
           break loop;
         } catch(err){}
       }
@@ -662,16 +670,18 @@ async function npm_file_load(log, uri, test_alt){
   return file.wait.return(file);
 }
 
-let _npm_pkg_load = async function(modver, dep){
+let _npm_pkg_load = async function(modver){
   let npm, slow;
+  modver ||= npm_default;
   try {
-    slow = eslow(5000, ['_npm_pkg_load', modver, dep]);
+    slow = eslow(5000, ['_npm_pkg_load', modver]);
     npm = await npm_pkg_load(()=>{}, modver);
     slow.end();
-    slow = eslow(5000, ['_npm_pkg_load', modver, dep]);
-    if (npm.redirect)
+    if (npm.redirect){
+      slow = eslow(5000, ['_npm_pkg_load', modver]);
       npm = await npm_pkg_load(()=>{}, npm.redirect);
-    slow.end();
+      slow.end();
+    }
   } catch(err){
     slow.end();
     console.error('_npm_pkg_load err:', err);
@@ -726,6 +736,9 @@ async function _kernel_fetch(event){
   let ref = request.headers.get('referer');
   let external = u.origin!=self.location.origin;
   let path = uri_dec(u.path);
+  let qs = u.search;
+  let q = u.searchParams;
+  let mod_self = q.get('mod_self');
   let ext = _path_ext(path);
   let log = function(){
     if (url.includes(''))
@@ -750,14 +763,27 @@ async function _kernel_fetch(event){
       let uri = v.rest;
       if (!uri)
         throw Error('invalid uri '+path);
-      let f = await npm_file_load(log, uri);
+      let _uri = uri;
+      let _u = npm_uri_parse(uri);
+      let map = npm_map[_u.name];
+      if (map){
+        if (qs)
+          return Response.redirect(path);
+      } else if (!map && !_u.version){
+        if (!mod_self)
+          throw Error('no mod_self for '+url);
+        let npm = await _npm_pkg_load(npm_modver(mod_self));
+        _uri = npm_dep_lookup(npm.pkg, uri);
+      }
+      let f = await npm_file_load({log, uri: _uri});
+      if (f.redirect)
+        _uri = f.redirect;
+      if (_uri!=uri){
+        log(`module ${uri} -> ${_uri}`);
+        return Response.redirect(_uri);
+      }
+      let res;
       if (lpm=='npm'){
-        if (f.redirect){
-          let redirect = 0 && f.redirect[0]=='/' ? uri_enc(f.redirect)
-            : f.redirect;
-          log(`module ${uri} -> ${redirect}`);
-          return Response.redirect(redirect);
-        }
         if (ext=='json')
           return new_response({body: f.blob, ext});
         if (f.type=='raw')
@@ -773,18 +799,16 @@ async function _kernel_fetch(event){
           tr = file_tr_mjs(f);
         else
           throw Error('invalid type '+type);
-        log(`module ${uri} served ${f.url}`);
-        return new_response({body: tr, uri});
-      }
-      if (lpm=='npm.cjs'){
+        res = {body: tr, uri};
+      } else if (lpm=='npm.cjs'){
         let tr = file_tr_cjs(f);
-        log(`module ${uri} served ${f.url}`);
-        return new_response({body: tr, ext: 'js'});
-      }
-      if (lpm=='npm.raw'){
-        log(`module ${uri} served ${f.url}`);
-        return new_response({body: f.blob, uri});
-      }
+        res = {body: tr, ext: 'js'};
+      } else if (lpm=='npm.raw'){
+        res = {body: f.blob, uri};
+      } else
+        throw Error('invalid lpm type '+lpm);
+      log(`module ${uri} served ${f.url}`);
+      return new_response(res);
     }
     throw Error('invalid lpm '+lpm);
   }

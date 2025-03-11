@@ -1,4 +1,4 @@
-let util_version = '0.2.112';
+let util_version = '0.2.125';
 let exports = {};
 exports.version = util_version;
 let D = 0; // Debug
@@ -88,6 +88,13 @@ const TE_to_null = fn=>(function(){ // convert throw Error to null
     return null;
   }
 });
+const TE = fn=>(function(){ // Throw error on false/null/0
+  let v = fn(...arguments);
+  if (!v)
+    throw Error('failed '+fn.name);
+  return v;
+});
+
 
 // str.js
 const str = {};
@@ -124,9 +131,15 @@ let assert_eq = (exp, res)=>{
   if (exp==res)
     return;
   console.error('test FAIL: exp', exp, 'res', res);
+  debugger; // eslint-disable-line no-debugger
   throw Error('test FAIL');
 }
+let assert_objv = (exp, res)=>{
+  for (let i in exp)
+    assert_eq(exp[i], res[i]);
+}
 exports.assert_eq = assert_eq;
+exports.assert_objv = assert_objv;
 
 // chan.js
 class postmessage_chan {
@@ -228,24 +241,99 @@ const TE_url_parse = (url, base)=>{
 };
 const url_parse = TE_to_null(TE_url_parse);
 
-const TE_url_uri_parse = (url_uri, base)=>{
-  let u = url_parse(url_uri);
-  if (u){
-    u.is = 'url';
-    return u;
-  }
-  if (base && base[0]!='/')
-    throw Error('invalid base uri '+base);
-  u = TE_url_parse(url_uri, 'XxX://XxX'+(base||''));
-  if (u.host!='XxX' || u.protocol=='XxX')
-    throw Error('invalid url/uri '+url_uri);
-  u.host = u.hostname = u.origin = u.href = u.protocol = '';
-  u.is = 'uri';
+// parse-package-name
+const TE_npm_uri_parse = path=>{
+  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
+  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
+  const m = scoped.exec(path) || non_scoped.exec(path)
+  if (!m)
+    throw Error('npm_uri_parse: invalid uri '+path);
+  return {name: m[1]||'', version: m[2]||'', path: m[3]||''};
+};
+exports.TE_npm_uri_parse = TE_npm_uri_parse;
+const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
+exports.npm_uri_parse = npm_uri_parse;
+
+const npm_modver = uri=>{
+  if (typeof uri=='string')
+    uri = TE_npm_uri_parse(uri);
+  return uri.name+uri.version;
+};
+exports.npm_modver = npm_modver;
+
+const url_uri_type = url_uri=>{
+  if (!url_uri)
+    throw Error('invalid url_uri type');
+  if (URL.parse(url_uri))
+    return 'url';
+  if (url_uri[0]=='/')
+    return 'uri';
   let dir = url_uri.split('/')[0];
-  u.is = dir=='.' || dir=='..' ? 'uri_rel': dir=='' ? 'uri' : 'mod';
+  if (dir=='.' || dir=='..')
+    return 'rel';
+  return 'mod';
+};
+const __uri_parse = (uri, base)=>{
+  if (base && base[0]!='/')
+    throw Error('invalid base '+base);
+  let u = TE_url_parse(uri, 'x://x'+(base||''));
+  u.host = u.hostname = u.origin = u.href = u.protocol = '';
   return u;
 };
+
+const TE_url_uri_parse = (url_uri, base_uri)=>{
+  let t = url_uri_type(url_uri);
+  let tbase = base_uri ? url_uri_type(base_uri) : null;
+  let u;
+  if (t=='url' || t=='rel' && tbase=='url'){
+    let u = url_parse(url_uri, base_uri);
+    u.is = t=='rel' ? 'url_rel' : 'url';
+    return u;
+  }
+  if (t=='uri' || t=='rel' && tbase=='uri'){
+    u = __uri_parse(url_uri, base_uri);
+    u.is = t=='rel' ? 'uri_rel' : 'uri';
+    return u;
+  }
+  if (t=='mod'){
+    u = __uri_parse('/'+url_uri);
+    u.is = 'mod';
+    u.path = u.pathname = u.path.slice(1);
+    u.dir = u.dir.slice(1);
+    u.mod = TE_npm_uri_parse(url_uri);
+    return u;
+  }
+  if (t=='rel' && tbase=='mod'){
+    let base = TE_npm_uri_parse(base_uri);
+    u = __uri_parse(url_uri, base.path);
+    u = __uri_parse('/'+base.name+base.version+u.path);
+    u.is = 'mod_rel';
+    u.path = u.pathname = u.path.slice(1);
+    u.dir = u.dir.slice(1);
+    u.mod = TE_npm_uri_parse(u.path);
+    return u;
+  }
+  throw Error('url_uri_pase('+url_uri+','+base_uri+') failed');
+};
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
+function test_url_uri(){
+  let t = (v, arg)=>assert_objv(v, url_uri_parse(...arg));
+  t({path: '/a/b', origin: 'http://dns', is: 'url'},
+    ['http://dns/a/b', 'http://oth/c/d']);
+  t({path: '/c/a/b', origin: 'http://oth', is: 'url_rel'},
+    ['./a/b', 'http://oth/c/d']);
+  t({path: '/c/d', is: 'uri'}, ['/c/d', '/dir/a/b']);
+  t({path: '/dir/a/c/d', is: 'uri_rel'}, ['./c/d', '/dir/a/b']);
+  t({path: '/dir/c/d', is: 'uri_rel'}, ['../c/d', '/dir/a/b']);
+  t({path: '/c/d', is: 'uri_rel'}, ['../../../../c/d', '/dir/a/b']);
+  t({path: 'mod/c/d', is: 'mod'}, ['mod/c/d', 'mod/a/b']);
+  t({path: 'mod/a/c/d', is: 'mod_rel'}, ['./c/d', 'mod/a/b']);
+  t({path: 'mod/c/d', is: 'mod_rel'}, ['../c/d', 'mod/a/b']);
+  t({path: 'mod/c/d', is: 'mod_rel'}, ['../../../c/d', 'mod/a/b']);
+  t({path: '@mod/v/c/d', is: 'mod_rel'}, ['../../../c/d', '@mod/v/a/b']);
+  t({path: 'mod@1.2.3/c/d', is: 'mod_rel'}, ['./c/d', 'mod@1.2.3/a']);
+}
+test_url_uri();
 
 const uri_enc = path=>encodeURIComponent(path)
   .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
@@ -287,21 +375,6 @@ exports.uri_dec = uri_dec;
 exports.uri_q_enc = uri_q_enc;
 exports.match_glob_to_regex = match_glob_to_regex;
 exports.match_glob = match_glob;
-
-// parse-package-name
-const npm_uri_parse = path=>{
-  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const m = scoped.exec(path) || non_scoped.exec(path)
-  return !m ? null : {name: m[1]||'', version: m[2]||'', path: m[3]||''};
-};
-exports.npm_uri_parse = npm_uri_parse;
-const npm_modver = uri=>{
-  if (typeof uri=='string')
-    uri = npm_uri_parse(uri);
-  return uri.name+uri.version;
-};
-exports.npm_modver = npm_modver;
 
 // useful debugging script: stop on first time
 //{ if (file.includes('getProto') && match.includes('getPro') && !self._x_) {self._x_=1; debugger;} }

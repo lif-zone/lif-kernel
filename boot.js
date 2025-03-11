@@ -1,15 +1,16 @@
 // LIF bootloader: Boot the kernel and then load the application
 let lif = globalThis.lif = {};
-let lif_version = '0.2.112';
+let lif_version = '0.2.125';
 let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, path_file,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, uri_q_enc,
-  npm_uri_parse, npm_modver, _debugger} = util;
+  npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
 let kernel_chan;
+let npm_map = {};
 
 let process = globalThis.process ||= {env: {}};
 
@@ -100,25 +101,6 @@ function require_cjs_amd(mod_self, args){
   throw Error('invalid call to require()');
 }
 
-let npm_pkg = {};
-async function module_dep(mod_self, module_id){
-  let u = TE_url_uri_parse(module_id, '/'+mod_self);
-  if (u.is=='url')
-    return module_id;
-  let uri = u.is=='mod'? module_id : u.pathname.slice(1); // skip leading '/'
-  let _uri = npm_uri_parse(uri);
-  if (_uri.version)
-    return '/.lif/npm/'+uri;
-  let modver_self = npm_modver(mod_self);
-  let pkg = npm_pkg[modver_self] ||= {};
-  let dep = pkg[_uri.name] ||= {};
-  if (!dep.dep){
-    dep.dep = await kernel_chan.cmd('module_dep', {modver: modver_self,
-      dep: _uri.name});
-  }
-  return dep.dep+_uri.path;
-}
-
 async function require_single(mod_self, module_id){
   let m;
   if (m = modules[module_id])
@@ -127,10 +109,11 @@ async function require_single(mod_self, module_id){
     loaded: false, module: {exports: {}}};
   let slow;
   slow = eslow(1000, ['require_single modver('+module_id+')']);
-  let url = await module_dep(mod_self, module_id);
+  let url = lpm_2url(mod_self, module_id);
   slow.end();
   try {
     slow = eslow(15000, ['require_single import('+module_id+')', url]);
+    console.log('boot.js: import '+url);
     m.mod = await import(url);
     slow.end();
   } catch(err){
@@ -152,21 +135,23 @@ function require_cjs_shim(mod_self, module_id){
   return m.module;
 }
 
-const lpm_2url = url=>{
-  let u = TE_url_uri_parse2(url);
-  if (u.is=='url')
+const lpm_2url = (mod_self, url)=>{
+  let u = TE_url_uri_parse(url, mod_self);
+  if (u.is.startsWith('url') || u.is.startsWith('uri'))
     return url;
-  u.uri = '/.lif/npm'+u.path;
+  console.log('lpm', url, 'mod_self', mod_self);
+  let _url = '/.lif/npm/'+u.path;
+  if (!u.mod.version && !npm_map?.[u.mod.name])
+    _url += uri_q_enc({mod_self}, '?');
+  return _url;
 };
 
 async function _import(mod_self, [url, opt]){
-  let q = {mod_self};
-  let _url = await module_dep(mod_self, url);
-  //let _url = url+uri_q_enc(q, '?');
-  //_url = lpm_2url(url);
+  let _url = lpm_2url(mod_self, url);
   let slow;
   try {
     slow = eslow(15000, ['_import('+_url+')']);
+    console.log('boot.js: import '+_url);
     let ret = await import(_url, opt);
     slow.end();
     return ret;
@@ -182,6 +167,7 @@ let do_import = async({url, opt})=>{
   try {
     let ret = {};
     slow = eslow(15000, ['do_import', url]);
+    console.log('boot.js: import '+url);
     let exports = await import(url, opt);
     slow.end();
     ret.exports = [];
@@ -232,7 +218,7 @@ let boot_app = async({app, map})=>{
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
-  if (map)
+  if (npm_map = map)
     await kernel_chan.cmd('pkg_map', {map: map});
   try {
     return await _import(app, [app]);
