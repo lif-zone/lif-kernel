@@ -285,6 +285,8 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
   let t = url_uri_type(url_uri);
   let tbase = base_uri ? url_uri_type(base_uri) : null;
   let u;
+  if (t=='rel' && !tbase)
+    throw Error('url_uri_parse('+url_uri+') rel without base');
   if (t=='url' || t=='rel' && tbase=='url'){
     let u = url_parse(url_uri, base_uri);
     u.is = t=='rel' ? 'url_rel' : 'url';
@@ -313,7 +315,7 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
     u.mod = TE_npm_uri_parse(u.path);
     return u;
   }
-  throw Error('url_uri_pase('+url_uri+','+base_uri+') failed');
+  throw Error('url_uri_parse('+url_uri+','+base_uri+') failed');
 };
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
 function test_url_uri(){

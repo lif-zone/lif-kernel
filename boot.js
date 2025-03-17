@@ -113,7 +113,7 @@ async function require_single(mod_self, module_id){
   slow.end();
   try {
     slow = eslow(15000, ['require_single import('+module_id+')', url]);
-    console.log('boot.js: import '+url);
+    D && console.log('boot.js: import '+url);
     m.mod = await import(url);
     slow.end();
   } catch(err){
@@ -139,7 +139,6 @@ const lpm_2url = (mod_self, url)=>{
   let u = TE_url_uri_parse(url, mod_self);
   if (u.is.startsWith('url') || u.is.startsWith('uri'))
     return url;
-  console.log('lpm', url, 'mod_self', mod_self);
   let _url = '/.lif/npm/'+u.path;
   if (!u.mod.version && !npm_map?.[u.mod.name])
     _url += uri_q_enc({mod_self}, '?');
@@ -151,7 +150,7 @@ async function _import(mod_self, [url, opt]){
   let slow;
   try {
     slow = eslow(15000, ['_import('+_url+')']);
-    console.log('boot.js: import '+_url);
+    D && console.log('boot.js: import '+_url);
     let ret = await import(_url, opt);
     slow.end();
     return ret;
@@ -167,7 +166,7 @@ let do_import = async({url, opt})=>{
   try {
     let ret = {};
     slow = eslow(15000, ['do_import', url]);
-    console.log('boot.js: import '+url);
+    D && console.log('boot.js: import '+url);
     let exports = await import(url, opt);
     slow.end();
     ret.exports = [];

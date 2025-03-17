@@ -111,22 +111,26 @@ let cerr = console.error.bind(console);
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
+//     npm:lif-os/pages/index.tsx
 // sw: /lif-os/pages/index.tsx
+// sw: self:/lif-os/pages/index.tsx
 //
 // req:         react 
 // rewrite:     /.lif/npm/react?self=/lif-os/components/file.js
+// rewrite:     npm:react?self=/lif-os/components/file.js
 // kernel 302:  /.lif/npm/react@0.18.1
-// kernel 302:  /.lif/npm/react@0.18.1/index.js
+// kernel 302:  npm:react@0.18.1/index.js
 // out:         https://unpkg.com/react
 //
-// br: /.lif/npm.cjs/react
+// br:  /.lif/npm.cjs/react
+// br:  npm.cjs:react
 // sw:  https://unpkg.com/react
 
 let npm_cdn = [
   'https://cdn.jsdelivr.net/npm',
   // 'https://unpkg.com',
 ];
-let npm_default;
+let mod_root;
 let npm_map = {};
 let npm_pkg = {};
 let npm_file = {};
@@ -342,37 +346,37 @@ const file_tr_cjs = f=>{
 
 let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 
-let npm_dep_lookup = (pkg, uri, opt)=>{
-  let m2u = opt?.mod2uri ? '/.lif/npm/' : '';
-  let v, u = TE_url_uri_parse(uri);
-  if (!u.is=='mod')
+let npm_dep_lookup = (pkg, mod_self, uri)=>{
+  let __uri = uri;
+  let v, u = TE_url_uri_parse(uri, mod_self);
+  if (!u.is.startsWith('mod'))
     return;
+  if (u.is=='mod_rel')
+    uri = u.path;
   if (!(u = npm_uri_parse(uri))){
     console.error('invalid npm uri import('+uri+')');
     return uri;
   }
   let modver = u.name+u.version;
   let map = npm_map[modver];
-  if ((v=map?.base) && map.pkg){
+  if (v = map?.base){
     if (v[0]!='/')
       throw Error('invalid base');
     v = v.slice(1);
-    return m2u+v+u.path;
-  }
-  if (v = pkg.lif?.modmap?.[modver]){
-    if (v.startsWith('/'))
-      v = npm_default+v;
-    if (v.endsWith('/'))
-      v += path_file(modver);
-    return m2u+v+u.path;
+    return '/.lif/npm/'+v+u.path;
   }
   if (!u.version){
-    let version = npm_dep_ver_lookup(pkg, u.name)||'';
-    if (!version)
-      return m2u+u.name+u.path+'?err=no_dep_in_'+pkg?.name;
-    return m2u+u.name+version+u.path;
+    let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
+    if (!dep || dep=='-')
+      throw Error('module('+mod_self+') dep missing: '+uri);
+    if (dep.startsWith('-peer-')){
+      let pkg_root = npm_pkg[mod_root].pkg;
+      if (!(dep = npm_dep_ver_lookup(pkg_root, mod_root, uri)))
+        throw Error('module('+mod_self+') dep missing mod_root: '+uri);
+    }
+    return '/.lif/npm/'+dep;
   }
-  return uri;
+  return '/.lif/npm/'+uri;
 };
 
 let modmap_lookup = (pkg, uri)=>{
@@ -381,7 +385,7 @@ let modmap_lookup = (pkg, uri)=>{
     if (v=path_prefix(uri, from)){
       if (to.endsWith('/'))
         to += path_file(from);
-      return npm_default+to+v.rest;
+      return mod_root+to+v.rest;
     }
   }
 };
@@ -389,7 +393,7 @@ let modmap_lookup = (pkg, uri)=>{
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v;
   for (let d of f.ast.imports){
-    if (v=npm_dep_lookup(f.npm.pkg, d.module, {mod2uri: true}))
+    if (v=npm_dep_lookup(f.npm.pkg, f.uri, d.module))
       s.splice(d.start, d.end, json(v));
   }
   for (let d of f.ast.imports_dyn)
@@ -417,28 +421,40 @@ const file_tr_mjs = f=>{
   return f.tr_mjs = pre+tr+post;
 };
 
-let npm_dep_ver_lookup = (pkg, module)=>{
+let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
+  let module = npm_modver(mod_uri);
+  let path = npm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
-    let ver, m, op;
-    if (!(ver = dep?.[module]))
+    let d, m, op, v, ver;
+    if (!(d = dep?.[module]))
       return;
-    ver = ver.replaceAll(' ', '');
-    if (!(m = ver.match(/^([^0-9.]*)([0-9.]+)$/)))
-      return void console.log('invalid dep('+module+') version '+ver);
+    if (v=str.prefix(d, './'))
+      return pkg.name+'/'+v.rest+path;
+    if (v=str.prefix(d, 'npm:'))
+      return v.rest+path;
+    d = d.replaceAll(' ', '');
+    if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){
+      console.log('invalid dep('+module+') version '+d);
+      return '-';
+    }
     [, op, ver] = m;
     if (op=='>=')
-      return;
-    if (!(op=='^' || op=='=' || op=='' || op=='~'))
-      return void console.log('invalid dep('+module+') op '+op);
-    return '@'+ver;
+      return ver;
+    if (!(op=='^' || op=='=' || op=='' || op=='~')){
+      console.log('invalid dep('+module+') op '+op);
+      return '-';
+    }
+    return module+'@'+ver+path;
   };
-  let ver
-  if (ver = get_dep(pkg.dependencies))
-    return ver;
-  if (ver = get_dep(pkg.peerDependencies))
-    return ver;
-  if (ver = get_dep(pkg.devDependencies))
-    return ver;
+  let d
+  if (d = get_dep(pkg.lif?.dependencies))
+    return d;
+  if (d = get_dep(pkg.dependencies))
+    return d;
+  if (d = get_dep(pkg.devDependencies))
+    return d;
+  if (d = get_dep(pkg.peerDependencies))
+    return '-peer-'+d;
 };
 
 let file_match = (file, match, tr)=>{
@@ -611,7 +627,7 @@ async function npm_pkg_load(log, modver){
   }
 }
 
-async function npm_file_load({log, uri, test_alt}){
+async function npm_file_load({log, uri, no_alt}){
   let file, D = 0, npm;
   if (file = npm_file[uri])
     return await file.wait;
@@ -642,13 +658,13 @@ async function npm_file_load({log, uri, test_alt}){
   }
   slow.end();
   if (response.status!=200){
-    if (test_alt)
+    if (no_alt)
       throw file.wait.throw(Error('fetch failed '+file.url));
     if (alt){
       let afile, err;
       loop: for (let a of alt){
         try {
-          afile = await npm_file_load({log, uri: uri+a, test_alt: true});
+          afile = await npm_file_load({log, uri: uri+a, no_alt: true});
           break loop;
         } catch(err){}
       }
@@ -672,7 +688,7 @@ async function npm_file_load({log, uri, test_alt}){
 
 let _npm_pkg_load = async function(modver){
   let npm, slow;
-  modver ||= npm_default;
+  modver ||= mod_root;
   try {
     slow = eslow(5000, ['_npm_pkg_load', modver]);
     npm = await npm_pkg_load(()=>{}, modver);
@@ -741,7 +757,7 @@ async function _kernel_fetch(event){
   let mod_self = q.get('mod_self');
   let ext = _path_ext(path);
   let log = function(){
-    if (url.includes(''))
+    if (url.includes(' none '))
       return void console.log(url, ...arguments), 1;
   };
   log.mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
@@ -763,8 +779,10 @@ async function _kernel_fetch(event){
       let uri = v.rest;
       if (!uri)
         throw Error('invalid uri '+path);
-      let _uri = uri;
+      let _path = path;
       let _u = npm_uri_parse(uri);
+      if (!_u)
+        throw Error('invalid uri '+path);
       let map = npm_map[_u.name];
       if (map){
         if (qs)
@@ -773,15 +791,14 @@ async function _kernel_fetch(event){
         if (!mod_self)
           throw Error('no mod_self for '+url);
         let npm = await _npm_pkg_load(npm_modver(mod_self));
-        _uri = npm_dep_lookup(npm.pkg, uri);
+        D && console.log('uri', uri, 'mod_self', mod_self);
+        _path = npm_dep_lookup(npm.pkg, mod_self, uri);
+        if (_path!=path)
+          return Response.redirect(_path);
       }
-      let f = await npm_file_load({log, uri: _uri});
+      let f = await npm_file_load({log, uri});
       if (f.redirect)
-        _uri = f.redirect;
-      if (_uri!=uri){
-        log(`module ${uri} -> ${_uri}`);
-        return Response.redirect(_uri);
-      }
+        return Response.redirect(f.redirect);
       let res;
       if (lpm=='npm'){
         if (ext=='json')
@@ -812,8 +829,8 @@ async function _kernel_fetch(event){
     }
     throw Error('invalid lpm '+lpm);
   }
-  let app_pkg = (await _npm_pkg_load(npm_default)).pkg;
-  if (v = modmap_lookup(app_pkg, path)){
+  let pkg_root = (await _npm_pkg_load(mod_root)).pkg;
+  if (v = modmap_lookup(pkg_root, path)){
     log('modmap '+path+' -> '+v);
     return Response.redirect('/.lif/npm.raw/'+v);
   }
@@ -839,7 +856,7 @@ let do_module_dep = async function({modver, dep}){
   let npm = await _npm_pkg_load(modver, dep);
   if (!npm)
     return;
-  return npm_dep_lookup(npm.pkg, dep);
+  return npm_dep_lookup(npm.pkg, modver, dep);
 };
 
 let do_pkg_map = function({map}){
@@ -847,7 +864,7 @@ let do_pkg_map = function({map}){
   let i = 0;
   for (let [name, mod] of OF(map)){
     if (!i++)
-      npm_default = name;
+      mod_root = name;
     if (typeof mod=='string')
       npm_map[name] = mod = mod.endsWith('/') ? {net: mod} : {base: mod};
     if (!mod.base && mod.net)
