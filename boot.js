@@ -13,6 +13,8 @@ let kernel_chan;
 let npm_map = {};
 
 let process = globalThis.process ||= {env: {}};
+let is_worker = !window?.document;
+let is_main = !!window?.document;
 
 function define(){ return define_amd(null, arguments); }
 define.amd = {};
@@ -102,6 +104,7 @@ function require_cjs_amd(mod_self, args){
 }
 
 async function require_single(mod_self, module_id){
+  is_worker && await boot_worker();
   let m;
   if (m = modules[module_id])
     return await m.wait;
@@ -146,6 +149,7 @@ const lpm_2url = (mod_self, url)=>{
 };
 
 async function _import(mod_self, [url, opt]){
+  is_worker && await boot_worker();
   let _url = lpm_2url(mod_self, url);
   let slow;
   try {
@@ -182,6 +186,23 @@ let do_import = async({url, opt})=>{
     throw err;
   }
 };
+
+async function boot_worker(){
+  if (boot_worker.wait)
+    return await boot_worker.wait;
+  let wait = boot_worker.wait = ewait();
+  console.log('lif boot_worker');
+  kernel_chan = new util.postmessage_chan();
+  kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
+  let slow = eslow(1000, ['boot_worker']);
+  globalThis.addEventListener("message", event=>{
+    if (kernel_chan.listen(event)){
+      slow.end();
+      return wait.return();
+    }
+  });
+  return await wait;
+}
 
 let boot_kernel = async()=>{
   if (boot_kernel.wait)
@@ -228,20 +249,22 @@ let boot_app = async({app, map})=>{
   console.log('boot: boot complete');
 };
 
-// TODO: add SharedWorker
-let _Worker = Worker;
-class lif_Worker extends Worker {
-  constructor(url, ...arg){
-    let worker = super(url, ...arg);
-    console.log('Worker start', url);
-    let worker_chan = new postmessage_chan();
-    worker_chan.connect(worker);
-    worker_chan.add_server_cmd('version', ()=>({version: lif_version}));
-    worker_chan.add_server_cmd('module_dep',
-      async({arg})=>await kernel_chan.cmd('module_dep', arg));
+if (is_worker){
+  // TODO: add SharedWorker
+  let _Worker = Worker;
+  class lif_Worker extends Worker {
+    constructor(url, ...arg){
+      let worker = super(url, ...arg);
+      console.log('Worker start', url);
+      let worker_chan = new postmessage_chan();
+      worker_chan.connect(worker);
+      worker_chan.add_server_cmd('version', ()=>({version: lif_version}));
+      worker_chan.add_server_cmd('module_dep',
+        async({arg})=>await kernel_chan.cmd('module_dep', arg));
+    }
   }
+  globalThis.Worker = lif_Worker;
 }
-globalThis.Worker = lif_Worker;
 
 lif.boot = {
   process,
@@ -257,9 +280,13 @@ lif.boot = {
   _import,
   version: lif_version,
   util,
-  boot_kernel,
-  boot_app,
 };
+if (is_worker)
+  lif.boot.boot_worker = boot_worker;
+if (is_main){
+  lif.boot.boot_kernel = boot_kernel;
+  lif.boot.boot_app = boot_app;
+}
 // globalThis.define = define;
 // globalThis.require = require;
 
