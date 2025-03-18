@@ -155,7 +155,7 @@ async function _import(mod_self, [url, opt]){
     slow.end();
     return ret;
   } catch(err){
-    console.error('_import('+_url+')', err);
+    console.error('_import('+_url+' '+mod_self+')', err);
     slow.end();
     throw err;
   }
