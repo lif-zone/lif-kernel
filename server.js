@@ -24,21 +24,22 @@ const server = http.createServer((req, res)=>{
   res.on('finish', ()=>console.log(
     `${log_url} ${res.statusCode} ${res.statusMessage}`));
   let v, cwd = import.meta.dirname;
-  if (uri=='/' && (v=map['.'])){
-    root = path_dir(v);
-    _uri = '/'+path_file(v);
-  } else {
-    for (let f in map){
-      let to = map[f];
-      if (v=path_prefix(uri, f)){
-        root = to;
-        _uri = v.rest || f.split('/').at(-1);
-        break;
-      }
+  for (let f in map){
+    let to = map[f];
+    if (v=path_prefix(uri, f)){
+      root = to;
+      _uri = v.rest || f.split('/').at(-1);
+      break;
     }
+  }
+  if (!_uri && !opt.strict_map){
+    root = './';
+    _uri = uri;
   }
   if (!_uri)
     return res.writeHead(404, 'no map found').end();
+  if (_uri.endsWith('/'))
+    _uri = _uri+'index.html';
   req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
   opt.public = root;
   log_url = uri+(uri!=_uri ? '->'+root+' '+_uri : '');
