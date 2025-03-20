@@ -129,15 +129,6 @@ async function require_single(mod_self, module_id){
   return m.wait.return(m.module.exports);
 }
 
-function require_cjs_shim(mod_self, module_id){
-  let m = modules[module_id];
-  if (!m)
-    throw Error('module '+module_id+' not loaded beforehand');
-  if (!m.loaded)
-    throw Error('module '+module_id+' not loaded completion');
-  return m.module;
-}
-
 const lpm_2url = (mod_self, url)=>{
   let u = TE_url_uri_parse(url, mod_self);
   if (u.is.startsWith('url') || u.is.startsWith('uri'))
@@ -276,7 +267,6 @@ lif.boot = {
   require_cjs,
   require_cjs_amd,
   require_single,
-  require_cjs_shim,
   _import,
   version: lif_version,
   util,
