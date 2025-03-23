@@ -860,53 +860,47 @@ async function _kernel_fetch(event){
   }
   log('Req');
   let v;
-  if (v = str.prefix(path, '/.lif/')){
-    v = path_next(v.rest);
-    let lpm = v.dir;
-    if (lpm=='npm'){
-      log(lpm);
-      let uri = v.rest;
-      if (!uri)
-        throw Error('invalid uri '+path);
-      let _path = path;
-      let _u = npm_uri_parse(uri);
-      if (!_u)
-        throw Error('invalid uri '+path);
-      let map = npm_map[_u.name];
-      if (!map && !_u.version){
-        if (!mod_self)
-          throw Error('no mod_self for '+url);
-        let npm = await _npm_pkg_load(npm_modver(mod_self));
-        D && console.log('uri', uri, 'mod_self', mod_self);
-        _path = npm_dep_lookup(npm.pkg, mod_self, uri);
-        if (_path!=path)
-          return Response.redirect(_path+qs);
-      }
-      let f = await npm_file_load({log, uri});
-      if (f.redirect)
-        return Response.redirect(f.redirect+qs);
-      if (q.has('raw'))
-        return response_send({body: f.body, uri, q, _q: null && {raw: 1}});
-      if (ext=='json')
-        return response_send({body: f.body, uri});
-      if (q.has('cjs'))
-        return response_send({body: file_tr_cjs(f), uri: path, q, _q: {cjs: 1}});
-      if (q.has('mjs'))
-        return response_send({body: file_tr_mjs(f), uri: path, q, _q: {mjs: 1}});
-      let ast = file_ast(f);
-      let type = ast.type;
-      if (type=='cjs' || type=='amd' || type=='')
-        return response_send({body: mjs_import_cjs(path, q), uri, q, _q: null && {}});
-      if (type=='mjs'){
-        if (q.get('imported'))
-          return Response.redirect(path);
-        return response_send({
-          body: mjs_import_mjs(f.ast.has.export_default, path, q),
-          uri, q, _q: null && {}});
-      }
-      throw Error('invalid npm type '+type);
+  if (v = str.prefix(path, '/.lif/npm/')){
+    let uri = v.rest;
+    if (!uri)
+      throw Error('invalid uri '+path);
+    let _path = path;
+    let _u = npm_uri_parse(uri);
+    if (!_u)
+      throw Error('invalid uri '+path);
+    let map = npm_map[_u.name];
+    if (!map && !_u.version){
+      if (!mod_self)
+        throw Error('no mod_self for '+url);
+      let npm = await _npm_pkg_load(npm_modver(mod_self));
+      D && console.log('uri', uri, 'mod_self', mod_self);
+      _path = npm_dep_lookup(npm.pkg, mod_self, uri);
+      if (_path!=path)
+        return Response.redirect(_path+qs);
     }
-    throw Error('invalid lpm '+lpm);
+    let f = await npm_file_load({log, uri});
+    if (f.redirect)
+      return Response.redirect(f.redirect+qs);
+    if (q.has('raw'))
+      return response_send({body: f.body, uri, q, _q: null && {raw: 1}});
+    if (ext=='json')
+      return response_send({body: f.body, uri});
+    if (q.has('cjs'))
+      return response_send({body: file_tr_cjs(f), uri: path, q, _q: {cjs: 1}});
+    if (q.has('mjs'))
+      return response_send({body: file_tr_mjs(f), uri: path, q, _q: {mjs: 1}});
+    let ast = file_ast(f);
+    let type = ast.type;
+    if (type=='cjs' || type=='amd' || type=='')
+      return response_send({body: mjs_import_cjs(path, q), uri, q, _q: null && {}});
+    if (type=='mjs'){
+      if (q.get('imported'))
+        return Response.redirect(path);
+      return response_send({
+        body: mjs_import_mjs(f.ast.has.export_default, path, q),
+        uri, q, _q: null && {}});
+    }
+    throw Error('invalid npm type '+type);
   }
   let pkg_root = (await _npm_pkg_load(mod_root)).pkg;
   if (v = modmap_lookup(pkg_root, path)){
