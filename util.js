@@ -81,6 +81,8 @@ self.esb = eslow;
 // shortcuts
 const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
+const OA = Object.assign;
+exports.OA = OA;
 const TE_to_null = fn=>(function(){ // convert throw Error to null
   try {
     return fn(...arguments);

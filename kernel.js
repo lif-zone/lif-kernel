@@ -98,7 +98,7 @@ let import_module = async(url)=>{
 let Babel = await import_module('https://unpkg.com/@babel/standalone@7.26.4/babel.js');
 let util = await import_module('/lif-kernel/util.js');
 let mime_db = await import_module('/lif-kernel/mime_db.js');
-let {postmessage_chan, str, OF,
+let {postmessage_chan, str, OF, OA,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
   path_prefix, path_next,
   TE_url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver,
@@ -156,6 +156,8 @@ let ast_get_scope_type = path=>{
   }
 };
 
+let array_unique = a=>[...new Set(a)];
+
 let file_ast = f=>{
   if (f.ast)
     return f.ast;
@@ -202,6 +204,7 @@ let file_ast = f=>{
     ast.requires = [];
     ast.imports = [];
     ast.imports_dyn = [];
+    ast.exports_require = [];
     let has = ast.has = {};
     let _handle_import_source = path=>{
       let n = path.node;
@@ -209,7 +212,21 @@ let file_ast = f=>{
         let s = n.source;
         let v = s.value;
         let type = ast_get_scope_type(path);
-        ast.imports.push({module: v, start: s.start, end: s.end, type});
+        let imported = [];
+        n.specifiers?.forEach(spec=>{
+          if (spec.type=='ImportSpecifier')
+            imported.push(spec.imported.name);
+          if (spec.type=='ImportNamespaceSpecifier'){
+            let bind = path.scope.getBinding(spec.local.name);
+            bind.referencePaths.forEach(ref=>{
+              let cont = ref.container;
+              if (cont.type=='MemberExpression')
+                imported.push(cont.property.name);
+            });
+          }
+        });
+        ast.imports.push({module: v, start: s.start, end: s.end, type,
+          imported: imported.length ? imported : null});
       }
     };
     let handle_import_source = path=>{
@@ -245,6 +262,15 @@ let file_ast = f=>{
           l.property.name=='exports' && l.property.type=='Identifier')
         {
           has.module = true;
+          if (r.type=='CallExpression' &&
+            r.callee.type=='Identifier' && r.callee.name=='require' &&
+            r.arguments.length==1 && r.arguments[0].type=='StringLiteral')
+          {
+            ast.exports_require.push(r.arguments[0].value);
+          } else if (r.type=='ObjectExpression' && r.properties){
+            for (let i=0; i<r.properties.length; i++)
+              ast.exports.push(r.properties[i].key.name);
+          }
         }
       },
       CallExpression: path=>{
@@ -278,34 +304,12 @@ let file_ast = f=>{
     ast.type = has.import||has.export||has.await ? 'mjs' :
       has.require||has.module||has.exports ? 'cjs' : 
       has.define ? 'amd' : '';
+    ast.exports = array_unique(ast.exports);
   };
   tr_jsx_ts();
   parse_ast();
   scan_ast();
   return ast;
-};
-
-const file_tr_cjs_shim = async(f)=>{
-  if (f.wait_tr_cjs)
-    return await f.wait_tr_cjs;
-  let p = f.wait_tr_cjs = ewait();
-  let uri_s = json(f.uri);
-  let _exports = '';
-  let npm_cjs_uri = '/.lif/npm.cjs/'+f.uri;
-  f.log('call import('+npm_cjs_uri+')');
-  let res = await boot_chan.cmd('import', {url: npm_cjs_uri});
-  f.log('ret  import('+npm_cjs_uri+')', res);
-  f.exports_cjs_shim = res.exports;
-  f.exports_cjs_shim.forEach(e=>{
-    if (e=='default')
-      return;
-    _exports += `export const ${e} = _export.${e};\n`;
-  });
-  return p.return(f.tr_cjs_shim = `
-    import _export from ${json(npm_cjs_uri)};
-    export default _export;
-    ${_exports}
-  `);
 };
 
 let tr_cjs_require = f=>{
@@ -342,6 +346,61 @@ const file_tr_cjs = f=>{
     })();
     export default module.exports;
   `;
+}
+
+const file_tr_cjs2 = async f=>{
+  if (f.wait_tr_cjs2)
+    return await f.wait_tr_cjs2;
+  let p = f.wait_tr_cjs2 = ewait();
+  let uri_s = json(f.uri);
+  let tr = tr_cjs_require(f);
+  let pre = '';
+  for (let r of f.ast.requires){
+    if (r.type=='sync')
+      pre += 'await require_async('+json(r.module)+');\n';
+  }
+  let _exports = f.ast.exports;
+  if (f.ast.exports_require.length){
+    let e = f.ast.exports_require[0], v;
+    if (e.startsWith('./')){
+      if (v=npm_dep_lookup(f.npm.pkg, f.uri, e)){
+        v = str.prefix(v, '/.lif/npm/').rest;
+        console.log('module('+f.uri+') req '+e+' lookup '+v);
+        let _f = await npm_file_load({log: f.log, uri: v});
+        if (_f.redirect && (v=str.prefix('/.lif/npm/')))
+          _f = await npm_file_load({log: f.log, uri: v.rest});
+        if (_f.redirect)
+          console.log('glob export: too many redirects '+_f.uri);
+        if (_f.body){
+          let _ast = file_ast(_f);
+          _exports = _ast.exports;
+        }
+      }
+      console.log('module('+f.uri+') req '+e);
+    }
+  }
+  let exports_s = '';
+  _exports.forEach(e=>{
+    if (e=='default')
+      return;
+    exports_s += `export const ${e} = module.exports.${e};\n`;
+  });
+  return p.return(f.tr_cjs2 = `
+    let lif_boot = globalThis.lif?.boot;
+    let module = {exports: {}};
+    let exports = module.exports;
+    let require = module=>lif_boot.require_cjs(${uri_s}, module);
+    let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);
+    let define = function(id, deps, factory){
+      return lif_boot.define_amd(${uri_s}, arguments, module); };
+    define.amd = {};
+    ${pre}
+    await (async()=>{
+    ${tr}
+    })();
+    ${/*exports_s*/''}
+    export default module.exports;
+  `);
 }
 
 let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
@@ -393,8 +452,11 @@ let modmap_lookup = (pkg, uri)=>{
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v;
   for (let d of f.ast.imports){
-    if (v=npm_dep_lookup(f.npm.pkg, f.uri, d.module))
+    if (v=npm_dep_lookup(f.npm.pkg, f.uri, d.module)){
+      if (d.imported)
+        v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
+    }
   }
   for (let d of f.ast.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
@@ -419,6 +481,32 @@ const file_tr_mjs = f=>{
   if (slow)
     post += `slow.end(); `;
   return f.tr_mjs = pre+tr+post;
+};
+
+const mjs_import_cjs = (path, q)=>{
+  let imported  = q.get('imported')?.split(',');
+  let _q = new URLSearchParams(q);
+  _q.delete('imported');
+  _q.set('cjs', 1);
+  _q.sort();
+  let _uri = ''+_q ? path+'?'+_q : '';
+  let js = `let exports = (await import(${json(_uri)})).default;\n`;
+  imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
+  js += `export default exports;\n`;
+  return js;
+};
+
+const mjs_import_mjs = (has_def, path, q)=>{
+  let imported  = q.get('imported')?.split(',');
+  let _q = new URLSearchParams(q);
+  _q.delete('imported');
+  _q.set('mjs', 1);
+  _q.sort();
+  let _path = json(path+'?'+_q);
+  let js = `export * from ${_path};\n`;
+  js += `let def = (await import(${_path})).default;\n`;
+  js += `export default def;\n`;
+  return js;
 };
 
 let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
@@ -451,10 +539,10 @@ let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
     return d;
   if (d = get_dep(pkg.dependencies))
     return d;
-  if (d = get_dep(pkg.devDependencies))
-    return d;
   if (d = get_dep(pkg.peerDependencies))
     return '-peer-'+d;
+  if (d = get_dep(pkg.devDependencies))
+    return d;
 };
 
 let file_match = (file, match, tr)=>{
@@ -732,8 +820,9 @@ let ctype_get = ext=>{
   t.ext = ext;
   return t;
 };
-let new_response = ({body, uri, ext})=>{
-  ext ||= _path_ext(uri);
+let response_send = ({body, uri})=>{
+  let u = TE_url_uri_parse(uri);
+  let ext = _path_ext(u.path);
   let opt = {}, v, ctype = ctype_get(ext), h = {};
   if (!ctype){
     Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
@@ -743,7 +832,7 @@ let new_response = ({body, uri, ext})=>{
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
- 
+
 let pp = {};
 let boot_chan;
 async function _kernel_fetch(event){
@@ -774,7 +863,7 @@ async function _kernel_fetch(event){
   if (v = str.prefix(path, '/.lif/')){
     v = path_next(v.rest);
     let lpm = v.dir;
-    if (lpm=='npm' || lpm.startsWith('npm.')){
+    if (lpm=='npm'){
       log(lpm);
       let uri = v.rest;
       if (!uri)
@@ -784,55 +873,45 @@ async function _kernel_fetch(event){
       if (!_u)
         throw Error('invalid uri '+path);
       let map = npm_map[_u.name];
-      if (map){
-        if (qs)
-          return Response.redirect(path);
-      } else if (!map && !_u.version){
+      if (!map && !_u.version){
         if (!mod_self)
           throw Error('no mod_self for '+url);
         let npm = await _npm_pkg_load(npm_modver(mod_self));
         D && console.log('uri', uri, 'mod_self', mod_self);
         _path = npm_dep_lookup(npm.pkg, mod_self, uri);
         if (_path!=path)
-          return Response.redirect(_path);
+          return Response.redirect(_path+qs);
       }
       let f = await npm_file_load({log, uri});
       if (f.redirect)
-        return Response.redirect(f.redirect);
-      let res;
-      if (lpm=='npm'){
-        if (ext=='json')
-          return new_response({body: f.blob, ext});
-        if (f.type=='raw')
-          return new_response({body: f.blob, uri});
-        let ast = file_ast(f);
-        let type = ast.type;
-        let tr = f.js || f.body;
-        if (type=='amd' || !type)
-          tr = file_tr_cjs(f);
-        else if (type=='cjs')
-          tr = await file_tr_cjs_shim(f);
-        else if (type=='mjs')
-          tr = file_tr_mjs(f);
-        else
-          throw Error('invalid type '+type);
-        res = {body: tr, uri};
-      } else if (lpm=='npm.cjs'){
-        let tr = file_tr_cjs(f);
-        res = {body: tr, ext: 'js'};
-      } else if (lpm=='npm.raw'){
-        res = {body: f.blob, uri};
-      } else
-        throw Error('invalid lpm type '+lpm);
-      log(`module ${uri} served ${f.url}`);
-      return new_response(res);
+        return Response.redirect(f.redirect+qs);
+      if (q.has('raw'))
+        return response_send({body: f.body, uri, q, _q: null && {raw: 1}});
+      if (ext=='json')
+        return response_send({body: f.body, uri});
+      if (q.has('cjs'))
+        return response_send({body: file_tr_cjs(f), uri: path, q, _q: {cjs: 1}});
+      if (q.has('mjs'))
+        return response_send({body: file_tr_mjs(f), uri: path, q, _q: {mjs: 1}});
+      let ast = file_ast(f);
+      let type = ast.type;
+      if (type=='cjs' || type=='amd' || type=='')
+        return response_send({body: mjs_import_cjs(path, q), uri, q, _q: null && {}});
+      if (type=='mjs'){
+        if (q.get('imported'))
+          return Response.redirect(path);
+        return response_send({
+          body: mjs_import_mjs(f.ast.has.export_default, path, q),
+          uri, q, _q: null && {}});
+      }
+      throw Error('invalid npm type '+type);
     }
     throw Error('invalid lpm '+lpm);
   }
   let pkg_root = (await _npm_pkg_load(mod_root)).pkg;
   if (v = modmap_lookup(pkg_root, path)){
     log('modmap '+path+' -> '+v);
-    return Response.redirect('/.lif/npm.raw/'+v);
+    return Response.redirect('/.lif/npm/'+v+'?raw=1');
   }
   console.log('req default', url);
   return await fetch(request);
