@@ -4,12 +4,13 @@ let lif_version = '0.2.125';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan, path_file,
+let {ewait, esleep, eslow, postmessage_chan, path_file, OF,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
 let kernel_chan;
+let mod_root;
 let npm_map = {};
 
 let process = globalThis.process ||= {env: {}};
@@ -197,12 +198,26 @@ let boot_kernel = async()=>{
   }
 };
 
+let do_pkg_map = function({map}){
+  npm_map = {...map};
+  let i = 0;
+  for (let [name, mod] of OF(map)){
+    if (!i++)
+      mod_root = name;
+    if (typeof mod=='string')
+      npm_map[name] = mod = mod.endsWith('/') ? {net: mod} : {base: mod};
+    if (!mod.base && mod.net)
+      mod.base = mod.net+name;
+  }
+};
 let boot_app = async({app, map})=>{
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
-  if (npm_map = map)
+  if (npm_map = {...map}){
+    do_pkg_map({map});
     await kernel_chan.cmd('pkg_map', {map: map});
+  }
   try {
     return await _import(app, [app]);
   } catch (err){
@@ -217,7 +232,9 @@ if (is_main){
   let _Worker = Worker;
   class lif_Worker extends Worker {
     constructor(url, ...arg){
-      let worker = super(url, ...arg);
+      let _url = url.href || url;
+      _url = lpm_2url(mod_root, _url, {worker: 1});
+      let worker = super(_url, ...arg);
       console.log('Worker start', url);
       let worker_chan = new postmessage_chan();
       worker_chan.connect(worker);
