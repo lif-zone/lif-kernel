@@ -492,8 +492,8 @@ const mjs_import_cjs = (path, q)=>{
   _q.delete('imported');
   _q.set('cjs', 1);
   _q.sort();
-  let _uri = path+uri_q_enc(_q, '?');
-  let js = `let exports = (await import(${json(_uri)})).default;\n`;
+  let _path = json(path+uri_q_enc(_q, '?'));
+  let js = `let exports = (await import(${_path})).default;\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
