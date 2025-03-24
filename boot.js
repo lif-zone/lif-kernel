@@ -156,28 +156,6 @@ async function _import(mod_self, [url, opt]){
   }
 }
 
-let do_import = async({url, opt})=>{
-  let slow;
-  try {
-    let ret = {};
-    slow = eslow(15000, ['do_import', url]);
-    D && console.log('boot.js: import '+url);
-    let exports = await import(url, opt);
-    slow.end();
-    ret.exports = [];
-    let e = exports.default;
-    if (typeof e=='object' && !Array.isArray(e)){
-      for (let i in e)
-        ret.exports.push(i);
-    }
-    return ret;
-  } catch(err){
-    console.error('do_import('+url+') failed', err);
-    slow.end();
-    throw err;
-  }
-};
-
 async function boot_worker(){
   if (boot_worker.wait)
     return await boot_worker.wait;
@@ -206,7 +184,6 @@ let boot_kernel = async()=>{
       kernel_chan = new postmessage_chan();
       kernel_chan.connect(navigator.serviceWorker.controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
-      kernel_chan.add_server_cmd('import', async({arg})=>await do_import(arg));
       console.log('lif boot version: '+lif_version+' util '+util.version);
       console.log('lif kernel sw version: '+(await kernel_chan.cmd('version')).version);
       wait.return();

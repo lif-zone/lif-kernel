@@ -100,8 +100,8 @@ let util = await import_module('/lif-kernel/util.js');
 let mime_db = await import_module('/lif-kernel/mime_db.js');
 let {postmessage_chan, str, OF, OA,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
-  path_prefix, path_next,
-  TE_url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver,
+  path_prefix,
+  TE_url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver, url_uri_type,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
 let {qw, diff_pos} = str;
@@ -452,7 +452,10 @@ let modmap_lookup = (pkg, uri)=>{
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v;
   for (let d of f.ast.imports){
-    if (v=npm_dep_lookup(f.npm.pkg, f.uri, d.module)){
+    let uri = d.module;
+    if (url_uri_type(uri)=='rel')
+      s.splice(d.start, d.end, json(uri+'?mjs=1'));
+    else if (v=npm_dep_lookup(f.npm.pkg, f.uri, d.module)){
       if (d.imported)
         v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
@@ -885,12 +888,12 @@ async function _kernel_fetch(event){
       return response_send({body: f.body, uri, q, _q: null && {raw: 1}});
     if (ext=='json')
       return response_send({body: f.body, uri});
+    let ast = file_ast(f);
+    let type = ast.type;
     if (q.has('cjs'))
       return response_send({body: file_tr_cjs(f), uri: path, q, _q: {cjs: 1}});
     if (q.has('mjs'))
       return response_send({body: file_tr_mjs(f), uri: path, q, _q: {mjs: 1}});
-    let ast = file_ast(f);
-    let type = ast.type;
     if (type=='cjs' || type=='amd' || type=='')
       return response_send({body: mjs_import_cjs(path, q), uri, q, _q: null && {}});
     if (type=='mjs'){

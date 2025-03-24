@@ -26,7 +26,7 @@ exports.esleep = esleep;
 const eslow = (ms, arg)=>{
   eslow.seq ||= 0;
   let seq = eslow.seq++;
-  let done, timeout, at_end, enable = 0;
+  let done, timeout, at_end, enable = 1;
   let p = (async()=>{
     await esleep(ms);
     timeout = true;
@@ -221,7 +221,7 @@ const path_next = path=>{
   let p = path.split('/');
   if (p.length==1)
     return {dir: p[0], rest: null, last: true};
-  return {dir: p[0], rest: path.slice(p[0].length+1), last: false};
+  return {dir: p[0]+'/', rest: path.slice(p[0].length+1), last: false};
 };
 
 const TE_url_parse = (url, base)=>{
@@ -275,6 +275,8 @@ const url_uri_type = url_uri=>{
     return 'rel';
   return 'mod';
 };
+exports.url_uri_type = url_uri_type;
+
 const __uri_parse = (uri, base)=>{
   if (base && base[0]!='/')
     throw Error('invalid base '+base);
