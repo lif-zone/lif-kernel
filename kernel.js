@@ -408,9 +408,9 @@ let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 let npm_dep_lookup = (pkg, mod_self, uri)=>{
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
-  if (!u.is.startsWith('mod'))
+  if (!u.is.mod)
     return;
-  if (u.is=='mod_rel')
+  if (u.is.rel)
     uri = u.path;
   if (!(u = npm_uri_parse(uri))){
     console.error('invalid npm uri import('+uri+')');
@@ -500,7 +500,6 @@ const mjs_import_cjs = (path, q)=>{
 };
 
 const mjs_import_mjs = (has_def, path, q)=>{
-  let imported  = q.get('imported')?.split(',');
   let _q = new URLSearchParams(q);
   _q.delete('imported');
   _q.set('mjs', 1);

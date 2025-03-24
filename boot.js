@@ -97,12 +97,13 @@ function require_cjs_amd(mod_self, args){
 
 const lpm_2url = (mod_self, url)=>{
   let u = TE_url_uri_parse(url, mod_self);
-  if (u.is.startsWith('url') || u.is.startsWith('uri'))
+  if (u.is.url || u.is.uri)
     return url;
   let _url = '/.lif/npm/'+u.path;
+  let q = {};
   if (!u.mod.version && !npm_map?.[u.mod.name])
-    _url += uri_q_enc({mod_self}, '?');
-  return _url;
+    q.mod_self = mod_self;
+  return _url+uri_q_enc(q, '?');
 };
 
 async function require_single(mod_self, module_id){

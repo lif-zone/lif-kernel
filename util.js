@@ -129,16 +129,26 @@ str.diff_pos = (s1, s2)=>{
 };
 
 // assert.js
-let assert_eq = (exp, res)=>{
-  if (exp==res)
+let assert = (ok, exp, res)=>{
+  if (ok)
     return;
   console.error('test FAIL: exp', exp, 'res', res);
   debugger; // eslint-disable-line no-debugger
   throw Error('test FAIL');
+};
+let assert_eq = (exp, res)=>{
+  assert(exp===res, exp, res);
 }
 let assert_objv = (exp, res)=>{
-  for (let i in exp)
-    assert_eq(exp[i], res[i]);
+  if (exp===res)
+    return;
+  if (typeof exp=='object'){
+    assert(typeof res=='object', exp, res);
+    for (let i in exp)
+      assert_objv(exp[i], res[i]);
+    return;
+  }
+  assert(0, exp, res);
 }
 exports.assert_eq = assert_eq;
 exports.assert_objv = assert_objv;
@@ -288,22 +298,27 @@ const __uri_parse = (uri, base)=>{
 const TE_url_uri_parse = (url_uri, base_uri)=>{
   let t = url_uri_type(url_uri);
   let tbase = base_uri ? url_uri_type(base_uri) : null;
-  let u;
+  let u, is = {};
   if (t=='rel' && !tbase)
     throw Error('url_uri_parse('+url_uri+') rel without base');
+  if (t=='rel')
+    is.rel = 1;
   if (t=='url' || t=='rel' && tbase=='url'){
     let u = url_parse(url_uri, base_uri);
-    u.is = t=='rel' ? 'url_rel' : 'url';
+    u.is = is;
+    is.url = 1;
     return u;
   }
   if (t=='uri' || t=='rel' && tbase=='uri'){
     u = __uri_parse(url_uri, base_uri);
-    u.is = t=='rel' ? 'uri_rel' : 'uri';
+    u.is = is;
+    is.uri = 1;
     return u;
   }
+  is.mod = 1;
   if (t=='mod'){
     u = __uri_parse('/'+url_uri);
-    u.is = 'mod';
+    u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
     u.mod = TE_npm_uri_parse(url_uri);
@@ -313,7 +328,7 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
     let base = TE_npm_uri_parse(base_uri);
     u = __uri_parse(url_uri, base.path);
     u = __uri_parse('/'+base.name+base.version+u.path);
-    u.is = 'mod_rel';
+    u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
     u.mod = TE_npm_uri_parse(u.path);
@@ -324,20 +339,21 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
 function test_url_uri(){
   let t = (v, arg)=>assert_objv(v, url_uri_parse(...arg));
-  t({path: '/a/b', origin: 'http://dns', is: 'url'},
+  t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
-  t({path: '/c/a/b', origin: 'http://oth', is: 'url_rel'},
+  t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
     ['./a/b', 'http://oth/c/d']);
-  t({path: '/c/d', is: 'uri'}, ['/c/d', '/dir/a/b']);
-  t({path: '/dir/a/c/d', is: 'uri_rel'}, ['./c/d', '/dir/a/b']);
-  t({path: '/dir/c/d', is: 'uri_rel'}, ['../c/d', '/dir/a/b']);
-  t({path: '/c/d', is: 'uri_rel'}, ['../../../../c/d', '/dir/a/b']);
-  t({path: 'mod/c/d', is: 'mod'}, ['mod/c/d', 'mod/a/b']);
-  t({path: 'mod/a/c/d', is: 'mod_rel'}, ['./c/d', 'mod/a/b']);
-  t({path: 'mod/c/d', is: 'mod_rel'}, ['../c/d', 'mod/a/b']);
-  t({path: 'mod/c/d', is: 'mod_rel'}, ['../../../c/d', 'mod/a/b']);
-  t({path: '@mod/v/c/d', is: 'mod_rel'}, ['../../../c/d', '@mod/v/a/b']);
-  t({path: 'mod@1.2.3/c/d', is: 'mod_rel'}, ['./c/d', 'mod@1.2.3/a']);
+  t({path: '/c/d', is: {uri: 1}}, ['/c/d', '/dir/a/b']);
+  t({path: '/dir/a/c/d', is: {uri: 1, rel: 1}}, ['./c/d', '/dir/a/b']);
+  t({path: '/dir/c/d', is: {uri: 1, rel: 1}}, ['../c/d', '/dir/a/b']);
+  t({path: '/c/d', is: {uri: 1, rel: 1}}, ['../../../../c/d', '/dir/a/b']);
+  t({path: 'mod/c/d', is: {mod: 1}}, ['mod/c/d', 'mod/a/b']);
+  t({path: 'mod/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod/a/b']);
+  t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, ['../c/d', 'mod/a/b']);
+  t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, ['../../../c/d', 'mod/a/b']);
+  t({path: '@mod/v/c/d', is: {mod: 1, rel: 1}},
+    ['../../../c/d', '@mod/v/a/b']);
+  t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod@1.2.3/a']);
 }
 test_url_uri();
 
