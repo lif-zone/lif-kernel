@@ -317,8 +317,6 @@ let tr_cjs_require = f=>{
 };
 
 const file_tr_cjs = f=>{
-  if (f.tr_cjs)
-    return f.tr_cjs;
   let uri_s = json(f.uri);
   let tr = tr_cjs_require(f);
   let pre = '';
@@ -326,7 +324,7 @@ const file_tr_cjs = f=>{
     if (r.type=='sync')
       pre += 'await require_async('+json(r.module)+');\n';
   }
-  return f.tr_cjs = `
+  return `
     let lif_boot = globalThis.lif?.boot;
     let module = {exports: {}};
     let exports = module.exports;
@@ -344,9 +342,6 @@ const file_tr_cjs = f=>{
 }
 
 const file_tr_cjs2 = async f=>{
-  if (f.wait_tr_cjs2)
-    return await f.wait_tr_cjs2;
-  let p = f.wait_tr_cjs2 = ewait();
   let uri_s = json(f.uri);
   let tr = tr_cjs_require(f);
   let pre = '';
@@ -380,7 +375,7 @@ const file_tr_cjs2 = async f=>{
       return;
     exports_s += `export const ${e} = module.exports.${e};\n`;
   });
-  return p.return(f.tr_cjs2 = `
+  return `
     let lif_boot = globalThis.lif?.boot;
     let module = {exports: {}};
     let exports = module.exports;
@@ -395,7 +390,7 @@ const file_tr_cjs2 = async f=>{
     })();
     ${/*exports_s*/''}
     export default module.exports;
-  `);
+  `;
 }
 
 let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
@@ -462,11 +457,9 @@ let tr_mjs_import = f=>{
 };
 
 const file_tr_mjs = f=>{
-  if (f.tr_mjs)
-    return f.tr_mjs;
   let uri_s = json(f.uri);
   let tr = tr_mjs_import(f);
-  let slow = 0, log = 0, pre = '', post = '';
+  let slow = 1, log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
   if (f.ast.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
@@ -478,7 +471,7 @@ const file_tr_mjs = f=>{
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
     post += `slow.end(); `;
-  return f.tr_mjs = pre+tr+post;
+  return pre+tr+post;
 };
 
 const mjs_import_cjs = (path, q)=>{
