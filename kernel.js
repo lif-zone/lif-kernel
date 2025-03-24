@@ -879,23 +879,20 @@ async function _kernel_fetch(event){
     if (f.redirect)
       return Response.redirect(f.redirect+qs);
     if (q.has('raw'))
-      return response_send({body: f.body, uri, q, _q: null && {raw: 1}});
+      return response_send({body: f.body, uri});
     if (ext=='json')
       return response_send({body: f.body, uri});
     let ast = file_ast(f);
     let type = ast.type;
     if (q.has('cjs'))
-      return response_send({body: file_tr_cjs(f), uri: path, q, _q: {cjs: 1}});
+      return response_send({body: file_tr_cjs(f), uri: path});
     if (q.has('mjs'))
-      return response_send({body: file_tr_mjs(f), uri: path, q, _q: {mjs: 1}});
+      return response_send({body: file_tr_mjs(f), uri: path});
     if (type=='cjs' || type=='amd' || type=='')
-      return response_send({body: mjs_import_cjs(path, q), uri, q, _q: null && {}});
+      return response_send({body: mjs_import_cjs(path, q), uri});
     if (type=='mjs'){
-      if (q.get('imported'))
-        return Response.redirect(path);
       return response_send({
-        body: mjs_import_mjs(f.ast.has.export_default, path, q),
-        uri, q, _q: null && {}});
+        body: mjs_import_mjs(f.ast.has.export_default, path, q), uri});
     }
     throw Error('invalid npm type '+type);
   }
