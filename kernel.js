@@ -111,19 +111,14 @@ let cerr = console.error.bind(console);
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
-//     npm:lif-os/pages/index.tsx
 // sw: /lif-os/pages/index.tsx
-// sw: self:/lif-os/pages/index.tsx
 //
 // req:         react 
 // rewrite:     /.lif/npm/react?self=/lif-os/components/file.js
-// rewrite:     npm:react?self=/lif-os/components/file.js
 // kernel 302:  /.lif/npm/react@0.18.1
-// kernel 302:  npm:react@0.18.1/index.js
 // out:         https://unpkg.com/react
 //
 // br:  /.lif/npm.cjs/react
-// br:  npm.cjs:react
 // sw:  https://unpkg.com/react
 
 let npm_cdn = [
