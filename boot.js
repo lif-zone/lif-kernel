@@ -95,8 +95,10 @@ function require_cjs_amd(mod_self, args){
   throw Error('invalid call to require()');
 }
 
-const lpm_2url = (mod_self, url)=>{
+const lpm_2url = (mod_self, url, opt)=>{
   let u = TE_url_uri_parse(url, mod_self);
+  if (opt?.cjs && u.is.uri && u.is.rel)
+    return url+'?cjs=1';
   if (u.is.url || u.is.uri)
     return url;
   let _url = '/.lif/npm/'+u.path;
@@ -115,7 +117,7 @@ async function require_single(mod_self, module_id){
     loaded: false, module: {exports: {}}};
   let slow;
   slow = eslow(1000, ['require_single modver('+module_id+')']);
-  let url = lpm_2url(mod_self, module_id);
+  let url = lpm_2url(mod_self, module_id, {cjs: 1});
   slow.end();
   try {
     slow = eslow(15000, ['require_single import('+module_id+')', url]);
