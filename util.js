@@ -355,14 +355,10 @@ const match_glob_to_regex_str = glob=>{
 };
 const match_glob_to_regex = glob=>new RegExp(match_glob_to_regex_str(glob));
 const match_glob = (glob, value)=>
-    match_glob_to_regex(glob).test(value);
+  match_glob_to_regex(glob).test(value);
 const uri_q_enc = (q, qmark)=>{
-  let s = '';
-  for (let [k, v] of OF(q))
-    s += (s?'&':'')+uri_enc(k)+'='+uri_enc(v);
-  if (s && qmark)
-    s = '?'+s;
-  return s;
+  let _q = ''+(new URLSearchParams(q));
+  return _q ? (qmark ? '?' : '')+_q : '';
 };
 
 exports.path_ext = path_ext;
