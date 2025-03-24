@@ -97,7 +97,8 @@ function require_cjs_amd(mod_self, args){
 
 const lpm_2url = (mod_self, url, opt)=>{
   let u = TE_url_uri_parse(url, mod_self);
-  if (opt?.cjs && u.is.uri && u.is.rel)
+  // TODO - enable to skip cjs export shim
+  if (0 && opt?.cjs && u.is.mod && u.is.rel)
     return url+'?cjs=1';
   if (u.is.url || u.is.uri)
     return url;
