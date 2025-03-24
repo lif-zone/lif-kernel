@@ -100,7 +100,7 @@ let util = await import_module('/lif-kernel/util.js');
 let mime_db = await import_module('/lif-kernel/mime_db.js');
 let {postmessage_chan, str, OF, OA,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
-  path_prefix, uri_q_enc,
+  path_prefix, qs_enc,
   TE_url_parse, TE_url_uri_parse, npm_uri_parse, npm_modver, url_uri_type,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
@@ -492,7 +492,7 @@ const mjs_import_cjs = (path, q)=>{
   _q.delete('imported');
   _q.set('cjs', 1);
   _q.sort();
-  let _path = json(path+uri_q_enc(_q, '?'));
+  let _path = json(path+qs_enc(_q, '?'));
   let js = `let exports = (await import(${_path})).default;\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;

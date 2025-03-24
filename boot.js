@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, path_file,
-  TE_url_uri_parse, TE_url_uri_parse2, uri_enc, uri_q_enc,
+  TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
@@ -103,7 +103,7 @@ const lpm_2url = (mod_self, url)=>{
   let q = {};
   if (!u.mod.version && !npm_map?.[u.mod.name])
     q.mod_self = mod_self;
-  return _url+uri_q_enc(q, '?');
+  return _url+qs_enc(q, '?');
 };
 
 async function require_single(mod_self, module_id){

@@ -372,7 +372,7 @@ const match_glob_to_regex_str = glob=>{
 const match_glob_to_regex = glob=>new RegExp(match_glob_to_regex_str(glob));
 const match_glob = (glob, value)=>
   match_glob_to_regex(glob).test(value);
-const uri_q_enc = (q, qmark)=>{
+const qs_enc = (q, qmark)=>{
   let _q = ''+(new URLSearchParams(q));
   return _q ? (qmark ? '?' : '')+_q : '';
 };
@@ -390,7 +390,7 @@ exports.url_uri_parse = url_uri_parse;
 exports.TE_url_uri_parse = TE_url_uri_parse;
 exports.uri_enc = uri_enc;
 exports.uri_dec = uri_dec;
-exports.uri_q_enc = uri_q_enc;
+exports.qs_enc = qs_enc;
 exports.match_glob_to_regex = match_glob_to_regex;
 exports.match_glob = match_glob;
 
