@@ -228,7 +228,7 @@ let file_ast = f=>{
       has.import = true;
       _handle_import_source(path);
     };
-    let handle_export_source = (path)=>{
+    let handle_export_source = path=>{
       has.export = true;
       if (path.node.source)
         _handle_import_source(path);
@@ -287,8 +287,17 @@ let file_ast = f=>{
           has.define = true;
       },
       ImportDeclaration: path=>handle_import_source(path),
-      ExportNamedDeclaration: path=>handle_export_source(path),
-      ExportDefaultDeclaration: path=>handle_export_source(path),
+      ExportNamedDeclaration: path=>{
+        handle_export_source(path);
+        path.node.specifiers.forEach(spec=>{
+          if (spec.type=='ExportSpecifier' && spec.exported.name=='default')
+            has.export_default = true;
+        });
+      },
+      ExportDefaultDeclaration: path=>{
+        handle_export_source(path);
+        has.export_default = true;
+      },
       ExportAllDeclaration: path=>handle_export_source(path),
       AwaitExpression: path=>{
         let type = ast_get_scope_type(path);
@@ -487,15 +496,19 @@ const mjs_import_cjs = (path, q)=>{
   return js;
 };
 
-const mjs_import_mjs = (has_def, path, q)=>{
+const mjs_import_mjs = (export_default, path, q)=>{
   let _q = new URLSearchParams(q);
   _q.delete('imported');
   _q.set('mjs', 1);
   _q.sort();
   let _path = json(path+'?'+_q);
   let js = `export * from ${_path};\n`;
-  js += `let def = (await import(${_path})).default;\n`;
-  js += `export default def;\n`;
+  if (export_default){
+    js += `export {default} from ${_path};\n`;
+    //js += `import def from ${_path};\n`;
+    //js += `let def = (await import(${_path})).default;\n`;
+    //js += `export default def;\n`;
+  }
   return js;
 };
 
