@@ -78,14 +78,6 @@ function require_amd(mod_self, [deps, cb]){
   })();
 }
 
-async function module_get(module_id){
-  let m = modules[module_id];
-  if (!m)
-    throw Error('module '+module_id+' not loaded');
-  await m.promise;
-  return m.module;
-}
-
 function require_cjs(mod_self, module_id){
   let m = modules[module_id];
   if (!m)
@@ -240,7 +232,6 @@ lif.boot = {
   require,
   define_amd,
   require_amd,
-  module_get,
   require_cjs,
   require_cjs_amd,
   require_single,
