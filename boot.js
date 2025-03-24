@@ -97,15 +97,14 @@ function require_cjs_amd(mod_self, args){
 
 const lpm_2url = (mod_self, url, opt)=>{
   let u = TE_url_uri_parse(url, mod_self);
-  // TODO - enable to skip cjs export shim
-  if (0 && opt?.cjs && u.is.mod && u.is.rel)
-    return url+'?cjs=1';
   if (u.is.url || u.is.uri)
     return url;
   let _url = '/.lif/npm/'+u.path;
   let q = {};
   if (!u.mod.version && !npm_map?.[u.mod.name])
     q.mod_self = mod_self;
+  if (opt?.cjs && u.is.rel)
+    q = {cjs: 1};
   return _url+qs_enc(q, '?');
 };
 
