@@ -212,7 +212,7 @@ let boot_app = async({app, map})=>{
   console.log('boot: boot complete');
 };
 
-if (is_worker){
+if (is_main){
   // TODO: add SharedWorker
   let _Worker = Worker;
   class lif_Worker extends Worker {

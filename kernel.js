@@ -885,9 +885,9 @@ async function _kernel_fetch(event){
     if (f.redirect)
       return Response.redirect(f.redirect+qs);
     if (q.has('raw'))
-      return response_send({body: f.body, uri});
+      return response_send({body: f.blob, uri});
     if (ext=='json')
-      return response_send({body: f.body, uri});
+      return response_send({body: f.blob, uri});
     let ast = file_ast(f);
     let type = ast.type;
     if (q.has('cjs'))
