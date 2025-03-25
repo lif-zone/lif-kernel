@@ -21,7 +21,7 @@ let lif_kernel = {
   version: lif_version,
 };
 
-function on_fetch(event){
+async function on_fetch(event){
   if (lif_kernel.on_fetch)
     return lif_kernel.on_fetch(event);
   let {request, request: {url}} = event;
@@ -33,6 +33,8 @@ function on_fetch(event){
     return fetch(request);
   }
   console.error('sw fetch('+event.request.url+') event before inited');
+  await lif_kernel.wait_activate;
+  return lif_kernel.on_fetch(event);
   event.respondWith(new Response('sw fetch before init',
     {status: 500, statusText: 'sw fetch before init'}));
 }
@@ -87,7 +89,8 @@ let import_module = async(url)=>{
     throw mod.wait.throw(err);
   }
   try {
-    mod.exports = await eval?.("'use strict';"+mod.script);
+    mod.exports = await eval?.(
+      `//# sourceURL=${url}\n'use strict';${mod.script}`);
     return mod.wait.return(mod.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
@@ -220,6 +223,7 @@ let file_ast = f=>{
             });
           }
         });
+        imported = array_unique(imported);
         ast.imports.push({module: v, start: s.start, end: s.end, type,
           imported: imported.length ? imported : null});
       }
@@ -465,11 +469,13 @@ let tr_mjs_import = f=>{
   return s.out();
 };
 
-const file_tr_mjs = f=>{
+const file_tr_mjs = (f, worker)=>{
   let uri_s = json(f.uri);
   let tr = tr_mjs_import(f);
-  let slow = 1, log = 0, pre = '', post = '';
+  let slow = 0, log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
+  if (worker)
+    pre += '"worker";';
   if (f.ast.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
   if (log) 
@@ -865,6 +871,11 @@ async function _kernel_fetch(event){
   let v;
   if (v = str.prefix(path, '/.lif/npm/')){
     let uri = v.rest;
+    if (path.includes('clock.worker')){
+      console.log('got '+path+qs);
+      return new Response('clock', {status: 500, statusText: 'clock worker'});
+      return response_send({body: '"do nothing";"', uri});
+    }
     if (!uri)
       throw Error('invalid uri '+path);
     let _path = path;
@@ -893,7 +904,7 @@ async function _kernel_fetch(event){
     if (q.has('cjs'))
       return response_send({body: file_tr_cjs(f), uri: path});
     if (q.has('mjs'))
-      return response_send({body: file_tr_mjs(f), uri: path});
+      return response_send({body: file_tr_mjs(f, q.get('worker')), uri: path});
     if (type=='cjs' || type=='amd' || type=='')
       return response_send({body: mjs_import_cjs(path, q), uri});
     if (type=='mjs'){

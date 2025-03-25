@@ -14,8 +14,8 @@ let mod_root;
 let npm_map = {};
 
 let process = globalThis.process ||= {env: {}};
-let is_worker = !window?.document;
-let is_main = !!window?.document;
+let is_worker = typeof window=='undefined';
+let is_main = typeof window=='object';
 
 function define(){ return define_amd(null, arguments); }
 define.amd = {};
@@ -105,7 +105,9 @@ const lpm_2url = (mod_self, url, opt)=>{
   if (!u.mod.version && !npm_map?.[u.mod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
-    q = {cjs: 1};
+    q.cjs = 1;
+  if (opt?.worker)
+    q.worker = 1;
   return _url+qs_enc(q, '?');
 };
 

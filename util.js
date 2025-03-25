@@ -304,13 +304,13 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
   if (t=='rel')
     is.rel = 1;
   if (t=='url' || t=='rel' && tbase=='url'){
-    let u = url_parse(url_uri, base_uri);
+    let u = url_parse(url_uri, t=='rel' ? base_uri : undefined);
     u.is = is;
     is.url = 1;
     return u;
   }
   if (t=='uri' || t=='rel' && tbase=='uri'){
-    u = __uri_parse(url_uri, base_uri);
+    u = __uri_parse(url_uri, t=='rel' ? base_uri : undefined);
     u.is = is;
     is.uri = 1;
     return u;
