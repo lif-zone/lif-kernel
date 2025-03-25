@@ -35,8 +35,6 @@ async function on_fetch(event){
   console.error('sw fetch('+event.request.url+') event before inited');
   await lif_kernel.wait_activate;
   return lif_kernel.on_fetch(event);
-  event.respondWith(new Response('sw fetch before init',
-    {status: 500, statusText: 'sw fetch before init'}));
 }
 // service worker must register handlers on first run (not async)
 function sw_init_pre(){
