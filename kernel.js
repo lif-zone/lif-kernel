@@ -404,8 +404,6 @@ const file_tr_cjs2 = async f=>{
   `;
 }
 
-let str_splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
-
 let npm_dep_lookup = (pkg, mod_self, uri)=>{
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
