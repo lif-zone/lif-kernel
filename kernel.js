@@ -470,8 +470,10 @@ const file_tr_mjs = (f, worker)=>{
   let tr = tr_mjs_import(f);
   let slow = 0, log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
-  if (worker)
-    pre += '"worker";';
+  if (worker){
+    pre += `import lif from 'lif-kernel/boot.js'; `;
+    pre += `await lif.boot.boot_worker(); `;
+  }
   if (f.ast.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
   if (log) 
@@ -825,9 +827,9 @@ let ctype_get = ext=>{
   t.ext = ext;
   return t;
 };
-let response_send = ({body, uri})=>{
-  let u = TE_url_uri_parse(uri);
-  let ext = _path_ext(u.path);
+let response_send = ({body, ext, uri})=>{
+  if (uri)
+    ext = _path_ext(TE_url_uri_parse(uri).path);
   let opt = {}, v, ctype = ctype_get(ext), h = {};
   if (!ctype){
     Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
@@ -867,11 +869,6 @@ async function _kernel_fetch(event){
   let v;
   if (v = str.prefix(path, '/.lif/npm/')){
     let uri = v.rest;
-    if (path.includes('clock.worker')){
-      console.log('got '+path+qs);
-      return new Response('clock', {status: 500, statusText: 'clock worker'});
-      return response_send({body: '"do nothing";"', uri});
-    }
     if (!uri)
       throw Error('invalid uri '+path);
     let _path = path;
@@ -894,18 +891,18 @@ async function _kernel_fetch(event){
     if (q.has('raw'))
       return response_send({body: f.blob, uri});
     if (ext=='json')
-      return response_send({body: f.blob, uri});
+      return response_send({body: f.blob, ext: 'json'});
     let ast = file_ast(f);
     let type = ast.type;
     if (q.has('cjs'))
-      return response_send({body: file_tr_cjs(f), uri: path});
+      return response_send({body: file_tr_cjs(f), ext: 'js'});
     if (q.has('mjs'))
-      return response_send({body: file_tr_mjs(f, q.get('worker')), uri: path});
+      return response_send({body: file_tr_mjs(f, q.get('worker')), ext: 'js'});
     if (type=='cjs' || type=='amd' || type=='')
-      return response_send({body: mjs_import_cjs(path, q), uri});
+      return response_send({body: mjs_import_cjs(path, q), ext: 'js'});
     if (type=='mjs'){
       return response_send({
-        body: mjs_import_mjs(f.ast.has.export_default, path, q), uri});
+        body: mjs_import_mjs(f.ast.has.export_default, path, q), ext: 'js'});
     }
     throw Error('invalid npm type '+type);
   }
