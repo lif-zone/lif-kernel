@@ -1,6 +1,8 @@
 import http from 'http';
-import serve from 'serve-handler';
 import process from 'process';
+import fs from 'fs';
+import path from 'path';
+import mime_db from './mime_db.js';
 
 const str_prefix = (url, prefix)=>{
   if (url.startsWith(prefix))
@@ -15,9 +17,19 @@ const path_prefix = (path, prefix)=>{
 };
 const path_file = path=>path.match(/(^|\/)?([^/]*)$/)?.[2];
 const path_dir = path=>path.slice(0, path.length-path_file(path).length);
-const res_error = (path, res, json, curr, handlers, statusCode, code, msg)=>{
-  res.writeHead(statusCode, code);
-  res.end(`${statusCode}: ${msg||code}`);
+const res_err = (res, code, msg)=>{
+  res.writeHead(code, msg);
+  res.end();
+};
+const res_send = (res, _path)=>{
+  let ext = (path.extname(_path)||'').slice(1);
+  let ctype = mime_db.ext2mime[ext]||'plain/text';
+  let e = fs.statSync(_path, {throwIfNoEntry: false});
+  if (!e || !e.isFile())
+    return res_err(res, 404, 'file not found');
+  var stream = fs.createReadStream(_path);
+  res.writeHead(200, {'content-type': ctype, 'cache-control': 'no-cache'});
+  stream.pipe(res);
 };
 
 let map;
@@ -42,14 +54,14 @@ const server = http.createServer((req, res)=>{
     _uri = uri;
   }
   if (!_uri)
-    return res.writeHead(404, 'no map found').end();
+    return res_err(res, 404, 'no map found');
   if (_uri.endsWith('/'))
     _uri = _uri+'index.html';
   req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
   opt.public = root+'/'+dir;
   log_url = uri+(uri!=_uri ? '->'+dir+' '+_uri : '');
   // opt details: https://github.com/vercel/serve-handler#options
-  return serve(req, res, opt, {error: res_error});
+  return res_send(res, opt.public+'/'+_uri);
 });
 
 function run(opt){
