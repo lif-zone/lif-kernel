@@ -15,8 +15,6 @@ const path_prefix = (path, prefix)=>{
   if (!v.rest || v.rest[0]=='/' || prefix.endsWith('/'))
     return v;
 };
-const path_file = path=>path.match(/(^|\/)?([^/]*)$/)?.[2];
-const path_dir = path=>path.slice(0, path.length-path_file(path).length);
 const res_err = (res, code, msg)=>{
   res.writeHead(code, msg);
   res.end();
@@ -58,10 +56,8 @@ const server = http.createServer((req, res)=>{
   if (_uri.endsWith('/'))
     _uri = _uri+'index.html';
   req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
-  opt.public = root+'/'+dir;
   log_url = uri+(uri!=_uri ? '->'+dir+' '+_uri : '');
-  // opt details: https://github.com/vercel/serve-handler#options
-  return res_send(res, opt.public+'/'+_uri);
+  return res_send(res, root+'/'+dir+'/'+_uri);
 });
 
 function run(opt){
