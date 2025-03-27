@@ -12,10 +12,10 @@ let modules = {};
 let kernel_chan;
 let mod_root;
 let npm_map = {};
+let console = globalThis.console || (()=>{});
 
 let process = globalThis.process ||= {env: {}};
 let is_worker = typeof window=='undefined';
-let is_main = typeof window=='object';
 
 function define(){ return define_amd(null, arguments); }
 define.amd = {};
@@ -160,6 +160,7 @@ async function boot_worker(){
   let wait = boot_worker.wait = ewait();
   console.log('lif boot_worker');
   kernel_chan = new util.postmessage_chan();
+  console = lif.boot.console = kernel_chan.console_fn();
   kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
   let slow = eslow(1000, ['boot_worker']);
   globalThis.addEventListener("message", event=>{
@@ -229,7 +230,7 @@ let boot_app = async({app, map})=>{
   console.log('boot: boot complete');
 };
 
-if (is_main){
+if (!is_worker){
   // TODO: add SharedWorker
   let _Worker = Worker;
   class lif_Worker extends Worker {
@@ -263,7 +264,7 @@ lif.boot = {
 };
 if (is_worker)
   lif.boot.boot_worker = boot_worker;
-if (is_main){
+if (!is_worker){
   lif.boot.boot_kernel = boot_kernel;
   lif.boot.boot_app = boot_app;
 }

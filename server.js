@@ -15,25 +15,30 @@ const path_prefix = (path, prefix)=>{
 };
 const path_file = path=>path.match(/(^|\/)?([^/]*)$/)?.[2];
 const path_dir = path=>path.slice(0, path.length-path_file(path).length);
+const res_error = (path, res, json, curr, handlers, statusCode, code, msg)=>{
+  res.writeHead(statusCode, code);
+  res.end(`${statusCode}: ${msg||code}`);
+};
 
 let map;
+let root;
 const server = http.createServer((req, res)=>{
-  const opt = {directoryListing: false, cleanUrls: false};
-  let uri = decodeURIComponent(req.url), _uri, root;
+  let opt = {directoryListing: false, cleanUrls: false};
+  let uri = decodeURIComponent(req.url), _uri, dir;
   let log_url = uri;
   res.on('finish', ()=>console.log(
     `${log_url} ${res.statusCode} ${res.statusMessage}`));
-  let v, cwd = import.meta.dirname;
+  let v;
   for (let f in map){
     let to = map[f];
     if (v=path_prefix(uri, f)){
-      root = to;
+      dir = to;
       _uri = v.rest || f.split('/').at(-1);
       break;
     }
   }
   if (!_uri && !opt.strict_map){
-    root = './';
+    dir = './';
     _uri = uri;
   }
   if (!_uri)
@@ -41,16 +46,17 @@ const server = http.createServer((req, res)=>{
   if (_uri.endsWith('/'))
     _uri = _uri+'index.html';
   req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
-  opt.public = root;
-  log_url = uri+(uri!=_uri ? '->'+root+' '+_uri : '');
+  opt.public = root+'/'+dir;
+  log_url = uri+(uri!=_uri ? '->'+dir+' '+_uri : '');
   // opt details: https://github.com/vercel/serve-handler#options
-  return serve(req, res, opt);
+  return serve(req, res, opt, {error: res_error});
 });
 
 function run(opt){
   let port = 3000;
   let [...argv] = [...process.argv];
   map = {...(opt?.map)||{}};
+  root = opt.root||process.cwd();
   argv.shift();
   argv.shift();
   while (argv[0]!=undefined){
@@ -66,7 +72,7 @@ function run(opt){
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
   server.listen(port, ()=>{
-    console.log(`Running at http://localhost:${port}`);
+    console.log(`Serving ${root} on http://localhost:${port}`);
   });
 }
 
