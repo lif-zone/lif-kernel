@@ -509,12 +509,8 @@ const mjs_import_mjs = (export_default, path, q)=>{
   _q.sort();
   let _path = json(path+'?'+_q);
   let js = `export * from ${_path};\n`;
-  if (export_default){
+  if (export_default)
     js += `export {default} from ${_path};\n`;
-    //js += `import def from ${_path};\n`;
-    //js += `let def = (await import(${_path})).default;\n`;
-    //js += `export default def;\n`;
-  }
   return js;
 };
 
