@@ -473,7 +473,7 @@ const file_tr_mjs = (f, worker)=>{
   if (f.uri.includes(' mod_name '))
     pre += `debugger; `;
   if (worker)
-    pre += `import lif from '/.lif/npm/lif-kernel/boot.js';\n`;
+    pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
   if (f.ast.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
   if (log) 

@@ -205,12 +205,14 @@ class postmessage_chan {
     this.ports = new MessageChannel();
     controller.postMessage({connect: true}, [this.ports.port2]);
     this.port = this.ports.port1;
-    this.port.onmessage = event=>this.on_msg(event);
+    this.port.addEventListener('message', event=>this.on_msg(event));
+    this.port.start();
   }
   listen(event){
     if (event.data?.connect){
       this.port = event.ports[0];
-      this.port.onmessage = event=>this.on_msg(event);
+      this.port.addEventListener('message', event=>this.on_msg(event));
+      this.port.start();
       return true;
     }
   }
