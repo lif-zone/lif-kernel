@@ -470,9 +470,10 @@ const file_tr_mjs = (f, worker)=>{
   let tr = tr_mjs_import(f);
   let slow = 0, log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
-  if (0 && worker){
-    pre += `import lif from 'lif-kernel/boot.js'; `;
-    pre += `await lif.boot.boot_worker(); `;
+  if (0 && f.uri.includes('clock.worker') && worker){
+    pre += `debugger;\n`;
+    pre += `// import lif from 'lif-kernel/boot.js';\n`;
+    pre += `// await lif.boot.boot_worker();\n`;
   }
   if (f.ast.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
