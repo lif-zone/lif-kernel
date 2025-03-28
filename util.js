@@ -4,7 +4,6 @@ exports.version = util_version;
 let D = 0; // Debug
 
 let is_worker = typeof window=='undefined';
-let console = globalThis.console || {log: ()=>{}, info: ()=>{}, error: ()=>{}};
 
 // Promise with return() and throw()
 const ewait = ()=>{
@@ -184,10 +183,6 @@ class postmessage_chan {
   }
   on_msg(event){
     let msg = event.data;
-    if (typeof msg.log_level=='string' && Array.isArray(msg.log)){
-      if (!is_worker)
-        return console.log(msg.level, ...msg.log);
-    }
     if (typeof msg.cmd=='string' && typeof msg.id=='string')
       return this.cmd_server_cb(msg);
     if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string'){
@@ -218,29 +213,6 @@ class postmessage_chan {
       this.port.onmessage = event=>this.on_msg(event);
       return true;
     }
-  }
-  console = undefined;
-  console_set(){
-    if (this.console)
-      return this.console;
-    let _this = this;
-    let console_all = function(level, ...args){
-      if (!is_worker)
-        return console[level](...args);
-      try {
-        _this.postMessage({log_level: level, log: args});
-      } catch(err){
-        // debugger; // eslint-disable-line no-debugger
-      }
-    };
-    this.console = {
-      log: function(...args){ return console_all.all('log', ...args); },
-      info: function(...args){ return console_all.all('info', ...args); },
-      error: function(...args){ return console_all.all('error', ...args); },
-    }
-    if (is_worker)
-      console = this.console;
-    return this.console;
   }
 }
 exports.postmessage_chan = postmessage_chan;
