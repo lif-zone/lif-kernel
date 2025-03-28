@@ -504,6 +504,7 @@ const mjs_import_cjs = (path, q)=>{
 const mjs_import_mjs = (export_default, path, q)=>{
   let _q = new URLSearchParams(q);
   _q.delete('imported');
+  _q.delete('mod_self');
   _q.set('mjs', 1);
   _q.sort();
   let _path = json(path+'?'+_q);
