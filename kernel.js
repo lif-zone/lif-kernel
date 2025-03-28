@@ -174,7 +174,7 @@ let file_ast = f=>{
         opt.presets.push('react');
       try {
         ({code: f.js} = Babel.transform(f.body, opt));
-      } catch (err){
+      } catch(err){
         console.error('babel('+f.uri+') FAILED', err);
         throw err;
       }
@@ -921,7 +921,7 @@ async function kernel_fetch(event){
     let res = await _kernel_fetch(event);
     slow.end();
     return res;
-  } catch (err){
+  } catch(err){
     console.error('kernel_fetch err', err);
     slow.end();
     return new Response(''+err, {status: 500, statusText: ''+err});
@@ -961,7 +961,7 @@ function sw_init_post(){
   lif_kernel.on_fetch = event=>{
     try {
       event.respondWith(kernel_fetch(event));
-    } catch (err){
+    } catch(err){
       console.error("lif kernel sw NetworkError: "+err);
     }
   };

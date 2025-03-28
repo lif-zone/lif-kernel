@@ -195,7 +195,7 @@ let boot_kernel = async()=>{
     else
       navigator.serviceWorker.addEventListener('controllerchange', conn_kernel);
     return await wait;
-  } catch (err){
+  } catch(err){
     console.error('ServiceWorker registration failed', err, err.stack);
     throw wait.throw(err);
   }
@@ -223,7 +223,7 @@ let boot_app = async({app, map})=>{
   }
   try {
     return await _import(app, [app]);
-  } catch (err){
+  } catch(err){
     console.error('import('+app+') failed', err);
     throw err;
   }
