@@ -99,7 +99,6 @@ const TE = fn=>(function(){ // Throw error on false/null/0
   return v;
 });
 
-
 // str.js
 const str = {};
 exports.str = str;
@@ -140,7 +139,7 @@ let assert = (ok, exp, res)=>{
 };
 let assert_eq = (exp, res)=>{
   assert(exp===res, exp, res);
-}
+};
 let assert_objv = (exp, res)=>{
   if (exp===res)
     return;
@@ -151,7 +150,8 @@ let assert_objv = (exp, res)=>{
     return;
   }
   assert(0, exp, res);
-}
+};
+exports.assert = assert;
 exports.assert_eq = assert_eq;
 exports.assert_objv = assert_objv;
 
@@ -380,6 +380,12 @@ const qs_enc = (q, qmark)=>{
   let _q = ''+(new URLSearchParams(q));
   return _q ? (qmark ? '?' : '')+_q : '';
 };
+let qs_append = (url, q)=>{
+  let _q = typeof q=='string' ? q : ''+(new URLSearchParams(q));
+  if (!_q)
+    return url;
+  return url+(url.includes('?') ? '&' : '?')+_q;
+};
 
 exports.path_ext = path_ext;
 exports._path_ext = _path_ext;
@@ -395,6 +401,7 @@ exports.TE_url_uri_parse = TE_url_uri_parse;
 exports.uri_enc = uri_enc;
 exports.uri_dec = uri_dec;
 exports.qs_enc = qs_enc;
+exports.qs_append = qs_append;
 exports.match_glob_to_regex = match_glob_to_regex;
 exports.match_glob = match_glob;
 
