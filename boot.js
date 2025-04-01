@@ -4,8 +4,8 @@ let lif_version = '0.2.125';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan, path_file, OF,
-  TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc,
+let {ewait, esleep, eslow, postmessage_chan, path_file, OF, OA, assert,
+  TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 
 let modules = {};
@@ -107,11 +107,17 @@ const lpm_2url = (mod_self, url, opt)=>{
     q.cjs = 1;
   if (opt?.worker)
     q.worker = 1;
+  if (opt?.type=='module')
+    q.mjs = 1;
+  if (0 && opt?.worker)
+    q.cjs_es5 = 1;
+  if (0 && opt?.es5)
+    q.cjs_es5 = 1;
   return _url+qs_enc(q, '?');
+  //return qs_append(_url, q);
 };
 
 async function require_single(mod_self, module_id){
-  is_worker && await boot_worker();
   let m;
   if (m = modules[module_id])
     return await m.wait;
@@ -136,14 +142,52 @@ async function require_single(mod_self, module_id){
   return m.wait.return(m.module.exports);
 }
 
+// web worker importScripts()/require() implementation
+let fetch_opt = url=>(url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
+let import_modules = {};
+let import_module_script = async(url)=>{
+  let mod;
+  if (mod = import_modules[url])
+    return await mod.wait;
+  mod = import_modules[url] = {url, wait: ewait()};
+  try {
+    let response = await fetch(url, fetch_opt(url));
+    if (response.status!=200)
+      throw Error('sw import_module('+url+') failed fetch');
+    mod.script = await response.text();
+  } catch(err){
+    console.error('import('+url+') failed', err);
+    throw mod.wait.throw(err);
+  }
+  try {
+    mod.exports = await eval(`//# sourceURL=${url}\n;${mod.script}`);
+    return mod.wait.return(mod.exports);
+  } catch(err){
+    console.error('import('+url+') failed eval', err, err?.stack);
+    throw mod.wait.throw(err);
+  }
+};
+
+// worker
+async function worker_import(url, opt){
+  let q;
+  if (opt?.type=='script')
+    q = {raw: 1};
+  else
+    assert(0, 'module import not yet supportedd');
+  return await import_module_script(qs_append(url, q));
+}
 async function _import(mod_self, [url, opt]){
-  is_worker && await boot_worker();
   let _url = lpm_2url(mod_self, url);
   let slow;
   try {
     slow = eslow(15000, ['_import('+_url+')']);
     D && console.log('boot.js: import '+_url);
-    let ret = await import(_url, opt);
+    let ret;
+    if (is_worker)
+      ret = await worker_import(_url, opt);
+    else
+      ret = await import(_url, opt);
     slow.end();
     return ret;
   } catch(err){
@@ -153,11 +197,17 @@ async function _import(mod_self, [url, opt]){
   }
 }
 
+// worker
+async function _importScripts(mod_self, mods){
+  for (let m of mods)
+    await _import(mod_self, [m, {worker: 1, type: 'script'}]);
+}
+
 async function boot_worker(){
   if (boot_worker.wait)
     return await boot_worker.wait;
   let wait = boot_worker.wait = ewait();
-  console.log('lif boot_worker');
+  console.log('lif boot_worker '+globalThis.location+' '+(globalThis.name||''));
   kernel_chan = new util.postmessage_chan();
   kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
   let slow = eslow(1000, ['boot_worker']);
@@ -232,10 +282,10 @@ if (!is_worker){
   // TODO: add SharedWorker
   let _Worker = Worker;
   class lif_Worker extends Worker {
-    constructor(url, ...arg){
-      let _url = url.href || url;
-      _url = lpm_2url(mod_root, _url, {worker: 1});
-      let worker = super(_url, ...arg);
+    constructor(url, opt){
+      let _url = url.href || url, es5 = opt?.type!='module';
+      _url = lpm_2url(mod_root, _url, {worker: 1, type: opt?.type});
+      let worker = super(_url, ...[...arguments].slice(1));
       console.log('Worker start', url);
       let worker_chan = new postmessage_chan();
       worker_chan.connect(worker);
@@ -256,18 +306,16 @@ lif.boot = {
   require_cjs,
   require_cjs_amd,
   require_single,
-  _import,
   version: lif_version,
+  _import,
   util,
 };
 if (is_worker){
-  lif.boot.boot_worker = boot_worker;
   await boot_worker();
+  OA(lif.boot, {_importScripts});
 }
-if (!is_worker){
-  lif.boot.boot_kernel = boot_kernel;
-  lif.boot.boot_app = boot_app;
-}
+if (!is_worker)
+  OA(lif.boot, {boot_kernel, boot_app});
 // globalThis.define = define;
 // globalThis.require = require;
 

@@ -327,7 +327,7 @@ let tr_cjs_require = f=>{
   return s.out();
 };
 
-const file_tr_cjs = f=>{
+const file_tr_cjs = (f, opt)=>{
   let uri_s = json(f.uri);
   let tr = tr_cjs_require(f);
   let pre = '';
@@ -335,7 +335,7 @@ const file_tr_cjs = f=>{
     if (r.type=='sync')
       pre += 'await require_async('+json(r.module)+');\n';
   }
-  return `
+  let js = `
     let lif_boot = globalThis.lif?.boot;
     let module = {exports: {}};
     let exports = module.exports;
@@ -348,8 +348,12 @@ const file_tr_cjs = f=>{
     await (async()=>{
     ${tr}
     })();
-    export default module.exports;
   `;
+  if (opt?.es5)
+    js += `module.exports`;
+  else
+    js += `export default module.exports;`;
+  return js;
 }
 
 const file_tr_cjs2 = async f=>{
@@ -472,8 +476,10 @@ const file_tr_mjs = (f, worker)=>{
   let _import = f.ast.imports.length;
   if (f.uri.includes(' mod_name '))
     pre += `debugger; `;
-  if (worker)
+  if (worker){
     pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
+    pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
+  }
   if (f.ast.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
   if (log) 
@@ -894,6 +900,8 @@ async function _kernel_fetch(event){
     let type = ast.type;
     if (q.has('cjs'))
       return response_send({body: file_tr_cjs(f), ext: 'js'});
+    if (q.has('cjs_es5'))
+      return response_send({body: file_tr_cjs(f, {'es5': 1}), ext: 'js'});
     if (q.has('mjs'))
       return response_send({body: file_tr_mjs(f, q.get('worker')), ext: 'js'});
     if (type=='cjs' || type=='amd' || type=='')
