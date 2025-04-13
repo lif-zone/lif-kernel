@@ -26,7 +26,13 @@ const res_send = (res, _path)=>{
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
   var stream = fs.createReadStream(_path);
-  res.writeHead(200, {'content-type': ctype, 'cache-control': 'no-cache'});
+  res.writeHead(200, {
+    'content-type': ctype,
+    'cache-control': 'no-cache',
+    // required COI Cross-Origin-Isolation for SAB is added by service worker
+    //'cross-origin-embedder-policy': 'require-corp',
+    //'cross-origin-opener-policy': 'same-origin',
+  });
   stream.pipe(res);
 };
 

@@ -840,10 +840,13 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
+  h['cross-origin-embedder-policy'] = 'require-corp';
+  h['cross-origin-opener-policy'] = 'same-origin';
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
 
+  let a, b = 1;
 let pp = {};
 let boot_chan;
 async function _kernel_fetch(event){
@@ -918,7 +921,12 @@ async function _kernel_fetch(event){
     return Response.redirect('/.lif/npm/'+v+'?raw=1');
   }
   console.log('req default', url);
-  return await fetch(request);
+  let response = await fetch(request);
+  let headers = new Headers(response.headers);
+  headers.set('cross-origin-embedder-policy', 'require-corp');
+  headers.set('cross-origin-opener-policy', 'same-origin');
+  return new Response(response.body, {
+    headers, status: response.status, statusText: response.statusText});
 }
 
 async function kernel_fetch(event){

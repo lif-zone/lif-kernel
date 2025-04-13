@@ -7,6 +7,7 @@ import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, path_file, OF, OA, assert,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
+let json = JSON.stringify;
 
 let modules = {};
 let kernel_chan;
@@ -160,7 +161,8 @@ let import_module_script = async(url)=>{
     throw mod.wait.throw(err);
   }
   try {
-    mod.exports = await eval(`//# sourceURL=${url}\n;${mod.script}`);
+    mod.exports = await eval.call(globalThis,
+      `//# sourceURL=${url}\n;${mod.script}`);
     return mod.wait.return(mod.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
@@ -197,22 +199,191 @@ async function _import(mod_self, [url, opt]){
   }
 }
 
-// worker
-async function _importScripts(mod_self, mods){
-  for (let m of mods)
-    await _import(mod_self, [m, {worker: 1, type: 'script'}]);
+let utf8_enc = new TextEncoder('utf-8');
+let str_to_buf = buf=>{
+  if (buf instanceof ArrayBuffer)
+    return buf;
+  if (ArrayBuffer.isView(buf))
+    return buf.buffer;
+  if (typeof buf=='string')
+    return utf8_enc.encode(buf).buffer;
+  throw Error('str_to_buf: invalid buf type');
+};
+let utf8_dec = new TextDecoder('utf-8');
+let buf_to_str = (buf, type)=>{
+  if (!type)
+    return buf;
+  if (type=='string')
+    return utf8_dec.decode(buf);
+  throw Error('buf_to_str: invalid type');
 }
 
+class ipc_sync {
+  seq = 0;
+  constructor(ipc_buf){
+    this.sab = ipc_buf || {
+      data: new SharedArrayBuffer(8192),
+      cmd: new SharedArrayBuffer(24),
+    };
+    this._data = this.sab.data;
+    this.data = new Uint8Array(this.sab.data);
+    let cmd = this.sab.cmd;
+    this.write_lock = new Int32Array(cmd, 0, 1);
+    this.read_lock = new Int32Array(cmd, 4, 1);
+    this.sz = new Int32Array(cmd, 8, 1);
+    this.len = new Int32Array(cmd, 12, 1);
+    this.ofs = new Int32Array(cmd, 16, 1);
+    this.last = new Int32Array(cmd, 20, 1);
+  }
+  write_notify(){
+    Atomics.notify(this.write_lock, 0);
+  }
+  read_notify(){
+    Atomics.notify(this.read_lock, 0);
+  }
+  write_wait(old_val){
+    Atomics.wait(this.write_lock, 0, old_val);
+  }
+  read_wait(old_val){
+    Atomics.wait(this.read_lock, 0, old_val);
+  }
+  async Ewrite_wait(old_val){
+    await Atomics.wait(this.write_lock, 0, old_val).value;
+  }
+  async Eread_wait(old_val){
+    await Atomics.waitAsync(this.read_lock, 0, old_val).value;
+  }
+  write(buf){
+    buf = str_to_buf(buf);
+    let sz = buf.byteLength, ofs = 0;
+    this.sz[0] = sz;
+    do {
+      let len = Math.min(sz-ofs, this._data.byteLength);
+      this.len[0] = len;
+      this.ofs[0] = ofs;
+      this.last[0] = ofs+len==sz;
+      this.data.set(new Uint8Array(buf, ofs, len), 0);
+      this.write_lock[0] = ++this.seq;
+      this.write_notify();
+      this.read_wait(this.seq-1);
+      ofs += len;
+    } while (ofs<sz);
+  }
+  async Ewrite(buf){
+    buf = str_to_buf(buf);
+    let sz = buf.byteLength, ofs = 0;
+    this.sz[0] = sz;
+    do {
+      let len = Math.min(sz-ofs, this._data.byteLength);
+      this.len[0] = len;
+      this.ofs[0] = ofs;
+      this.last[0] = ofs+len==sz;
+      this.data.set(new Uint8Array(buf, ofs, len), 0);
+      this.write_lock[0] = ++this.seq;
+      this.write_notify();
+      await this.Eread_wait(this.seq-1);
+      ofs += len;
+    } while (ofs<sz);
+  }
+  read(type){
+    this.write_wait(this.seq);
+    let sz = this.sz[0];
+    let buf = new ArrayBuffer(sz);
+    let _buf = new Uint8Array(buf);
+    let ofs = 0;
+    let last;
+    while (ofs<sz){
+      let len = this.len[0];
+      _buf.set(new Uint8Array(this._data, 0, len), ofs);
+      let last = this.last[0];
+      this.read_lock[0] = ++this.seq;
+      this.read_notify();
+      ofs += len;
+      if (last)
+        break;
+      this.write_wait(this.seq);
+    }
+    if (type)
+      buf = buf_to_str(buf, type);
+    return buf;
+  }
+  async Eread(type){
+    await this.Ewrite_wait(this.seq);
+    let sz = this.sz[0];
+    let buf = new ArrayBuffer(sz);
+    let _buf = new Uint8Array(buf);
+    let ofs = 0;
+    let last;
+    while (ofs<sz){
+      let len = this.len[0];
+      _buf.set(new Uint8Array(this._data, 0, len), ofs);
+      let last = this.last[0];
+      this.read_lock[0] = ++this.seq;
+      this.read_notify();
+      ofs += len;
+      if (last)
+        break;
+      await this.Ewrite_wait(this.seq);
+    }
+    if (type)
+      buf = buf_to_str(buf, type);
+    return buf;
+  }
+}
+
+function sync_worker_fetch(url){
+  let ipc = new ipc_sync();
+  globalThis.postMessage({fetch: {url, sab: ipc.sab}});
+  let buf = ipc.read('string');
+  let res = JSON.parse(buf);
+  if (!res.data)
+    return;
+  return ipc.read('string');
+}
+
+async function main_on_fetch(event){
+  let ipc = new ipc_sync(event.data.fetch.sab);
+  let url = event.data.fetch.url;
+  let response = await fetch(url, fetch_opt(url));
+  let res = {status: response.status};
+  if (response.status!=200){
+    console.log('main_on_fetch('+url+') failed fetch');
+    await ipc.write(json({status: response.status}));
+    return;
+  }
+  let blob = await response.blob();
+  let data = await blob.arrayBuffer();
+  res.length = blob.length;
+  res.ctype = blob.type;
+  res.data = 1;
+  await ipc.Ewrite(json(res));
+  await ipc.Ewrite(data);
+}
+
+// worker
+function importScripts_single(mod_self, [mod, opt]){
+  let url = lpm_2url(mod_self, mod);
+  let script = sync_worker_fetch(url);
+  let exports = eval.call(globalThis,
+    `//# sourceURL=${url}\n;${script}`);
+}
+
+function _importScripts(mod_self, mods){
+  for (let m of mods)
+    importScripts_single(mod_self, [m, {worker: 1, type: 'script'}]);
+}
+
+let main_chan;
 async function boot_worker(){
   if (boot_worker.wait)
     return await boot_worker.wait;
   let wait = boot_worker.wait = ewait();
   console.log('lif boot_worker '+globalThis.location+' '+(globalThis.name||''));
-  kernel_chan = new util.postmessage_chan();
-  kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
+  let chan = main_chan = new util.postmessage_chan();
+  chan.add_server_cmd('version', arg=>({version: lif_version}));
   let slow = eslow(1000, ['boot_worker']);
   globalThis.addEventListener("message", event=>{
-    if (kernel_chan.listen(event)){
+    if (chan.listen(event)){
       slow.end();
       return wait.return();
     }
@@ -261,7 +432,24 @@ let do_pkg_map = function({map}){
       mod.base = mod.net+name;
   }
 };
+
+// Cross-Origin-Isolation is required for SharedArrayBuffer feature
+// also, in browser, you need to activate
+let coi_reload = async()=>{
+  if (window.crossOriginIsolated)
+    return true;
+  const reloaded = window.sessionStorage.getItem("coi_reload");
+  window.sessionStorage.removeItem("coi_reload");
+  if (reloaded){
+    console.error('failed enabling coi');
+    return;
+  }
+  window.sessionStorage.setItem("coi_reload", true);
+  console.log('reload: to enable cross origin isolation for SAB');
+  window.location.reload();
+};
 let boot_app = async({app, map})=>{
+  // init kernel
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
@@ -269,6 +457,9 @@ let boot_app = async({app, map})=>{
     do_pkg_map({map});
     await kernel_chan.cmd('pkg_map', {map: map});
   }
+  // reload page for cross-origin-isolation
+  await coi_reload();
+  // load app
   try {
     return await _import(app, [app]);
   } catch(err){
@@ -286,11 +477,17 @@ if (!is_worker){
       let _url = url.href || url, es5 = opt?.type!='module';
       _url = lpm_2url(mod_root, _url, {worker: 1, type: opt?.type});
       let worker = super(_url, ...[...arguments].slice(1));
+      worker.addEventListener("message", event=>{
+        if (event.data?.fetch)
+          return main_on_fetch(event);
+      });
       console.log('Worker start', url);
       let worker_chan = new postmessage_chan();
       worker_chan.connect(worker);
       worker_chan.add_server_cmd('version', ()=>({version: lif_version}));
       worker_chan.add_server_cmd('module_dep',
+        async({arg})=>await kernel_chan.cmd('module_dep', arg));
+      worker_chan.add_server_cmd('fetch',
         async({arg})=>await kernel_chan.cmd('module_dep', arg));
     }
   }
@@ -311,8 +508,8 @@ lif.boot = {
   util,
 };
 if (is_worker){
-  await boot_worker();
   OA(lif.boot, {_importScripts});
+  await boot_worker();
 }
 if (!is_worker)
   OA(lif.boot, {boot_kernel, boot_app});
