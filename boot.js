@@ -4,7 +4,8 @@ let lif_version = '0.2.125';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan, path_file, OF, OA, assert,
+let {ewait, esleep, eslow, postmessage_chan, ipc_sync,
+  path_file, OF, OA, assert,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 let json = JSON.stringify;
@@ -199,138 +200,6 @@ async function _import(mod_self, [url, opt]){
   }
 }
 
-let utf8_enc = new TextEncoder('utf-8');
-let str_to_buf = buf=>{
-  if (buf instanceof ArrayBuffer)
-    return buf;
-  if (ArrayBuffer.isView(buf))
-    return buf.buffer;
-  if (typeof buf=='string')
-    return utf8_enc.encode(buf).buffer;
-  throw Error('str_to_buf: invalid buf type');
-};
-let utf8_dec = new TextDecoder('utf-8');
-let buf_to_str = (buf, type)=>{
-  if (!type)
-    return buf;
-  if (type=='string')
-    return utf8_dec.decode(buf);
-  throw Error('buf_to_str: invalid type');
-}
-
-class ipc_sync {
-  seq = 0;
-  constructor(ipc_buf){
-    this.sab = ipc_buf || {
-      data: new SharedArrayBuffer(8192),
-      cmd: new SharedArrayBuffer(24),
-    };
-    this._data = this.sab.data;
-    this.data = new Uint8Array(this.sab.data);
-    let cmd = this.sab.cmd;
-    this.write_lock = new Int32Array(cmd, 0, 1);
-    this.read_lock = new Int32Array(cmd, 4, 1);
-    this.sz = new Int32Array(cmd, 8, 1);
-    this.len = new Int32Array(cmd, 12, 1);
-    this.ofs = new Int32Array(cmd, 16, 1);
-    this.last = new Int32Array(cmd, 20, 1);
-  }
-  write_notify(){
-    Atomics.notify(this.write_lock, 0);
-  }
-  read_notify(){
-    Atomics.notify(this.read_lock, 0);
-  }
-  write_wait(old_val){
-    Atomics.wait(this.write_lock, 0, old_val);
-  }
-  read_wait(old_val){
-    Atomics.wait(this.read_lock, 0, old_val);
-  }
-  async Ewrite_wait(old_val){
-    await Atomics.wait(this.write_lock, 0, old_val).value;
-  }
-  async Eread_wait(old_val){
-    await Atomics.waitAsync(this.read_lock, 0, old_val).value;
-  }
-  write(buf){
-    buf = str_to_buf(buf);
-    let sz = buf.byteLength, ofs = 0;
-    this.sz[0] = sz;
-    do {
-      let len = Math.min(sz-ofs, this._data.byteLength);
-      this.len[0] = len;
-      this.ofs[0] = ofs;
-      this.last[0] = ofs+len==sz;
-      this.data.set(new Uint8Array(buf, ofs, len), 0);
-      this.write_lock[0] = ++this.seq;
-      this.write_notify();
-      this.read_wait(this.seq-1);
-      ofs += len;
-    } while (ofs<sz);
-  }
-  async Ewrite(buf){
-    buf = str_to_buf(buf);
-    let sz = buf.byteLength, ofs = 0;
-    this.sz[0] = sz;
-    do {
-      let len = Math.min(sz-ofs, this._data.byteLength);
-      this.len[0] = len;
-      this.ofs[0] = ofs;
-      this.last[0] = ofs+len==sz;
-      this.data.set(new Uint8Array(buf, ofs, len), 0);
-      this.write_lock[0] = ++this.seq;
-      this.write_notify();
-      await this.Eread_wait(this.seq-1);
-      ofs += len;
-    } while (ofs<sz);
-  }
-  read(type){
-    this.write_wait(this.seq);
-    let sz = this.sz[0];
-    let buf = new ArrayBuffer(sz);
-    let _buf = new Uint8Array(buf);
-    let ofs = 0;
-    let last;
-    while (ofs<sz){
-      let len = this.len[0];
-      _buf.set(new Uint8Array(this._data, 0, len), ofs);
-      let last = this.last[0];
-      this.read_lock[0] = ++this.seq;
-      this.read_notify();
-      ofs += len;
-      if (last)
-        break;
-      this.write_wait(this.seq);
-    }
-    if (type)
-      buf = buf_to_str(buf, type);
-    return buf;
-  }
-  async Eread(type){
-    await this.Ewrite_wait(this.seq);
-    let sz = this.sz[0];
-    let buf = new ArrayBuffer(sz);
-    let _buf = new Uint8Array(buf);
-    let ofs = 0;
-    let last;
-    while (ofs<sz){
-      let len = this.len[0];
-      _buf.set(new Uint8Array(this._data, 0, len), ofs);
-      let last = this.last[0];
-      this.read_lock[0] = ++this.seq;
-      this.read_notify();
-      ofs += len;
-      if (last)
-        break;
-      await this.Ewrite_wait(this.seq);
-    }
-    if (type)
-      buf = buf_to_str(buf, type);
-    return buf;
-  }
-}
-
 function sync_worker_fetch(url){
   let ipc = new ipc_sync();
   globalThis.postMessage({fetch: {url, sab: ipc.sab}});
@@ -435,6 +304,9 @@ let do_pkg_map = function({map}){
 
 // Cross-Origin-Isolation is required for SharedArrayBuffer feature
 // also, in browser, you need to activate
+// the required COI headers to enable SAB is added by service worker:
+// 'cross-origin-embedder-policy': 'require-corp'
+// 'cross-origin-opener-policy': 'same-origin'
 let coi_reload = async()=>{
   if (window.crossOriginIsolated)
     return true;
