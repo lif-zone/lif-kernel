@@ -314,10 +314,10 @@ let do_pkg_map = function({map}){
 // 'cross-origin-embedder-policy': 'require-corp'
 // 'cross-origin-opener-policy': 'same-origin'
 let coi_reload = async()=>{
-  if (window.crossOriginIsolated)
-    return true;
   const reloaded = window.sessionStorage.getItem("coi_reload");
   window.sessionStorage.removeItem("coi_reload");
+  if (window.crossOriginIsolated)
+    return true;
   if (reloaded){
     console.error('failed enabling coi');
     return;
