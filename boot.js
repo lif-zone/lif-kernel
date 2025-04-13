@@ -242,22 +242,27 @@ function _importScripts(mod_self, mods){
     importScripts_single(mod_self, [m, {worker: 1, type: 'script'}]);
 }
 
-let main_chan;
-async function boot_worker(){
-  if (boot_worker.wait)
-    return await boot_worker.wait;
-  let wait = boot_worker.wait = ewait();
-  console.log('lif boot_worker '+globalThis.location+' '+(globalThis.name||''));
-  let chan = main_chan = new util.postmessage_chan();
+function new_importScripts(...mods){
+  _importScripts(globalThis.origin, mods);
+}
+async function init_worker(){
+  if (init_worker.wait)
+    return await init_worker.wait;
+  let wait = init_worker.wait = ewait();
+  console.log('lif init_worker '+globalThis.location+' '+(globalThis.name||''));
+  let chan = new util.postmessage_chan();
   chan.add_server_cmd('version', arg=>({version: lif_version}));
-  let slow = eslow(1000, ['boot_worker']);
+  let slow = eslow(1000, ['init_worker']);
+  let _wait = ewait();
   globalThis.addEventListener("message", event=>{
-    if (chan.listen(event)){
-      slow.end();
-      return wait.return();
-    }
+    if (chan.listen(event))
+      return _wait.return();
   });
-  return await wait;
+  await _wait;
+  slow.end();
+  globalThis.importScripts = globalThis.orig_importScripts;
+  globalThis.importScripts = new_importScripts;
+  return wait.return();
 }
 
 let boot_kernel = async()=>{
@@ -302,6 +307,7 @@ let do_pkg_map = function({map}){
   }
 };
 
+// https://github.com/gzuidhof/coi-serviceworker
 // Cross-Origin-Isolation is required for SharedArrayBuffer feature
 // also, in browser, you need to activate
 // the required COI headers to enable SAB is added by service worker:
@@ -381,7 +387,7 @@ lif.boot = {
 };
 if (is_worker){
   OA(lif.boot, {_importScripts});
-  await boot_worker();
+  await init_worker();
 }
 if (!is_worker)
   OA(lif.boot, {boot_kernel, boot_app});
