@@ -221,7 +221,7 @@ let file_ast = f=>{
             });
           }
         });
-        imported = array_unique(imported);
+        imported = array_unique(imported); // XXX add sort()
         ast.imports.push({module: v, start: s.start, end: s.end, type,
           imported: imported.length ? imported : null});
       }
