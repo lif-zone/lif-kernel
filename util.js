@@ -92,12 +92,14 @@ const TE_to_null = fn=>(function(){ // convert throw Error to null
     return null;
   }
 });
+exports.TE_to_null = TE_to_null;
 const TE = fn=>(function(){ // Throw error on false/null/0
   let v = fn(...arguments);
   if (!v)
     throw Error('failed '+fn.name);
   return v;
 });
+exports.TE = TE;
 
 // str.js
 const str = {};

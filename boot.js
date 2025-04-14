@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, ipc_sync,
-  path_file, OF, OA, assert,
+  path_file, OF, OA, assert, TE_to_null,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 let json = JSON.stringify;
@@ -119,6 +119,9 @@ const lpm_2url = (mod_self, url, opt)=>{
   //return qs_append(_url, q);
 };
 
+let url_expand = 
+  TE_to_null(url=>(new URL(url, globalThis.location)).href || url);
+
 async function require_single(mod_self, module_id){
   let m;
   if (m = modules[module_id])
@@ -128,6 +131,7 @@ async function require_single(mod_self, module_id){
   let slow;
   slow = eslow(1000, ['require_single modver('+module_id+')']);
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
+  url = url_expand(url);
   slow.end();
   try {
     slow = eslow(15000, ['require_single import('+module_id+')', url]);
@@ -180,8 +184,10 @@ async function worker_import(url, opt){
     assert(0, 'module import not yet supportedd');
   return await import_module_script(qs_append(url, q));
 }
+
 async function _import(mod_self, [url, opt]){
   let _url = lpm_2url(mod_self, url);
+  _url = url_expand(_url);
   let slow;
   try {
     slow = eslow(15000, ['_import('+_url+')']);
