@@ -1,6 +1,6 @@
 {
   "name": "lif-kernel",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "kernel hi דבר חי",
   "author": {
     "name": "Jungo Publishing Labs",
@@ -10,9 +10,6 @@
   "license": "JPL",
   "module": "boot.js",
   "type": "module",
-  "dependencies": {
-    "serve": "^14.2.4"
-  },
   "lif": {
     "raw": true
   }
