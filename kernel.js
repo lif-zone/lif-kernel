@@ -840,8 +840,10 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
+  if (0){ // XXX: re-enable COI
   h['cross-origin-embedder-policy'] = 'require-corp';
   h['cross-origin-opener-policy'] = 'same-origin';
+  }
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
