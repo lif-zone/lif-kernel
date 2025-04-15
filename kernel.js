@@ -908,8 +908,10 @@ async function _kernel_fetch(event){
       throw Error('invalid uri '+path);
     let map = npm_map[_u.name];
     if (!map && !_u.version){
-      if (!mod_self)
-        throw Error('no mod_self for '+url);
+      if (!mod_self){
+        console.error('no mod_self for '+url+' using '+mod_root);
+        mod_self = mod_root;
+      }
       let npm = await _npm_pkg_load(npm_modver(mod_self));
       D && console.log('uri', uri, 'mod_self', mod_self);
       _path = npm_dep_lookup(npm.pkg, mod_self, uri);
