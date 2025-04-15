@@ -909,7 +909,7 @@ async function _kernel_fetch(event){
     let map = npm_map[_u.name];
     if (!map && !_u.version){
       if (!mod_self){
-        console.error('no mod_self for '+url+' using '+mod_root);
+        console.log('no mod_self for '+url+' using '+mod_root);
         mod_self = mod_root;
       }
       let npm = await _npm_pkg_load(npm_modver(mod_self));
