@@ -16,8 +16,7 @@ const path_prefix = (path, prefix)=>{
     return v;
 };
 const res_err = (res, code, msg)=>{
-  res.writeHead(code, msg);
-  res.end();
+  res.writeHead(code, msg, {'cache-control': 'no-cache'}).end();
 };
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
@@ -26,10 +25,7 @@ const res_send = (res, _path)=>{
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
   var stream = fs.createReadStream(_path);
-  res.writeHead(200, {
-    'content-type': ctype,
-    'cache-control': 'no-cache',
-  });
+  res.writeHead(200, {'content-type': ctype, 'cache-control': 'no-cache'});
   stream.pipe(res);
 };
 
