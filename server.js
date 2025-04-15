@@ -56,7 +56,8 @@ const server = http.createServer((req, res)=>{
     _uri = _uri+'index.html';
   req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
   log_url = uri+(uri!=_uri ? '->'+dir+' '+_uri : '');
-  return res_send(res, root+'/'+dir+'/'+_uri);
+  let p = path.join((dir[0]=='/' ? '' : root+'/')+dir+'/'+_uri);
+  return res_send(res, p);
 });
 
 function run(opt){
@@ -78,6 +79,8 @@ function run(opt){
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
+  if (!map['/lif-kernel'])
+    map['/lif-kernel'] = import.meta.dirname+'/';
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
   });
