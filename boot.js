@@ -266,7 +266,7 @@ async function init_worker(){
   });
   await _wait;
   slow.end();
-  globalThis.importScripts = globalThis.orig_importScripts;
+  globalThis.orig_importScripts = globalThis.importScripts;
   globalThis.importScripts = new_importScripts;
   return wait.return();
 }
