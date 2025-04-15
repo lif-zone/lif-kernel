@@ -21,20 +21,31 @@ let lif_kernel = {
   version: lif_version,
 };
 
-async function on_fetch(event){
-  if (lif_kernel.on_fetch)
-    return lif_kernel.on_fetch(event);
+async function _on_fetch(event){
+  if (lif_kernel.on_fetch){
+    try {
+      return lif_kernel.on_fetch(event);
+    } catch(err){
+      console.error("lif kernel sw: "+err);
+    }
+    return;
+  }
+  let wait = ewait();
   let {request, request: {url}} = event;
   let u = URL.parse(url);
   let external = u.origin!=self.location.origin;
   let path = u.pathname;
   if (external || path=='/' || request.method!='GET'){
     console.log('passed req', url);
-    return fetch(request);
+    return await fetch(request);
   }
-  console.error('sw fetch('+event.request.url+') event before inited');
+  console.warn('sw pending fetch('+event.request.url+') event before inited');
   await lif_kernel.wait_activate;
-  return lif_kernel.on_fetch(event);
+  console.info('sw complete fetch('+event.request.url+')');
+  return await lif_kernel.on_fetch(event);
+}
+function on_fetch(event){
+  event.respondWith(_on_fetch(event));
 }
 // service worker must register handlers on first run (not async)
 function sw_init_pre(){
@@ -848,7 +859,18 @@ let response_send = ({body, ext, uri})=>{
   return new Response(body, opt);
 };
 
-  let a, b = 1;
+let ctype_binary = path=>{
+  let ext = _path_ext(path);
+  let ctype = ctype_get(ext)?.ctype;
+  if (!ctype)
+    return false;
+  if (ctype.startsWith('audio/') || ctype.startsWith('image/') ||
+    ctype.startsWith('video/') || ctype.startsWith('font/'))
+  {
+    return true;
+  }
+  return false;
+};
 let pp = {};
 let boot_chan;
 async function _kernel_fetch(event){
@@ -897,7 +919,7 @@ async function _kernel_fetch(event){
     let f = await npm_file_load({log, uri});
     if (f.redirect)
       return Response.redirect(f.redirect+qs);
-    if (q.has('raw'))
+    if (q.has('raw') || ctype_binary(path))
       return response_send({body: f.blob, uri});
     if (ext=='json')
       return response_send({body: f.blob, ext: 'json'});
@@ -975,13 +997,7 @@ function sw_init_post(){
     if (boot_chan.listen(event))
       return;
   };
-  lif_kernel.on_fetch = event=>{
-    try {
-      event.respondWith(kernel_fetch(event));
-    } catch(err){
-      console.error("lif kernel sw NetworkError: "+err);
-    }
-  };
+  lif_kernel.on_fetch = event=>kernel_fetch(event);
   lif_kernel.wait_activate.return();
 }
 sw_init_post();

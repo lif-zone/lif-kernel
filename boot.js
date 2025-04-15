@@ -313,6 +313,7 @@ let do_pkg_map = function({map}){
   }
 };
 
+// https://web.dev/articles/cross-origin-isolation-guide
 // https://github.com/gzuidhof/coi-serviceworker
 // Cross-Origin-Isolation is required for SharedArrayBuffer feature
 // also, in browser, you need to activate
