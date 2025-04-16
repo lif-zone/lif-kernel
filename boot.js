@@ -139,7 +139,8 @@ async function require_single(mod_self, module_id){
     m.mod = await import(url);
     slow.end();
   } catch(err){
-    console.error('import('+module_id+') failed. required from '+mod_self, err);
+    console.error('import('+module_id+') failed. required from '+mod_self,
+      err);
     slow.end();
     throw m.wait.throw(err);
   }
@@ -149,7 +150,8 @@ async function require_single(mod_self, module_id){
 }
 
 // web worker importScripts()/require() implementation
-let fetch_opt = url=>(url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
+let fetch_opt = url=>
+  (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
 let import_modules = {};
 let import_module_script = async(url)=>{
   let mod;
@@ -207,13 +209,23 @@ async function _import(mod_self, [url, opt]){
 }
 
 function sync_worker_fetch(url){
-  let ipc = new ipc_sync();
-  globalThis.postMessage({fetch: {url, sab: ipc.sab}});
-  let buf = ipc.read('string');
-  let res = JSON.parse(buf);
-  if (!res.data)
-    return;
-  return ipc.read('string');
+  if (typeof SharedArrayBuffer=='undefined'){
+    const request = new XMLHttpRequest();
+    request.open("GET", url, false); // `false` makes the request synchronous
+    request.send(null);
+    if (request.status!=200)
+      return;
+    return request.responseText;
+  } else {
+    // using IPC
+    let ipc = new ipc_sync();
+    globalThis.postMessage({fetch: {url, sab: ipc.sab}});
+    let buf = ipc.read('string');
+    let res = JSON.parse(buf);
+    if (!res.data)
+      return;
+    return ipc.read('string');
+  }
 }
 
 async function main_on_fetch(event){
@@ -228,9 +240,10 @@ async function main_on_fetch(event){
   }
   let blob = await response.blob();
   let data = await blob.arrayBuffer();
+  res.status = response.status;
   res.length = blob.length;
   res.ctype = blob.type;
-  res.data = 1;
+  res.data = true;
   await ipc.Ewrite(json(res));
   await ipc.Ewrite(data);
 }
@@ -276,14 +289,16 @@ let boot_kernel = async()=>{
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
-    const registration = await navigator.serviceWorker.register('/lif_kernel_sw.js');
+    const registration = await navigator.serviceWorker.register(
+      '/lif_kernel_sw.js');
     await navigator.serviceWorker.ready;
     const conn_kernel = async()=>{
       kernel_chan = new postmessage_chan();
       kernel_chan.connect(navigator.serviceWorker.controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
       console.log('lif boot version: '+lif_version+' util '+util.version);
-      console.log('lif kernel sw version: '+(await kernel_chan.cmd('version')).version);
+      console.log('lif kernel sw version: '+
+        (await kernel_chan.cmd('version')).version);
       wait.return();
     };
     // this boots the React app if the SW has been installed before or
