@@ -817,6 +817,8 @@ let _npm_pkg_load = async function(log, modver){
   return npm;
 };
 
+let coi_enable = false;
+
 // fetch event.request.destination strings:
 // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
 // image, json, manifest, object, paintworklet, report, script,
@@ -853,9 +855,10 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
-  // COI: Cross-Origin-Isolation
-  // h['cross-origin-embedder-policy'] = 'require-corp';
-  // h['cross-origin-opener-policy'] = 'same-origin';
+  if (coi_enable){ // COI: Cross-Origin-Isolation
+    h['cross-origin-embedder-policy'] = 'require-corp';
+    h['cross-origin-opener-policy'] = 'same-origin';
+  }
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
@@ -957,8 +960,10 @@ async function _kernel_fetch(event){
   console.log('req default', url);
   let response = await fetch(request);
   let headers = new Headers(response.headers);
-  headers.set('cross-origin-embedder-policy', 'require-corp');
-  headers.set('cross-origin-opener-policy', 'same-origin');
+  if (coi_enable){ // COI: Cross-Origin-Isolation
+    headers.set('cross-origin-embedder-policy', 'require-corp');
+    headers.set('cross-origin-opener-policy', 'same-origin');
+  }
   return new Response(response.body, {
     headers, status: response.status, statusText: response.statusText});
 }

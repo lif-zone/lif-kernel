@@ -336,6 +336,7 @@ let do_pkg_map = function({map}){
 // the required COI headers to enable SAB is added by service worker:
 // 'cross-origin-embedder-policy': 'require-corp'
 // 'cross-origin-opener-policy': 'same-origin'
+let coi_enable = false;
 let coi_reload = async()=>{
   const reloaded = window.sessionStorage.getItem("coi_reload");
   window.sessionStorage.removeItem("coi_reload");
@@ -360,7 +361,8 @@ let boot_app = async({app, map})=>{
     await kernel_chan.cmd('pkg_map', {map: map});
   }
   // reload page for cross-origin-isolation
-  // await coi_reload();
+  if (coi_enable)
+    await coi_reload();
   // load app
   try {
     return await _import(app, [app]);
