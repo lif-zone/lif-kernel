@@ -269,6 +269,8 @@ async function init_worker(){
     return await init_worker.wait;
   let wait = init_worker.wait = ewait();
   console.log('lif init_worker '+globalThis.location+' '+(globalThis.name||''));
+  globalThis.orig_importScripts = globalThis.importScripts;
+  globalThis.importScripts = new_importScripts;
   let chan = new util.postmessage_chan();
   chan.add_server_cmd('version', arg=>({version: lif_version}));
   let slow = eslow(1000, ['init_worker']);
@@ -279,8 +281,6 @@ async function init_worker(){
   });
   await _wait;
   slow.end();
-  globalThis.orig_importScripts = globalThis.importScripts;
-  globalThis.importScripts = new_importScripts;
   return wait.return();
 }
 
@@ -329,6 +329,7 @@ let do_pkg_map = function({map}){
 };
 
 // https://web.dev/articles/cross-origin-isolation-guide
+// https://developer.chrome.com/blog/coep-credentialless-origin-trial
 // https://github.com/gzuidhof/coi-serviceworker
 // Cross-Origin-Isolation is required for SharedArrayBuffer feature
 // also, in browser, you need to activate
@@ -336,7 +337,6 @@ let do_pkg_map = function({map}){
 // 'cross-origin-embedder-policy': 'require-corp'
 // 'cross-origin-opener-policy': 'same-origin'
 let coi_reload = async()=>{
-  return; // XXX remove
   const reloaded = window.sessionStorage.getItem("coi_reload");
   window.sessionStorage.removeItem("coi_reload");
   if (window.crossOriginIsolated)
@@ -349,6 +349,7 @@ let coi_reload = async()=>{
   console.log('reload: to enable cross origin isolation for SAB');
   window.location.reload();
 };
+
 let boot_app = async({app, map})=>{
   // init kernel
   await boot_kernel();
@@ -359,7 +360,7 @@ let boot_app = async({app, map})=>{
     await kernel_chan.cmd('pkg_map', {map: map});
   }
   // reload page for cross-origin-isolation
-  await coi_reload();
+  // await coi_reload();
   // load app
   try {
     return await _import(app, [app]);
@@ -375,7 +376,8 @@ if (!is_worker){
   let _Worker = Worker;
   class lif_Worker extends Worker {
     constructor(url, opt){
-      let _url = url.href || url, es5 = opt?.type!='module';
+      url = url.href || url;
+      let _url = url, es5 = opt?.type!='module';
       _url = lpm_2url(mod_root, _url, {worker: 1, type: opt?.type});
       let worker = super(_url, ...[...arguments].slice(1));
       worker.addEventListener("message", event=>{

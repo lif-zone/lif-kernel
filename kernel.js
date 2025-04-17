@@ -232,7 +232,7 @@ let file_ast = f=>{
             });
           }
         });
-        imported = array_unique(imported); // XXX add sort()
+        imported = array_unique(imported).sort();
         ast.imports.push({module: v, start: s.start, end: s.end, type,
           imported: imported.length ? imported : null});
       }
@@ -321,7 +321,7 @@ let file_ast = f=>{
     ast.type = has.import||has.export||has.await ? 'mjs' :
       has.require||has.module||has.exports ? 'cjs' : 
       has.define ? 'amd' : '';
-    ast.exports = array_unique(ast.exports);
+    ast.exports = array_unique(ast.exports).sort();
   };
   tr_jsx_ts();
   parse_ast();
@@ -714,9 +714,10 @@ async function npm_pkg_load(log, modver){
     let u = npm_uri_parse(npm.modver);
     log('map u', u, 'modver', npm.modver);
     let url = npm.base+'/package.json';
+    // try alternative CDNs if fails in non "standard" failure of not-found
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
-      throw Error('module('+log.mod+') failed fetch '+url);
+      throw Error('module('+log.mod+') failed fetch '+response.status+' '+url);
     try {
       pkg = npm.pkg = await response.json();
     } catch(err){
@@ -759,6 +760,7 @@ async function npm_file_load({log, uri, no_alt}){
   let slow = eslow(5000, ['fetch', file.url]);
   let response;
   try {
+    // try alternative CDNs if fails in non "standard" failure of not-found
     response = await fetch(file.url, fetch_opt(file.url));
   } catch(err){
     slow.end();
@@ -795,7 +797,7 @@ async function npm_file_load({log, uri, no_alt}){
   return file.wait.return(file);
 }
 
-let _npm_pkg_load = async function(modver){
+let _npm_pkg_load = async function(log, modver){
   let npm, slow;
   modver ||= mod_root;
   try {
@@ -804,7 +806,7 @@ let _npm_pkg_load = async function(modver){
     slow.end();
     if (npm.redirect){
       slow = eslow(5000, ['_npm_pkg_load', modver]);
-      npm = await npm_pkg_load(()=>{}, npm.redirect);
+      npm = await npm_pkg_load(log, npm.redirect);
       slow.end();
     }
   } catch(err){
@@ -851,10 +853,9 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
-  if (0){ // XXX: re-enable COI
-  h['cross-origin-embedder-policy'] = 'require-corp';
-  h['cross-origin-opener-policy'] = 'same-origin';
-  }
+  // COI: Cross-Origin-Isolation
+  // h['cross-origin-embedder-policy'] = 'require-corp';
+  // h['cross-origin-opener-policy'] = 'same-origin';
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
@@ -883,11 +884,15 @@ async function _kernel_fetch(event){
   let q = u.searchParams;
   let mod_self = q.get('mod_self');
   let ext = _path_ext(path);
+  // logging
   let log = function(){
     if (url.includes(' none '))
       return void console.log(url, ...arguments), 1;
   };
   log.mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
+  let log_ref = log.bind(null);
+  log_ref.mod = url;
+  // external and non GET requests
   if (request.method!='GET' && request.method!='HEAD'){
     console.log('non GET fetch', url);
     return fetch(request);
@@ -896,8 +901,10 @@ async function _kernel_fetch(event){
     console.log('external fetch', url);
     return fetch(request);
   }
+  // LIF+local GET requests
   log('Req');
   let v;
+  // LIF requests
   if (v = str.prefix(path, '/.lif/npm/')){
     let uri = v.rest;
     if (!uri)
@@ -912,7 +919,7 @@ async function _kernel_fetch(event){
         console.log('no mod_self for '+url+' using '+mod_root);
         mod_self = mod_root;
       }
-      let npm = await _npm_pkg_load(npm_modver(mod_self));
+      let npm = await _npm_pkg_load(log_ref, npm_modver(mod_self));
       D && console.log('uri', uri, 'mod_self', mod_self);
       _path = npm_dep_lookup(npm.pkg, mod_self, uri);
       if (_path!=path)
@@ -941,7 +948,8 @@ async function _kernel_fetch(event){
     }
     throw Error('invalid npm type '+type);
   }
-  let pkg_root = (await _npm_pkg_load(mod_root)).pkg;
+  // local requests
+  let pkg_root = (await _npm_pkg_load(log_ref, mod_root)).pkg;
   if (v = modmap_lookup(pkg_root, path)){
     log('modmap '+path+' -> '+v);
     return Response.redirect('/.lif/npm/'+v+'?raw=1');
@@ -970,7 +978,9 @@ async function kernel_fetch(event){
 }
 
 let do_module_dep = async function({modver, dep}){
-  let npm = await _npm_pkg_load(modver, dep);
+  let log = function(){ console.log(modver, ...arguments); };
+  log.mod = dep;
+  let npm = await _npm_pkg_load(log, modver);
   if (!npm)
     return;
   return npm_dep_lookup(npm.pkg, modver, dep);
