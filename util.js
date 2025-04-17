@@ -240,6 +240,8 @@ let buf_to_str = (buf, type)=>{
   throw Error('buf_to_str: invalid type');
 }
 
+// implementation automatic service-worker/direct SharedArrayBuffer
+// https://github.com/alexmojaki/sync-message
 class ipc_sync {
   seq = 0;
   constructor(ipc_buf){
