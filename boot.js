@@ -4,7 +4,7 @@ let lif_version = '1.0.3';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan, ipc_sync,
+let {ewait, esleep, eslow, postmessage_chan,
   path_file, OF, OA, assert, TE_to_null,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
@@ -209,43 +209,12 @@ async function _import(mod_self, [url, opt]){
 }
 
 function sync_worker_fetch(url){
-  if (typeof SharedArrayBuffer=='undefined'){
-    const request = new XMLHttpRequest();
-    request.open("GET", url, false); // `false` makes the request synchronous
-    request.send(null);
-    if (request.status!=200)
-      return;
-    return request.responseText;
-  } else {
-    // using IPC
-    let ipc = new ipc_sync();
-    globalThis.postMessage({fetch: {url, sab: ipc.sab}});
-    let buf = ipc.read('string');
-    let res = JSON.parse(buf);
-    if (!res.data)
-      return;
-    return ipc.read('string');
-  }
-}
-
-async function main_on_fetch(event){
-  let ipc = new ipc_sync(event.data.fetch.sab);
-  let url = event.data.fetch.url;
-  let response = await fetch(url, fetch_opt(url));
-  let res = {status: response.status};
-  if (response.status!=200){
-    console.log('main_on_fetch('+url+') failed fetch');
-    await ipc.write(json({status: response.status}));
+  const request = new XMLHttpRequest();
+  request.open("GET", url, false); // `false` makes the request synchronous
+  request.send(null);
+  if (request.status!=200)
     return;
-  }
-  let blob = await response.blob();
-  let data = await blob.arrayBuffer();
-  res.status = response.status;
-  res.length = blob.length;
-  res.ctype = blob.type;
-  res.data = true;
-  await ipc.Ewrite(json(res));
-  await ipc.Ewrite(data);
+  return request.responseText;
 }
 
 // worker
@@ -364,22 +333,30 @@ let boot_app = async({app, map})=>{
 };
 
 if (!is_worker){
-  // TODO: add SharedWorker
-  let _Worker = Worker;
+  let get_url = (url, opt)=>{
+    url = url.href || url;
+    let _url = url, es5 = opt?.type!='module';
+    _url = lpm_2url(mod_root, _url, {worker: 1, type: opt?.type});
+    return _url;
+  };
   class lif_Worker extends Worker {
     constructor(url, opt){
-      url = url.href || url;
-      let _url = url, es5 = opt?.type!='module';
-      _url = lpm_2url(mod_root, _url, {worker: 1, type: opt?.type});
-      let worker = super(_url, ...[...arguments].slice(1));
-      worker.addEventListener("message", event=>{
-        if (event.data?.fetch)
-          return main_on_fetch(event);
-      });
       console.log('Worker start', url);
+      let _url = get_url(url, opt);
+      let worker = super(_url, ...[...arguments].slice(1));
     }
   }
+  globalThis.orig_Worker = Worker;
   globalThis.Worker = lif_Worker;
+  class lif_SharedWorker extends SharedWorker {
+    constructor(url, opt){
+      console.log('SharedWorker start', url);
+      let _url = get_url(url, opt);
+      let worker = super(_url, ...[...arguments].slice(1));
+    }
+  }
+  globalThis.orig_SharedWorker = SharedWorker;
+  globalThis.SharedWorker = lif_SharedWorker;
 }
 
 lif.boot = {
