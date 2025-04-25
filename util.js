@@ -414,6 +414,26 @@ const npm_modver = uri=>{
 };
 exports.npm_modver = npm_modver;
 
+const TE_lpm_uri_parse = path=>{
+  assert(0);
+  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
+  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
+  const m = scoped.exec(path) || non_scoped.exec(path)
+  if (!m)
+    throw Error('lpm_uri_parse: invalid uri '+path);
+  return {name: m[1]||'', version: m[2]||'', path: m[3]||''};
+};
+exports.TE_lpm_uri_parse = TE_lpm_uri_parse;
+const lpm_uri_parse = TE_to_null(TE_lpm_uri_parse);
+exports.lpm_uri_parse = lpm_uri_parse;
+
+const lpm_modver = uri=>{
+  if (typeof uri=='string')
+    uri = TE_lpm_uri_parse(uri);
+  return uri.name+uri.version;
+};
+exports.lpm_modver = lpm_modver;
+
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
 // /.lif/git/gh/user/repo@ver/dir/file
