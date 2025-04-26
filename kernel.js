@@ -187,6 +187,7 @@ let lpm_map = {};
 let npm_pkg = {};
 let lpm_pkg = {};
 let npm_file = {};
+let lpm_file = {};
 
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
@@ -852,7 +853,66 @@ async function npm_pkg_load(log, modver){
   }
 }
 
-async function lpm_file_load({log, uri, no_alt}){ assert(0); }
+async function lpm_file_load({log, uri, no_alt}){
+  let file, D = 0, lpm;
+  if (file = lpm_file[uri])
+    return await file.wait;
+  file = lpm_file[uri] = {uri, wait: ewait(), log};
+  lpm = file.lpm = await lpm_pkg_load(log, lpm_modver(uri));
+  if (lpm.redirect){
+    let u = lpm_uri_parse(uri);
+    log(u, 'lpm.redir', lpm.redirect);
+    return file.wait.return({redirect: lpm.redirect+u.path});
+  }
+  let {nfile, type, redirect, alt} = lpm.file_lookup(uri);
+  file.nfile = nfile;
+  file.url = lpm.base+'/'+nfile;
+  file.type = type;
+  file.redirect = redirect;
+  file.alt = alt;
+  if (file.redirect)
+    return file.wait.return(file);
+  // fetch the file
+  let slow = eslow(5000, ['fetch', file.url]);
+  let response;
+  try {
+    // try alternative CDNs if fails in non "standard" failure of not-found
+    response = await fetch(file.url, fetch_opt(file.url));
+  } catch(err){
+    slow.end();
+    err.message = 'fetch('+file.url+')'+err.message;
+    throw file.wait.throw(err);
+  }
+  slow.end();
+  if (response.status!=200){
+    if (no_alt)
+      throw file.wait.throw(Error('fetch failed '+file.url));
+    if (alt){
+      let afile, err;
+      loop: for (let a of alt){
+        try {
+          afile = await lpm_file_load({log, uri: uri+a, no_alt: true});
+          break loop;
+        } catch(err){}
+      }
+      if (afile){
+        file.redirect = '/.lif/'+afile.uri;
+        D && console.log('fetch OK redirect '+file.url);
+        return file.wait.return(file);
+      }
+    }
+    let e = 'module('+log.mod+(alt ? ' alt '+alt.join(' ') : '')+
+      ') failed fetch '+file.url;
+    console.error(e);
+    throw file.wait.throw(Error(e));
+  }
+  let response2 = response.clone();
+  file.blob = await response.blob();
+  file.body = await response2.text();
+  D && console.log('fetch OK '+file.url);
+  return file.wait.return(file);
+}
+
 async function npm_file_load({log, uri, no_alt}){
   let file, D = 0, npm;
   if (file = npm_file[uri])
