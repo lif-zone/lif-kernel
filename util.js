@@ -466,9 +466,9 @@ const TE_lpm_uri_parse = uri=>{
   let ver_split = name=>{
     let n = name.split('@');
     if (n.length==1)
-      return {_name: name, ver: '', _ver: null};
+      return {name: name, ver: '', _ver: null};
     if (n.length==2)
-      return {_name: n[0], ver: '@'+n[1], _ver: n[1]};
+      return {name: n[0], ver: '@'+n[1], _ver: n[1]};
     throw Error('lpm_uri_parse invalid ver inname: '+name);
   };
   let v;
@@ -478,12 +478,12 @@ const TE_lpm_uri_parse = uri=>{
     l.name = next('module name');
     if (l.name[0]=='@'){
       l.scoped = true;
-      l.name = l.name+'/'+next('scoped module name');
-      v = ver_split(l.name.slice(1));
-      l._name = '@'+v._name;
+      let sub = next('scoped module name');
+      v = ver_split(sub);
+      l.name = l.name+'/'+v.name;
     } else {
       v = ver_split(l.name);
-      l._name = v._name;
+      l.name = v.name;
     }
     l.ver = v.ver;
     l._ver = v._ver;
@@ -495,9 +495,9 @@ const TE_lpm_uri_parse = uri=>{
     if (l.site!='gh')
       throw Error('invalid git site: '+l.site);
     l.name = l.user+l.repo;
-    l._repo = ver_split(l.repo)._name;
+    l._repo = ver_split(l.repo).name;
     v = ver_split(l.name);
-    l._name = v._name;
+    l.name = v.name;
     l.ver = v.ver;
     l._ver = v._ver;
     if (!l._ver)
@@ -513,7 +513,7 @@ const TE_lpm_uri_parse = uri=>{
   case 'https':
     l.name = next('site name');
     v = ver_split(l.name);
-    l._name = v._name;
+    l.name = v.name;
     l.ver = v.ver;
     l._ver = v._ver;
     l.port = v._ver;
@@ -550,7 +550,7 @@ exports.lpm_uri_parse = lpm_uri_parse;
 const lpm_modver = uri=>{
   if (typeof uri=='string')
     uri = TE_lpm_uri_parse(uri);
-  return uri.name+uri.version;
+  return uri.name+uri.ver;
 };
 exports.lpm_modver = lpm_modver;
 
@@ -562,10 +562,10 @@ const TE_npm_uri_parse = path=>{
   const m = scoped.exec(path) || non_scoped.exec(path)
   if (!m)
     throw Error('npm_uri_parse: invalid uri '+path);
-  return {name: m[1]||'', version: m[2]||'', path: m[3]||''};
+  return {name: m[1]||'', ver: m[2]||'', path: m[3]||''};
   }
   let {a, b} = assert_run_ab(()=>orig(path), ()=>lpm_uri_parse('npm/'+path),
-    (a, b)=>a.name==b._name && a.version==b.ver && a.path==b.path);
+    (a, b)=>a.name==b.name && a.ver==b.ver && a.path==b.path);
   return a;
 };
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
@@ -575,7 +575,7 @@ exports.npm_uri_parse = npm_uri_parse;
 const npm_modver = uri=>{
   if (typeof uri=='string')
     uri = TE_npm_uri_parse(uri);
-  return uri.name+uri.version;
+  return uri.name+uri.ver;
 };
 exports.npm_modver = npm_modver;
 
@@ -633,7 +633,7 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
   if (t=='rel' && tbase=='mod'){
     let base = TE_npm_uri_parse(base_uri);
     u = __uri_parse(url_uri, base.path);
-    u = __uri_parse('/'+base.name+base.version+u.path);
+    u = __uri_parse('/'+base.name+base.ver+u.path);
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);

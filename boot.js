@@ -103,7 +103,7 @@ const lpm_2url = (mod_self, url, opt)=>{
     return url;
   let _url = '/.lif/npm/'+u.path;
   let q = {};
-  if (!u.mod.version && !npm_map?.[u.mod.name])
+  if (!u.mod.ver && !npm_map?.[u.mod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
     q.cjs = 1;

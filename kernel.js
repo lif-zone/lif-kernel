@@ -438,7 +438,7 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
     console.error('invalid npm uri import('+uri+')');
     return uri;
   }
-  let modver = u.name+u.version;
+  let modver = u.name+u.ver;
   let map = npm_map[modver];
   if (v = map?.base){
     if (v[0]!='/')
@@ -446,7 +446,7 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
     v = v.slice(1);
     return '/.lif/npm/'+v+u.path;
   }
-  if (!u.version){
+  if (!u.ver){
     let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
     if (!dep || dep=='-')
       throw Error('module('+mod_self+') dep missing: '+uri);
@@ -563,7 +563,7 @@ let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
       return v.rest+path;
     d = d.replaceAll(' ', '');
     if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){
-      console.log('invalid dep('+module+') version '+d);
+      console.log('invalid dep('+module+') ver '+d);
       return '-';
     }
     [, op, ver] = m;
@@ -746,10 +746,10 @@ async function npm_pkg_load(log, modver){
     }
     if (!pkg)
       throw Error('empty package.json '+url);
-    if (!(npm.version = pkg.version))
+    if (!(npm.ver = pkg.version))
       throw Error('invalid package.json '+url);
-    if (!u.version && !map){
-      npm.redirect = '/.lif/npm/'+u.name+'@'+npm.version+u.path;
+    if (!u.ver && !map){
+      npm.redirect = '/.lif/npm/'+u.name+'@'+npm.ver+u.path;
       log('npm.redirect', npm.redirect);
     }
     return npm.wait.return(npm);
@@ -966,7 +966,7 @@ async function _kernel_fetch(event){
       if (!_u)
         throw Error('invalid uri '+path);
       let map;
-      if (!_u.version && !(map = npm_map[_u.name])){
+      if (!_u.ver && !(map = npm_map[_u.name])){
         if (!mod_self){
           console.log('no mod_self for '+url+' using '+mod_root);
           mod_self = mod_root;
@@ -993,7 +993,7 @@ async function _kernel_fetch(event){
       if (!l)
         throw Error('invalid lpm '+uri);
       let map;
-      if (!l.version && !(map = lpm_map[l.name])){
+      if (!l.ver && !(map = lpm_map[l.name])){
         if (!mod_self){
           console.log('no mod_self for '+url+' using '+lpm_root);
           mod_self = lpm_root;
