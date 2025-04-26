@@ -555,19 +555,7 @@ const lpm_modver = uri=>{
 exports.lpm_modver = lpm_modver;
 
 // parse-package-name
-const TE_npm_uri_parse = path=>{
-  function orig(){
-  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const m = scoped.exec(path) || non_scoped.exec(path)
-  if (!m)
-    throw Error('npm_uri_parse: invalid uri '+path);
-  return {name: m[1]||'', ver: m[2]||'', path: m[3]||''};
-  }
-  let {a, b} = assert_run_ab(()=>orig(path), ()=>lpm_uri_parse('npm/'+path),
-    (a, b)=>a.name==b.name && a.ver==b.ver && a.path==b.path);
-  return a;
-};
+const TE_npm_uri_parse = path=>lpm_uri_parse('npm/'+path);
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
 const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
 exports.npm_uri_parse = npm_uri_parse;
