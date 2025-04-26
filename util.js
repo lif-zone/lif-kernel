@@ -421,6 +421,37 @@ const TE_url_parse = (url, base)=>{
 };
 const url_parse = TE_to_null(TE_url_parse);
 
+// https://www.iana.org/assignments/uri-schemes/prov/gitoid
+// https://docs.npmjs.com/cli/v11/configuring-npm/package-json
+// /.lif/git/gh/user/repo@ver/dir/file
+// gh/user/repo/commit-ish/dir/file
+// gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
+//   https://github.com/pinheadmz/bcoin/blob/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
+//   https://raw.githubusercontent.com/pinheadmz/bcoin/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
+//   https://cdn.jsdelivr.net/gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
+//   https://cdn.statically.io/gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
+// gh/pinheadmz/bcoin/HEAD/lib/bcoin-browser.js
+//   https://github.com/pinheadmz/bcoin/blob/HEAD/lib/bcoin-browser.js
+//   https://raw.githubusercontent.com/pinheadmz/bcoin/HEAD/lib/bcoin-browser.js
+//   https://cdn.jsdelivr.net/gh/pinheadmz/bcoin@HEAD/lib/bcoin-browser.js
+//   https://cdn.statically.io/gh/pinheadmz/bcoin@HEAD/lib/bcoin-browser.js
+// Docs:
+//   https://statically.io/ - gh GitHub, gl GitLab, 
+//   https://www.jsdelivr.com/github - link converter
+//
+// npm/MOD/PATH
+// npm/MOD@VER/PATH
+// npm/@SCOPE/MOD/PATH
+// npm/@SCOPE/MOD@VER/PATH
+// git/gh/USER/REPO/PATH
+// git/gh/USER/REPO@VER/PATH
+// http/SITE/PATH
+// http/SITE@PORT/PATH
+// https/SITE/PATH
+// https/SITE@PORT/PATH
+// ipfs/CID/PATH
+// ipns/NAME/PATH
+
 const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
 const TE_lpm_uri_parse = uri=>{
   let l = {};
@@ -547,51 +578,6 @@ const npm_modver = uri=>{
   return uri.name+uri.version;
 };
 exports.npm_modver = npm_modver;
-
-// https://www.iana.org/assignments/uri-schemes/prov/gitoid
-// https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-// /.lif/git/gh/user/repo@ver/dir/file
-// gh/user/repo/commit-ish/dir/file
-// gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://github.com/pinheadmz/bcoin/blob/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://raw.githubusercontent.com/pinheadmz/bcoin/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://cdn.jsdelivr.net/gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://cdn.statically.io/gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-// gh/pinheadmz/bcoin/HEAD/lib/bcoin-browser.js
-//   https://github.com/pinheadmz/bcoin/blob/HEAD/lib/bcoin-browser.js
-//   https://raw.githubusercontent.com/pinheadmz/bcoin/HEAD/lib/bcoin-browser.js
-//   https://cdn.jsdelivr.net/gh/pinheadmz/bcoin@HEAD/lib/bcoin-browser.js
-//   https://cdn.statically.io/gh/pinheadmz/bcoin@HEAD/lib/bcoin-browser.js
-// Docs:
-//   https://statically.io/ - gh GitHub, gl GitLab, 
-//   https://www.jsdelivr.com/github - link converter
-const TE_git_uri_parse = path=>{
-  let p = path.split('/');
-  let site = p[0], user = p[1], repo = p[2], version, _version, ver_type;
-  if (!user || !repo)
-    throw Error('invalid git uri '+path);
-  if (site!='gh')
-    throw Error('invalid git site: '+site);
-  const m = /^([^@]+)(?:(@[^@]+))?$/.exec(repo);
-  if (!m)
-    throw Error('invalid git repo@ver: '+repo);
-  repo = m[0];
-  version = m[1];
-  _version = version ? version.slice(1) : '';
-  if (!version)
-    ver_type = '';
-  else if (/^[0-9a-f]+$/.test(_version)){
-    ver_type = _version.length==40 ? 'sha1' : _version.length==64 ? 'sha256' :
-      _version.length>=4 && !(_version.length % 2) && _version.length<=20 ? 'shortcut' :
-      'name';
-  } else
-    ver_type = 'name';
-  let _path = p.length==3 ? '' : '/'+p.slice(2).join('/');
-  return {p, user, repo, version, _version, ver_type, path: _path};
-};
-exports.TE_git_uri_parse = TE_git_uri_parse;
-const git_uri_parse = TE_to_null(TE_git_uri_parse);
-exports.git_uri_parse = git_uri_parse;
 
 const url_uri_type = url_uri=>{
   if (!url_uri)
