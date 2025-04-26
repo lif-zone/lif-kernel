@@ -466,7 +466,40 @@ const file_tr_cjs2 = async f=>{
   `;
 }
 
-let lpm_dep_lookup = (pkg, mod_self, uri)=>{ assert(0); };
+let lpm_dep_lookup = (pkg, mod_self, uri)=>{
+  let __uri = uri;
+  let v, u = TE_url_uri_parse(uri, mod_self);
+  if (!u.is.mod)
+    return;
+  if (u.is.rel)
+    uri = u.path;
+  if (!(u = lpm_uri_parse(uri))){
+    console.error('invalid lpm uri import('+uri+')');
+    return uri;
+  }
+  let modver = u.name+u.ver;
+  let map = lpm_map[modver];
+  if (map){
+    v = map.lpm_base;
+    if (v[0]!='/')
+      throw Error('invalid base');
+    v = v.slice(1);
+    return '/.lif/'+v+u.path;
+  }
+  if (!u.ver){
+    let dep = lpm_dep_ver_lookup(pkg, mod_self, uri);
+    if (!dep || dep=='-')
+      throw Error('module('+mod_self+') dep missing: '+uri);
+    if (dep.startsWith('-peer-')){
+      let pkg_root = lpm_pkg[mod_root].pkg;
+      if (!(dep = lpm_dep_ver_lookup(pkg_root, mod_root, uri)))
+        throw Error('module('+mod_self+') dep missing mod_root: '+uri);
+    }
+    return '/.lif/'+dep;
+  }
+  return '/.lif/'+uri;
+};
+
 let npm_dep_lookup = (pkg, mod_self, uri)=>{
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
@@ -513,13 +546,12 @@ let modmap_lookup = (pkg, uri)=>{
 };
 
 let lpm_modmap_lookup = (pkg, uri)=>{
-  assert(0);
   for (let [from, to] of OF(pkg.lif?.modmap)){
     let v;
     if (v=path_prefix(uri, from)){
       if (to.endsWith('/'))
         to += path_file(from);
-      return mod_root+to+v.rest;
+      return lpm_root+to+v.rest;
     }
   }
 };
@@ -591,6 +623,42 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
+let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
+  let module = lpm_modver(mod_uri);
+  let path = lpm_uri_parse(mod_uri).path;
+  let get_dep = dep=>{
+    let d, m, op, v, ver;
+    if (!(d = dep?.[module]))
+      return;
+    if (v=str.prefix(d, './'))
+      return pkg.name+'/'+v.rest+path;
+    if (v=str.prefix(d, 'npm:'))
+      return v.rest+path;
+    d = d.replaceAll(' ', '');
+    if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){
+      console.log('invalid dep('+module+') ver '+d);
+      return '-';
+    }
+    [, op, ver] = m;
+    if (op=='>=')
+      return ver;
+    if (!(op=='^' || op=='=' || op=='' || op=='~')){
+      console.log('invalid dep('+module+') op '+op);
+      return '-';
+    }
+    return module+'@'+ver+path;
+  };
+  let d
+  if (d = get_dep(pkg.lif?.dependencies))
+    return d;
+  if (d = get_dep(pkg.dependencies))
+    return d;
+  if (d = get_dep(pkg.peerDependencies))
+    return '-peer-'+d;
+  if (d = get_dep(pkg.devDependencies))
+    return d;
+};
+
 let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
   let module = npm_modver(mod_uri);
   let path = npm_uri_parse(mod_uri).path;
@@ -616,7 +684,7 @@ let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
     }
     return module+'@'+ver+path;
   };
-  let d
+  let d;
   if (d = get_dep(pkg.lif?.dependencies))
     return d;
   if (d = get_dep(pkg.dependencies))
