@@ -515,12 +515,13 @@ const TE_lpm_uri_parse = uri=>{
     }
     l.ver = v.ver;
     l._ver = v._ver;
+    l.modver = l.reg+'/'+l.name+l.ver;
     break;
   case 'git':
     l.site = next('site');
     l.user = next('user');
     l.repo = next('repo');
-    l.name = l.user+l.repo;
+    l.name = l.user+'/'+l.repo;
     l._repo = ver_split(l.repo).name;
     v = ver_split(l.name);
     l.name = v.name;
@@ -534,6 +535,7 @@ const TE_lpm_uri_parse = uri=>{
         'name';
     } else
       l.ver_type = 'name';
+    l.modver = l.site+'/'+l.name+l.ver;
     break;
   case 'http':
   case 'https':

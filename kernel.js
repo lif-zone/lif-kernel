@@ -145,22 +145,22 @@ let npm_cdn = [
 let lpm_cdn = {
   npm: [{
     name: 'jsdeliver.net',
-    u: u=>`https://cdn.jsdelivr.net/npm/${u.reg}/${u.name}${u.ver}${u.path}`,
+    u: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.path}`,
   }, {
     name: 'unpkg.com',
-    u: u=>`https://unpkg.com/${u.reg}/${u.name}${u.ver}${u.path}`,
+    u: u=>`https://unpkg.com/${u.name}${u.ver}${u.path}`,
   }],
   git: {
     github: [{
       name: 'jsdeliver.net',
-      u: u=>`https://cdn.jsdelivr.net/gh/${u.reg}/${u.name}${u.ver}${u.path}`
+      u: u=>`https://cdn.jsdelivr.net/gh/${u.name}${u.ver}${u.path}`
     }, {
       name: 'statically.io',
-      u: u=>`https://statically.io/gh/${u.reg}/${u.name}${u.ver}${u.path}`,
+      u: u=>`https://statically.io/gh/${u.name}${u.ver}${u.path}`,
     }],
     gitlab: [{
       name: 'statically.io',
-      u: u=>`https://statically.io/gl/${u.reg}/${u.name}${u.ver}${u.path}`,
+      u: u=>`https://statically.io/gl/${u.name}${u.ver}${u.path}`,
     }],
   },
   ipfs: [{
@@ -386,7 +386,7 @@ let tr_cjs_require = f=>{
 };
 
 const file_tr_cjs = (f, opt)=>{
-  let uri_s = json(f.uri);
+  let uri_s = json(f.npm_uri);
   let tr = tr_cjs_require(f);
   let pre = '';
   for (let r of f.ast.requires){
@@ -415,7 +415,7 @@ const file_tr_cjs = (f, opt)=>{
 }
 
 const file_tr_cjs2 = async f=>{
-  let uri_s = json(f.uri);
+  let uri_s = json(f.npm_uri);
   let tr = tr_cjs_require(f);
   let pre = '';
   for (let r of f.ast.requires){
@@ -426,7 +426,7 @@ const file_tr_cjs2 = async f=>{
   if (f.ast.exports_require.length){
     let e = f.ast.exports_require[0], v;
     if (e.startsWith('./')){
-      if (v=npm_dep_lookup(f.npm.pkg, f.uri, e)){
+      if (v=npm_dep_lookup(f.lpm.pkg, f.uri, e)){
         v = str.prefix(v, '/.lif/npm/').rest;
         console.log('module('+f.uri+') req '+e+' lookup '+v);
         let _f = await npm_file_load({log: f.log, uri: v});
@@ -562,7 +562,7 @@ let tr_mjs_import = f=>{
     let uri = d.module;
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
-    else if (v=npm_dep_lookup(f.npm.pkg, f.uri, d.module)){
+    else if (v=npm_dep_lookup(f.lpm.pkg, f.uri, d.module)){
       if (d.imported)
         v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
@@ -574,11 +574,11 @@ let tr_mjs_import = f=>{
 };
 
 const file_tr_mjs = (f, worker)=>{
-  let uri_s = json(f.uri);
+  let uri_s = json(f.npm_uri);
   let tr = tr_mjs_import(f);
   let slow = 0, log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
-  if (f.uri.includes(' mod_name '))
+  if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
   if (worker){
     pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
@@ -844,7 +844,7 @@ async function lpm_pkg_load(log, modver){
     let path = '/package.json';
     log('modver', lpm.modver+path);
     let u = lpm_uri_parse(lpm.modver+path);
-    let url = lpm.cdns[0].url(u);
+    let url = lpm.cdns[0].u(u);
     // try alternative CDNs if fails in non "standard" failure of not-found
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -921,11 +921,19 @@ async function npm_pkg_load(log, modver){
   }
 }
 
+function lpm_uri_to_npm(uri){
+  if (uri.startsWith('npm/'))
+    return uri.slice(4);
+  throw Error('lpm_to_npm not an npm: '+uri);
+  return 'lif/'+uri;
+}
+
 async function lpm_file_load({log, uri, no_alt}){
   let file, D = 0, lpm;
   if (file = lpm_file[uri])
     return await file.wait;
   file = lpm_file[uri] = {uri, wait: ewait(), log};
+  file.npm_uri = lpm_uri_to_npm(file.uri);
   lpm = file.lpm = await lpm_pkg_load(log, lpm_modver(uri));
   if (lpm.redirect){
     let u = lpm_uri_parse(uri);
@@ -934,7 +942,8 @@ async function lpm_file_load({log, uri, no_alt}){
   }
   let {nfile, type, redirect, alt} = lpm.file_lookup(uri);
   file.nfile = nfile;
-  file.url = lpm.base+'/'+nfile;
+  let u = lpm_uri_parse(lpm.modver+'/'+nfile);
+  file.url = lpm.cdns[0].u(u);
   file.type = type;
   file.redirect = redirect;
   file.alt = alt;
@@ -986,7 +995,9 @@ async function npm_file_load({log, uri, no_alt}){
   if (file = npm_file[uri])
     return await file.wait;
   file = npm_file[uri] = {uri, wait: ewait(), log};
-  npm = file.npm = await npm_pkg_load(log, npm_modver(uri));
+  file.npm_uri = file.uri;
+  file.npm = npm = await npm_pkg_load(log, npm_modver(uri));
+  file.lpm = file.npm;
   if (npm.redirect){
     let u = npm_uri_parse(uri);
     log(u, 'npm.redir', npm.redirect);
