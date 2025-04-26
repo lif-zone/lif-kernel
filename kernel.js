@@ -1166,7 +1166,7 @@ function respond_tr_send({f, q, qs, uri, path, ext}){
 
 let pp = {};
 let boot_chan;
-let lif_enable = 0;
+let lpm_enable = 0;
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = TE_url_parse(url);
@@ -1198,7 +1198,7 @@ async function _kernel_fetch(event){
   log('Req');
   let v;
   // LIF requests
-  if (!lif_enable){
+  if (!lpm_enable){
     if (v = str.prefix(path, '/.lif/npm/')){
       let uri = v.rest;
       if (!uri)
