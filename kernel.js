@@ -140,13 +140,52 @@ let cerr = console.error.bind(console);
 
 let npm_cdn = [
   'https://cdn.jsdelivr.net/npm',
-  // 'https://unpkg.com',
+  'https://unpkg.com',
 ];
+let lpm_cdn = {
+  npm: [{
+    name: 'jsdeliver.net',
+    u: u=>`https://cdn.jsdelivr.net/npm/${u.reg}/${u.name}${u.ver}${u.path}`,
+  }, {
+    name: 'unpkg.com',
+    u: u=>`https://unpkg.com/${u.reg}/${u.name}${u.ver}${u.path}`,
+  }],
+  git: {
+    github: [{
+      name: 'jsdeliver.net',
+      u: u=>`https://cdn.jsdelivr.net/gh/${u.reg}/${u.name}${u.ver}${u.path}`
+    }, {
+      name: 'statically.io',
+      u: u=>`https://statically.io/gh/${u.reg}/${u.name}${u.ver}${u.path}`,
+    }],
+    gitlab: [{
+      name: 'statically.io',
+      u: u=>`https://statically.io/gl/${u.reg}/${u.name}${u.ver}${u.path}`,
+    }],
+  },
+  ipfs: [{
+    name: 'ipfs.io',
+    u: u=>`https://ipfs.io/ipfs/${u.cid}${u.path}`,
+  }, {
+    name: 'cloudflare-ipfs.com',
+    u: u=>`https://cloudflare-ipfs.com/ipfs/${u.cid}${u.path}`,
+  }],
+};
+let lpm_get_cdns = u=>{
+  let l = lpm_cdn;
+  switch (u.reg){
+  case 'npm': return l.npm;
+  case 'git': return l.git[u.site];
+  case 'ipfs': return l.ipfs;
+  }
+};
+
 let mod_root;
 let lpm_root;
 let npm_map = {};
 let lpm_map = {};
 let npm_pkg = {};
+let lpm_pkg = {};
 let npm_file = {};
 
 let parser = Babel.packages.parser;
@@ -440,7 +479,8 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
   }
   let modver = u.name+u.ver;
   let map = npm_map[modver];
-  if (v = map?.base){
+  if (map){
+    v = map.base;
     if (v[0]!='/')
       throw Error('invalid base');
     v = v.slice(1);
@@ -701,7 +741,64 @@ let pkg_export_lookup = (pkg, file)=>{
   return {file: f, type, alt};
 };
 
-async function lpm_pkg_load(log, modver){ assert(0); }
+async function lpm_pkg_load(log, modver){
+  let lpm, lpm_s;
+  if (lpm = lpm_pkg[modver])
+    return await lpm.wait;
+  lpm = lpm_pkg[modver] = {modver, wait: ewait(), log};
+  lpm.u = lpm_uri_parse(lpm.modver);
+  lpm.file_lookup = uri=>{
+    let {path} = lpm_uri_parse(uri);
+    let ofile = path.replace(/^\//, '')||'.';
+    let {file, type, alt} = pkg_export_lookup(lpm.pkg, ofile);
+    let nfile = file||ofile;
+    let redirect;
+    if (nfile && nfile!=ofile)
+      redirect = '/.lif/'+lpm.modver+'/'+nfile;
+    if (lpm.pkg.lif?.raw)
+      type = 'raw';
+    return {type, redirect, nfile, alt};
+  };
+  // load package.json to locate module's index.js
+  try {
+    // select cdn
+    let pkg, v;
+    let map = lpm_map[lpm.modver];
+    if (map){
+      lpm.cdns = [{name: 'local', u: u=>map.lpm_base+u.path}];
+      lpm.lpm_base = map.lpm_base;
+    } else {
+      lpm.cdns = lpm_get_cdns(lpm.u);
+      if (!lpm.cdns)
+        throw Error('module('+log.mod+') no registry cdn: '+lpm.modver);
+    }
+    let path = '/package.json';
+    log('modver', lpm.modver+path);
+    let u = lpm_uri_parse(lpm.modver+path);
+    let url = lpm.cdns[0].url(u);
+    // try alternative CDNs if fails in non "standard" failure of not-found
+    let response = await fetch(url, fetch_opt(url));
+    if (response.status!=200)
+      throw Error('module('+log.mod+') failed fetch '+response.status+' '+url);
+    try {
+      pkg = lpm.pkg = await response.json();
+    } catch(err){
+      throw Error('fetch.json('+url+'): '+err);
+    }
+    if (!pkg)
+      throw Error('empty package.json '+url);
+    if (!(lpm.ver = pkg.version))
+      throw Error('invalid package.json '+url);
+    if (!u.ver && !map){
+      lpm.redirect = '/.lif/'+u.reg+'/'+u.name+'@'+lpm.ver+u.path;
+      log('lpm.redirect', lpm.redirect);
+    }
+    return lpm.wait.return(lpm);
+  } catch(err){
+    throw lpm.wait.throw(err);
+  }
+}
+
 async function npm_pkg_load(log, modver){
   let npm, npm_s;
   if (npm = npm_pkg[modver])
@@ -724,13 +821,10 @@ async function npm_pkg_load(log, modver){
     let pkg, v;
     let map = npm_map[npm.modver];
     // XXX npm.net -> map.net npm_map[modver].net
-    npm.base = map?.base || (npm?.net||npm_cdn)+'/'+npm.modver;
+    npm.base = map?.base || (npm?.net||npm_cdn[0])+'/'+npm.modver;
     if (map){
       log('map', map, 'modver', modver);
-      npm.pkg = map.pkg;
       npm.base = map.base;
-      if (map.pkg)
-        return npm.wait.return(npm);
     }
     let u = npm_uri_parse(npm.modver);
     log('map u', u, 'modver', npm.modver);
@@ -819,7 +913,26 @@ async function npm_file_load({log, uri, no_alt}){
   return file.wait.return(file);
 }
 
-let _lpm_pkg_load = async function(log, modver){ assert(0); };
+let _lpm_pkg_load = async function(log, modver){
+  let lpm, slow;
+  modver ||= lpm_root;
+  try {
+    slow = eslow(5000, ['_lpm_pkg_load', modver]);
+    lpm = await lpm_pkg_load(()=>{}, modver);
+    slow.end();
+    if (lpm.redirect){
+      slow = eslow(5000, ['_lpm_pkg_load', modver]);
+      lpm = await lpm_pkg_load(log, lpm.redirect);
+      slow.end();
+    }
+  } catch(err){
+    slow.end();
+    console.error('_lpm_pkg_load err:', err);
+    return null;
+  }
+  return lpm;
+};
+
 let _npm_pkg_load = async function(log, modver){
   let npm, slow;
   modver ||= mod_root;
@@ -993,7 +1106,7 @@ async function _kernel_fetch(event){
       if (!l)
         throw Error('invalid lpm '+uri);
       let map;
-      if (!l.ver && !(map = lpm_map[l.name])){
+      if (!l.ver && !(map = lpm_map[l.reg+'/'+l.name])){
         if (!mod_self){
           console.log('no mod_self for '+url+' using '+lpm_root);
           mod_self = lpm_root;
@@ -1053,16 +1166,15 @@ let do_pkg_map = function({map}){
   lpm_map = {...map};
   let i = 0;
   for (let [name, mod] of OF(map)){
-    if (!i++){
+    if (!i++){ // first in list is root
       mod_root = name;
       lpm_root = 'npm/'+name;
     }
-    if (typeof mod=='string'){
-      npm_map[name] = mod = mod.endsWith('/') ? {net: mod} : {base: mod};
-      lpm_map['npm/'+name] = mod;
-    }
-    if (!mod.base && mod.net)
-      mod.base = mod.net+name;
+    let m;
+    npm_map[name] = m = {net: mod};
+    lpm_map['npm/'+name] = m;
+    m.base = mod+name;
+    m.lpm_base = mod+name;
   }
 };
 do_pkg_map({map: {'lif-kernel': '/'}});

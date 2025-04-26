@@ -423,8 +423,6 @@ const url_parse = TE_to_null(TE_url_parse);
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-// /.lif/git/gh/user/repo@ver/dir/file
-// gh/user/repo/commit-ish/dir/file
 // gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
 //   https://github.com/pinheadmz/bcoin/blob/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
 //   https://raw.githubusercontent.com/pinheadmz/bcoin/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
@@ -438,19 +436,45 @@ const url_parse = TE_to_null(TE_url_parse);
 // Docs:
 //   https://statically.io/ - gh GitHub, gl GitLab, 
 //   https://www.jsdelivr.com/github - link converter
+// IPFS
+//   https://ipfs.io/ipfs/QmZULkCELmmk5XNfCgTnCyFgAVxBRBXyDHGGMVoLFLiXEN
+//   https://cloudflare-ipfs.com/ipfs/QmZULkCELmmk5XNfCgTnCyFgAVxBRBXyDHGGMVoLFLiXEN
+//   https://ipfs.io/ipfs/QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/wiki/Mars.html
+//   https://ipfs.io/ipfs/bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/Vincent_van_Gogh.html
+//   https://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq.ipfs.dweb.link/wiki/
+// Docs:
+//   https://docs.ipfs.tech/how-to/address-ipfs-on-web/#path-gateway
+//   https://gist.github.com/olizilla/81cee26ffa3ae103e4766d2ae0d2f04b
 //
 // npm/MOD/PATH
 // npm/MOD@VER/PATH
 // npm/@SCOPE/MOD/PATH
 // npm/@SCOPE/MOD@VER/PATH
-// git/gh/USER/REPO/PATH
-// git/gh/USER/REPO@VER/PATH
+//   SOURCE https://registry.npmjs.com/MOD
+//   https://unpkg.com/MOD@VER/PATH
+//   https://cdn.jsdelivr.net/npm/MOD@VER/PATH
+// git/github/USER/REPO/PATH
+// git/github/USER/REPO@VER/PATH
+//   SOURCE https://github.com/USER/REPO/blob/VER/PATH
+//   https://raw.githubusercontent.com/USER/REPO/VER/PATH
+//   https://statically.io/gh/USER/REPO@VER/PATH
+//   https://cdn.jsdelivr.net/gh/USER/REPO@HEAD/PATH
+// git/gitlab/USER/REPO@VER/PATH
+//   https://statically.io/gl/USER/REPO@VER/PATH
 // http/SITE/PATH
 // http/SITE@PORT/PATH
+//   http://SITE:PORT/PATH
 // https/SITE/PATH
 // https/SITE@PORT/PATH
+//   http://SITE:PORT/PATH
 // ipfs/CID/PATH
+//   https://ipfs.io/ipfs/CID
+//   https://cloudflare-ipfs.com/ipfs/CID
 // ipns/NAME/PATH
+// bitcoin/BLOCK
+// lifcoin/BLOCK
+// bittorent/IH/PATH
+//  magnet:?xt=urn:btih:IH 
 
 const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
 const TE_lpm_uri_parse = uri=>{
@@ -471,8 +495,12 @@ const TE_lpm_uri_parse = uri=>{
       return {name: n[0], ver: '@'+n[1], _ver: n[1]};
     throw Error('lpm_uri_parse invalid ver inname: '+name);
   };
+  for (let j=0; j<p.length-1; j++){
+    if (p[j]=='')
+      throw Error('lpm_uri_parse empty element: '+uri);
+  }
   let v;
-  l.reg = next('registry (npm, git, bt, btc, eth, ipfs)');
+  l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
   switch (l.reg){
   case 'npm':
     l.name = next('module name');
@@ -492,8 +520,6 @@ const TE_lpm_uri_parse = uri=>{
     l.site = next('site');
     l.user = next('user');
     l.repo = next('repo');
-    if (l.site!='gh')
-      throw Error('invalid git site: '+l.site);
     l.name = l.user+l.repo;
     l._repo = ver_split(l.repo).name;
     v = ver_split(l.name);
@@ -518,26 +544,26 @@ const TE_lpm_uri_parse = uri=>{
     l._ver = v._ver;
     l.port = v._ver;
     break;
-  case 'bt': // BitTorent
-    throw Error('unsupported bittorent '+uri);
+  case 'bittorent':
+    l.infohash = next('InfoHash');
     break;
-  case 'lfc': // LifCoin
-    throw Error('unsupported lifcoin '+uri);
+  case 'lifcoin':
+    l.blocknum = next('Block Num');
     break;
-  case 'btc': // BitCoin
-    throw Error('unsupported bitcoin '+uri);
+  case 'bitcoin':
+    l.blocknum = next('Block Num');
     break;
-  case 'eth': // Ethereum
+  case 'ethereum':
     throw Error('unsupported etherum '+uri);
     break;
-  case 'ipfs': // InterPlanetary FileSystem
+  case 'ipfs':
     l.cid = next('cid');
     break;
-  case 'ipns': // InterPlanetary NameSystem
+  case 'ipns':
     l.name = next('name');
     break;
   default:
-    throw Error('invalid registry (npm, git, bt, btc, eth, ipfs): '+uri);
+    throw Error('invalid registry: '+uri);
   }
   l._p = p.slice(i);
   l.path = path_parts(l._p);
@@ -550,7 +576,7 @@ exports.lpm_uri_parse = lpm_uri_parse;
 const lpm_modver = uri=>{
   if (typeof uri=='string')
     uri = TE_lpm_uri_parse(uri);
-  return uri.name+uri.ver;
+  return uri.reg+'/'+uri.name+uri.ver;
 };
 exports.lpm_modver = lpm_modver;
 
