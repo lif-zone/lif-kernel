@@ -989,8 +989,6 @@ async function _kernel_fetch(event){
   } else {
     if (v = str.prefix(path, '/.lif/')){
       let uri = v.rest;
-      if (!uri)
-        throw Error('invalid lpm '+path);
       let l = lpm_uri_parse(uri);
       if (!l)
         throw Error('invalid lpm '+uri);

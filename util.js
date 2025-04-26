@@ -85,14 +85,24 @@ const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
 const OA = Object.assign;
 exports.OA = OA;
-const TE_to_null = fn=>(function(){ // convert throw Error to null
+const TV = (fn, v)=>(function(){ // convert throw Error to value
+  try {
+    return fn(...arguments);
+  } catch(err){
+    return v;
+  }
+});
+exports.TV = TV;
+const TN = fn=>(function(){ // convert throw Error to null
   try {
     return fn(...arguments);
   } catch(err){
     return null;
   }
 });
-exports.TE_to_null = TE_to_null;
+exports.TN = TN;
+const TE_to_null = TN;
+exports.TE_to_null = TN;
 const TE = fn=>(function(){ // Throw error on false/null/0
   let v = fn(...arguments);
   if (!v)
@@ -153,9 +163,26 @@ let assert_objv = (exp, res)=>{
   }
   assert(0, exp, res);
 };
+let assert_run = run=>{
+  try {
+    return run();
+  } catch(e){
+    assert(0, 'run failed: '+e);
+  }
+};
+let assert_run_ab = (a, b, test)=>{
+  let _a = TV(a, {got_throw: 1})();
+  let _b = TV(b, {got_throw: 1})();
+  assert(!!_a.got_throw==!!_b.got_throw,
+    _a.got_throw ? 'a throws, and b does not' : 'b throws, and a does not');
+  let ok = assert_run(()=>test(_a, _b));
+  assert(ok, 'a and b dont match');
+  return {a: _a, b: _b};
+};
 exports.assert = assert;
 exports.assert_eq = assert_eq;
 exports.assert_objv = assert_objv;
+exports.assert_run_ab = assert_run_ab;
 
 // chan.js
 class postmessage_chan {
@@ -394,34 +421,96 @@ const TE_url_parse = (url, base)=>{
 };
 const url_parse = TE_to_null(TE_url_parse);
 
-// parse-package-name
-const TE_npm_uri_parse = path=>{
-  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const m = scoped.exec(path) || non_scoped.exec(path)
-  if (!m)
-    throw Error('npm_uri_parse: invalid uri '+path);
-  return {name: m[1]||'', version: m[2]||'', path: m[3]||''};
-};
-exports.TE_npm_uri_parse = TE_npm_uri_parse;
-const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
-exports.npm_uri_parse = npm_uri_parse;
-
-const npm_modver = uri=>{
-  if (typeof uri=='string')
-    uri = TE_npm_uri_parse(uri);
-  return uri.name+uri.version;
-};
-exports.npm_modver = npm_modver;
-
-const TE_lpm_uri_parse = path=>{
-  assert(0);
-  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
-  const m = scoped.exec(path) || non_scoped.exec(path)
-  if (!m)
-    throw Error('lpm_uri_parse: invalid uri '+path);
-  return {name: m[1]||'', version: m[2]||'', path: m[3]||''};
+const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
+const TE_lpm_uri_parse = uri=>{
+  let l = {};
+  let p = l.p = uri.split('/');
+  let i = 0;
+  let next = err=>{
+    let v = p[i++];
+    if (typeof v!='string')
+      throw Error('lpm_uri_parse missing'+err+': '+uri);
+    return v;
+  };
+  let ver_split = name=>{
+    let n = name.split('@');
+    if (n.length==1)
+      return {_name: name, ver: '', _ver: null};
+    if (n.length==2)
+      return {_name: n[0], ver: '@'+n[1], _ver: n[1]};
+    throw Error('lpm_uri_parse invalid ver inname: '+name);
+  };
+  let v;
+  l.reg = next('registry (npm, git, bt, btc, eth, ipfs)');
+  switch (l.reg){
+  case 'npm':
+    l.name = next('module name');
+    if (l.name[0]=='@'){
+      l.scoped = true;
+      l.name = l.name+'/'+next('scoped module name');
+      v = ver_split(l.name.slice(1));
+      l._name = '@'+v._name;
+    } else {
+      v = ver_split(l.name);
+      l._name = v._name;
+    }
+    l.ver = v.ver;
+    l._ver = v._ver;
+    break;
+  case 'git':
+    l.site = next('site');
+    l.user = next('user');
+    l.repo = next('repo');
+    if (l.site!='gh')
+      throw Error('invalid git site: '+l.site);
+    l.name = l.user+l.repo;
+    l._repo = ver_split(l.repo)._name;
+    v = ver_split(l.name);
+    l._name = v._name;
+    l.ver = v.ver;
+    l._ver = v._ver;
+    if (!l._ver)
+      l.ver_type = l._ver;
+    else if (/^[0-9a-f]+$/.test(l._ver)){
+      l.ver_type = l._ver.length==40 ? 'sha1' : l._ver.length==64 ? 'sha256' :
+        l._ver.length>=4 && !(l._ver.length % 2) && l._ver.length<=20 ? 'shortcut' :
+        'name';
+    } else
+      l.ver_type = 'name';
+    break;
+  case 'http':
+  case 'https':
+    l.name = next('site name');
+    v = ver_split(l.name);
+    l._name = v._name;
+    l.ver = v.ver;
+    l._ver = v._ver;
+    l.port = v._ver;
+    break;
+  case 'bt': // BitTorent
+    throw Error('unsupported bittorent '+uri);
+    break;
+  case 'lfc': // LifCoin
+    throw Error('unsupported lifcoin '+uri);
+    break;
+  case 'btc': // BitCoin
+    throw Error('unsupported bitcoin '+uri);
+    break;
+  case 'eth': // Ethereum
+    throw Error('unsupported etherum '+uri);
+    break;
+  case 'ipfs': // InterPlanetary FileSystem
+    l.cid = next('cid');
+    break;
+  case 'ipns': // InterPlanetary NameSystem
+    l.name = next('name');
+    break;
+  default:
+    throw Error('invalid registry (npm, git, bt, btc, eth, ipfs): '+uri);
+  }
+  l._p = p.slice(i);
+  l.path = path_parts(l._p);
+  return l;
 };
 exports.TE_lpm_uri_parse = TE_lpm_uri_parse;
 const lpm_uri_parse = TE_to_null(TE_lpm_uri_parse);
@@ -433,6 +522,31 @@ const lpm_modver = uri=>{
   return uri.name+uri.version;
 };
 exports.lpm_modver = lpm_modver;
+
+// parse-package-name
+const TE_npm_uri_parse = path=>{
+  function orig(){
+  const scoped = /^(@[^\/]+\/[^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
+  const non_scoped = /^([^@\/]+)(?:(@[^\/]+))?(\/.*)?$/
+  const m = scoped.exec(path) || non_scoped.exec(path)
+  if (!m)
+    throw Error('npm_uri_parse: invalid uri '+path);
+  return {name: m[1]||'', version: m[2]||'', path: m[3]||''};
+  }
+  let {a, b} = assert_run_ab(()=>orig(path), ()=>lpm_uri_parse('npm/'+path),
+    (a, b)=>a.name==b._name && a.version==b.ver && a.path==b.path);
+  return a;
+};
+exports.TE_npm_uri_parse = TE_npm_uri_parse;
+const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
+exports.npm_uri_parse = npm_uri_parse;
+
+const npm_modver = uri=>{
+  if (typeof uri=='string')
+    uri = TE_npm_uri_parse(uri);
+  return uri.name+uri.version;
+};
+exports.npm_modver = npm_modver;
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
