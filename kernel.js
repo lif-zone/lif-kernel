@@ -467,43 +467,42 @@ const file_tr_cjs2 = async f=>{
 }
 
 let lpm_dep_lookup = (pkg, mod_self, uri)=>{
+  let ret_err = err=>{
+    console.error('npm_dep_lookup('+mod_self+') dep '+uri+' : '+err);
+  };
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
   if (!u.is.mod)
     return;
   if (u.is.rel)
     uri = u.path;
-  if (!(u = lpm_uri_parse(uri))){
-    console.error('invalid lpm uri import('+uri+')');
-    return uri;
-  }
+  if (!(u = lpm_uri_parse(uri)))
+    return ret_err('invalid lpm uri import');
   let modver = u.name+u.ver;
   let map = lpm_map[modver];
   if (map){
     v = map.lpm_base;
     if (v[0]!='/')
-      throw Error('invalid base');
+      return ret_err('invalid base');
     v = v.slice(1);
     return '/.lif/'+v+u.path;
   }
-  if (!u.ver){
-    let dep = lpm_dep_ver_lookup(pkg, mod_self, uri);
-    if (!dep || dep=='-')
-      throw Error('module('+mod_self+') dep missing: '+uri);
-    if (dep.startsWith('-peer-')){
-      let pkg_root = lpm_pkg[lpm_root].pkg;
-      if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
-        throw Error('module('+mod_self+') dep missing lpm_root: '+uri);
-    }
-    return '/.lif/'+dep;
+  if (!u.ver)
+    return '/.lif/'+uri;
+  let dep = lpm_dep_ver_lookup(pkg, mod_self, uri);
+  if (!dep || dep=='-')
+    return ret_err('dep missing');
+  if (dep.startsWith('-peer-')){
+    let pkg_root = lpm_pkg[lpm_root].pkg;
+    if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
+      return ret_err('dep missing mod_root');
   }
-  return '/.lif/'+uri;
+  return '/.lif/'+dep;
 };
 
 let npm_dep_lookup = (pkg, mod_self, uri)=>{
   let ret_err = err=>{
     console.error('npm_dep_lookup('+mod_self+') dep '+uri+' : '+err);
-    return uri;
   };
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
@@ -529,11 +528,11 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
     return '/.lif/npm/'+_self.modver+u.path;
   let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
   if (!dep || dep=='-')
-    return do_err('dep missing');
+    return ret_err('dep missing');
   if (dep.startsWith('-peer-')){
     let pkg_root = npm_pkg[mod_root].pkg;
     if (!(dep = npm_dep_ver_lookup(pkg_root, mod_root, uri)))
-      return do_err('dep missing mod_root');
+      return ret_err('dep missing mod_root');
   }
   return '/.lif/npm/'+dep;
 };
