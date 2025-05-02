@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '1.0.3';
+let lif_version = '1.0.6';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -491,9 +491,9 @@ let lpm_dep_lookup = (pkg, mod_self, uri)=>{
     if (!dep || dep=='-')
       throw Error('module('+mod_self+') dep missing: '+uri);
     if (dep.startsWith('-peer-')){
-      let pkg_root = lpm_pkg[mod_root].pkg;
-      if (!(dep = lpm_dep_ver_lookup(pkg_root, mod_root, uri)))
-        throw Error('module('+mod_self+') dep missing mod_root: '+uri);
+      let pkg_root = lpm_pkg[lpm_root].pkg;
+      if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
+        throw Error('module('+mod_self+') dep missing lpm_root: '+uri);
     }
     return '/.lif/'+dep;
   }
@@ -521,6 +521,11 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
     return '/.lif/npm/'+v+u.path;
   }
   if (!u.ver){
+    let _self = npm_uri_parse(mod_self);
+    if (1 && _self && _self.name==u.name){
+      console.log('/.lif/npm/'+_self.modver+u.path, mod_self, uri, _self);
+      return '/.lif/npm/'+_self.modver+u.path;
+      }
     let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
     if (!dep || dep=='-')
       throw Error('module('+mod_self+') dep missing: '+uri);
@@ -624,11 +629,12 @@ const mjs_import_mjs = (export_default, path, q)=>{
 };
 
 let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
-  let module = lpm_modver(mod_uri);
+  let mod = lpm_modver(mod_uri);
+  let npm_mod = lpm_uri_to_npm(mod);
   let path = lpm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
     let d, m, op, v, ver;
-    if (!(d = dep?.[module]))
+    if (!(d = dep?.[npm_mod]))
       return;
     if (v=str.prefix(d, './'))
       return pkg.name+'/'+v.rest+path;
@@ -636,17 +642,17 @@ let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
       return v.rest+path;
     d = d.replaceAll(' ', '');
     if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){
-      console.log('invalid dep('+module+') ver '+d);
+      console.log('invalid dep('+mod+') ver '+d);
       return '-';
     }
     [, op, ver] = m;
     if (op=='>=')
       return ver;
     if (!(op=='^' || op=='=' || op=='' || op=='~')){
-      console.log('invalid dep('+module+') op '+op);
+      console.log('invalid dep('+mod+') op '+op);
       return '-';
     }
-    return module+'@'+ver+path;
+    return mod+'@'+ver+path;
   };
   let d
   if (d = get_dep(pkg.lif?.dependencies))
@@ -660,11 +666,11 @@ let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
 };
 
 let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
-  let module = npm_modver(mod_uri);
+  let mod = npm_modver(mod_uri);
   let path = npm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
     let d, m, op, v, ver;
-    if (!(d = dep?.[module]))
+    if (!(d = dep?.[mod]))
       return;
     if (v=str.prefix(d, './'))
       return pkg.name+'/'+v.rest+path;
@@ -672,17 +678,17 @@ let npm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
       return v.rest+path;
     d = d.replaceAll(' ', '');
     if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){
-      console.log('invalid dep('+module+') ver '+d);
+      console.log('invalid dep('+mod+') ver '+d);
       return '-';
     }
     [, op, ver] = m;
     if (op=='>=')
       return ver;
     if (!(op=='^' || op=='=' || op=='' || op=='~')){
-      console.log('invalid dep('+module+') op '+op);
+      console.log('invalid dep('+mod+') op '+op);
       return '-';
     }
-    return module+'@'+ver+path;
+    return mod+'@'+ver+path;
   };
   let d;
   if (d = get_dep(pkg.lif?.dependencies))
@@ -1187,6 +1193,8 @@ async function _kernel_fetch(event){
   let qs = u.search;
   let q = u.searchParams;
   let mod_self = q.get('mod_self');
+  if (lpm_enable && mod_self)
+    mod_self = 'npm/'+mod_self;
   let ext = _path_ext(path);
   // logging
   let log = function(){
