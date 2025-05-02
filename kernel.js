@@ -766,8 +766,9 @@ let pkg_export_lookup = (pkg, file)=>{
       return;
     }
     // TODO: do we need need to "detect" cjs/mjs/amd at this stage?
-    return check_val(res, v.browser, 'cjs') ||
+    return
       check_val(res, v.module, 'mjs') ||
+      //check_val(res, v.browser, 'cjs') ||
       check_val(res, v.import, 'mjs') ||
       check_val(res, v.default, 'cjs') ||
       check_val(res, v.require, 'amd');
@@ -795,8 +796,9 @@ let pkg_export_lookup = (pkg, file)=>{
     if (v = parse_section(exports))
       return v;
     if (file=='.'){
-      return check_val([], pkg.browser, 'cjs') ||
+      return
         check_val([], pkg.module, 'mjs') ||
+        check_val([], pkg.browser, 'cjs') ||
         check_val([], pkg.main, 'cjs') ||
         check_val([], 'index.js', 'cjs');
     }
