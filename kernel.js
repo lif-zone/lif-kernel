@@ -501,22 +501,24 @@ let lpm_dep_lookup = (pkg, mod_self, uri)=>{
 };
 
 let npm_dep_lookup = (pkg, mod_self, uri)=>{
+  let ret_err = err=>{
+    console.error('npm_dep_lookup('+mod_self+') dep '+uri+' : '+err);
+    return uri;
+  };
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
   if (!u.is.mod)
     return;
   if (u.is.rel)
     uri = u.path;
-  if (!(u = npm_uri_parse(uri))){
-    console.error('invalid npm uri import('+uri+')');
-    return uri;
-  }
+  if (!(u = npm_uri_parse(uri)))
+    return ret_err('invalid npm del uri');
   let modver = u.name+u.ver;
   let map = npm_map[modver];
   if (map){
     v = map.base;
     if (v[0]!='/')
-      throw Error('invalid base');
+      return ret_err('invalid base');
     v = v.slice(1);
     return '/.lif/npm/'+v+u.path;
   }
@@ -527,11 +529,11 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
     return '/.lif/npm/'+_self.modver+u.path;
   let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
   if (!dep || dep=='-')
-    throw Error('module('+mod_self+') dep missing: '+uri);
+    return do_err('dep missing');
   if (dep.startsWith('-peer-')){
     let pkg_root = npm_pkg[mod_root].pkg;
     if (!(dep = npm_dep_ver_lookup(pkg_root, mod_root, uri)))
-      throw Error('module('+mod_self+') dep missing mod_root: '+uri);
+      return do_err('dep missing mod_root');
   }
   return '/.lif/npm/'+dep;
 };
