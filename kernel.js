@@ -520,23 +520,20 @@ let npm_dep_lookup = (pkg, mod_self, uri)=>{
     v = v.slice(1);
     return '/.lif/npm/'+v+u.path;
   }
-  if (!u.ver){
-    let _self = npm_uri_parse(mod_self);
-    if (1 && _self && _self.name==u.name){
-      console.log('/.lif/npm/'+_self.modver+u.path, mod_self, uri, _self);
-      return '/.lif/npm/'+_self.modver+u.path;
-      }
-    let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
-    if (!dep || dep=='-')
-      throw Error('module('+mod_self+') dep missing: '+uri);
-    if (dep.startsWith('-peer-')){
-      let pkg_root = npm_pkg[mod_root].pkg;
-      if (!(dep = npm_dep_ver_lookup(pkg_root, mod_root, uri)))
-        throw Error('module('+mod_self+') dep missing mod_root: '+uri);
-    }
-    return '/.lif/npm/'+dep;
+  if (u.ver)
+    return '/.lif/npm/'+uri;
+  let _self = npm_uri_parse(mod_self);
+  if (_self && _self.name==u.name)
+    return '/.lif/npm/'+_self.modver+u.path;
+  let dep = npm_dep_ver_lookup(pkg, mod_self, uri);
+  if (!dep || dep=='-')
+    throw Error('module('+mod_self+') dep missing: '+uri);
+  if (dep.startsWith('-peer-')){
+    let pkg_root = npm_pkg[mod_root].pkg;
+    if (!(dep = npm_dep_ver_lookup(pkg_root, mod_root, uri)))
+      throw Error('module('+mod_self+') dep missing mod_root: '+uri);
   }
-  return '/.lif/npm/'+uri;
+  return '/.lif/npm/'+dep;
 };
 
 let modmap_lookup = (pkg, uri)=>{
@@ -766,8 +763,7 @@ let pkg_export_lookup = (pkg, file)=>{
       return;
     }
     // TODO: do we need need to "detect" cjs/mjs/amd at this stage?
-    return
-      check_val(res, v.module, 'mjs') ||
+    return check_val(res, v.module, 'mjs') ||
       //check_val(res, v.browser, 'cjs') ||
       check_val(res, v.import, 'mjs') ||
       check_val(res, v.default, 'cjs') ||
@@ -796,8 +792,7 @@ let pkg_export_lookup = (pkg, file)=>{
     if (v = parse_section(exports))
       return v;
     if (file=='.'){
-      return
-        check_val([], pkg.module, 'mjs') ||
+      return check_val([], pkg.module, 'mjs') ||
         check_val([], pkg.browser, 'cjs') ||
         check_val([], pkg.main, 'cjs') ||
         check_val([], 'index.js', 'cjs');
