@@ -583,7 +583,15 @@ const lpm_modver = uri=>{
 exports.lpm_modver = lpm_modver;
 
 // parse-package-name
-const TE_npm_uri_parse = path=>lpm_uri_parse('npm/'+path);
+const TE_npm_uri_parse = path=>{
+  let npm = TE_lpm_uri_parse('npm/'+path);
+  if (!npm)
+    return;
+  npm.modver = npm.modver.slice(4); // skip 'npm/'
+  npm.p = npm.p.slice(1);
+  delete npm.reg;
+  return npm;
+};
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
 const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
 exports.npm_uri_parse = npm_uri_parse;
@@ -660,7 +668,7 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
 };
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
 function test_url_uri(){
-  let t = (v, arg)=>assert_objv(v, url_uri_parse(...arg));
+  let t = (v, arg)=>assert_objv(v, TE_url_uri_parse(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
@@ -676,6 +684,21 @@ function test_url_uri(){
   t({path: '@mod/v/c/d', is: {mod: 1, rel: 1}},
     ['../../../c/d', '@mod/v/a/b']);
   t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod@1.2.3/a']);
+  t = (v, arg)=>assert_objv(v, TE_npm_uri_parse(...arg));
+  if (0)
+  t({p: ["@noble", "hashes@1.2.0", "esm", "utils.js"],
+    _p: ["esm", "utils.js"],
+    name: "@noble/hashes", scoped: true,
+    ver: "@1.2.0", _ver: "1.2.0",
+    modver: "@noble/hashes@1.2.0", path: "/esm/utils.js"},
+    ['@noble/hashes@1.2.0/esm/utils.js']);
+  t = (v, arg)=>assert_objv(v, TE_lpm_uri_parse(...arg));
+  t({p: ["npm", "@noble", "hashes@1.2.0", "esm", "utils.js"],
+    _p: ["esm", "utils.js"],
+    reg: "npm", name: "@noble/hashes", scoped: true,
+    ver: "@1.2.0", _ver: "1.2.0",
+    modver: "npm/@noble/hashes@1.2.0", path: "/esm/utils.js"},
+    ['npm/@noble/hashes@1.2.0/esm/utils.js']);
 }
 test_url_uri();
 
