@@ -585,11 +585,9 @@ exports.lpm_modver = lpm_modver;
 // parse-package-name
 const TE_npm_uri_parse = path=>{
   let npm = TE_lpm_uri_parse('npm/'+path);
-  if (!npm)
-    return;
+  delete npm.reg;
   npm.modver = npm.modver.slice(4); // skip 'npm/'
   npm.p = npm.p.slice(1);
-  delete npm.reg;
   return npm;
 };
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
