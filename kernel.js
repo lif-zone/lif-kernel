@@ -726,19 +726,19 @@ let path_match = (path, match, tr)=>{
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
 let pkg_export_lookup = (pkg, file)=>{
-  let check_val = (res, dst, type)=>{
+  let check_val = (res, dst)=>{
     let v;
     if (typeof dst!='string')
       return;
     if (!dst.includes('*')){
-      res.push(v = {file: dst, type});
+      res.push(v = {file: dst});
       return v;
     }
     let dfile = path_file(dst);
     let ddir = path_dir(dst);
     if (ddir.includes('*') || dfile!='*')
       throw Error('module('+pkg.name+' dst match * ('+dst+') unsupported');
-    res.push(v = {file: dst.slice(0, -1)+dfile, type});
+    res.push(v = {file: dst.slice(0, -1)+dfile});
     return v;
   };
   let patmatch = match=>{
@@ -754,7 +754,7 @@ let pkg_export_lookup = (pkg, file)=>{
   };
   let parse_val = (res, v)=>{
     if (typeof v=='string')
-      return check_val(res, v, null);
+      return check_val(res, v);
     if (typeof v!='object')
       return;
     if (Array.isArray(v)){
@@ -765,11 +765,11 @@ let pkg_export_lookup = (pkg, file)=>{
       return;
     }
     // TODO: do we need need to "detect" cjs/mjs/amd at this stage?
-    return check_val(res, v.module, 'mjs') ||
+    return check_val(res, v.module) ||
       //check_val(res, v.browser, 'cjs') ||
-      check_val(res, v.import, 'mjs') ||
-      check_val(res, v.default, 'cjs') ||
-      check_val(res, v.require, 'amd');
+      check_val(res, v.import) ||
+      check_val(res, v.default) ||
+      check_val(res, v.require);
   };
   let parse_section = val=>{
     let res = [], tr;
@@ -794,18 +794,17 @@ let pkg_export_lookup = (pkg, file)=>{
     if (v = parse_section(exports))
       return v;
     if (file=='.'){
-      return check_val([], pkg.module, 'mjs') ||
-        check_val([], pkg.browser, 'cjs') ||
-        check_val([], pkg.main, 'cjs') ||
-        check_val([], 'index.js', 'cjs');
+      return check_val([], pkg.module) ||
+        check_val([], pkg.browser) ||
+        check_val([], pkg.main) ||
+        check_val([], 'index.js');
     }
     if (v = parse_section(pkg.browser))
       return v;
   };
   // start package.json lookup
   let v;
-  let {file: f, type} = parse_pkg()||{file};
-  type ||= pkg.lif?.type;
+  let {file: f} = parse_pkg()||{file};
   if (f.startsWith('./'))
     f = f.slice(2);
   let alt, _alt = pkg.lif?.alt||['.js'];
@@ -814,7 +813,7 @@ let pkg_export_lookup = (pkg, file)=>{
   {
     alt = _alt;
   }
-  return {file: f, type, alt};
+  return {file: f, alt};
 };
 
 async function lpm_pkg_load(log, modver){
@@ -826,14 +825,12 @@ async function lpm_pkg_load(log, modver){
   lpm.file_lookup = uri=>{
     let {path} = lpm_uri_parse(uri);
     let ofile = path.replace(/^\//, '')||'.';
-    let {file, type, alt} = pkg_export_lookup(lpm.pkg, ofile);
+    let {file, alt} = pkg_export_lookup(lpm.pkg, ofile);
     let nfile = file||ofile;
     let redirect;
     if (nfile && nfile!=ofile)
       redirect = '/.lif/'+lpm.modver+'/'+nfile;
-    if (lpm.pkg.lif?.raw)
-      type = 'raw';
-    return {type, redirect, nfile, alt};
+    return {redirect, nfile, alt};
   };
   // load package.json to locate module's index.js
   try {
@@ -883,14 +880,12 @@ async function npm_pkg_load(log, modver){
   npm.file_lookup = uri=>{
     let {path} = npm_uri_parse(uri);
     let ofile = path.replace(/^\//, '')||'.';
-    let {file, type, alt} = pkg_export_lookup(npm.pkg, ofile);
+    let {file, alt} = pkg_export_lookup(npm.pkg, ofile);
     let nfile = file||ofile;
     let redirect;
     if (nfile && nfile!=ofile)
       redirect = '/.lif/npm/'+npm.modver+'/'+nfile;
-    if (npm.pkg.lif?.raw)
-      type = 'raw';
-    return {type, redirect, nfile, alt};
+    return {redirect, nfile, alt};
   };
   // load package.json to locate module's index.js
   try {
@@ -947,11 +942,10 @@ async function lpm_file_load({log, uri, no_alt}){
     log(u, 'lpm.redir', lpm.redirect);
     return file.wait.return({redirect: lpm.redirect+u.path});
   }
-  let {nfile, type, redirect, alt} = lpm.file_lookup(uri);
+  let {nfile, redirect, alt} = lpm.file_lookup(uri);
   file.nfile = nfile;
   let u = lpm_uri_parse(lpm.modver+'/'+nfile);
   file.url = lpm.cdns[0].u(u);
-  file.type = type;
   file.redirect = redirect;
   file.alt = alt;
   if (file.redirect)
@@ -1010,10 +1004,9 @@ async function npm_file_load({log, uri, no_alt}){
     log(u, 'npm.redir', npm.redirect);
     return file.wait.return({redirect: npm.redirect+u.path});
   }
-  let {nfile, type, redirect, alt} = npm.file_lookup(uri);
+  let {nfile, redirect, alt} = npm.file_lookup(uri);
   file.nfile = nfile;
   file.url = npm.base+'/'+nfile;
-  file.type = type;
   file.redirect = redirect;
   file.alt = alt;
   if (file.redirect)
