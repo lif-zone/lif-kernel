@@ -414,58 +414,6 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-const file_tr_cjs2 = async f=>{
-  let uri_s = json(f.npm_uri);
-  let tr = tr_cjs_require(f);
-  let pre = '';
-  for (let r of f.ast.requires){
-    if (r.type=='sync')
-      pre += 'await require_async('+json(r.module)+');\n';
-  }
-  let _exports = f.ast.exports;
-  if (f.ast.exports_require.length){
-    let e = f.ast.exports_require[0], v;
-    if (e.startsWith('./')){
-      if (v=npm_dep_lookup(f.lpm.pkg, f.uri, e)){
-        v = str.prefix(v, '/.lif/npm/').rest;
-        console.log('module('+f.uri+') req '+e+' lookup '+v);
-        let _f = await npm_file_load({log: f.log, uri: v});
-        if (_f.redirect && (v=str.prefix('/.lif/npm/')))
-          _f = await npm_file_load({log: f.log, uri: v.rest});
-        if (_f.redirect)
-          console.log('glob export: too many redirects '+_f.uri);
-        if (_f.body){
-          let _ast = file_ast(_f);
-          _exports = _ast.exports;
-        }
-      }
-      console.log('module('+f.uri+') req '+e);
-    }
-  }
-  let exports_s = '';
-  _exports.forEach(e=>{
-    if (e=='default')
-      return;
-    exports_s += `export const ${e} = module.exports.${e};\n`;
-  });
-  return `
-    let lif_boot = globalThis.lif?.boot;
-    let module = {exports: {}};
-    let exports = module.exports;
-    let require = module=>lif_boot.require_cjs(${uri_s}, module);
-    let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);
-    let define = function(id, deps, factory){
-      return lif_boot.define_amd(${uri_s}, arguments, module); };
-    define.amd = {};
-    ${pre}
-    await (async()=>{
-    ${tr}
-    })();
-    ${/*exports_s*/''}
-    export default module.exports;
-  `;
-}
-
 let lpm_dep_lookup = (pkg, mod_self, uri)=>{
   let ret_err = err=>{
     console.error('npm_dep_lookup('+mod_self+') dep '+uri+' : '+err);
