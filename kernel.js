@@ -763,12 +763,11 @@ let pkg_export_lookup = (pkg, file)=>{
       }
       return;
     }
-    // TODO: do we need need to "detect" cjs/mjs/amd at this stage?
-    return check_val(res, v.browser) ||
-      check_val(res, v.module) ||
-      check_val(res, v.import) ||
-      check_val(res, v.default) ||
-      check_val(res, v.require);
+    return parse_val(res, v.browser) ||
+      parse_val(res, v.module) ||
+      parse_val(res, v.import) ||
+      parse_val(res, v.default) ||
+      parse_val(res, v.require);
   };
   let parse_section = val=>{
     let res = [], tr;
@@ -812,6 +811,8 @@ let pkg_export_lookup = (pkg, file)=>{
   {
     alt = _alt;
   }
+  if (f!=file)
+    console.log('export_lookup redirect '+file+' -> '+f);
   return {file: f, alt};
 };
 
@@ -1227,8 +1228,12 @@ async function _kernel_fetch(event){
         let npm = await _npm_pkg_load(log_ref, npm_modver(mod_self));
         D && console.log('uri', uri, 'mod_self', mod_self);
         let _path = npm_dep_lookup(npm.pkg, mod_self, uri);
-        if (_path!=path)
-          return Response.redirect(_path+qs);
+        if (_path){
+          if (_path!=path) // found version or redir to other package
+            return Response.redirect(_path+qs);
+        }
+        // no version found
+        // TODO: lookup npm by date<=root app date
       }
       let f = await npm_file_load({log, uri});
       return respond_tr_send({f, q, qs, uri, path, ext});
