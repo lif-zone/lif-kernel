@@ -597,6 +597,8 @@ const file_tr_mjs = (f, worker)=>{
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
     post += `slow.end(); `;
+  if (pre && tr[0]=='#' && tr[1]=='!') // #!/usr/bin/node shebang
+    pre += '//';
   return pre+tr+post;
 };
 
