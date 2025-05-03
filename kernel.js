@@ -812,7 +812,7 @@ let pkg_export_lookup = (pkg, file)=>{
     alt = _alt;
   }
   if (f!=file)
-    console.log('export_lookup redirect '+file+' -> '+f);
+    D && console.log('export_lookup redirect '+file+' -> '+f);
   return {file: f, alt};
 };
 
