@@ -1056,6 +1056,7 @@ let ctype_get = ext=>{
     tsx: {tr: ['ts', 'jsx'], ctype: 'application/javascript'},
     jsx: {tr: 'jsx', ctype: 'application/javascript'},
     json: {ctype: 'application/json'},
+    css: {ctype: 'text/css'},
     wasm: {ctype: 'appliaction/wasm'},
     text: {ctype: 'plain/text'},
     bin: {ctype: 'application/octet-stream'},
@@ -1108,6 +1109,8 @@ function respond_tr_send({f, q, qs, uri, path, ext}){
     return response_send({body: f.blob, uri});
   if (ext=='json')
     return response_send({body: f.blob, ext: 'json'});
+  if (ext=='css')
+    return response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
   if (q.has('cjs'))
