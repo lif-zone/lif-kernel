@@ -326,7 +326,7 @@ let boot_app = async({app, map})=>{
   try {
     return await _import(app, [app]);
   } catch(err){
-    console.error('import('+app+') failed', err);
+    console.error('boot: app('+app+') failed');
     throw err;
   }
   console.log('boot: boot complete');
