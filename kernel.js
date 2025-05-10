@@ -749,8 +749,9 @@ async function lpm_pkg_load(log, modver){
 }
 
 function lpm_uri_to_npm(uri){
-  if (uri.startsWith('npm/'))
-    return uri.slice(4);
+  let v;
+  if (v=str.prefix(uri, 'npm/'))
+    return v.rest;
   throw Error('lpm_to_npm not an npm: '+uri);
   return 'lif/'+uri;
 }
