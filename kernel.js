@@ -757,16 +757,16 @@ function lpm_uri_to_npm(uri){
 }
 
 async function lpm_file_load({log, uri, no_alt}){
-  let file, D = 0, lpm;
+  let file, D = 0, lpm, wait;
   if (file = lpm_file[uri])
     return await file.wait;
-  file = lpm_file[uri] = {uri, wait: ewait(), log};
+  file = lpm_file[uri] = {uri, wait: wait = ewait(), log};
   file.npm_uri = lpm_uri_to_npm(file.uri);
   lpm = file.lpm = await lpm_pkg_load(log, lpm_modver(uri));
   if (lpm.redirect){
     let u = lpm_uri_parse(uri);
     log(u, 'lpm.redir', lpm.redirect);
-    return file.wait.return({redirect: lpm.redirect+u.path});
+    return wait.return({redirect: lpm.redirect+u.path});
   }
   let {nfile, redirect, alt} = lpm.file_lookup(uri);
   file.nfile = nfile;
@@ -775,7 +775,7 @@ async function lpm_file_load({log, uri, no_alt}){
   file.redirect = redirect;
   file.alt = alt;
   if (file.redirect)
-    return file.wait.return(file);
+    return wait.return(file);
   // fetch the file
   let slow = eslow(5000, ['fetch', file.url]);
   let response;
@@ -785,12 +785,12 @@ async function lpm_file_load({log, uri, no_alt}){
   } catch(err){
     slow.end();
     err.message = 'fetch('+file.url+')'+err.message;
-    throw file.wait.throw(err);
+    throw wait.throw(err);
   }
   slow.end();
   if (response.status!=200){
     if (no_alt)
-      throw file.wait.throw(Error('fetch failed '+file.url));
+      throw wait.throw(Error('fetch failed '+file.url));
     if (alt){
       let afile, err;
       loop: for (let a of alt){
@@ -802,19 +802,19 @@ async function lpm_file_load({log, uri, no_alt}){
       if (afile){
         file.redirect = '/.lif/'+afile.uri;
         D && console.log('fetch OK redirect '+file.url);
-        return file.wait.return(file);
+        return wait.return(file);
       }
     }
     let e = 'module('+log.mod+(alt ? ' alt '+alt.join(' ') : '')+
       ') failed fetch '+file.url;
     console.error(e);
-    throw file.wait.throw(Error(e));
+    throw wait.throw(Error(e));
   }
   let response2 = response.clone();
   file.blob = await response.blob();
   file.body = await response2.text();
   D && console.log('fetch OK '+file.url);
-  return file.wait.return(file);
+  return wait.return(file);
 }
 
 let _lpm_pkg_load = async function(log, modver){
