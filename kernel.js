@@ -139,35 +139,35 @@ let cerr = console.error.bind(console);
 // https://cdn.jsdelivr.net/npm/lif-kernel@1.0.6/boot.js
 
 let lpm_cdn = {
-  npm: [{
+  npm: {src: [{
     name: 'jsdeliver.net',
     u: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.path}`,
   }, {
     name: 'unpkg.com',
     u: u=>`https://unpkg.com/${u.name}${u.ver}${u.path}`,
-  }],
+  }]},
   git: {
-    github: [{
+    github: {src: [{
       name: 'jsdeliver.net',
       u: u=>`https://cdn.jsdelivr.net/gh/${u.name}${u.ver}${u.path}`
     }, {
       name: 'statically.io',
       u: u=>`https://statically.io/gh/${u.name}${u.ver}${u.path}`,
-    }],
-    gitlab: [{
+    }]},
+    gitlab: {src: [{
       name: 'statically.io',
       u: u=>`https://statically.io/gl/${u.name}${u.ver}${u.path}`,
-    }],
+    }]},
   },
-  ipfs: [{
+  ipfs: {src: [{
     name: 'ipfs.io',
     u: u=>`https://ipfs.io/ipfs/${u.cid}${u.path}`,
   }, {
     name: 'cloudflare-ipfs.com',
     u: u=>`https://cloudflare-ipfs.com/ipfs/${u.cid}${u.path}`,
-  }],
+  }]},
 };
-let lpm_get_cdns = u=>{
+let lpm_get_cdn = u=>{
   let l = lpm_cdn;
   switch (u.reg){
   case 'npm': return l.npm;
@@ -179,8 +179,11 @@ let lpm_get_cdns = u=>{
 let mod_root;
 let lpm_root;
 let lpm_map = {};
+let lpm_lif_file = {};
 let lpm_pkg = {};
-let lpm_file = {};
+let lpm_pkg_file = {};
+let lpm_frep = {};
+let lpm_fhttp = {};
 
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
@@ -691,12 +694,77 @@ let pkg_export_lookup = (pkg, file)=>{
   return {file: f, alt};
 };
 
+async function lpm_http_get({log, url}){
+  let response, err, blob;
+  let slow = eslow(5000, ['fetch', url]);
+  try {
+    response = await fetch(url, fetch_opt(url));
+  } catch(_err){
+    slow.end();
+    err = Error('module('+log.mod+') failed fetch: '+_err);
+    console.log(err);
+    return {err, status: 0, fail_cdn: true};
+  }
+  slow.end();
+  if (response.status==404)
+    return {status: response.status, not_exist: true};
+  if (response.status!=200){
+    err = Error('cdn failed fetch '+response.status+' '+url);
+    console.log(err);
+    return {status, err, fail_cdn: true};
+  }
+  try {
+    blob = await response.blob();
+  } catch(err){
+    err = Error('fetch('+url+'): '+err);
+    console.log(err);
+    return {err, fail_cdn: true}
+  }
+  return {blob};
+}
+async function lpm_git_get({log, uri}){ assert(0); }
+async function lpm_bittorrent_get({log, uri}){ assert(0); }
+async function lpm_lif_get({log, uri, cdn}){
+  let lpmf, D = 0, lpm, wait, u;
+  if (lpmf = lpm_lif_file[uri])
+    return await lpmf.wait;
+  lpmf = lpm_lif_file[uri] = {uri, wait: wait = ewait(), log};
+  u = lpmf.u = lpm_uri_parse(lpmf.uri);
+  // select cdn
+  // npm/react@18.3.0/file.js
+  //   http://unpkg.com/react@18.3.0/file.js
+  //   http://cdn.jsdlivr.net/npm/react@18.3.0/file.js
+  let pkg, v;
+  cdn ||= lpm_get_cdn(u);
+  if (!(lpmf.cdn = cdn))
+    throw wait.throw(Error('module('+log.mod+') no registry cdn: '+u.modver));
+  let i, url, n = cdn.src.length, src, ret;
+  for (src of cdn.src){
+    if (src.fail)
+      continue;
+    url = src.u(u);
+    ret = await lpm_http_get({log, url});
+    if (ret.blob)
+      break;
+    if (ret.not_exist){
+      lpmf.not_exist = true;
+      lpmf.err = 'lpm does not exist '+uri;
+      return wait.return(lpmf);
+    }
+    assert(ret.cnd_fail);
+    src.fail = {url, err: ret.err};
+  }
+  if (!(lpmf.blob = ret.blob))
+    lpmf.err = ret ? ret.err : 'no non-failed cdn available';
+  return wait.return(lpmf);
+}
+
 async function lpm_pkg_load(log, modver){
-  let lpm, lpm_s;
+  let lpm, lpm_s, wait;
   if (lpm = lpm_pkg[modver])
     return await lpm.wait;
-  lpm = lpm_pkg[modver] = {modver, wait: ewait(), log};
-  lpm.u = lpm_uri_parse(lpm.modver);
+  lpm = lpm_pkg[modver] = {modver, wait: wait = ewait(), log};
+  let u = lpm.u = lpm_uri_parse(lpm.modver);
   lpm.file_lookup = uri=>{
     let {path} = lpm_uri_parse(uri);
     let ofile = path.replace(/^\//, '')||'.';
@@ -707,44 +775,34 @@ async function lpm_pkg_load(log, modver){
       redirect = '/.lif/'+lpm.modver+'/'+nfile;
     return {redirect, nfile, alt};
   };
-  // load package.json to locate module's index.js
   try {
+    // load package.json to locate module's index.js
     // select cdn
     let pkg, v;
     let map = lpm_map[lpm.modver];
-    if (map){
-      lpm.cdns = [{name: 'local', u: u=>map.lpm_base+u.path}];
-      lpm.lpm_base = map.lpm_base;
-    } else {
-      lpm.cdns = lpm_get_cdns(lpm.u);
-      if (!lpm.cdns)
-        throw Error('module('+log.mod+') no registry cdn: '+lpm.modver);
-    }
-    let u = lpm_uri_parse(lpm.modver);
-    let path = '/package.json';
-    log('modver', lpm.modver+path);
-    let _u = lpm_uri_parse(lpm.modver+path);
-    let url = lpm.cdns[0].u(_u);
-    // try alternative CDNs if fails in non "standard" failure of not-found
-    let response = await fetch(url, fetch_opt(url));
-    if (response.status!=200)
-      throw Error('module('+log.mod+') failed fetch '+response.status+' '+url);
+    let cdn = lpm.cdn = map ? map.cdn : lpm_get_cdn(u);
+    if (!lpm.cdn)
+      throw Error('module('+log.mod+') no registry cdn: '+lpm.modver);
+    let uri = lpm.modver+'/package.json';
+    let get = await lpm_lif_get({log, uri, cdn});
+    if (get.err)
+      throw get.err;
     try {
-      pkg = lpm.pkg = await response.json();
+      pkg = lpm.pkg = JSON.parse(await get.blob.text());
     } catch(err){
-      throw Error('fetch.json('+url+'): '+err);
+      throw Error('invalid package.json parse '+uri);
     }
     if (!pkg)
-      throw Error('empty package.json '+url);
+      throw Error('json('+uri+') failed');
     if (!(lpm.ver = pkg.version))
-      throw Error('invalid package.json '+url);
+      throw Error('invalid package.json '+uri);
     if (!u.ver && !map){
       lpm.redirect = '/.lif/'+u.reg+'/'+u.name+'@'+lpm.ver+u.path;
       log('lpm.redirect', lpm.redirect);
     }
-    return lpm.wait.return(lpm);
+    return wait.return(lpm);
   } catch(err){
-    throw lpm.wait.throw(err);
+    throw wait.throw(err);
   }
 }
 
@@ -758,9 +816,9 @@ function lpm_uri_to_npm(uri){
 
 async function lpm_file_load({log, uri, no_alt}){
   let file, D = 0, lpm, wait;
-  if (file = lpm_file[uri])
+  if (file = lpm_pkg_file[uri])
     return await file.wait;
-  file = lpm_file[uri] = {uri, wait: wait = ewait(), log};
+  file = lpm_pkg_file[uri] = {uri, wait: wait = ewait(), log};
   file.npm_uri = lpm_uri_to_npm(file.uri);
   lpm = file.lpm = await lpm_pkg_load(log, lpm_modver(uri));
   if (lpm.redirect){
@@ -770,25 +828,16 @@ async function lpm_file_load({log, uri, no_alt}){
   }
   let {nfile, redirect, alt} = lpm.file_lookup(uri);
   file.nfile = nfile;
-  let u = lpm_uri_parse(lpm.modver+'/'+nfile);
-  file.url = lpm.cdns[0].u(u);
+  file.uri = lpm.modver+'/'+nfile;
   file.redirect = redirect;
   file.alt = alt;
   if (file.redirect)
     return wait.return(file);
   // fetch the file
-  let slow = eslow(5000, ['fetch', file.url]);
-  let response;
-  try {
-    // try alternative CDNs if fails in non "standard" failure of not-found
-    response = await fetch(file.url, fetch_opt(file.url));
-  } catch(err){
-    slow.end();
-    err.message = 'fetch('+file.url+')'+err.message;
-    throw wait.throw(err);
-  }
-  slow.end();
-  if (response.status!=200){
+  let get = await lpm_lif_get({log, uri: file.uri, cdn: lpm.cdn});
+  if (get.err){
+    if (!get.not_exist)
+      throw wait.throw(get.err);
     if (no_alt)
       throw wait.throw(Error('fetch failed '+file.url));
     if (alt){
@@ -806,14 +855,14 @@ async function lpm_file_load({log, uri, no_alt}){
       }
     }
     let e = 'module('+log.mod+(alt ? ' alt '+alt.join(' ') : '')+
-      ') failed fetch '+file.url;
+      ') failed fetch not exist '+file.url;
     console.error(e);
     throw wait.throw(Error(e));
   }
-  let response2 = response.clone();
-  file.blob = await response.blob();
-  file.body = await response2.text();
-  D && console.log('fetch OK '+file.url);
+  assert(get.blob);
+  file.blob = get.blob;
+  file.body = await get.blob.text();
+  D && console.log('fetch OK '+file.uri);
   return wait.return(file);
 }
 
@@ -1033,6 +1082,8 @@ let do_pkg_map = function({map}){
     let m = lpm_map['npm/'+name] = {net: mod};
     m.base = mod+name;
     m.lpm_base = mod+name;
+    if (mod[0]=='/') // local cdn
+      m.cdn = {src: [{name: 'local', u: u=>m.lpm_base+u.path}]};
   }
 };
 do_pkg_map({map: {'lif-kernel': '/'}});
