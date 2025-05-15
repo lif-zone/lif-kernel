@@ -972,8 +972,6 @@ function respond_tr_send({f, q, qs, uri, path, ext}){
   throw Error('invalid lpm file type '+type);
 }
 
-let pp = {};
-let boot_chan;
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = TE_url_parse(url);
@@ -1088,6 +1086,7 @@ let do_pkg_map = function({map}){
 };
 do_pkg_map({map: {'lif-kernel': '/'}});
 
+let boot_chan;
 function sw_init_post(){
   boot_chan = new util.postmessage_chan();
   boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
