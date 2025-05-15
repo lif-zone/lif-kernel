@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '1.0.6';
+let lif_version = '1.1.1';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -107,9 +107,11 @@ let import_module = async(url)=>{
   }
 };
 
-let Babel = await import_module('https://unpkg.com/@babel/standalone@7.26.4/babel.js');
-let util = await import_module('/lif-kernel/util.js');
-let mime_db = await import_module('/lif-kernel/mime_db.js');
+let kernel_cdn = 'https://unpkg.com/';
+let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
+let _kernel_cdn = globalThis.lif_kernel_local ? '/' : kernel_cdn;
+let util = await import_module(_kernel_cdn+'lif-kernel/util.js');
+let mime_db = await import_module(_kernel_cdn+'lif-kernel/mime_db.js');
 let {postmessage_chan, str, OF, OA, assert,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
   path_prefix, qs_enc,
