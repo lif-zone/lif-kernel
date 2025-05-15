@@ -39,7 +39,9 @@ const eslow = (ms, arg)=>{
   p.now = Date.now();
   p.stack = Error('stack'),
   p.end = ()=>{
-    at_end ||= Date.now();
+    if (at_end)
+      return;
+    at_end = Date.now();
     eslow.set.delete(p);
     if (timeout && !done)
       enable && console.error('slow completed '+(Date.now()-p.now)+'>'+ms, ...arg);
