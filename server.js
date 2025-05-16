@@ -33,7 +33,8 @@ let map;
 let root;
 const server = http.createServer((req, res)=>{
   let opt = {directoryListing: false, cleanUrls: false};
-  let uri = decodeURIComponent(req.url), _uri, dir;
+  let uri = URL.parse('http://localhost'+req.url).pathname;
+  let _uri, dir;
   let log_url = uri;
   res.on('finish', ()=>console.log(
     `${log_url} ${res.statusCode} ${res.statusMessage}`));
