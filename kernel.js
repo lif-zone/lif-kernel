@@ -1081,7 +1081,6 @@ let do_pkg_map = function({map}){
       lpm_root = 'npm/'+name;
     }
     let m = lpm_map['npm/'+name] = {net: mod};
-    m.base = mod+name;
     m.lpm_base = mod+name;
     if (mod[0]=='/') // local cdn
       m.cdn = {src: [{name: 'local', u: u=>m.lpm_base+u.path}]};
