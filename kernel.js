@@ -108,11 +108,11 @@ let import_module = async(url)=>{
 };
 
 let sw_q = new URLSearchParams(location.search);
-let lif_kernel_base = sw_q.get('lif_kernel_base') || '/lif-kernel';
+let lif_kernel_base = sw_q.get('lif_kernel_base') || '/lif-kernel/';
 let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
-let util = await import_module(lif_kernel_base+'/util.js');
-let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
+let util = await import_module(lif_kernel_base+'util.js');
+let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 let {postmessage_chan, str, OF, OA, assert,
   path_ext, _path_ext, path_file, path_dir, path_is_dir,
   path_prefix, qs_enc,
