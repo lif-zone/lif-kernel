@@ -179,7 +179,6 @@ let lpm_get_cdn = u=>{
   }
 };
 
-let mod_root;
 let lpm_root;
 let lpm_map = {};
 let lpm_lif_file = {};
@@ -450,17 +449,6 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
       return ret_err('dep missing mod_root');
   }
   return '/.lif/'+dep;
-};
-
-let modmap_lookup = (pkg, uri)=>{
-  for (let [from, to] of OF(pkg.lif?.modmap)){
-    let v;
-    if (v=path_prefix(uri, from)){
-      if (to.endsWith('/'))
-        to += path_file(from);
-      return mod_root+to+v.rest;
-    }
-  }
 };
 
 let lpm_modmap_lookup = (pkg, uri)=>{
@@ -1076,10 +1064,8 @@ let do_pkg_map = function({map}){
   lpm_map = {...map};
   let i = 0;
   for (let [name, mod] of OF(map)){
-    if (!i++){ // first in list is root
-      mod_root = name;
+    if (!i++) // first in list is root
       lpm_root = 'npm/'+name;
-    }
     let m = lpm_map['npm/'+name] = {net: mod};
     m.lpm_base = mod+name;
     if (mod[0]=='/') // local cdn
