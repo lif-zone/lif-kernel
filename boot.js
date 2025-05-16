@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan,
-  path_file, OF, OA, assert, TE_to_null,
+  path_file, path_dir, OF, OA, assert, TE_to_null,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 let json = JSON.stringify;
@@ -248,8 +248,9 @@ let boot_kernel = async()=>{
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
+    let lif_kernel_base = path_dir(import.meta.resolve('./kernel.js'));
     const registration = await navigator.serviceWorker.register(
-      '/lif_kernel_sw.js');
+      '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
     await navigator.serviceWorker.ready;
     const conn_kernel = async()=>{
       kernel_chan = new postmessage_chan();
