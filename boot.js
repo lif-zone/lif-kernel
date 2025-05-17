@@ -316,8 +316,8 @@ let boot_app = async({app, map})=>{
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
-  do_pkg_map({map, app: app});
-  await kernel_chan.cmd('pkg_map', {map});
+  do_pkg_map({map, app: app}); // XXX TODO: remove? add 'npm/'?
+  await kernel_chan.cmd('pkg_map', {app: 'npm/'+app, map});
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();

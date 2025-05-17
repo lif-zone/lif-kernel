@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '1.1.5';
+let lif_version = '1.1.6';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -445,8 +445,6 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   if (!dep || dep=='-')
     return ret_err('dep missing');
   if (dep.startsWith('-peer-')){
-    if (!lpm_root)
-      return ret_err('peer dep - missing app lpm_root');
     let pkg_root = lpm_pkg[lpm_root].pkg;
     if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
       return ret_err('dep missing lpm_root');
@@ -760,8 +758,6 @@ async function lpm_pkg_load(log, modver){
     return await lpm.wait;
   lpm = lpm_pkg[modver] = {modver, wait: wait = ewait(), log};
   let u = lpm.u = lpm_uri_parse(lpm.modver);
-  if (!u)
-    debugger;
   lpm.file_lookup = uri=>{
     let {path} = lpm_uri_parse(uri);
     let ofile = path.replace(/^\//, '')||'.';
@@ -769,7 +765,7 @@ async function lpm_pkg_load(log, modver){
     let nfile = file||ofile;
     let redirect;
     if (nfile && nfile!=ofile)
-      redirect = '/.lif/'+lpm.modver+'/'+nfile;
+      redirect = lpm.modver+'/'+nfile;
     return {redirect, nfile, alt};
   };
   try {
@@ -794,7 +790,7 @@ async function lpm_pkg_load(log, modver){
     if (!(lpm.ver = pkg.version))
       throw Error('invalid package.json '+uri);
     if (!u.ver && !map){
-      lpm.redirect = '/.lif/'+u.reg+'/'+u.name+'@'+lpm.ver+u.path;
+      lpm.redirect = u.reg+'/'+u.name+'@'+lpm.ver+u.path;
       log('lpm.redirect', lpm.redirect);
     }
     return wait.return(lpm);
@@ -846,7 +842,7 @@ async function lpm_file_load({log, uri, no_alt}){
         } catch(err){}
       }
       if (afile){
-        file.redirect = '/.lif/'+afile.uri;
+        file.redirect = afile.uri;
         D && console.log('fetch OK redirect '+file.uri);
         return wait.return(file);
       }
@@ -945,7 +941,7 @@ let ctype_binary = path=>{
 
 function respond_tr_send({f, q, qs, uri, path, ext}){
   if (f.redirect)
-    return Response.redirect(f.redirect+qs);
+    return Response.redirect('/.lif/'+f.redirect+qs);
   if (q.has('raw') || ctype_binary(path))
     return response_send({body: f.blob, uri});
   if (ext=='json')
@@ -1013,14 +1009,12 @@ async function _kernel_fetch(event){
         console.log('no mod_self for '+url+' using '+lpm_root);
         mod_self = lpm_root; // lpm_root might be null
       }
-      if (mod_self){ // due to no lpm_root
-        let lpm = await _lpm_pkg_load(log_ref, lpm_modver(mod_self));
-        D && console.log('lpm', uri, 'mod_self', mod_self);
-        let _path = lpm_dep_lookup(lpm.pkg, mod_self, uri);
-        if (_path){
-          if (_path!=path)
-            return Response.redirect(_path+qs);
-        }
+      let lpm = await _lpm_pkg_load(log_ref, lpm_modver(mod_self));
+      D && console.log('lpm', uri, 'mod_self', mod_self);
+      let _path = lpm_dep_lookup(lpm.pkg, mod_self, uri);
+      if (_path){
+        if (_path!=path)
+          return Response.redirect(_path+qs);
       }
       // no version found
       // TODO: lookup npm by date<=root app date
@@ -1029,12 +1023,10 @@ async function _kernel_fetch(event){
     return respond_tr_send({f, q, qs, uri, path, ext});
   }
   // local requests
-  if (lpm_root){
-    let pkg_root = (await _lpm_pkg_load(log_ref, lpm_root)).pkg ;
-    if (v = lpm_modmap_lookup(pkg_root, path)){
-      log('modmap '+path+' -> '+v);
-      return Response.redirect('/.lif/'+v+'?raw=1');
-    }
+  let pkg_root = (await _lpm_pkg_load(log_ref, lpm_root)).pkg ;
+  if (v = lpm_modmap_lookup(pkg_root, path)){
+    log('modmap '+path+' -> '+v);
+    return Response.redirect('/.lif/'+v+'?raw=1');
   }
   console.log('req default', url);
   let response = await fetch(request);
@@ -1072,12 +1064,10 @@ let do_module_dep = async function({modver, dep}){
 
 let do_pkg_map = function({map, app}){
   lpm_map = {...map};
-  let i = 0;
-  lpm_root = app ? lpm_modver(app) : '';
+  lpm_root = lpm_modver(app);
   for (let [mod, to] of OF(map)){
     let lpm = 'npm/'+mod;
-    let m = lpm_map[lpm] = {net: to};
-    m.lpm_base = to;
+    let m = lpm_map[lpm] = {lpm_base: to};
     if (to[0]=='/') // local cdn
       m.cdn = {src: [{name: 'local', u: u=>path_join(to, u.path)}]};
   }
