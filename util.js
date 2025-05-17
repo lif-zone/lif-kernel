@@ -387,9 +387,17 @@ exports.ipc_sync = ipc_sync;
 
 const path_ext = path=>path.match(/\.[^./]*$/)?.[0];
 const _path_ext = path=>path.match(/\.([^./]*)$/)?.[1];
-const path_file = path=>path.match(/(^|\/)?([^/]*)$/)?.[2];
-const path_dir = path=>path.slice(0, path.length-path_file(path).length);
+const path_file = path=>path.match(/(^.*\/)?([^/]*)$/)?.[2]||'';
+const path_dir = path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
 const path_is_dir = path=>path.endsWith('/');
+const path_join = (...path)=>{
+  let p = path[0];
+  for (let i=1; i<path.length; i++){
+    let add = path[i];
+    p += (p.endsWith('/') ? '' : '/')+(add[0]=='/' ? add.slice(1) : add);
+  }
+  return p;
+};
 const path_prefix = (path, prefix)=>{
   let v;
   if (!(v=str.prefix(path, prefix)))
@@ -403,6 +411,40 @@ const path_next = path=>{
     return {dir: p[0], rest: null, last: true};
   return {dir: p[0]+'/', rest: path.slice(p[0].length+1), last: false};
 };
+
+function test_path(){
+  let t = (v, path)=>assert_eq(v, path_ext(path));
+  t(undefined, 'dir.js/file');
+  t('.js', 'dir.js/file.js');
+  t('.', 'dir.js/file.');
+  t = (v, path)=>assert_eq(v, _path_ext(path));
+  t(undefined, 'dir.js/file');
+  t('js', 'dir.js/file.js');
+  t('', 'dir.js/file.');
+  t = (v, path)=>assert_eq(v, path_file(path));
+  t('file.js', 'another/dir/dir.js/file.js');
+  t('file.js', '/file.js');
+  t('', '/');
+  t('', 'dir/');
+  t('', '');
+  t = (v, path)=>assert_eq(v, path_dir(path));
+  t('another/dir/dir.js/', 'another/dir/dir.js/file.js');
+  t('/', '/file.js');
+  t('/', '/');
+  t('dir/', 'dir/');
+  t('', '');
+  t = (v, path)=>assert_eq(v, path_is_dir(path));
+  t(false, '/file.js');
+  t(true, '/');
+  t(true, 'dir/');
+  t(false, '');
+  t = (v, ...path)=>assert_eq(v, path_join(...path));
+  t('a/b/c', 'a/b', 'c');
+  t('a/b/c', 'a/b', '/c');
+  t('a/b/c', 'a/b/', '/c');
+  t('a/b//c', 'a/b//', '/c');
+}
+test_path();
 
 const TE_url_parse = (url, base)=>{
   const u = URL.parse(url, base);
@@ -733,6 +775,7 @@ exports._path_ext = _path_ext;
 exports.path_file = path_file;
 exports.path_dir = path_dir;
 exports.path_is_dir = path_is_dir;
+exports.path_join = path_join;
 exports.path_prefix = path_prefix;
 exports.path_next = path_next;
 exports.url_parse = url_parse;
