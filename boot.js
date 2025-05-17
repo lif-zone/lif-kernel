@@ -316,10 +316,7 @@ let boot_app = async({app, map})=>{
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
-  let _map = {...map};
-  if (!_map['lif-kernel'])
-    _map['lif-kernel'] = lif_kernel_base;
-  do_pkg_map({map});
+  do_pkg_map({map, app: app});
   await kernel_chan.cmd('pkg_map', {map});
   // reload page for cross-origin-isolation
   if (coi_enable)
