@@ -243,12 +243,12 @@ function init_worker(){
   globalThis.importScripts = new_importScripts;
 }
 
+let lif_kernel_base = import.meta.resolve('./x').slice(0, -1);
 let boot_kernel = async()=>{
   if (boot_kernel.wait)
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
-    let lif_kernel_base = path_dir(import.meta.resolve('./kernel.js'));
     const registration = await navigator.serviceWorker.register(
       '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
     await navigator.serviceWorker.ready;
@@ -316,10 +316,11 @@ let boot_app = async({app, map})=>{
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = npm_uri_parse(app);
-  if (npm_map = {...map}){
-    do_pkg_map({map});
-    await kernel_chan.cmd('pkg_map', {map: map});
-  }
+  let _map = {...map};
+  if (!_map['lif-kernel'])
+    _map['lif-kernel'] = lif_kernel_base;
+  do_pkg_map({map});
+  await kernel_chan.cmd('pkg_map', {map});
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();
