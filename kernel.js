@@ -445,9 +445,11 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   if (!dep || dep=='-')
     return ret_err('dep missing');
   if (dep.startsWith('-peer-')){
+    if (!lpm_root)
+      return ret_err('peer dep - missing app lpm_root');
     let pkg_root = lpm_pkg[lpm_root].pkg;
     if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
-      return ret_err('dep missing mod_root');
+      return ret_err('dep missing lpm_root');
   }
   return '/.lif/'+dep;
 };
@@ -758,6 +760,8 @@ async function lpm_pkg_load(log, modver){
     return await lpm.wait;
   lpm = lpm_pkg[modver] = {modver, wait: wait = ewait(), log};
   let u = lpm.u = lpm_uri_parse(lpm.modver);
+  if (!u)
+    debugger;
   lpm.file_lookup = uri=>{
     let {path} = lpm_uri_parse(uri);
     let ofile = path.replace(/^\//, '')||'.';
@@ -1007,14 +1011,16 @@ async function _kernel_fetch(event){
     if (!l.ver && !(map = lpm_map[l.reg+'/'+l.name])){
       if (!mod_self){
         console.log('no mod_self for '+url+' using '+lpm_root);
-        mod_self = lpm_root;
+        mod_self = lpm_root; // lpm_root might be null
       }
-      let lpm = await _lpm_pkg_load(log_ref, lpm_modver(mod_self));
-      D && console.log('lpm', uri, 'mod_self', mod_self);
-      let _path = lpm_dep_lookup(lpm.pkg, mod_self, uri);
-      if (_path){
-        if (_path!=path)
-          return Response.redirect(_path+qs);
+      if (mod_self){ // due to no lpm_root
+        let lpm = await _lpm_pkg_load(log_ref, lpm_modver(mod_self));
+        D && console.log('lpm', uri, 'mod_self', mod_self);
+        let _path = lpm_dep_lookup(lpm.pkg, mod_self, uri);
+        if (_path){
+          if (_path!=path)
+            return Response.redirect(_path+qs);
+        }
       }
       // no version found
       // TODO: lookup npm by date<=root app date
@@ -1023,10 +1029,12 @@ async function _kernel_fetch(event){
     return respond_tr_send({f, q, qs, uri, path, ext});
   }
   // local requests
-  let pkg_root = (await _lpm_pkg_load(log_ref, lpm_root)).pkg;
-  if (v = lpm_modmap_lookup(pkg_root, path)){
-    log('modmap '+path+' -> '+v);
-    return Response.redirect('/.lif/'+v+'?raw=1');
+  if (lpm_root){
+    let pkg_root = (await _lpm_pkg_load(log_ref, lpm_root)).pkg ;
+    if (v = lpm_modmap_lookup(pkg_root, path)){
+      log('modmap '+path+' -> '+v);
+      return Response.redirect('/.lif/'+v+'?raw=1');
+    }
   }
   console.log('req default', url);
   let response = await fetch(request);
@@ -1062,20 +1070,18 @@ let do_module_dep = async function({modver, dep}){
   return lpm_dep_lookup(lpm.pkg, modver, dep);
 };
 
-let do_pkg_map = function({map}){
+let do_pkg_map = function({map, app}){
   lpm_map = {...map};
   let i = 0;
+  lpm_root = app ? lpm_modver(app) : '';
   for (let [mod, to] of OF(map)){
     let lpm = 'npm/'+mod;
-    if (!i++) // first in list is root
-      lpm_root = lpm;
     let m = lpm_map[lpm] = {net: to};
     m.lpm_base = to;
     if (to[0]=='/') // local cdn
       m.cdn = {src: [{name: 'local', u: u=>path_join(to, u.path)}]};
   }
 };
-do_pkg_map({map: {'lif-kernel': lif_kernel_base}});
 
 let boot_chan;
 function sw_init_post(){
