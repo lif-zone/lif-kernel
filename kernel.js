@@ -107,14 +107,15 @@ let import_module = async(url)=>{
   }
 };
 
+let path_dir = path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
 let sw_q = new URLSearchParams(location.search);
-let lif_kernel_base = sw_q.get('lif_kernel_base') || '/lif-kernel/';
+let lif_kernel_base = sw_q.get('lif_kernel_base') || path_dir(location.pathname);
 let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'util.js');
 let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 let {postmessage_chan, str, OF, OA, assert,
-  path_ext, _path_ext, path_file, path_dir, path_is_dir,
+  path_ext, _path_ext, path_file, path_is_dir, path_join,
   path_prefix, qs_enc,
   TE_url_parse, TE_url_uri_parse, url_uri_type,
   lpm_uri_parse, lpm_modver,
@@ -689,10 +690,11 @@ async function lpm_http_get({log, url}){
   let response, err, blob;
   let slow = eslow(5000, ['fetch', url]);
   try {
+    D && console.log('fetch '+url+' for '+log.mod);
     response = await fetch(url, fetch_opt(url));
   } catch(_err){
     slow.end();
-    err = Error('module('+log.mod+') failed fetch: '+_err);
+    err = Error('module('+log.mod+') failed fetch('+url+'): '+_err);
     console.log(err);
     return {err, status: 0, fail_cdn: true};
   }
@@ -742,7 +744,7 @@ async function lpm_lif_get({log, uri, cdn}){
       lpmf.err = 'lpm does not exist '+uri;
       return wait.return(lpmf);
     }
-    assert(ret.cnd_fail);
+    assert(ret.fail_cdn);
     src.fail = {url, err: ret.err};
   }
   if (!(lpmf.blob = ret.blob))
@@ -830,7 +832,7 @@ async function lpm_file_load({log, uri, no_alt}){
     if (!get.not_exist)
       throw wait.throw(get.err);
     if (no_alt)
-      throw wait.throw(Error('fetch failed '+file.url));
+      throw wait.throw(Error('fetch failed '+file.uri));
     if (alt){
       let afile, err;
       loop: for (let a of alt){
@@ -841,12 +843,12 @@ async function lpm_file_load({log, uri, no_alt}){
       }
       if (afile){
         file.redirect = '/.lif/'+afile.uri;
-        D && console.log('fetch OK redirect '+file.url);
+        D && console.log('fetch OK redirect '+file.uri);
         return wait.return(file);
       }
     }
     let e = 'module('+log.mod+(alt ? ' alt '+alt.join(' ') : '')+
-      ') failed fetch not exist '+file.url;
+      ') failed fetch not exist '+file.uri;
     console.error(e);
     throw wait.throw(Error(e));
   }
@@ -1063,16 +1065,17 @@ let do_module_dep = async function({modver, dep}){
 let do_pkg_map = function({map}){
   lpm_map = {...map};
   let i = 0;
-  for (let [name, mod] of OF(map)){
+  for (let [mod, to] of OF(map)){
+    let lpm = 'npm/'+mod;
     if (!i++) // first in list is root
-      lpm_root = 'npm/'+name;
-    let m = lpm_map['npm/'+name] = {net: mod};
-    m.lpm_base = mod+name;
-    if (mod[0]=='/') // local cdn
-      m.cdn = {src: [{name: 'local', u: u=>m.lpm_base+u.path}]};
+      lpm_root = lpm;
+    let m = lpm_map[lpm] = {net: to};
+    m.lpm_base = to;
+    if (to[0]=='/') // local cdn
+      m.cdn = {src: [{name: 'local', u: u=>path_join(to, u.path)}]};
   }
 };
-do_pkg_map({map: {'lif-kernel': '/'}});
+do_pkg_map({map: {'lif-kernel': lif_kernel_base}});
 
 let boot_chan;
 function sw_init_post(){
@@ -1088,6 +1091,7 @@ function sw_init_post(){
   lif_kernel.wait_activate.return();
 }
 sw_init_post();
-console.log('lif kernel sw '+lif_kernel.version+' util '+util.version);
+console.log('lif kernel '+lif_kernel_base
+  +' sw '+lif_kernel.version+' util '+util.version);
 } catch(err){console.error('lif kernel failed sw init', err);}})();
 
