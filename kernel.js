@@ -1065,9 +1065,8 @@ let do_module_dep = async function({modver, dep}){
 let do_pkg_map = function({map, app}){
   lpm_map = {...map};
   lpm_root = lpm_modver(app);
-  for (let [mod, to] of OF(map)){
-    let lpm = 'npm/'+mod;
-    let m = lpm_map[lpm] = {lpm_base: to};
+  for (let [modver, to] of OF(map)){
+    let m = lpm_map[modver] = {lpm_base: to};
     if (to[0]=='/') // local cdn
       m.cdn = {src: [{name: 'local', u: u=>path_join(to, u.path)}]};
   }

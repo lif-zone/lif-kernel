@@ -315,15 +315,15 @@ let boot_app = async({app, map})=>{
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+app);
-  let _app = npm_uri_parse(app);
-  do_pkg_map({map, app: app}); // XXX TODO: remove? add 'npm/'?
-  await kernel_chan.cmd('pkg_map', {app: 'npm/'+app, map});
+  let _app = app.replace(/^npm\//, '');
+  do_pkg_map({map, app: _app}); // XXX TODO: remove? add 'npm/'?
+  await kernel_chan.cmd('pkg_map', {app, map});
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();
   // load app
   try {
-    return await _import(app, [app]);
+    return await _import(_app, [_app]);
   } catch(err){
     console.error('boot: app('+app+') failed');
     throw err;
