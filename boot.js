@@ -12,7 +12,7 @@ let json = JSON.stringify;
 
 let modules = {};
 let kernel_chan;
-let mod_root;
+let npm_root;
 let npm_map = {};
 
 let process = globalThis.process ||= {env: {}};
@@ -275,12 +275,10 @@ let boot_kernel = async()=>{
   }
 };
 
-let do_pkg_map = function({map}){
+let do_pkg_map = function({map, app}){
   npm_map = {...map};
-  let i = 0;
+  npm_root = app;
   for (let [name, mod] of OF(map)){
-    if (!i++)
-      mod_root = name;
     if (typeof mod=='string')
       npm_map[name] = mod = mod.endsWith('/') ? {net: mod} : {base: mod};
     if (!mod.base && mod.net)
@@ -315,8 +313,8 @@ let boot_app = async({app, map})=>{
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+app);
-  let _app = app.replace(/^npm\//, '');
-  do_pkg_map({map, app: _app}); // XXX TODO: remove? add 'npm/'?
+  let _app = app.replace(/^npm\//, ''); // XXX: remove
+  do_pkg_map({map, app: _app});
   await kernel_chan.cmd('pkg_map', {app, map});
   // reload page for cross-origin-isolation
   if (coi_enable)
@@ -335,7 +333,7 @@ if (!is_worker){
   let get_url = (url, opt)=>{
     url = url.href || url;
     let _url = url, es5 = opt?.type!='module';
-    _url = lpm_2url(mod_root, _url, {worker: 1, type: opt?.type});
+    _url = lpm_2url(npm_root, _url, {worker: 1, type: opt?.type});
     return _url;
   };
   class lif_Worker extends Worker {
