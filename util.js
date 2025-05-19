@@ -529,6 +529,8 @@ const TE_lpm_uri_parse = uri=>{
     let v = p[i++];
     if (typeof v!='string')
       throw Error('lpm_uri_parse missing'+err+': '+uri);
+    if (v=='')
+      throw Error('lpm_uri_parse empty element: '+uri);
     return v;
   };
   let ver_split = name=>{
@@ -539,10 +541,6 @@ const TE_lpm_uri_parse = uri=>{
       return {name: n[0], ver: '@'+n[1], _ver: n[1]};
     throw Error('lpm_uri_parse invalid ver inname: '+name);
   };
-  for (let j=0; j<p.length-1; j++){
-    if (p[j]=='')
-      throw Error('lpm_uri_parse empty element: '+uri);
-  }
   let v;
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
   switch (l.reg){
@@ -716,6 +714,7 @@ function test_url_uri(){
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
     ['./a/b', 'http://oth/c/d']);
   t({path: '/c/d', is: {uri: 1}}, ['/c/d', '/dir/a/b']);
+  t({path: '/c//d', is: {uri: 1}}, ['/c//d', '/dir/a/b']);
   t({path: '/dir/a/c/d', is: {uri: 1, rel: 1}}, ['./c/d', '/dir/a/b']);
   t({path: '/dir/c/d', is: {uri: 1, rel: 1}}, ['../c/d', '/dir/a/b']);
   t({path: '/c/d', is: {uri: 1, rel: 1}}, ['../../../../c/d', '/dir/a/b']);
@@ -741,6 +740,9 @@ function test_url_uri(){
     ver: "@1.2.0", _ver: "1.2.0",
     modver: "npm/@noble/hashes@1.2.0", path: "/esm/utils.js"},
     ['npm/@noble/hashes@1.2.0/esm/utils.js']);
+  t = (v, arg)=>assert_eq(v, !!lpm_uri_parse(arg));
+  t(true, 'npm/mod/dir/file.js');
+  t(true, 'npm/mod/dir//file.js');
 }
 test_url_uri();
 
