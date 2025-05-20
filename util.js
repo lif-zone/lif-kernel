@@ -1,4 +1,4 @@
-let util_version = '1.0.3';
+let util_version = '1.1.8';
 let exports = {};
 exports.version = util_version;
 let D = 0; // Debug
