@@ -434,13 +434,13 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
     if (v[0]!='/')
       return ret_err('invalid base');
     v = v.slice(1);
-    return '/.lif/'+v+u.path;
+    return v+u.path;
   }
   if (u.ver)
-    return '/.lif/'+uri;
+    return uri;
   let _self = lpm_uri_parse(mod_self);
   if (_self && _self.name==u.name)
-    return '/.lif/'+_self.modver+u.path;
+    return _self.modver+u.path;
   let dep = lpm_dep_ver_lookup(pkg, mod_self, uri);
   if (!dep || dep=='-')
     return ret_err('dep missing');
@@ -449,7 +449,7 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
     if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
       return ret_err('dep missing lpm_root');
   }
-  return '/.lif/'+dep;
+  return dep;
 };
 
 let lpm_modmap_lookup = (pkg, uri)=>{
@@ -470,6 +470,7 @@ let tr_mjs_import = f=>{
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
     else if (v=lpm_dep_lookup(f.lpm.pkg, f.uri, d.module, {npm: 1})){
+      v = '/.lif/'+v;
       if (d.imported)
         v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
@@ -880,6 +881,13 @@ let _lpm_pkg_load = async function(log, modver){
 };
 
 let coi_enable = false;
+let coi_set_headers = headers=>{
+  if (!coi_enable)
+    return;
+  // COI: Cross-Origin-Isolation
+  headers.set('cross-origin-embedder-policy', 'require-corp');
+  headers.set('cross-origin-opener-policy', 'same-origin');
+};
 
 // fetch event.request.destination strings:
 // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
@@ -918,10 +926,7 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
-  if (coi_enable){ // COI: Cross-Origin-Isolation
-    h['cross-origin-embedder-policy'] = 'require-corp';
-    h['cross-origin-opener-policy'] = 'same-origin';
-  }
+  coi_set_headers(h);
   opt.headers = new Headers(h);
   return new Response(body, opt);
 };
@@ -939,10 +944,12 @@ let ctype_binary = path=>{
   return false;
 };
 
-function respond_tr_send({f, q, qs, uri, path, ext}){
+function respond_tr_send({f, qs, uri}){
+  let ext = _path_ext(uri);
+  let q = new URLSearchParams(qs);
   if (f.redirect)
     return Response.redirect('/.lif/'+f.redirect+qs);
-  if (q.has('raw') || ctype_binary(path))
+  if (q.has('raw') || ctype_binary(uri))
     return response_send({body: f.blob, uri});
   if (ext=='json')
     return response_send({body: f.blob, ext: 'json'});
@@ -957,12 +964,35 @@ function respond_tr_send({f, q, qs, uri, path, ext}){
   if (q.has('mjs'))
     return response_send({body: file_tr_mjs(f, q.get('worker')), ext: 'js'});
   if (type=='cjs' || type=='amd' || type=='')
-    return response_send({body: mjs_import_cjs(path, q), ext: 'js'});
+    return response_send({body: mjs_import_cjs('/.lif/'+uri, q), ext: 'js'});
   if (type=='mjs'){
     return response_send({
-      body: mjs_import_mjs(f.ast.has.export_default, path, q), ext: 'js'});
+      body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+uri, q),
+      ext: 'js'});
   }
   throw Error('invalid lpm file type '+type);
+}
+
+async function kernel_fetch_lpm({log, uri, mod_self, qs}){
+  let l = lpm_uri_parse(uri);
+  if (!l)
+    throw Error('invalid lpm '+uri);
+  let map;
+  if (!l.ver && !(map = lpm_map[l.reg+'/'+l.name])){
+    if (!mod_self){
+      console.log('no mod_self for '+log.url+' using '+lpm_root);
+      mod_self = lpm_root; // lpm_root might be null
+    }
+    let lpm = await _lpm_pkg_load(log.ref, lpm_modver(mod_self));
+    D && console.log('lpm', uri, 'mod_self', mod_self);
+    let _uri = lpm_dep_lookup(lpm.pkg, mod_self, uri);
+    if (_uri && _uri!=uri)
+      return Response.redirect('/.lif/'+_uri+qs);
+    // no version found
+    // TODO: lookup npm by date<=root app date
+  }
+  let f = await lpm_file_load({log, uri});
+  return respond_tr_send({f, qs, uri});
 }
 
 async function _kernel_fetch(event){
@@ -983,8 +1013,9 @@ async function _kernel_fetch(event){
       return void console.log(url, ...arguments), 1;
   };
   log.mod = url+(ref && ref!=u.origin+'/' ? ' ref '+ref : '');
-  let log_ref = log.bind(null);
-  log_ref.mod = url;
+  log.url = url;
+  log.ref = log.bind(null);
+  log.ref.mod = url;
   // external and non GET requests
   if (request.method!='GET' && request.method!='HEAD'){
     console.log('non GET fetch', url);
@@ -998,32 +1029,16 @@ async function _kernel_fetch(event){
   log('Req');
   let v;
   // LIF requests
+  if (0 && !path.startsWith('/.')){ // default module
+    console.log('move path '+lpm_root+' '+path);
+    path = '/.lif/'+lpm_root+path;
+  }
   if (v = str.prefix(path, '/.lif/')){
     let uri = v.rest;
-    let l = lpm_uri_parse(uri);
-    if (!l)
-      throw Error('invalid lpm '+uri);
-    let map;
-    if (!l.ver && !(map = lpm_map[l.reg+'/'+l.name])){
-      if (!mod_self){
-        console.log('no mod_self for '+url+' using '+lpm_root);
-        mod_self = lpm_root; // lpm_root might be null
-      }
-      let lpm = await _lpm_pkg_load(log_ref, lpm_modver(mod_self));
-      D && console.log('lpm', uri, 'mod_self', mod_self);
-      let _path = lpm_dep_lookup(lpm.pkg, mod_self, uri);
-      if (_path){
-        if (_path!=path)
-          return Response.redirect(_path+qs);
-      }
-      // no version found
-      // TODO: lookup npm by date<=root app date
-    }
-    let f = await lpm_file_load({log, uri});
-    return respond_tr_send({f, q, qs, uri, path, ext});
+    return kernel_fetch_lpm({log, mod_self, uri, qs});
   }
   // local requests
-  let pkg_root = (await _lpm_pkg_load(log_ref, lpm_root)).pkg ;
+  let pkg_root = (await _lpm_pkg_load(log.ref, lpm_root)).pkg ;
   if (v = lpm_modmap_lookup(pkg_root, path)){
     log('modmap '+path+' -> '+v);
     return Response.redirect('/.lif/'+v+'?raw=1');
@@ -1031,10 +1046,7 @@ async function _kernel_fetch(event){
   console.log('req default', url);
   let response = await fetch(request);
   let headers = new Headers(response.headers);
-  if (coi_enable){ // COI: Cross-Origin-Isolation
-    headers.set('cross-origin-embedder-policy', 'require-corp');
-    headers.set('cross-origin-opener-policy', 'same-origin');
-  }
+  coi_set_headers(headers);
   return new Response(response.body,
     {headers, status: response.status, statusText: response.statusText});
 }
