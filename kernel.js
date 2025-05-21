@@ -1038,7 +1038,7 @@ async function _kernel_fetch(event){
     return kernel_fetch_lpm({log, mod_self, uri, qs});
   }
   // local requests
-  let pkg_root = (await _lpm_pkg_load(log.ref, lpm_root)).pkg ;
+  let pkg_root = (await _lpm_pkg_load(log.ref, lpm_root)).pkg;
   if (v = lpm_modmap_lookup(pkg_root, path)){
     log('modmap '+path+' -> '+v);
     return Response.redirect('/.lif/'+v+'?raw=1');
