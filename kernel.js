@@ -1029,9 +1029,11 @@ async function _kernel_fetch(event){
   log('Req');
   let v;
   // LIF requests
-  if (0 && !path.startsWith('/.')){ // default module
-    console.log('move path '+lpm_root+' '+path);
-    path = '/.lif/'+lpm_root+path;
+  if (!path.startsWith('/.lif/') && !mod_self){
+    let pkg = (await _lpm_pkg_load(log.ref, lpm_root)).pkg;
+    let _uri = lpm_dep_lookup(pkg, lpm_root, 'npm'+path);
+    if (_uri)
+      path = '/.lif/'+_uri;
   }
   if (v = str.prefix(path, '/.lif/')){
     let uri = v.rest;
