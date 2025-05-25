@@ -4,13 +4,13 @@ import fs from 'fs';
 import path from 'path';
 import mime_db from './mime_db.js';
 
-const str_prefix = (url, prefix)=>{
-  if (url.startsWith(prefix))
-    return {prefix: prefix, rest: url.substr(prefix.length)};
+const str_starts = (url, start)=>{
+  if (url.startsWith(start))
+    return {start, rest: url.substr(start.length)};
 };
 const path_prefix = (path, prefix)=>{
   let v;
-  if (!(v=str_prefix(path, prefix)))
+  if (!(v=str_starts(path, prefix)))
     return;
   if (!v.rest || v.rest[0]=='/' || prefix.endsWith('/'))
     return v;

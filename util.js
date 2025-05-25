@@ -130,9 +130,36 @@ str.es6_str = args=>{
 };
 str.qw = function(s){
   return str.split_ws(!Array.isArray(s) ? s : str.es6_str(arguments)); };
-str.prefix = (s, prefix)=>{
-  if (s.startsWith(prefix))
-    return {prefix: prefix, rest: s.substr(prefix.length)};
+str.starts = (s, start)=>{
+  if (Array.isArray(start)){
+    let v;
+    for (let i=0; i<start.length && !v; i++)
+      v = str.starts(s, start[i]);
+    return v;
+  }
+  if (s.startsWith(start))
+    return {start, rest: s.slice(start.length)};
+};
+str.ends = (s, end)=>{
+  if (Array.isArray(end)){
+    let v;
+    for (let i=0; i<end.length && !v; i++)
+      v = str.ends(s, end[i]);
+    return v;
+  }
+  if (s.endsWith(end))
+    return {end, rest: s.slice(0, s.length-end.length)};
+};
+str.is = (s, ...is)=>{
+  for (let i=0; i<is.length; i++){
+    if (Array.isArray(is[i])){
+      if (is[i].includes(s))
+        return true;
+    }
+    else if (is[i]==s)
+      return true;
+  }
+  return false;
 };
 str.splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 str.diff_pos = (s1, s2)=>{
@@ -398,11 +425,11 @@ const path_join = (...path)=>{
   }
   return p;
 };
-const path_prefix = (path, prefix)=>{
+const path_prefix = (path, start)=>{
   let v;
-  if (!(v=str.prefix(path, prefix)))
+  if (!(v=str.starts(path, start)))
     return;
-  if (!v.rest || v.rest[0]=='/' || prefix.endsWith('/'))
+  if (!v.rest || v.rest[0]=='/' || start.endsWith('/'))
     return v;
 };
 const path_next = path=>{
@@ -413,7 +440,33 @@ const path_next = path=>{
 };
 
 function test_path(){
-  let t = (v, path)=>assert_eq(v, path_ext(path));
+  let t;
+  t = (v, s, arr)=>assert_eq(v, str.is(s, ...arr));
+  t(false, 'ab', ['']);
+  t(true, 'ab', ['ab']);
+  t(true, 'ab', ['', 'ab']);
+  t(true, 'D', ['d', ['abc', '', 'D']]);
+  t(false, 'D', ['d', ['abc', '', 'd']]);
+  t = (s, pre, v)=>assert_objv(v ? {start: v[0], rest: v[1]} : undefined,
+    str.starts(s, pre));
+  t('ab:cd', [''], ['', 'ab:cd']);
+  t('ab:cd', ['ab:'], ['ab:', 'cd']);
+  t('ab:cd', ['ac:'], undefined);
+  t('ab:cd', ['ab', 'ab.', 'ac:'], ['ab', ':cd']);
+  t('ab:cd', ['ab:', 'ab', 'ac:'], ['ab:', 'cd']);
+  t('ab:cd', ['ab:', 'ac:'], ['ab:', 'cd']);
+  t('ab:cd', ['cd'], undefined);
+  t = (s, pre, v)=>assert_objv(v ? {end: v[0], rest: v[1]} : undefined,
+    str.ends(s, pre));
+  t('ab:cd', [''], ['', 'ab:cd']);
+  t('ab:cd', [':cd'], [':cd', 'ab']);
+  t('ab:cd', ['ac:'], undefined);
+  t('ab:cd', [':dc'], undefined);
+  t('ab:cd', ['cd', 'cd.', 'ac:'], ['cd', 'ab:']);
+  t('ab:cd', ['ab:', ':c', ':cd'], [':cd', 'ab']);
+  t('ab:cd', ['ab:', ':', 'd'], ['d', 'ab:c']);
+  t('ab:cd', ['ab'], undefined);
+  t = (v, path)=>assert_eq(v, path_ext(path));
   t(undefined, 'dir.js/file');
   t('.js', 'dir.js/file.js');
   t('.', 'dir.js/file.');
@@ -624,7 +677,36 @@ const lpm_modver = uri=>{
 };
 exports.lpm_modver = lpm_modver;
 
-// parse-package-name
+// parse-package-name: package.json:dependencies
+const TE_npm_dep_to_lpm = (mod_self, path)=>{
+  let v;
+  if (path.startsWith('./'))
+    return 'npm/'+mod_self+path.slice(1);
+  if (v=str.starts(path, ['https:', 'http:'])){
+    let u = URL.parse(path), site = u.host;
+    if (site=='github.com'){
+    } else if (site=='gitlab.com'){
+    } else
+      throw Error('invalid http registry '+site);
+    let p = u.pathname.split('/');
+    let user = p.shift();
+    let repo = p.shift();
+    if (!user || !repo)
+      throw Error('invalid gith user/repo');
+    let _path = p.join('/');
+    if (_path.endsWith('.git'))
+      _path = path.slice(0, -4);
+    return;
+  }
+  if (v=str.starts(path, 'git:')){
+    return
+  }
+  if (v=str.starts(path, 'npm:')){
+    return 'npm/'+path
+  }
+  // add later bittorent: lifcoin: bitcoin: ethereum: ipfs: ipns:
+};
+const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
 const TE_npm_uri_parse = path=>{
   let npm = TE_lpm_uri_parse('npm/'+path);
   delete npm.reg;
@@ -743,6 +825,23 @@ function test_url_uri(){
   t = (v, arg)=>assert_eq(v, !!lpm_uri_parse(arg));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
+  if (0){
+  t = (v, npm)=>assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', npm));
+  t('react', 'npm/react');
+  t('@mod/sub', 'npm/@mod/sub');
+  t('npm:react', 'npm/react');
+  t('npm:react/index.js', 'npm/react/index.js');
+  t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
+  t('git://github.com/mochajs/mocha', 'git/github/mochajs/mocha');
+  t('git://github.com/mochajs/mocha.git#4727d357ea/index.js',
+    'git/github/mochajs/mocha@4727d357ea/index.js');
+  t('git://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
+  t('https://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
+  t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
+  t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
+  t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  }
 }
 test_url_uri();
 

@@ -541,9 +541,9 @@ let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
     let d, m, op, v, ver;
     if (!(d = dep?.[npm_mod]))
       return;
-    if (v=str.prefix(d, './'))
+    if (v=str.starts(d, './'))
       return 'npm/'+pkg.name+'/'+v.rest+path;
-    if (v=str.prefix(d, 'npm:'))
+    if (v=str.starts(d, 'npm:'))
       return 'npm/'+v.rest+path;
     d = d.replaceAll(' ', '');
     if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){ // XXX TODO: fix/remove
@@ -572,18 +572,18 @@ let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
 
 let file_match = (file, match, tr)=>{
   let v, f = file, m = match;
-  while (v=str.prefix(f, './'))
+  while (v=str.starts(f, './'))
     f = v.rest;
-  while (v=str.prefix(m, './'))
+  while (v=str.starts(m, './'))
     m = v.rest;
   if (path_prefix(f, m))
     return true;
 };
 let path_match = (path, match, tr)=>{
   let v, f = path, m = match;
-  while (v=str.prefix(f, './'))
+  while (v=str.starts(f, './'))
     f = v.rest;
-  while (v=str.prefix(m, './'))
+  while (v=str.starts(m, './'))
     m = v.rest;
   let re = match_glob_to_regex(m);
   if (!(v = f.match(re)))
@@ -802,7 +802,7 @@ async function lpm_pkg_load(log, modver){
 
 function lpm_uri_to_npm(uri){
   let v;
-  if (v=str.prefix(uri, 'npm/'))
+  if (v=str.starts(uri, 'npm/'))
     return v.rest;
   throw Error('lpm_to_npm not an npm: '+uri);
   return 'lif/'+uri;
@@ -1035,7 +1035,7 @@ async function _kernel_fetch(event){
     if (_uri)
       path = '/.lif/'+_uri;
   }
-  if (v = str.prefix(path, '/.lif/')){
+  if (v = str.starts(path, '/.lif/')){
     let uri = v.rest;
     return kernel_fetch_lpm({log, mod_self, uri, qs});
   }
