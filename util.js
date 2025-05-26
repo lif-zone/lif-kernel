@@ -844,6 +844,7 @@ function test_url_uri(){
   t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
 }
 test_url_uri();
 
