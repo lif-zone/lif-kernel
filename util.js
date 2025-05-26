@@ -678,33 +678,39 @@ const lpm_modver = uri=>{
 exports.lpm_modver = lpm_modver;
 
 // parse-package-name: package.json:dependencies
-const TE_npm_dep_to_lpm = (mod_self, path)=>{
+const TE_npm_dep_to_lpm = (mod_self, dep)=>{
   let v;
-  if (path.startsWith('./'))
-    return 'npm/'+mod_self+path.slice(1);
-  if (v=str.starts(path, ['https:', 'http:'])){
-    let u = URL.parse(path), site = u.host;
-    if (site=='github.com'){
+  if (v=str.starts(dep, './'))
+    return mod_self+'/'+v.rest;
+  if (v=str.starts(dep, ['https:', 'http:', 'git:'])){
+    let u = URL.parse(dep), site = u.host;
+    if (u.host=='github.com'){
+      site = 'github';
     } else if (site=='gitlab.com'){
+      site = 'gitlab';
     } else
       throw Error('invalid http registry '+site);
-    let p = u.pathname.split('/');
+    let p = u.pathname.slice(1).split('/');
     let user = p.shift();
     let repo = p.shift();
     if (!user || !repo)
       throw Error('invalid gith user/repo');
-    let _path = p.join('/');
-    if (_path.endsWith('.git'))
-      _path = path.slice(0, -4);
-    return;
+    if (v=str.ends(repo, '.git'))
+      repo = v.rest;
+    let _path = p.map(p=>'/'+p).join('');
+    let ver = u.hash ? '@'+u.hash.slice(1) : '';
+    return 'git/'+site+'/'+user+'/'+repo+ver+_path;
   }
-  if (v=str.starts(path, 'git:')){
-    return
-  }
-  if (v=str.starts(path, 'npm:')){
-    return 'npm/'+path
+  if (v=str.starts(dep, 'npm:'))
+    return 'npm/'+v.rest;
+  if (v=str.starts(dep, 'file:')){
+    let file = v.rest;
+    if (!(v=str.starts(file, './')))
+      throw Error('only ./ files supported: '+dep);
+    return mod_self+'/'+v.rest;
   }
   // add later bittorent: lifcoin: bitcoin: ethereum: ipfs: ipns:
+  throw Error('invalid npm_dep prefix: '+dep);
 };
 const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
 const TE_npm_uri_parse = path=>{
@@ -808,7 +814,6 @@ function test_url_uri(){
     ['../../../c/d', '@mod/v/a/b']);
   t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod@1.2.3/a']);
   t = (v, arg)=>assert_objv(v, TE_npm_uri_parse(...arg));
-  if (0)
   t({p: ["@noble", "hashes@1.2.0", "esm", "utils.js"],
     _p: ["esm", "utils.js"],
     name: "@noble/hashes", scoped: true,
@@ -825,23 +830,20 @@ function test_url_uri(){
   t = (v, arg)=>assert_eq(v, !!lpm_uri_parse(arg));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
-  if (0){
-  t = (v, npm)=>assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', npm));
-  t('react', 'npm/react');
-  t('@mod/sub', 'npm/@mod/sub');
+  t = (dep, v)=>assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
   t('git://github.com/mochajs/mocha', 'git/github/mochajs/mocha');
-  t('git://github.com/mochajs/mocha.git#4727d357ea/index.js',
+  t('git://github.com/mochajs/mocha.git#4727d357ea',
+    'git/github/mochajs/mocha@4727d357ea');
+  t('git://github.com/mochajs/mocha.git/index.js#4727d357ea',
     'git/github/mochajs/mocha@4727d357ea/index.js');
   t('git://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
-  t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
-  }
 }
 test_url_uri();
 
