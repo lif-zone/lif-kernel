@@ -188,7 +188,7 @@ async function worker_import(url, opt){
 }
 
 async function _import(mod_self, [url, opt]){
-  let _url = lpm_2url(mod_self, url);
+  let _url = lpm_2url(mod_self, url, opt);
   _url = url_expand(_url);
   let slow;
   try {
@@ -278,12 +278,6 @@ let boot_kernel = async()=>{
 let do_pkg_map = function({map, app}){
   npm_map = {...map};
   npm_root = app;
-  for (let [name, mod] of OF(map)){
-    if (typeof mod=='string')
-      npm_map[name] = mod = mod.endsWith('/') ? {net: mod} : {base: mod};
-    if (!mod.base && mod.net)
-      mod.base = mod.net+name;
-  }
 };
 
 // https://web.dev/articles/cross-origin-isolation-guide
