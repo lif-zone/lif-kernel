@@ -839,6 +839,8 @@ function test_url_uri(){
     'git/github/mochajs/mocha@4727d357ea');
   t('git://github.com/mochajs/mocha.git/index.js#4727d357ea',
     'git/github/mochajs/mocha@4727d357ea/index.js');
+  t('git://github.com/mochajs/mocha/dir/file.js',
+    'git/github/mochajs/mocha/dir/file.js');
   t('git://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
