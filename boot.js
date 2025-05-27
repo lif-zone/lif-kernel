@@ -219,7 +219,7 @@ function sync_worker_fetch(url){
 
 // worker
 function importScripts_single(mod_self, [mod, opt]){
-  let url = lpm_2url(mod_self, mod);
+  let url = lpm_2url(mod_self, mod, opt);
   let script = sync_worker_fetch(url);
   let exports = eval.call(globalThis,
     `//# sourceURL=${url}\n;${script}`);
