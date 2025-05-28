@@ -302,11 +302,11 @@ let coi_reload = async()=>{
 };
 
 let boot_app = async(app_pkg)=>{
+  let lif = app_pkg.lif;
+  let webapp = lif.webapp;
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+webapp);
-  let lif = app_pkg.lif;
-  let webapp = lif.webapp;
   npm_map = {...lif.dependencies};
   npm_root = webapp;
   if (!npm_map['lif-kernel'])
