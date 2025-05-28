@@ -117,7 +117,7 @@ let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 let {postmessage_chan, str, OF, OA, assert,
   path_ext, _path_ext, path_file, path_is_dir, path_join,
   path_prefix, qs_enc,
-  TE_url_parse, TE_url_uri_parse, url_uri_type,
+  TE_url_parse, TE_url_uri_parse, url_uri_type, npm_to_lpm,
   lpm_uri_parse, lpm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
@@ -1077,10 +1077,10 @@ let do_module_dep = async function({modver, dep}){
 };
 
 let do_pkg_map = function({map, app}){
-  lpm_root = lpm_modver('npm/'+app);
+  lpm_root = lpm_modver(npm_to_lpm(app));
   lpm_map = {};
   for (let [modver, to] of OF(map)){
-    let m = lpm_map['npm/'+modver] = {lpm_base: to};
+    let m = lpm_map[npm_to_lpm(modver)] = {lpm_base: to};
     if (to[0]=='/') // local cdn
       m.cdn = {src: [{name: 'local', u: u=>path_join(to, u.path)}]};
   }

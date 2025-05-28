@@ -732,6 +732,16 @@ const npm_modver = uri=>{
 };
 exports.npm_modver = npm_modver;
 
+let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
+  let v;
+  if (npm[0]!='.')
+    return 'npm/'+npm;
+  if (v=str.starts(npm, '.git/'))
+    return 'git/'+v.rest;
+  throw Error('invalid npm: '+npm);
+};
+let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
+
 const url_uri_type = url_uri=>{
   if (!url_uri)
     throw Error('invalid url_uri type');
@@ -848,6 +858,15 @@ function test_url_uri(){
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  t = (npm, v)=>assert_eq(v, npm_to_lpm(npm));
+  t('mod', 'npm/mod');
+  t('mod/dir/file', 'npm/mod/dir/file');
+  t('@mod/sub', 'npm/@mod/sub');
+  t('@mod/sub/', 'npm/@mod/sub/');
+  t('@mod/sub/file', 'npm/@mod/sub/file');
+  t('.git/github/a_user/a_repo', 'git/github/a_user/a_repo');
+  t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
+  t('.none/github/a_user/a_repo/dir/file', null);
 }
 test_url_uri();
 
