@@ -117,7 +117,7 @@ let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 let {postmessage_chan, str, OF, OA, assert,
   path_ext, _path_ext, path_file, path_is_dir, path_join,
   path_prefix, qs_enc,
-  TE_url_parse, TE_url_uri_parse, url_uri_type, npm_to_lpm,
+  TE_url_parse, TE_url_uri_parse, url_uri_type, npm_to_lpm, lpm_to_npm,
   lpm_uri_parse, lpm_modver,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
@@ -535,7 +535,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
 
 let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
   let mod = lpm_modver(mod_uri);
-  let npm_mod = lpm_uri_to_npm(mod);
+  let npm_mod = lpm_to_npm(mod);
   let path = lpm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
     let d, m, op, v, ver;
@@ -800,20 +800,12 @@ async function lpm_pkg_load(log, modver){
   }
 }
 
-function lpm_uri_to_npm(uri){
-  let v;
-  if (v=str.starts(uri, 'npm/'))
-    return v.rest;
-  throw Error('lpm_to_npm not an npm: '+uri);
-  return 'lif/'+uri;
-}
-
 async function lpm_file_load({log, uri, no_alt}){
   let file, D = 0, lpm, wait;
   if (file = lpm_pkg_file[uri])
     return await file.wait;
   file = lpm_pkg_file[uri] = {uri, wait: wait = ewait(), log};
-  file.npm_uri = lpm_uri_to_npm(file.uri);
+  file.npm_uri = lpm_to_npm(file.uri);
   lpm = file.lpm = await lpm_pkg_load(log, lpm_modver(uri));
   if (lpm.redirect){
     let u = lpm_uri_parse(uri);

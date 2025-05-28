@@ -744,6 +744,16 @@ let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
 };
 let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
 
+let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
+  let v;
+  if (v=str.starts(lpm, 'npm/'))
+    return v.rest;
+  if (v=str.starts(lpm, 'git/'))
+    return '.'+lpm;
+  throw Error('lpm_to_npm not an npm: '+lpm);
+};
+let lpm_to_npm = exports.lpm_to_npm = TE_to_null(TE_lpm_to_npm);
+
 const url_uri_type = url_uri=>{
   if (!url_uri)
     throw Error('invalid url_uri type');
