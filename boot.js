@@ -99,10 +99,14 @@ function require_cjs_amd(mod_self, args){
 
 const lpm_2url = (mod_self, url, opt)=>{
   let u = TE_url_uri_parse(url, mod_self);
-  if (u.is.url || u.is.uri)
+  if (u.is.url)
     return url;
-  let _url = '/.lif/npm/'+u.path;
   let q = {};
+  if (opt?.raw)
+    q.raw = 1;
+  if (u.is.uri)
+    return qs_append(url, q);
+  let _url = '/.lif/npm/'+u.path;
   if (!u.mod.ver && !npm_map?.[u.mod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
@@ -115,8 +119,7 @@ const lpm_2url = (mod_self, url, opt)=>{
     q.cjs_es5 = 1;
   if (0 && opt?.es5)
     q.cjs_es5 = 1;
-  return _url+qs_enc(q, '?');
-  //return qs_append(_url, q);
+  return qs_append(_url, q);
 };
 
 let url_expand = 
@@ -219,7 +222,7 @@ function sync_worker_fetch(url){
 
 // worker
 function importScripts_single(mod_self, [mod, opt]){
-  let url = lpm_2url(mod_self, mod, opt);
+  let url = lpm_2url(mod_self, mod, opt?.type=='script' ? {raw: 1} : {});
   let script = sync_worker_fetch(url);
   let exports = eval.call(globalThis,
     `//# sourceURL=${url}\n;${script}`);
@@ -275,11 +278,6 @@ let boot_kernel = async()=>{
   }
 };
 
-let do_pkg_map = function({map, app}){
-  npm_map = {...map};
-  npm_root = app;
-};
-
 // https://web.dev/articles/cross-origin-isolation-guide
 // https://developer.chrome.com/blog/coep-credentialless-origin-trial
 // https://github.com/gzuidhof/coi-serviceworker
@@ -308,7 +306,10 @@ let boot_app = async({app, map})=>{
   await boot_kernel();
   console.log('boot: boot '+app);
   let _app = app.replace(/^npm\//, ''); // XXX: remove
-  do_pkg_map({map, app: _app});
+  npm_map = map = {...map};
+  npm_root = _app;
+  if (!map['lif-kernel'])
+    map['npm/lif-kernel'] = '/lif-kernel'; //lif_kernel_base.slice(0, -1);
   await kernel_chan.cmd('pkg_map', {app, map});
   // reload page for cross-origin-isolation
   if (coi_enable)
