@@ -305,18 +305,17 @@ let boot_app = async({app, map})=>{
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+app);
-  let _app = app.replace(/^npm\//, ''); // XXX: remove
   npm_map = map = {...map};
-  npm_root = _app;
-  if (!map['npm/lif-kernel'])
-    map['npm/lif-kernel'] = '/lif-kernel'; //lif_kernel_base.slice(0, -1);
+  npm_root = app;
+  if (!map['lif-kernel'])
+    map['lif-kernel'] = '/lif-kernel'; //lif_kernel_base.slice(0, -1);
   await kernel_chan.cmd('pkg_map', {app, map});
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();
   // load app
   try {
-    return await _import(_app, [_app]);
+    return await _import(app, [app]);
   } catch(err){
     console.error('boot: app('+app+') failed');
     throw err;
