@@ -415,7 +415,7 @@ const file_tr_cjs = (f, opt)=>{
 
 let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   let ret_err = err=>{
-    console.error('lpm_dep_lookup('+mod_self+') dep '+uri+' : '+err);
+    console.error('lpm_dep_lookup('+mod_self+') dep '+uri+': '+err);
   };
   let __uri = uri;
   let v, u = TE_url_uri_parse(uri, mod_self);
