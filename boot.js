@@ -107,7 +107,7 @@ const lpm_2url = (mod_self, url, opt)=>{
   if (u.is.uri)
     return qs_append(url, q);
   let _url = '/.lif/npm/'+u.path;
-  if (!u.mod.ver && !npm_map?.[u.mod.name])
+  if (!u.mod.ver && !npm_map[u.mod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
     q.cjs = 1;
@@ -308,7 +308,7 @@ let boot_app = async({app, map})=>{
   let _app = app.replace(/^npm\//, ''); // XXX: remove
   npm_map = map = {...map};
   npm_root = _app;
-  if (!map['lif-kernel'])
+  if (!map['npm/lif-kernel'])
     map['npm/lif-kernel'] = '/lif-kernel'; //lif_kernel_base.slice(0, -1);
   await kernel_chan.cmd('pkg_map', {app, map});
   // reload page for cross-origin-isolation
