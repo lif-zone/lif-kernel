@@ -1068,7 +1068,7 @@ let do_module_dep = async function({modver, dep}){
   return lpm_dep_lookup(lpm.pkg, modver, dep);
 };
 
-let do_pkg_map = function(app_pkg){
+let do_app_pkg = function(app_pkg){
   let lif = app_pkg.lif;
   lpm_root = lpm_modver(TE_npm_to_lpm(lif.webapp));
   lpm_map = {};
@@ -1084,7 +1084,7 @@ function sw_init_post(){
   boot_chan = new util.postmessage_chan();
   boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
   boot_chan.add_server_cmd('module_dep', ({arg})=>do_module_dep(arg));
-  boot_chan.add_server_cmd('pkg_map', async({arg})=>do_pkg_map(arg));
+  boot_chan.add_server_cmd('app_pkg', async({arg})=>do_app_pkg(arg));
   lif_kernel.on_message = event=>{
     if (boot_chan.listen(event))
       return;
