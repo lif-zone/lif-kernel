@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan,
-  path_file, path_dir, OF, OA, assert, TE_to_null,
+  path_file, path_dir, OF, OA, assert, TE_to_null, TE_npm_to_lpm,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
   npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
 let json = JSON.stringify;
@@ -106,7 +106,7 @@ const lpm_2url = (mod_self, url, opt)=>{
     q.raw = 1;
   if (u.is.uri)
     return qs_append(url, q);
-  let _url = '/.lif/npm/'+u.path;
+  let _url = '/.lif/'+TE_npm_to_lpm(u.path);
   if (!u.mod.ver && !npm_map[u.mod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
