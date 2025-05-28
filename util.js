@@ -736,6 +736,8 @@ let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
   let v;
   if (npm[0]!='.')
     return 'npm/'+npm;
+  if (v=str.starts(npm, '.npm/'))
+    return 'npm/'+v.rest;
   if (v=str.starts(npm, '.git/'))
     return 'git/'+v.rest;
   throw Error('invalid npm: '+npm);
@@ -864,6 +866,8 @@ function test_url_uri(){
   t('@mod/sub', 'npm/@mod/sub');
   t('@mod/sub/', 'npm/@mod/sub/');
   t('@mod/sub/file', 'npm/@mod/sub/file');
+  t('.npm/mod', 'npm/mod');
+  t('.npm/mod/dir/file', 'npm/mod/dir/file');
   t('.git/github/a_user/a_repo', 'git/github/a_user/a_repo');
   t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
   t('.none/github/a_user/a_repo/dir/file', null);
