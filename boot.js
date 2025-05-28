@@ -264,7 +264,7 @@ let boot_kernel = async()=>{
         (await kernel_chan.cmd('version')).version);
       wait.return();
     };
-    // this boots the React app if the SW has been installed before or
+    // this boots the app if the SW has been installed before or
     // immediately after registration
     // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
     if (navigator.serviceWorker.controller)
