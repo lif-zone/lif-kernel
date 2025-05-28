@@ -301,23 +301,25 @@ let coi_reload = async()=>{
   window.location.reload();
 };
 
-let boot_app = async({app, map})=>{
+let boot_app = async(app_pkg)=>{
+  let lif = app_pkg.lif;
+  let webapp = lif.webapp;
   // init kernel
   await boot_kernel();
-  console.log('boot: boot '+app);
-  npm_map = map = {...map};
-  npm_root = app;
-  if (!map['lif-kernel'])
-    map['lif-kernel'] = '/lif-kernel'; //lif_kernel_base.slice(0, -1);
-  await kernel_chan.cmd('pkg_map', {app, map});
+  console.log('boot: boot '+webapp);
+  npm_map = {...lif.dependencies};
+  npm_root = webapp;
+  if (!npm_map['lif-kernel'])
+    npm_map['lif-kernel'] = '/lif-kernel'; //lif_kernel_base.slice(0, -1);
+  await kernel_chan.cmd('pkg_map', app_pkg);
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();
   // load app
   try {
-    return await _import(app, [app]);
+    return await _import(webapp, [webapp]);
   } catch(err){
-    console.error('boot: app('+app+') failed');
+    console.error('boot: app('+webapp+') failed');
     throw err;
   }
   console.log('boot: boot complete');

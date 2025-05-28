@@ -1068,10 +1068,11 @@ let do_module_dep = async function({modver, dep}){
   return lpm_dep_lookup(lpm.pkg, modver, dep);
 };
 
-let do_pkg_map = function({map, app}){
-  lpm_root = lpm_modver(TE_npm_to_lpm(app));
+let do_pkg_map = function(app_pkg){
+  let lif = app_pkg.lif;
+  lpm_root = lpm_modver(TE_npm_to_lpm(lif.webapp));
   lpm_map = {};
-  for (let [modver, to] of OF(map)){
+  for (let [modver, to] of OF(lif.dependencies)){
     let m = lpm_map[TE_npm_to_lpm(modver)] = {lpm_base: to};
     if (to[0]=='/') // local cdn
       m.cdn = {src: [{name: 'local', u: u=>path_join(to, u.path)}]};
