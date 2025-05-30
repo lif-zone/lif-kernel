@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '1.1.8';
+let lif_version = '1.1.10';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -181,6 +181,7 @@ let lpm_get_cdn = u=>{
 };
 
 let lpm_root;
+let lpm_root_pkg = {};
 let lpm_map = {};
 let lpm_lif_file = {};
 let lpm_pkg = {};
@@ -985,6 +986,8 @@ async function kernel_fetch_lpm({log, uri, mod_self, qs}){
         break lookup;
       if (lpm_root && (dep = await get_dep({log, uri, mod_self: lpm_root})))
         break lookup;
+      if (dep = lpm_dep_lookup(lpm_root_pkg, lpm_root, uri))
+        break lookup;
     }
     if (dep && dep!=uri)
       return Response.redirect('/.lif/'+dep+qs);
@@ -1081,6 +1084,7 @@ let do_module_dep = async function({modver, dep}){
 let do_app_pkg = function(app_pkg){
   let lif = app_pkg.lif;
   lpm_root = lpm_modver(TE_npm_to_lpm(lif.webapp));
+  lpm_root_pkg = app_pkg;
   lpm_map = {}; // dep_rm
   for (let [modver, to] of OF(lif.dependencies)){
     let m = lpm_map[TE_npm_to_lpm(modver)] = {lpm_base: to};
