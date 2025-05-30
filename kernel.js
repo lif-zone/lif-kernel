@@ -428,7 +428,7 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   if (!(u = lpm_uri_parse(uri)))
     return ret_err('invalid lpm uri import');
   let modver = u.name+u.ver;
-  let map = lpm_map[modver];
+  let map = lpm_map[modver]; // dep_rm
   if (map){
     v = map.lpm_base;
     if (v[0]!='/')
@@ -444,6 +444,8 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   let dep = lpm_dep_ver_lookup(pkg, mod_self, uri);
   if (!dep || dep=='-')
     return ret_err('dep missing');
+  if (dep[0]=='/')
+    return dep.slice(1)+u.path; // dep_rm
   if (dep.startsWith('-peer-')){
     let pkg_root = lpm_pkg[lpm_root].pkg;
     if (!(dep = lpm_dep_ver_lookup(pkg_root, lpm_root, uri)))
@@ -541,6 +543,8 @@ let lpm_dep_ver_lookup = (pkg, mod_self, mod_uri)=>{
     let d, m, op, v, ver;
     if (!(d = dep?.[npm_mod]))
       return;
+    if (d[0]=='/')
+      return v;
     if (v=str.starts(d, './'))
       return 'npm/'+pkg.name+'/'+v.rest+path;
     if (v=str.starts(d, 'npm:'))
@@ -773,7 +777,7 @@ async function lpm_pkg_load(log, modver){
     // load package.json to locate module's index.js
     // select cdn
     let pkg, v;
-    let map = lpm_map[lpm.modver];
+    let map = lpm_map[lpm.modver]; // dep_rm
     let cdn = lpm.cdn = map ? map.cdn : lpm_get_cdn(u);
     if (!lpm.cdn)
       throw Error('module('+log.mod+') no registry cdn: '+lpm.modver);
@@ -790,7 +794,7 @@ async function lpm_pkg_load(log, modver){
       throw Error('json('+uri+') failed');
     if (!(lpm.ver = pkg.version))
       throw Error('invalid package.json '+uri);
-    if (!u.ver && !map){
+    if (!u.ver && !map){ // dep_rm
       lpm.redirect = u.reg+'/'+u.name+'@'+lpm.ver+u.path;
       log('lpm.redirect', lpm.redirect);
     }
@@ -966,20 +970,26 @@ function respond_tr_send({f, qs, uri}){
 }
 
 async function kernel_fetch_lpm({log, uri, mod_self, qs}){
+  let get_dep = async({log, uri, mod_self})=>{
+    let lpm = await _lpm_pkg_load(log.ref, lpm_modver(mod_self));
+    D && console.log('lpm', uri, 'mod_self', mod_self);
+    return lpm_dep_lookup(lpm.pkg, mod_self, uri);
+  };
   let l = lpm_uri_parse(uri);
   if (!l)
     throw Error('invalid lpm '+uri);
-  let map;
-  if (!l.ver && !(map = lpm_map[l.reg+'/'+l.name])){
-    if (!mod_self){
-      console.log('no mod_self for '+log.url+' using '+lpm_root);
-      mod_self = lpm_root; // lpm_root might be null
+  if (!l.ver){ // dep_rm
+    let dep;
+    lookup: {
+      if (mod_self && (dep = await get_dep({log, uri, mod_self})))
+        break lookup;
+      if (lpm_root && (dep = await get_dep({log, uri, mod_self: lpm_root})))
+        break lookup;
     }
-    let lpm = await _lpm_pkg_load(log.ref, lpm_modver(mod_self));
-    D && console.log('lpm', uri, 'mod_self', mod_self);
-    let _uri = lpm_dep_lookup(lpm.pkg, mod_self, uri);
-    if (_uri && _uri!=uri)
-      return Response.redirect('/.lif/'+_uri+qs);
+    if (dep && dep!=uri)
+      return Response.redirect('/.lif/'+dep+qs);
+    if (!dep)
+      console.error('no dep('+mod_self+') found: '+uri);
     // no version found
     // TODO: lookup npm by date<=root app date
   }
@@ -1071,7 +1081,7 @@ let do_module_dep = async function({modver, dep}){
 let do_app_pkg = function(app_pkg){
   let lif = app_pkg.lif;
   lpm_root = lpm_modver(TE_npm_to_lpm(lif.webapp));
-  lpm_map = {};
+  lpm_map = {}; // dep_rm
   for (let [modver, to] of OF(lif.dependencies)){
     let m = lpm_map[TE_npm_to_lpm(modver)] = {lpm_base: to};
     if (to[0]=='/') // local cdn
