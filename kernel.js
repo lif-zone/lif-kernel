@@ -118,7 +118,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   path_ext, _path_ext, path_file, path_is_dir, path_join,
   path_prefix, qs_enc,
   TE_url_parse, TE_url_uri_parse, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
-  lpm_uri_parse, lpm_modver, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
+  lpm_uri_parse, lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   TE_lpm_uri_parse, TE_lpm_uri_str,
   uri_enc, uri_dec, match_glob_to_regex,
   esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
@@ -440,7 +440,7 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   if (!dep && mod_self){
     let _self = lpm_uri_parse(mod_self);
     if (_self && _self.name==u.name)
-      return _self.modver+u.path;
+      return _self.mod+u.path;
   }
   if (!dep || dep=='-')
     return ret_err('dep missing');
@@ -525,7 +525,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
 };
 
 let lpm_dep_ver_lookup = (pkg, mod_uri)=>{
-  let mod = lpm_modver(mod_uri);
+  let mod = lpm_mod(mod_uri);
   let npm_mod = TE_lpm_to_npm(mod);
   let path = lpm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
@@ -747,7 +747,7 @@ return await ecache(reg_file_t, uri, async function run(reg){
   let pkg, v;
   cdn ||= lpm_get_cdn(u);
   if (!(reg.cdn = cdn))
-    throw Error('module('+log.mod+') no registry cdn: '+u.modver);
+    throw Error('module('+log.mod+') no registry cdn: '+u.mod);
   let i, url, n = cdn.src.length, src, ret;
   for (src of cdn.src){
     if (src.fail)
@@ -794,15 +794,15 @@ async function reg_get_alt({log, uri, alt}){
   return first; // not_exist
 }
 
-async function lpm_pkg_get(log, modver){
-return await ecache(lpm_pkg_t, modver, async function run(lpm){
-  lpm.modver = modver;
+async function lpm_pkg_get(log, lmod){
+return await ecache(lpm_pkg_t, lmod, async function run(lpm){
+  lpm.mod = lmod;
   lpm.log = log;
-  let u = lpm.u = lpm_uri_parse(lpm.modver);
+  let u = lpm.u = lpm_uri_parse(lpm.mod);
   // load package.json to locate module's index.js
   // select cdn
   let pkg, v;
-  let uri = lpm.modver+'/package.json';
+  let uri = lpm.mod+'/package.json';
   let dep = lpm_dep_lookup(lpm_boot_pkg, null, uri);
   if (dep){
     uri = dep;
@@ -810,7 +810,7 @@ return await ecache(lpm_pkg_t, modver, async function run(lpm){
   }
   let cdn = lpm.cdn = lpm_get_cdn(u);
   if (!lpm.cdn)
-    throw Error('module('+log.mod+') no registry cdn: '+lpm.modver);
+    throw Error('module('+log.mod+') no registry cdn: '+lpm.mod);
   let get = await reg_get({log, uri, cdn});
   if (get.err)
     throw get.err;
@@ -832,7 +832,7 @@ return await ecache(lpm_pkg_t, modver, async function run(lpm){
 
 async function lpm_dep_get({log, uri, mod_self, qs}){
   let get_dep = async({log, uri, mod_self})=>{
-    let lpm = await lpm_pkg_get(log, lpm_modver(mod_self));
+    let lpm = await lpm_pkg_get(log, lpm_mod(mod_self));
     D && console.log('lpm', uri, 'mod_self', mod_self);
     if (!lpm)
       throw Error('mod_self('+mod_self+') pkg load failed');
@@ -865,10 +865,10 @@ async function lpm_get({log, uri, mod_self}){
     return {redirect: '/.lif/'+dep};
   if (dep)
     uri = dep;
-  let lpm = await lpm_pkg_get(log, lpm_modver(uri));
+  let lpm = await lpm_pkg_get(log, lpm_mod(uri));
   let {file, alt} = lpm_export_get(lpm.pkg, uri);
   if (file){
-    let _uri = lpm.modver+'/'+file;
+    let _uri = lpm.mod+'/'+file;
     if (_uri!=uri){
       D && console.log('redirect '+uri+' -> '+_uri);
       return {redirect: '/.lif/'+_uri};
@@ -1058,18 +1058,18 @@ async function kernel_fetch(event){
   }
 }
 
-let do_module_dep = async function({modver, dep}){
-  let lpm = await lpm_pkg_get({mod: dep}, modver);
+let do_module_dep = async function({lmod, dep}){
+  let lpm = await lpm_pkg_get({mod: dep}, lmod);
   if (!lpm)
     return;
-  return lpm_dep_lookup(lpm.pkg, modver, dep);
+  return lpm_dep_lookup(lpm.pkg, lmod, dep);
 };
 
 let do_app_pkg = async function(boot_pkg){
   let lif = boot_pkg.lif;
   lpm_boot = 'boot';
   lpm_boot_pkg = boot_pkg;
-  lpm_app = lpm_modver(TE_npm_to_lpm(lif.webapp));
+  lpm_app = lpm_mod(TE_npm_to_lpm(lif.webapp));
   let lpm = await lpm_pkg_get({mod: 'boot'}, lpm_app);
   lpm_app_pkg = lpm?.pkg;
 };

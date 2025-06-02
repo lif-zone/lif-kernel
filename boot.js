@@ -141,7 +141,7 @@ async function require_single(mod_self, module_id){
   m = modules[module_id] = {module_id, deps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let slow;
-  slow = eslow(1000, ['require_single modver('+module_id+')']);
+  slow = eslow(1000, ['require_single mod('+module_id+')']);
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   url = url_expand(url);
   slow.end();

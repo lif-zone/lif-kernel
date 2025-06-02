@@ -640,7 +640,7 @@ const TE_lpm_uri_parse = uri=>{
     }
     l.ver = v.ver;
     l._ver = v._ver;
-    l.modver = l.reg+'/'+l.name+l.ver;
+    l.mod = l.reg+'/'+l.name+l.ver;
     break;
   case 'git':
     l.site = next('site');
@@ -659,7 +659,7 @@ const TE_lpm_uri_parse = uri=>{
         'name';
     } else
       l.ver_type = 'name';
-    l.modver = l.reg+'/'+l.site+'/'+l.name+l.ver;
+    l.mod = l.reg+'/'+l.site+'/'+l.name+l.ver;
     break;
   case 'http':
   case 'https':
@@ -669,38 +669,38 @@ const TE_lpm_uri_parse = uri=>{
     l.ver = v.ver;
     l._ver = v._ver;
     l.port = v._ver;
-    l.modver = l.reg+'/'+l.blockid;
+    l.mod = l.reg+'/'+l.blockid;
     break;
   case 'bittorent':
     l.infohash = next('InfoHash');
     break;
   case 'lifcoin':
     l.blockid = next('BlockID');
-    l.modver = l.reg+'/'+l.blockid;
+    l.mod = l.reg+'/'+l.blockid;
     break;
   case 'bitcoin':
     l.blockid = next('BlockID');
-    l.modver = l.reg+'/'+l.blockid;
+    l.mod = l.reg+'/'+l.blockid;
     break;
   case 'ethereum':
     throw Error('unsupported etherum '+uri);
     break;
   case 'ipfs':
     l.cid = next('cid');
-    l.modver = l.reg+'/'+l.cid;
+    l.mod = l.reg+'/'+l.cid;
     break;
   case 'ipns':
     l.name = next('name');
-    l.modver = l.reg+'/'+l.name;
+    l.mod = l.reg+'/'+l.name;
     break;
   case 'local':
-    l.modver = l.reg;
+    l.mod = l.reg;
     break;
   default:
     throw Error('invalid registry: '+uri);
   }
   l.submod = next_submod();
-  l.modver += l.submod; // XXX rename l.lpm
+  l.mod += l.submod;
   let _p = p.slice(i);
   l.path = path_parts(_p);
   return l;
@@ -740,13 +740,13 @@ exports.TE_lpm_uri_str = TE_lpm_uri_str;
 const lpm_uri_str = TE_to_null(TE_lpm_uri_str);
 exports.lpm_uri_str = lpm_uri_str;
 
-const lpm_modver = uri=>{
+const lpm_mod = uri=>{
   let u = uri;
   if (typeof uri=='string')
     u = TE_lpm_uri_parse(uri);
-  return u.modver;
+  return u.mod;
 };
-exports.lpm_modver = lpm_modver;
+exports.lpm_mod = lpm_mod;
 
 // parse-package-name: package.json:dependencies
 const TE_npm_dep_to_lpm = (mod_self, dep)=>{
@@ -806,8 +806,8 @@ let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
 let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
   let u = TE_lpm_uri_parse(lpm);
   if (u.reg=='npm')
-    return u.modver.slice(4)+u.path;
-  return '.'+u.modver+u.path;
+    return u.mod.slice(4)+u.path;
+  return '.'+u.mod+u.path;
 };
 let lpm_to_npm = exports.lpm_to_npm = TE_to_null(TE_lpm_to_npm);
 
@@ -906,24 +906,24 @@ function test_url_uri(){
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
-    modver: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
+    mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
-    modver: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
+    mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     assert_objv(v, TE_lpm_uri_parse(lpm));
     assert_eq(lpm, TE_lpm_uri_str(v));
   };
   t('local/package.json',
     {reg: 'local', submod: '',
-    modver: 'local', path: '/package.json'});
+    mod: 'local', path: '/package.json'});
   t('local/mod/sub//package.json',
     {reg: 'local', submod: '/mod/sub/',
-    modver: 'local/mod/sub/', path: '/package.json'});
+    mod: 'local/mod/sub/', path: '/package.json'});
   t('local/mod/sub//dir/file.js',
     {reg: 'local', submod: '/mod/sub/',
-    modver: 'local/mod/sub/', path: '/dir/file.js'});
+    mod: 'local/mod/sub/', path: '/dir/file.js'});
   t = (v, lpm)=>assert_eq(v, !!lpm_uri_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
@@ -970,11 +970,11 @@ function test_url_uri(){
   t('local/file.js', '.local/file.js');
   t('local/dir/file.js', '.local/dir/file.js');
   t('local/sub//dir/file.js', '.local/sub//dir/file.js');
-  t = (lpm, modver, path)=>{
+  t = (lpm, mod, path)=>{
     let u = TE_lpm_uri_parse(lpm);
     assert_eq(path, u.path);
-    assert_eq(modver, u.modver);
-    assert_eq(modver, lpm_modver(lpm));
+    assert_eq(mod, u.mod);
+    assert_eq(mod, lpm_mod(lpm));
     assert_eq(lpm, TE_lpm_uri_str(u));
   };
   t('local', 'local', '');
