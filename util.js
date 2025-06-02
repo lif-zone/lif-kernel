@@ -83,6 +83,20 @@ eslow.print = ()=>{
 exports.eslow = eslow;
 self.esb = eslow;
 
+async function ecache(table, id, fn){
+  let t, ret;
+  if (t = table[id])
+    return await t.wait;
+  t = table[id] = {id, wait: ewait()};
+  try {
+    ret = await fn(t);
+  } catch(err){
+    throw t.wait.throw(err);
+  }
+  return t.wait.return(ret);
+}
+exports.ecache = ecache;
+
 // shortcuts
 const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
@@ -433,12 +447,6 @@ const path_prefix = (path, start)=>{
   if (!v.rest || v.rest[0]=='/' || start.endsWith('/'))
     return v;
 };
-const path_next = path=>{
-  let p = path.split('/');
-  if (p.length==1)
-    return {dir: p[0], rest: null, last: true};
-  return {dir: p[0]+'/', rest: path.slice(p[0].length+1), last: false};
-};
 
 function test_path(){
   let t;
@@ -497,6 +505,14 @@ function test_path(){
   t('a/b/c', 'a/b', '/c');
   t('a/b/c', 'a/b/', '/c');
   t('a/b//c', 'a/b//', '/c');
+  t = (v, path, prefix)=>assert_eq(v, path_prefix(path, prefix)?.rest);
+  t(undefined, 'aa/bb/cc', 'a');
+  t(undefined, 'aa/bb/cc', 'aa/b');
+  t('/bb/cc', 'aa/bb/cc', 'aa');
+  t('bb/cc', 'aa/bb/cc', 'aa/');
+  t('/cc', 'aa/bb/cc', 'aa/bb');
+  t('cc', 'aa/bb/cc', 'aa/bb/');
+  t('', 'aa/bb/cc', 'aa/bb/cc');
 }
 test_path();
 
@@ -573,11 +589,14 @@ const url_parse = TE_to_null(TE_url_parse);
 // lifcoin/BLOCK
 // bittorent/IH/PATH
 //  magnet:?xt=urn:btih:IH 
+//
+// try to support this one day:
+// import {groupBy} from 'npm:lodash@4.17.21';
 
 const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
 const TE_lpm_uri_parse = uri=>{
   let l = {};
-  let p = l.p = uri.split('/');
+  let p = uri.split('/');
   let i = 0;
   let next = err=>{
     let v = p[i++];
@@ -587,6 +606,16 @@ const TE_lpm_uri_parse = uri=>{
       throw Error('lpm_uri_parse empty element: '+uri);
     return v;
   };
+  let next_submod = ()=>{
+    let j = p.indexOf('', i);
+    if (j==i)
+      throw Error('invalid empty submod: '+uri);
+    if (j<0)
+      return '';
+    let submod = '/'+p.slice(i, j).join('/')+'/';
+    i = j+1;
+    return submod;
+  };
   let ver_split = name=>{
     let n = name.split('@');
     if (n.length==1)
@@ -595,15 +624,15 @@ const TE_lpm_uri_parse = uri=>{
       return {name: n[0], ver: '@'+n[1], _ver: n[1]};
     throw Error('lpm_uri_parse invalid ver inname: '+name);
   };
-  let v;
+  let v, mod, repo;
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
   switch (l.reg){
   case 'npm':
     l.name = next('module name');
     if (l.name[0]=='@'){
       l.scoped = true;
-      let sub = next('scoped module name');
-      v = ver_split(sub);
+      let scoped = next('scoped module name');
+      v = ver_split(scoped);
       l.name = l.name+'/'+v.name;
     } else {
       v = ver_split(l.name);
@@ -616,11 +645,10 @@ const TE_lpm_uri_parse = uri=>{
   case 'git':
     l.site = next('site');
     l.user = next('user');
-    l.repo = next('repo');
+    repo = next('repo');
+    v = ver_split(repo);
+    l.repo = v.name;
     l.name = l.user+'/'+l.repo;
-    l._repo = ver_split(l.repo).name;
-    v = ver_split(l.name);
-    l.name = v.name;
     l.ver = v.ver;
     l._ver = v._ver;
     if (!l._ver)
@@ -631,7 +659,7 @@ const TE_lpm_uri_parse = uri=>{
         'name';
     } else
       l.ver_type = 'name';
-    l.modver = l.site+'/'+l.name+l.ver;
+    l.modver = l.reg+'/'+l.site+'/'+l.name+l.ver;
     break;
   case 'http':
   case 'https':
@@ -641,40 +669,82 @@ const TE_lpm_uri_parse = uri=>{
     l.ver = v.ver;
     l._ver = v._ver;
     l.port = v._ver;
+    l.modver = l.reg+'/'+l.blockid;
     break;
   case 'bittorent':
     l.infohash = next('InfoHash');
     break;
   case 'lifcoin':
-    l.blocknum = next('Block Num');
+    l.blockid = next('BlockID');
+    l.modver = l.reg+'/'+l.blockid;
     break;
   case 'bitcoin':
-    l.blocknum = next('Block Num');
+    l.blockid = next('BlockID');
+    l.modver = l.reg+'/'+l.blockid;
     break;
   case 'ethereum':
     throw Error('unsupported etherum '+uri);
     break;
   case 'ipfs':
     l.cid = next('cid');
+    l.modver = l.reg+'/'+l.cid;
     break;
   case 'ipns':
     l.name = next('name');
+    l.modver = l.reg+'/'+l.name;
+    break;
+  case 'local':
+    l.modver = l.reg;
     break;
   default:
     throw Error('invalid registry: '+uri);
   }
-  l._p = p.slice(i);
-  l.path = path_parts(l._p);
+  l.submod = next_submod();
+  l.modver += l.submod; // XXX rename l.lpm
+  let _p = p.slice(i);
+  l.path = path_parts(_p);
   return l;
 };
 exports.TE_lpm_uri_parse = TE_lpm_uri_parse;
 const lpm_uri_parse = TE_to_null(TE_lpm_uri_parse);
 exports.lpm_uri_parse = lpm_uri_parse;
+const TE_lpm_uri_str = l=>{
+  switch (l.reg){
+  case 'npm':
+    return l.reg+'/'+l.name+l.ver+l.submod+l.path;
+  case 'git':
+    return l.reg+'/'+l.site+'/'+l.name+l.ver+l.submod+l.path;
+  case 'http':
+  case 'https':
+    return l.reg+'/'+l.name+(l.port ? '@'+l.port : '')+l.submod+l.path;
+  case 'bittorent':
+    return l.reg+'/'+l.infohash+l.submod+l.path;
+  case 'lifcoin':
+    return l.reg+'/'+l.blockid+l.submod+l.path;
+  case 'bitcoin':
+    return l.reg+'/'+l.blockid+l.submod+l.path;
+    break;
+  case 'ethereum':
+    throw Error('unsupported etherum');
+  case 'ipfs':
+    return l.reg+'/'+l.cid+l.submod+l.path;
+  case 'ipns':
+    return l.reg+'/'+l.name+l.submod+l.path;
+  case 'local':
+    return l.reg+l.submod+l.path;
+  default:
+    throw Error('invalid registry: '+l.reg);
+  }
+};
+exports.TE_lpm_uri_str = TE_lpm_uri_str;
+const lpm_uri_str = TE_to_null(TE_lpm_uri_str);
+exports.lpm_uri_str = lpm_uri_str;
 
 const lpm_modver = uri=>{
+  let u = uri;
   if (typeof uri=='string')
-    uri = TE_lpm_uri_parse(uri);
-  return uri.reg+'/'+uri.name+uri.ver;
+    u = TE_lpm_uri_parse(uri);
+  return u.modver;
 };
 exports.lpm_modver = lpm_modver;
 
@@ -714,45 +784,40 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
   throw Error('invalid npm_dep prefix: '+dep);
 };
 const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
-const TE_npm_uri_parse = path=>{
-  let npm = TE_lpm_uri_parse('npm/'+path);
-  delete npm.reg;
-  npm.modver = npm.modver.slice(4); // skip 'npm/'
-  npm.p = npm.p.slice(1);
-  return npm;
-};
+const TE_npm_uri_parse = npm=>TE_lpm_uri_parse(TE_npm_to_lpm(npm));
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
 const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
 exports.npm_uri_parse = npm_uri_parse;
-
-const npm_modver = uri=>{
-  if (typeof uri=='string')
-    uri = TE_npm_uri_parse(uri);
-  return uri.name+uri.ver;
-};
-exports.npm_modver = npm_modver;
 
 let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
   let v;
   if (npm[0]!='.')
     return 'npm/'+npm;
-  if (v=str.starts(npm, '.npm/'))
-    return 'npm/'+v.rest;
-  if (v=str.starts(npm, '.git/'))
-    return 'git/'+v.rest;
+  if (v=path_prefix(npm, '.npm'))
+    return 'npm'+v.rest;
+  if (v=path_prefix(npm, '.git'))
+    return 'git'+v.rest;
+  if (v=path_prefix(npm, '.local'))
+    return 'local'+v.rest;
   throw Error('invalid npm: '+npm);
 };
 let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
 
 let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
-  let v;
-  if (v=str.starts(lpm, 'npm/'))
-    return v.rest;
-  if (v=str.starts(lpm, 'git/'))
-    return '.'+lpm;
-  throw Error('lpm_to_npm not an npm: '+lpm);
+  let u = TE_lpm_uri_parse(lpm);
+  if (u.reg=='npm')
+    return u.modver.slice(4)+u.path;
+  return '.'+u.modver+u.path;
 };
 let lpm_to_npm = exports.lpm_to_npm = TE_to_null(TE_lpm_to_npm);
+
+let lpm_to_sw_uri = lpm=>{
+  let v;
+  if (v=str.starts(lpm, 'local/'))
+    return '/'+v.rest;
+  return '/.lif/'+lpm;
+};
+exports.lpm_to_sw_uri = lpm_to_sw_uri;
 
 const url_uri_type = url_uri=>{
   if (!url_uri)
@@ -818,6 +883,7 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
   throw Error('url_uri_parse('+url_uri+','+base_uri+') failed');
 };
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
+
 function test_url_uri(){
   let t = (v, arg)=>assert_objv(v, TE_url_uri_parse(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
@@ -836,21 +902,29 @@ function test_url_uri(){
   t({path: '@mod/v/c/d', is: {mod: 1, rel: 1}},
     ['../../../c/d', '@mod/v/a/b']);
   t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod@1.2.3/a']);
-  t = (v, arg)=>assert_objv(v, TE_npm_uri_parse(...arg));
-  t({p: ["@noble", "hashes@1.2.0", "esm", "utils.js"],
-    _p: ["esm", "utils.js"],
-    name: "@noble/hashes", scoped: true,
-    ver: "@1.2.0", _ver: "1.2.0",
-    modver: "@noble/hashes@1.2.0", path: "/esm/utils.js"},
-    ['@noble/hashes@1.2.0/esm/utils.js']);
-  t = (v, arg)=>assert_objv(v, TE_lpm_uri_parse(...arg));
-  t({p: ["npm", "@noble", "hashes@1.2.0", "esm", "utils.js"],
-    _p: ["esm", "utils.js"],
-    reg: "npm", name: "@noble/hashes", scoped: true,
-    ver: "@1.2.0", _ver: "1.2.0",
-    modver: "npm/@noble/hashes@1.2.0", path: "/esm/utils.js"},
-    ['npm/@noble/hashes@1.2.0/esm/utils.js']);
-  t = (v, arg)=>assert_eq(v, !!lpm_uri_parse(arg));
+  t = (npm, v)=>assert_objv(v, TE_npm_uri_parse(npm));
+  t('@noble/hashes@1.2.0/esm/utils.js',
+    {name: '@noble/hashes', scoped: true,
+    ver: '@1.2.0', _ver: '1.2.0',
+    modver: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
+  t('@noble/hashes@1.2.0/esm/utils.js',
+    {name: '@noble/hashes', scoped: true,
+    ver: '@1.2.0', _ver: '1.2.0',
+    modver: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
+  t = (lpm, v)=>{
+    assert_objv(v, TE_lpm_uri_parse(lpm));
+    assert_eq(lpm, TE_lpm_uri_str(v));
+  };
+  t('local/package.json',
+    {reg: 'local', submod: '',
+    modver: 'local', path: '/package.json'});
+  t('local/mod/sub//package.json',
+    {reg: 'local', submod: '/mod/sub/',
+    modver: 'local/mod/sub/', path: '/package.json'});
+  t('local/mod/sub//dir/file.js',
+    {reg: 'local', submod: '/mod/sub/',
+    modver: 'local/mod/sub/', path: '/dir/file.js'});
+  t = (v, lpm)=>assert_eq(v, !!lpm_uri_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
   t = (dep, v)=>assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
@@ -880,7 +954,39 @@ function test_url_uri(){
   t('.npm/mod/dir/file', 'npm/mod/dir/file');
   t('.git/github/a_user/a_repo', 'git/github/a_user/a_repo');
   t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
+  t('.local', 'local');
+  t('.local/file.js', 'local/file.js');
   t('.none/github/a_user/a_repo/dir/file', null);
+  t = (lpm, v)=>assert_eq(v, lpm_to_sw_uri(lpm));
+  t('local/dir/file.js', '/dir/file.js');
+  t('npm/mod/file.js', '/.lif/npm/mod/file.js');
+  t = (lpm, v)=>assert_eq(v, lpm_to_npm(lpm));
+  t('npm/mod', 'mod');
+  t('npm/mod/file.js', 'mod/file.js');
+  t('npm/mod/sub//file.js', 'mod/sub//file.js');
+  t('git/github/user/repo', '.git/github/user/repo');
+  t('git/gitlab/user/repo/file.js', '.git/gitlab/user/repo/file.js');
+  t('local', '.local');
+  t('local/file.js', '.local/file.js');
+  t('local/dir/file.js', '.local/dir/file.js');
+  t('local/sub//dir/file.js', '.local/sub//dir/file.js');
+  t = (lpm, modver, path)=>{
+    let u = TE_lpm_uri_parse(lpm);
+    assert_eq(path, u.path);
+    assert_eq(modver, u.modver);
+    assert_eq(modver, lpm_modver(lpm));
+    assert_eq(lpm, TE_lpm_uri_str(u));
+  };
+  t('local', 'local', '');
+  t('local/main.tsx', 'local', '/main.tsx');
+  t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
+  t('npm/mod', 'npm/mod', '');
+  t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
+  t('git/github/user/repo', 'git/github/user/repo', '');
+  t('git/github/user/repo/dir/file.js',
+    'git/github/user/repo', '/dir/file.js');
+  t('git/github/user/repo/mod//dir/file.js',
+    'git/github/user/repo/mod/', '/dir/file.js');
 }
 test_url_uri();
 
@@ -917,7 +1023,6 @@ exports.path_dir = path_dir;
 exports.path_is_dir = path_is_dir;
 exports.path_join = path_join;
 exports.path_prefix = path_prefix;
-exports.path_next = path_next;
 exports.url_parse = url_parse;
 exports.TE_url_parse = TE_url_parse;
 exports.url_uri_parse = url_uri_parse;

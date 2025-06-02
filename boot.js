@@ -4,10 +4,10 @@ let lif_version = '1.1.8';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan,
+let {ewait, esleep, eslow, postmessage_chan, assert_eq,
   path_file, path_dir, OF, OA, assert, TE_to_null, TE_npm_to_lpm,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
-  npm_uri_parse, TE_npm_uri_parse, npm_modver, _debugger} = util;
+  _debugger} = util;
 let json = JSON.stringify;
 
 let modules = {};
@@ -121,6 +121,15 @@ const lpm_2url = (mod_self, url, opt)=>{
     q.cjs_es5 = 1;
   return qs_append(_url, q);
 };
+
+function test(){
+  return;
+  let t;
+  t = (v, mod_self, url, opt)=>assert_eq(v, lpm_2url(mod_self, url, opt));
+  t('/.lif/npm/react@18.3.1/cjs/react.js?mod_self=react%4018.3.1&cjs=1',
+    './cjs/react.js', 'react@18.3.1', {cjs: 1});
+}
+test();
 
 let url_expand = 
   TE_to_null(url=>(new URL(url, globalThis.location)).href || url);
