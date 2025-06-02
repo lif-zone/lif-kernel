@@ -563,7 +563,7 @@ let lpm_dep_ver_lookup = (pkg, mod_uri)=>{
     return d;
 };
 
-let file_match = (file, match, tr)=>{
+let file_match = (file, match)=>{
   let v, f = file, m = match;
   while (v=str.starts(f, './'))
     f = v.rest;
@@ -571,6 +571,7 @@ let file_match = (file, match, tr)=>{
     m = v.rest;
   if (path_prefix(f, m))
     return true;
+  return false;
 };
 let path_match = (path, match, tr)=>{
   let v, f = path, m = match;
@@ -588,8 +589,31 @@ let path_match = (path, match, tr)=>{
 
 function test(){
   let t, pkg;
+  t = (file, match, v)=>assert_eq(v, file_match(file, match));
+  t('.', '.', true);
+  t('esm/file.js', './esm/*', false);
+  t('file', './file', true);
+  t('dir/index.js', './dir/*', false);
+  t('file.js', './*', false);
+  t('.', '.', true);
+  t('esm/file.js', './esm/*', false);
+  t('esm/file.js', './esm/', true);
+  t('esm/file.js', './esm', true);
+  t('esm/file.js', './file.js', false);
+  t('file.js', './file.jss', false);
   t = (path, match, tr, v)=>assert_eq(v, path_match(path, match, tr));
-  t = (file, match, tr, v)=>assert_eq(v, file_match(file, match, tr));
+  t('.', '.', null, true);
+  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
+  t('file', './file', './file.js', './file.js');
+  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
+  t('file.js', './*', './*', './file.js');
+  t('.', '.', './index.js', './index.js');
+  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
+  t = (path, match)=>assert_eq(undefined, path_match(path, match));
+  t('esm/file.js', './esm/');
+  t('esm/file.js', './esm');
+  t('esm/file.js', './file.js');
+  t('file.js', './file.jss');
   t = (pkg, uri, v)=>assert_eq(v, lpm_dep_ver_lookup(pkg, uri));
   t({lif: {dependencies: {'mod': '/mod'}}},
     'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
@@ -650,9 +674,13 @@ let pkg_export_lookup = (pkg, file)=>{
   let parse_section = val=>{
     let res = [], tr;
     for (let [match, v] of OF(val)){
-      if (!(tr = path_match(file, match, typeof v=='string' ? v : null)))
+      if (typeof v=='string'
+        ? !(v = path_match(file, match, v))
+        : !path_match(file, match))
+      {
         continue;
-      parse_val(res, typeof tr=='string' ? tr : v);
+      }
+      parse_val(res, v);
     }
     let best = res[0];
     if (!best)
@@ -1029,9 +1057,9 @@ async function _kernel_fetch(event){
   let dep, pkg, uri = path;
   if (mod_self){
     pkg = (await lpm_pkg_get(log, mod_self)).pkg;
-    dep = lpm_dep_lookup(pkg, mod_self, 'npm'+path);
+    dep = lpm_dep_lookup(pkg, mod_self, 'npm'+path); // XXX: lpm generic
   } else
-    dep = lpm_dep_lookup(lpm_app_pkg, null, 'npm'+path);
+    dep = lpm_dep_lookup(lpm_app_pkg, null, 'npm'+path); // XXX: lpm generic
   if (dep){
     D && console.log('redirect '+path+' -> '+dep);
     return Response.redirect('/.lif/'+dep+'?raw=1');
