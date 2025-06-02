@@ -824,7 +824,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm){
   if (!(lpm.ver = pkg.version))
     throw Error('invalid package.json '+uri);
   if (!u.ver && u.reg!='local'){
-    lpm.redirect = u.reg+'/'+u.name+'@'+lpm.ver+u.submod+u.path;
+    lpm.redirect = TE_lpm_uri_str({...u, ver: lpm.ver});
     D && console.log('lpm.redirect', lpm.redirect);
   }
   return lpm;
