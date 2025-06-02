@@ -439,7 +439,7 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   let dep = lpm_dep_ver_lookup(pkg, uri);
   if (!dep && mod_self){
     let _self = lpm_uri_parse(mod_self);
-    if (_self && _self.name==u.name)
+    if (_self && _self.name==u.name) // XXX make generic lpm
       return _self.mod+u.path;
   }
   if (!dep || dep=='-')
@@ -535,7 +535,7 @@ let lpm_dep_ver_lookup = (pkg, mod_uri)=>{
     if (d[0]=='/')
       return TE_lpm_uri_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
     if (v=str.starts(d, './'))
-      return 'npm/'+pkg.name+'/'+v.rest+path;
+      return 'npm/'+pkg.name+'/'+v.rest+path; // XXX: make generic lpm
     if (v=str.starts(d, 'npm:'))
       return 'npm/'+v.rest+path;
     d = d.replaceAll(' ', '');
