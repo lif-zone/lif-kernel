@@ -966,11 +966,11 @@ function respond_tr_send({f, qs, uri}){
   let ast = file_ast(f);
   let type = ast.type;
   if (q.has('cjs'))
-    return response_send({body: file_tr_cjs(f, uri), ext: 'js'});
+    return response_send({body: file_tr_cjs(f), ext: 'js'});
   if (q.has('cjs_es5'))
-    return response_send({body: file_tr_cjs(f, uri, {'es5': 1}), ext: 'js'});
+    return response_send({body: file_tr_cjs(f, {'es5': 1}), ext: 'js'});
   if (q.has('mjs')){
-    return response_send({body: file_tr_mjs(f, uri, {worker: q.get('worker')}),
+    return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
   if (type=='cjs' || type=='amd' || type=='')
