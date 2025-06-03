@@ -969,7 +969,7 @@ let response_send = ({body, ext, uri})=>{
     ext = _path_ext(TE_url_uri_parse(uri).path);
   let opt = {}, v, ctype = ctype_get(ext), h = {};
   if (!ctype){
-    Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
+    D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
     ctype = ctype_get('text');
   }
   h['content-type'] = ctype.ctype;
@@ -1032,6 +1032,8 @@ async function kernel_fetch_lpm({log, uri, mod_self, qs}){
   return respond_tr_send({f, qs, uri});
 }
 
+let index_html = `
+`;
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = TE_url_parse(url);
@@ -1067,15 +1069,17 @@ async function _kernel_fetch(event){
   }
   // local requests
   let dep, pkg, uri = path;
-  let lpm = npm_to_lpm(path.slice(1));
-  if (mod_self){
-    pkg = (await lpm_pkg_get(log, mod_self)).pkg;
-    dep = lpm_dep_lookup(pkg, mod_self, lpm);
-  } else
-    dep = lpm_dep_lookup(lpm_app_pkg, null, lpm);
-  if (dep){
-    D && console.log('redirect '+path+' -> '+dep);
-    return Response.redirect('/.lif/'+dep+'?raw=1');
+  if (path!='/'){
+    let lpm = npm_to_lpm(path.slice(1));
+    if (mod_self){
+      pkg = (await lpm_pkg_get(log, mod_self)).pkg;
+      dep = lpm_dep_lookup(pkg, mod_self, lpm);
+    } else
+      dep = lpm_dep_lookup(lpm_app_pkg, null, lpm);
+    if (dep){
+      D && console.log('redirect '+path+' -> '+dep);
+      return Response.redirect('/.lif/'+dep+'?raw=1');
+    }
   }
   console.log('req default', url);
   let response = await fetch(request);
