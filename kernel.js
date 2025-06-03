@@ -711,17 +711,23 @@ let pkg_export_lookup = (pkg, file)=>{
   let {file: f} = parse_pkg()||{file};
   if (f.startsWith('./'))
     f = f.slice(2);
+  if (f!=file){
+    D && console.log('export_lookup redirect '+file+' -> '+f);
+    return {file: f, redirect: f};
+  }
   let alt;
-  if (!ctype_get(_path_ext(file))){
+  if (!ctype_get(_path_ext(f))){
     let _alt = pkg.lif?.alt||['.js'];
+    let y = !_alt.find(e=>f.endsWith(e));
+    let x = (!['.js', '.json', '.css', '.mjs', '.esm', '.jsx', '.ts', '.tsx']
+      .find(e=>f.endsWith(e)) && !_alt.find(e=>f.endsWith(e)));
+    assert(x==y, 'ERROR');
     if (!['.js', '.json', '.css', '.mjs', '.esm', '.jsx', '.ts', '.tsx']
       .find(e=>f.endsWith(e)) && !_alt.find(e=>f.endsWith(e)))
     {
       alt = _alt;
     }
   }
-  if (f!=file)
-    D && console.log('export_lookup redirect '+file+' -> '+f);
   return {file: f, alt};
 };
 
