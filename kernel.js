@@ -121,7 +121,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   lpm_uri_parse, lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   TE_lpm_uri_parse, TE_lpm_uri_str,
   uri_enc, uri_dec, match_glob_to_regex,
-  esleep, eslow, Scroll, _debugger, assert_eq, Donce} = util;
+  esleep, eslow, Scroll, _debugger, assert_eq, assert_objv, Donce} = util;
 let {qw, diff_pos} = str;
 let json = JSON.stringify;
 let clog = console.log.bind(console);
@@ -587,7 +587,7 @@ let path_match = (path, match, tr)=>{
   return tr.replace('*', v[1]);
 };
 
-function test(){
+function test_lpm(){
   let t, pkg;
   t = (file, match, v)=>assert_eq(v, file_match(file, match));
   t('.', '.', true);
@@ -621,8 +621,18 @@ function test(){
     assert_eq(v, lpm_dep_lookup(pkg, mod_self, uri));
   t({lif: {dependencies: {'mod': '/mod'}}}, 'npm/mod',
     'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
+  t = (file, alt, v)=>assert_objv(v, pkg_alt_get({lif: {alt}}, file));
+  t('a/file.js', undefined, undefined);
+  t('a/file', undefined, ['.js']);
+  t('a/file.ts', undefined, undefined);
+  t('a/file', ['.js'], ['.js']);
+  t('a/file', ['.xjs', '.js'], ['.xjs', '.js']);
+  t('a/file.xjs', ['.xjs', '.js'], undefined);
+  t('a/file.ico', ['.xjs'], undefined);
+  t('a/file.abcxyz', ['.xjs'], ['.xjs']);
+  t = (pkg, file, v)=>assert_objv(v, pkg_export_lookup(pkg, file));
 }
-test();
+test_lpm();
 
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
@@ -715,21 +725,18 @@ let pkg_export_lookup = (pkg, file)=>{
     D && console.log('export_lookup redirect '+file+' -> '+f);
     return {file: f, redirect: f};
   }
-  let alt;
-  if (!ctype_get(_path_ext(f))){
-    let _alt = pkg.lif?.alt||['.js'];
-    let y = !_alt.find(e=>f.endsWith(e));
-    let x = (!['.js', '.json', '.css', '.mjs', '.esm', '.jsx', '.ts', '.tsx']
-      .find(e=>f.endsWith(e)) && !_alt.find(e=>f.endsWith(e)));
-    assert(x==y, 'ERROR');
-    if (!['.js', '.json', '.css', '.mjs', '.esm', '.jsx', '.ts', '.tsx']
-      .find(e=>f.endsWith(e)) && !_alt.find(e=>f.endsWith(e)))
-    {
-      alt = _alt;
-    }
-  }
-  return {file: f, alt};
+  return {file: f};
 };
+
+function pkg_alt_get(pkg, file){
+  let ext = _path_ext(file);
+  if (ext && ctype_get(ext))
+    return;
+  let alt = pkg.lif?.alt||['.js'];
+  if (alt.find(e=>file.endsWith(e)))
+    return;
+  return alt;
+}
 
 function lpm_export_get(pkg, uri){
   let {path} = lpm_uri_parse(uri);
@@ -900,12 +907,13 @@ async function lpm_get({log, uri, mod_self}){
   if (dep)
     uri = dep;
   let lpm = await lpm_pkg_get(log, lpm_mod(uri));
-  let {file, alt, redirect} = lpm_export_get(lpm.pkg, uri);
+  let {file, redirect} = lpm_export_get(lpm.pkg, uri);
   if (redirect){
     let _uri = lpm.mod+'/'+file;
     D && console.log('redirect '+uri+' -> '+_uri);
     return {redirect: '/.lif/'+_uri};
   }
+  let alt = pkg_alt_get(lpm.pkg, uri);
   let f = await reg_get_alt({log, uri, alt});
   f = {...f}
   if (f.not_exist)
@@ -932,7 +940,7 @@ let coi_set_headers = headers=>{
 // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
 // image, json, manifest, object, paintworklet, report, script,
 // sharedworker, style, track, video, worker, xslt
-let ctype_get = ext=>{
+function ctype_get(ext){
   let ctype_map = { // content-type
     js: {ctype: 'application/javascript'},
     mjs: {ctype: 'application/javascript', js_module: 'mjs'},
@@ -955,7 +963,7 @@ let ctype_get = ext=>{
   t = {...t};
   t.ext = ext;
   return t;
-};
+}
 let response_send = ({body, ext, uri})=>{
   if (uri)
     ext = _path_ext(TE_url_uri_parse(uri).path);
@@ -1059,11 +1067,12 @@ async function _kernel_fetch(event){
   }
   // local requests
   let dep, pkg, uri = path;
+  let lpm = npm_to_lpm(path.slice(1));
   if (mod_self){
     pkg = (await lpm_pkg_get(log, mod_self)).pkg;
-    dep = lpm_dep_lookup(pkg, mod_self, 'npm'+path); // XXX: lpm generic
+    dep = lpm_dep_lookup(pkg, mod_self, lpm);
   } else
-    dep = lpm_dep_lookup(lpm_app_pkg, null, 'npm'+path); // XXX: lpm generic
+    dep = lpm_dep_lookup(lpm_app_pkg, null, lpm);
   if (dep){
     D && console.log('redirect '+path+' -> '+dep);
     return Response.redirect('/.lif/'+dep+'?raw=1');
