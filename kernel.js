@@ -900,13 +900,11 @@ async function lpm_get({log, uri, mod_self}){
   if (dep)
     uri = dep;
   let lpm = await lpm_pkg_get(log, lpm_mod(uri));
-  let {file, alt} = lpm_export_get(lpm.pkg, uri);
-  if (file){
+  let {file, alt, redirect} = lpm_export_get(lpm.pkg, uri);
+  if (redirect){
     let _uri = lpm.mod+'/'+file;
-    if (_uri!=uri){
-      D && console.log('redirect '+uri+' -> '+_uri);
-      return {redirect: '/.lif/'+_uri};
-    }
+    D && console.log('redirect '+uri+' -> '+_uri);
+    return {redirect: '/.lif/'+_uri};
   }
   let f = await reg_get_alt({log, uri, alt});
   f = {...f}
