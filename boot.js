@@ -311,12 +311,13 @@ let coi_reload = async()=>{
 };
 
 let boot_app = async(app_pkg)=>{
+  app_pkg = JSON.parse(JSON.stringify(app_pkg));
   let lif = app_pkg.lif;
   let webapp = lif.webapp;
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+webapp);
-  npm_map = {...lif.dependencies};
+  npm_map = lif.dependencies;
   npm_root = webapp;
   if (!npm_map['lif-kernel'])
     npm_map['lif-kernel'] = '/lif-kernel'; // XXX: lif_kernel_base.slice(0, -1);
