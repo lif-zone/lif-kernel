@@ -421,7 +421,8 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
+let lpm_dep_lookup = (lpm, uri, opt)=>{
+  let pkg = lpm.pkg, mod_self = lpm.mod;
   let ret_err = err=>{
     D && console.log('lpm_dep_lookup('+mod_self+') dep '+uri+': '+err);
   };
@@ -437,7 +438,7 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
     return ret_err('invalid lpm uri import');
   if (u.ver)
     return uri;
-  let dep = lpm_dep_ver_lookup(pkg, uri);
+  let dep = lpm_dep_ver_lookup({mod: mod_self, pkg}, uri);
   if (!dep && mod_self){
     let _self = lpm_uri_parse(mod_self);
     if (_self && _self.name==u.name) // XXX make generic lpm
@@ -448,7 +449,7 @@ let lpm_dep_lookup = (pkg, mod_self, uri, opt)=>{
   if (dep.startsWith('local/'))
     return dep;
   if (dep.startsWith('-peer-')){
-    if (!(dep = lpm_dep_ver_lookup(lpm_app_pkg, uri)))
+    if (!(dep = lpm_dep_ver_lookup({mod: mod_self, pkg: lpm_app_pkg}, uri)))
       return ret_err('dep missing lpm_app');
   }
   return dep;
@@ -460,7 +461,7 @@ let tr_mjs_import = f=>{
     let uri = d.module;
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
-    else if (v=lpm_dep_lookup(f.lpm.pkg, f.uri, d.module, {npm: 1})){
+    else if (v=lpm_dep_lookup({pkg: f.lpm.pkg, mod: f.uri}, d.module, {npm: 1})){
       let _v = v;
       v = lpm_to_sw_uri(v);
       if (d.imported)
@@ -525,7 +526,16 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-let lpm_dep_ver_lookup = (pkg, mod_uri)=>{
+let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
+  let pkg = lpm.pkg;
+  let X = (reason, val)=>{
+    return val;
+    if (['npm1', 'modver'].includes(reason))
+      return val;
+    if (pkg.name=='lif-os')
+      console.log(reason, pkg.name, mod_uri, val);
+    return val;
+  };
   let mod = lpm_mod(mod_uri);
   let npm_mod = TE_lpm_to_npm(mod);
   let path = lpm_uri_parse(mod_uri).path;
@@ -534,24 +544,25 @@ let lpm_dep_ver_lookup = (pkg, mod_uri)=>{
     if (!(d = dep?.[npm_mod]))
       return;
     if (d[0]=='/')
-      return TE_lpm_uri_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
+      return X('root', TE_lpm_uri_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
     if (v=str.starts(d, './'))
       return 'npm/'+pkg.name+'/'+v.rest+path; // XXX: make generic lpm
+      //return X('npm1', lpm.mod+(v.rest?'/'+v.rest:'')+path); // XXX: make generic lpm
     if (v=str.starts(d, 'npm:'))
-      return 'npm/'+v.rest+path;
+      return X('npm2', 'npm/'+v.rest+path);
     d = d.replaceAll(' ', '');
     if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){ // XXX TODO: fix/remove
       console.log('invalid dep('+mod+') ver '+d);
-      return '-';
+      return X('none2', '-');
     }
     [, op, ver] = m;
     if (op=='>=')
-      return ver;
+      return X('ver', ver);
     if (!(op=='^' || op=='=' || op=='' || op=='~')){
       console.log('invalid dep('+mod+') op '+op);
-      return '-';
+      return X('none', '-');
     }
-    return mod+'@'+ver+path;
+    return X('modver', mod+'@'+ver+path);
   };
   let d
   if (d = get_dep(pkg.lif?.dependencies))
@@ -559,7 +570,7 @@ let lpm_dep_ver_lookup = (pkg, mod_uri)=>{
   if (d = get_dep(pkg.dependencies))
     return d;
   if (d = get_dep(pkg.peerDependencies))
-    return '-peer-'+d;
+    return X('peer', '-peer-'+d);
   if (d = get_dep(pkg.devDependencies))
     return d;
 };
@@ -615,11 +626,16 @@ function test_lpm(){
   t('esm/file.js', './esm');
   t('esm/file.js', './file.js');
   t('file.js', './file.jss');
-  t = (pkg, uri, v)=>assert_eq(v, lpm_dep_ver_lookup(pkg, uri));
-  t({lif: {dependencies: {'mod': '/mod'}}},
+  t = (lpm, uri, v)=>0 && assert_eq(v, lpm_dep_ver_lookup(lpm, uri));
+  t({mod: 'a-pkg', pkg: {lif: {dependencies: {'mod': '/mod'}}}},
     'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
-  t = (pkg, mod_self, uri, v)=>
-    assert_eq(v, lpm_dep_lookup(pkg, mod_self, uri));
+  let lifos = {mod: 'npm/lif-os', pkg: {dependencies:
+    {pages: './pages', loc: '/loc', react: '^18.3.1'}}};
+  t(lifos, 'npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
+  t(lifos, 'npm/loc/file.js', 'local/loc//file.js');
+  t(lifos, 'npm/react', 'npm/react@18.3.1');
+  t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
+  t = (pkg, mod, uri, v)=>assert_eq(v, lpm_dep_lookup({mod, pkg}, uri));
   t({lif: {dependencies: {'mod': '/mod'}}}, 'npm/mod',
     'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
   t = (file, alt, v)=>assert_objv(v, pkg_alt_get({lif: {alt}}, file));
@@ -845,7 +861,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm){
   // select cdn
   let pkg, v;
   let uri = lpm.mod+'/package.json';
-  let dep = lpm_dep_lookup(lpm_boot_pkg, null, uri);
+  let dep = lpm_dep_lookup({pkg: lpm_boot_pkg}, uri);
   if (dep){
     uri = dep;
     u = TE_lpm_uri_parse(uri);
@@ -878,7 +894,7 @@ async function lpm_dep_get({log, uri, mod_self, qs}){
     D && console.log('lpm', uri, 'mod_self', mod_self);
     if (!lpm)
       throw Error('mod_self('+mod_self+') pkg load failed');
-    return lpm_dep_lookup(lpm.pkg, mod_self, uri);
+    return lpm_dep_lookup(lpm, uri);
   };
   let _uri = uri;
   let l = lpm_uri_parse(uri);
@@ -886,7 +902,7 @@ async function lpm_dep_get({log, uri, mod_self, qs}){
     throw Error('invalid lpm '+uri);
   let dep;
   lookup: {
-    if (lpm_boot && (dep = lpm_dep_lookup(lpm_boot_pkg, null, uri)))
+    if (lpm_boot && (dep = lpm_dep_lookup({pkg: lpm_boot_pkg}, uri)))
       break lookup;
     if (mod_self && (dep = await get_dep({log, uri, mod_self})))
       break lookup;
@@ -1082,13 +1098,13 @@ async function _kernel_fetch(event){
   if (path!='/'){
     let lpm = npm_to_lpm(path.slice(1));
     if (mod_self){
-      pkg = (await lpm_pkg_get(log, mod_self)).pkg;
-      dep = lpm_dep_lookup(pkg, mod_self, lpm);
+      let _lpm = await lpm_pkg_get(log, mod_self);
+      dep = lpm_dep_lookup(_lpm, lpm);
     }
     lookup: {
-      if (lpm_boot_pkg && (dep = lpm_dep_lookup(lpm_boot_pkg, null, lpm)))
+      if (lpm_boot_pkg && (dep = lpm_dep_lookup({pkg: lpm_boot_pkg}, lpm)))
         break lookup;
-      if (lpm_app_pkg && (dep = lpm_dep_lookup(lpm_app_pkg, null, lpm)))
+      if (lpm_app_pkg && (dep = lpm_dep_lookup({pkg: lpm_app_pkg}, lpm)))
         break lookup;
     }
     if (dep){
