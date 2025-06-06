@@ -109,7 +109,8 @@ let import_module = async(url)=>{
 
 let path_dir = path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
 let sw_q = new URLSearchParams(location.search);
-let lif_kernel_base = sw_q.get('lif_kernel_base') || path_dir(location.pathname);
+let lif_kernel_base = sw_q.get('lif_kernel_base');
+let lif_kernel_base_u = URL.parse(lif_kernel_base);
 let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'util.js');
@@ -1032,8 +1033,15 @@ async function kernel_fetch_lpm({log, uri, mod_self, qs}){
   return respond_tr_send({f, qs, uri});
 }
 
-let index_html = `
-`;
+async function fetch_pass(request, type){
+  let url = request.url;
+  try {
+    D && console.log('fetch '+type+': '+url);
+    return await fetch(request);
+  } catch(err){
+    console.log('failed ext fetch_pass '+type+': '+url);
+  }
+}
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = TE_url_parse(url);
@@ -1051,12 +1059,14 @@ async function _kernel_fetch(event){
     ref: url,
   };
   // external and non GET requests
-  if (request.method!='GET' && request.method!='HEAD'){
-    console.log('non GET fetch', url);
-    return fetch(request);
-  }
-  if (external){
-    console.log('external fetch', url);
+  if (request.method!='GET' && request.method!='HEAD')
+    return fetch_pass(request, 'non-GET');
+  if (external)
+    return fetch_pass(request, 'external');
+  // lif-kernel passthrough
+  if (lif_kernel_base_u.origin==u.origin &&
+    u.pathname.startsWith(lif_kernel_base_u.pathname))
+  {
     return fetch(request);
   }
   // LIF+local GET requests
@@ -1074,8 +1084,13 @@ async function _kernel_fetch(event){
     if (mod_self){
       pkg = (await lpm_pkg_get(log, mod_self)).pkg;
       dep = lpm_dep_lookup(pkg, mod_self, lpm);
-    } else
-      dep = lpm_dep_lookup(lpm_app_pkg, null, lpm);
+    }
+    lookup: {
+      if (lpm_boot_pkg && (dep = lpm_dep_lookup(lpm_boot_pkg, null, lpm)))
+        break lookup;
+      if (lpm_app_pkg && (dep = lpm_dep_lookup(lpm_app_pkg, null, lpm)))
+        break lookup;
+    }
     if (dep){
       D && console.log('redirect '+path+' -> '+dep);
       return Response.redirect('/.lif/'+dep+'?raw=1');
