@@ -601,21 +601,8 @@ let file_match = (file, match)=>{
     return true;
   return false;
 };
-let path_match = (path, match, tr)=>{
-  let v, f = path, m = match;
-  while (v=str.starts(f, './'))
-    f = v.rest;
-  while (v=str.starts(m, './'))
-    m = v.rest;
-  let re = match_glob_to_regex(m);
-  if (!(v = f.match(re)))
-    return;
-  if (!tr)
-    return true;
-  return tr.replace('*', v[1]);
-};
 
-let path_match2 = (path, match, to)=>{
+let path_match = (path, match, to)=>{
   let ret_val = typeof to=='string' ? null : to || true;
   if (!to)
     to = match;
@@ -645,7 +632,7 @@ function pkg_web_export_lookup(pkg, uri){
       return;
     for (let [match, to] of OF(exports)){
       let v;
-      if (v=path_match2(uri, match, to))
+      if (v=path_match(uri, match, to))
         return v;
     }
   }
@@ -658,27 +645,7 @@ function pkg_web_export_lookup(pkg, uri){
 
 function test_lpm(){
   let t, pkg;
-  t = (file, match, v)=>assert_eq(v, file_match(file, match));
-  t('.', '.', true);
-  t('esm/file.js', './esm/*', false);
-  t('file', './file', true);
-  t('dir/index.js', './dir/*', false);
-  t('file.js', './*', false);
-  t('.', '.', true);
-  t('esm/file.js', './esm/*', false);
-  t('esm/file.js', './esm/', true);
-  t('esm/file.js', './esm', true);
-  t('esm/file.js', './file.js', false);
-  t('file.js', './file.jss', false);
-  t = (path, match, tr, v)=>assert_eq(v, path_match(path, match, tr));
-  t('.', '.', null, true);
-  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
-  t('file', './file', './file.js', './file.js');
-  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
-  t('file.js', './*', './*', './file.js');
-  t('.', '.', './index.js', './index.js');
-  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
-  t = (path, match, tr, v)=>assert_objv(v, path_match2(path, match, tr));
+  t = (path, match, tr, v)=>assert_objv(v, path_match(path, match, tr));
   t('file', 'file', null, true);
   t('file', 'file', {x: 1}, {x: 1});
   t('file', 'f', undefined);
@@ -689,8 +656,8 @@ function test_lpm(){
   t('file.js', './*', './*', './file.js');
   t('.', '.', './index.js', './index.js');
   t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
-  t = (path, match)=>assert_eq(undefined, path_match(path, match));
-  t('esm/file.js', './esm/');
+  t = (path, match, v)=>assert_eq(v, path_match(path, match));
+  t('esm/file.js', './esm/', true);
   t('esm/file.js', './esm');
   t('esm/file.js', './file.js');
   t('file.js', './file.jss');
