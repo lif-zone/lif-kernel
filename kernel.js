@@ -643,88 +643,6 @@ function pkg_web_export_lookup(pkg, uri){
     return v;
 }
 
-function test_lpm(){
-  let t, pkg;
-  t = (path, match, tr, v)=>assert_objv(v, path_match(path, match, tr));
-  t('file', 'file', null, true);
-  t('file', 'file', {x: 1}, {x: 1});
-  t('file', 'f', undefined);
-  t('.', '.', 'index.js', 'index.js');
-  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
-  t('file', './file', './file.js', './file.js');
-  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
-  t('file.js', './*', './*', './file.js');
-  t('.', '.', './index.js', './index.js');
-  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
-  t = (path, match, v)=>assert_eq(v, path_match(path, match));
-  t('esm/file.js', './esm/', true);
-  t('esm/file.js', './esm');
-  t('esm/file.js', './file.js');
-  t('file.js', './file.jss');
-  t = (pkg_ver, date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
-  let pkg_ver = {time: {
-    created: '2024-02-13T16:33:48.639Z',
-    modified: '2024-05-27T21:37:19.361Z',
-    '3.1.1': '2024-02-13T16:33:48.811Z',
-    '3.1.2': '2024-02-13T16:38:16.974Z',
-    '3.1.4': '2024-02-13T17:36:12.881Z',
-    '3.2.0': '2024-03-17T22:32:47.128Z',
-  }};
-  t(pkg_ver, '2024-02-13T16:38:16.973Z', '3.1.1');
-  t(pkg_ver, '2024-02-13T16:38:16.974Z', '3.1.2');
-  t(pkg_ver, '2024-02-13T16:38:16.975Z', '3.1.2');
-  t(pkg_ver, '2024-03-17T22:32:47.128Z', '3.2.0');
-  t(pkg_ver, '2024-03-17T22:32:47.129Z', '3.2.0');
-  t(pkg_ver, '2024-02-13T16:33:48.639Z', '3.2.0');
-  t(pkg_ver, '2024-02-13T16:33:48.638Z', '3.2.0');
-  t = (lpm, uri, v)=>0 && assert_eq(v, lpm_dep_ver_lookup(lpm, uri));
-  t({mod: 'npm/a-pkg', pkg: {lif: {dependencies: {'mod': '/mod'}}}},
-    'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
-  let lifos = {mod: 'npm/lif-os', pkg: {dependencies:
-    {pages: './pages', loc: '/loc', react: '^18.3.1'}}};
-  t(lifos, 'npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
-  t(lifos, 'npm/loc/file.js', 'local/loc//file.js');
-  t(lifos, 'npm/react', 'npm/react@18.3.1');
-  t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
-  t = (pkg, mod, uri, v)=>assert_eq(v, lpm_dep_lookup({mod, pkg}, uri));
-  t({lif: {dependencies: {'mod': '/mod'}}}, 'npm/mod',
-    'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
-  t = (file, alt, v)=>assert_objv(v, pkg_alt_get({lif: {alt}}, file));
-  t('a/file.js', undefined, undefined);
-  t('a/file', undefined, ['.js']);
-  t('a/file.ts', undefined, undefined);
-  t('a/file', ['.js'], ['.js']);
-  t('a/file', ['.xjs', '.js'], ['.xjs', '.js']);
-  t('a/file.xjs', ['.xjs', '.js'], undefined);
-  t('a/file.ico', ['.xjs'], undefined);
-  t('a/file.abcxyz', ['.xjs'], ['.xjs']);
-  t = (pkg, file, v)=>assert_objv(v, pkg_export_lookup(pkg, file));
-  t = (pkg, uri, v)=>assert_objv(v, pkg_web_export_lookup(pkg, uri));
-  pkg = {web_exports: {
-    '/dir': '/dir',
-    '/d1/d2/': './other/',
-    '/d1/file': '/d1/d2/d3',
-    '/d1/dd': '/',
-    '/': '/public/',
-  }};
-  t(pkg, '/file', '/public/file');
-  t(pkg, '/dir/file', '/public/dir/file');
-  t(pkg, '/dir', '/dir');
-  t(pkg, '/dir/', '/public/dir/');
-  t(pkg, '/d1/d2/file', './other/file');
-  t(pkg, '/d1/dd/file', '/public/d1/dd/file');
-  t(pkg, '/d1/dd', '/');
-  delete pkg.web_exports['/'];
-  t(pkg, '/file', undefined);
-  t(pkg, '/dir/file', undefined);
-  t(pkg, '/dir', '/dir');
-  t(pkg, '/dir/', undefined);
-  t(pkg, '/d1/d2/file', './other/file');
-  t(pkg, '/d1/dd/file', undefined);
-  t(pkg, '/d1/dd', '/');
-}
-test_lpm();
-
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
 let pkg_export_lookup = (pkg, file)=>{
@@ -820,7 +738,7 @@ function pkg_alt_get(pkg, file){
 
 function lpm_export_get(pkg, uri){
   let {path} = TE_lpm_uri_parse(uri);
-  let ofile = path.replace(/^\//, '')||'.';
+  let ofile = path.slice(1)||'.';
   return pkg_export_lookup(pkg, ofile);
 }
 
@@ -1228,6 +1146,88 @@ async function kernel_fetch(event){
     return new Response(''+err, {status: 500, statusText: ''+err});
   }
 }
+
+function test_lpm(){
+  let t, pkg;
+  t = (path, match, tr, v)=>assert_objv(v, path_match(path, match, tr));
+  t('file', 'file', null, true);
+  t('file', 'file', {x: 1}, {x: 1});
+  t('file', 'f', undefined);
+  t('.', '.', 'index.js', 'index.js');
+  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
+  t('file', './file', './file.js', './file.js');
+  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
+  t('file.js', './*', './*', './file.js');
+  t('.', '.', './index.js', './index.js');
+  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
+  t = (path, match, v)=>assert_eq(v, path_match(path, match));
+  t('esm/file.js', './esm/', true);
+  t('esm/file.js', './esm');
+  t('esm/file.js', './file.js');
+  t('file.js', './file.jss');
+  t = (pkg_ver, date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
+  let pkg_ver = {time: {
+    created: '2024-02-13T16:33:48.639Z',
+    modified: '2024-05-27T21:37:19.361Z',
+    '3.1.1': '2024-02-13T16:33:48.811Z',
+    '3.1.2': '2024-02-13T16:38:16.974Z',
+    '3.1.4': '2024-02-13T17:36:12.881Z',
+    '3.2.0': '2024-03-17T22:32:47.128Z',
+  }};
+  t(pkg_ver, '2024-02-13T16:38:16.973Z', '3.1.1');
+  t(pkg_ver, '2024-02-13T16:38:16.974Z', '3.1.2');
+  t(pkg_ver, '2024-02-13T16:38:16.975Z', '3.1.2');
+  t(pkg_ver, '2024-03-17T22:32:47.128Z', '3.2.0');
+  t(pkg_ver, '2024-03-17T22:32:47.129Z', '3.2.0');
+  t(pkg_ver, '2024-02-13T16:33:48.639Z', '3.2.0');
+  t(pkg_ver, '2024-02-13T16:33:48.638Z', '3.2.0');
+  t = (lpm, uri, v)=>0 && assert_eq(v, lpm_dep_ver_lookup(lpm, uri));
+  t({mod: 'npm/a-pkg', pkg: {lif: {dependencies: {'mod': '/mod'}}}},
+    'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
+  let lifos = {mod: 'npm/lif-os', pkg: {dependencies:
+    {pages: './pages', loc: '/loc', react: '^18.3.1'}}};
+  t(lifos, 'npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
+  t(lifos, 'npm/loc/file.js', 'local/loc//file.js');
+  t(lifos, 'npm/react', 'npm/react@18.3.1');
+  t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
+  t = (pkg, mod, uri, v)=>assert_eq(v, lpm_dep_lookup({mod, pkg}, uri));
+  t({lif: {dependencies: {'mod': '/mod'}}}, 'npm/mod',
+    'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
+  t = (file, alt, v)=>assert_objv(v, pkg_alt_get({lif: {alt}}, file));
+  t('a/file.js', undefined, undefined);
+  t('a/file', undefined, ['.js']);
+  t('a/file.ts', undefined, undefined);
+  t('a/file', ['.js'], ['.js']);
+  t('a/file', ['.xjs', '.js'], ['.xjs', '.js']);
+  t('a/file.xjs', ['.xjs', '.js'], undefined);
+  t('a/file.ico', ['.xjs'], undefined);
+  t('a/file.abcxyz', ['.xjs'], ['.xjs']);
+  t = (pkg, file, v)=>assert_objv(v, pkg_export_lookup(pkg, file));
+  t = (pkg, uri, v)=>assert_objv(v, pkg_web_export_lookup(pkg, uri));
+  pkg = {web_exports: {
+    '/dir': '/dir',
+    '/d1/d2/': './other/',
+    '/d1/file': '/d1/d2/d3',
+    '/d1/dd': '/',
+    '/': '/public/',
+  }};
+  t(pkg, '/file', '/public/file');
+  t(pkg, '/dir/file', '/public/dir/file');
+  t(pkg, '/dir', '/dir');
+  t(pkg, '/dir/', '/public/dir/');
+  t(pkg, '/d1/d2/file', './other/file');
+  t(pkg, '/d1/dd/file', '/public/d1/dd/file');
+  t(pkg, '/d1/dd', '/');
+  delete pkg.web_exports['/'];
+  t(pkg, '/file', undefined);
+  t(pkg, '/dir/file', undefined);
+  t(pkg, '/dir', '/dir');
+  t(pkg, '/dir/', undefined);
+  t(pkg, '/d1/d2/file', './other/file');
+  t(pkg, '/d1/dd/file', undefined);
+  t(pkg, '/d1/dd', '/');
+}
+test_lpm();
 
 let do_module_dep = async function({mod, dep}){
   let lpm = await lpm_pkg_get({mod: dep}, mod);
