@@ -196,7 +196,7 @@ let assert = (ok, exp, res)=>{
 let assert_eq = (exp, res)=>{
   assert(exp===res, exp, res);
 };
-let assert_objv = (exp, res)=>{
+let assert_objv = (exp, res)=>{ // XXX rename assert_obj
   if (exp===res)
     return;
   if (typeof exp=='object'){
