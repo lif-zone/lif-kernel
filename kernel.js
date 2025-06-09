@@ -551,7 +551,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
   let npm_mod = TE_lpm_to_npm(mod);
   let path = TE_lpm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
-    let d, m, op, v, ver;
+    let d, m, v;
     if (!(d = dep?.[npm_mod]))
       return;
     if (d[0]=='/')
@@ -567,18 +567,21 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
     if (v=str.starts(d, 'npm:'))
       return X('npm2', 'npm/'+v.rest+path);
     d = d.replaceAll(' ', '');
-    if (!(m = d.match(/^([^0-9.]*)([0-9.]+)$/))){ // XXX TODO: fix/remove
+    if (!(m = d.match(/^([^0-9.]*)([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?$/))){
       console.log('invalid dep('+mod+') ver '+d);
       return X('none2', '-');
     }
-    [, op, ver] = m;
+    let [, op, ver, rel] = m;
+    if (rel)
+      console.log('dep', d, 'op', op, 'ver', ver, 'rel', rel);
+    rel ||= '';
     if (op=='>=')
       return X('ver', ver);
     if (!(op=='^' || op=='=' || op=='' || op=='~')){
       console.log('invalid dep('+mod+') op '+op);
       return X('none', '-');
     }
-    return X('modver', mod+'@'+ver+path);
+    return X('modver', mod+'@'+ver+rel+path);
   };
   let d
   if (d = get_dep(pkg.lif?.dependencies))

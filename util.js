@@ -152,8 +152,18 @@ str.starts = (s, start)=>{
       v = str.starts(s, start[i]);
     return v;
   }
-  if (s.startsWith(start))
-    return {start, rest: s.slice(start.length)};
+  if (typeof start=='string'){
+    if (s.startsWith(start))
+      return {start, rest: s.slice(start.length)};
+    return;
+  }
+  if (start instanceof RegExp){
+    let v;
+    if ((v=s.match(start)) && v.index==0)
+      return {start: v[0], rest: s.slice(v[0].length)};
+    return;
+  }
+  throw Error('invalid str.starts type');
 };
 str.ends = (s, end)=>{
   if (Array.isArray(end)){
@@ -465,6 +475,9 @@ function test_path(){
   t('ab:cd', ['ab:', 'ab', 'ac:'], ['ab:', 'cd']);
   t('ab:cd', ['ab:', 'ac:'], ['ab:', 'cd']);
   t('ab:cd', ['cd'], undefined);
+  t('ab:cd', [/b:/], undefined);
+  t('ab:cd', [/ab:/], ['ab:', 'cd']);
+  t('ab:cd', [/^ab:/], ['ab:', 'cd']);
   t = (s, pre, v)=>assert_objv(v ? {end: v[0], rest: v[1]} : undefined,
     str.ends(s, pre));
   t('ab:cd', [''], ['', 'ab:cd']);
@@ -884,6 +897,45 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
 };
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
 
+let semver_re_part = /([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
+let semver_re_start = new RegExp('^'+semver_re_part.source);
+let semver_re = new RegExp('^'+semver_re_part.source+'$');
+let semver_parse = semver=>{
+  let m = semver.match(semver_re);
+  if (!m)
+    return
+  return {ver: m[1], rel: m[2]||''};
+};
+exports.semver_parse = semver_parse;
+
+let semver_op_re_start = /^(\^|=|~|>=|<=)/;
+let TE_semver_range_parse = semver_range=>{
+  let s = semver_range, m, range = [];
+  function is(re){
+    m = s.match(re);
+    if (!m)
+      return;
+    s = s.slice(m[0].length);
+    return true;
+  }
+  while (s){
+    let op, ver;
+    is(/^ +/);
+    if (is(semver_op_re_start))
+      op = m[0];
+    is(/^ +/);
+    if (!is(semver_re_start))
+      throw Error('invalid semver_range '+semver_range);
+    ver = m[0];
+    range.push({op: op||'', ver});
+    is(/^ +/);
+  }
+  return range;
+};
+exports.TE_semver_range_parse = TE_semver_range_parse;
+let semver_range_parse = TE_to_null(TE_semver_range_parse);
+exports.semver_range_parse = semver_range_parse;
+
 function test_url_uri(){
   let t = (v, arg)=>assert_objv(v, TE_url_uri_parse(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
@@ -987,6 +1039,20 @@ function test_url_uri(){
     'git/github/user/repo', '/dir/file.js');
   t('git/github/user/repo/mod//dir/file.js',
     'git/github/user/repo/mod/', '/dir/file.js');
+  t = (semver, v)=>assert_objv(v, semver_parse(semver));
+  t('1.2.3', {ver: '1.2.3', rel: ''});
+  t('1.2.3-abc', {ver: '1.2.3', rel: '-abc'});
+  t('1.2.3-abc2-341.3', {ver: '1.2.3', rel: '-abc2-341.3'});
+  t('x1.2.3-abc2-341.3');
+  t('1.2.3x-abc2-341.3');
+  t('1.2.3-a_');
+  t = (range, v)=>assert_objv(v, semver_range_parse(range));
+  t('1.2.3', [{ver: '1.2.3'}]);
+  t('1.2.3 >=1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
+  t(' = 1.2.3 >= 1.3.4 ', [{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
+  t('=1.2.3 +1.3.4', null);
+  t('=1.2.3 x.2.3', null);
+  t('^1.2.3 || ^1.2.3', null);
 }
 test_url_uri();
 
