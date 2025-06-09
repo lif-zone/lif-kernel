@@ -121,7 +121,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   TE_url_parse, TE_url_uri_parse, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
   lpm_uri_parse, lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   TE_lpm_uri_parse, TE_lpm_uri_str,
-  uri_enc, uri_dec, match_glob_to_regex,
+  uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_objv, Donce} = util;
 let {qw, diff_pos} = str;
 let json = JSON.stringify;
@@ -551,7 +551,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
   let npm_mod = TE_lpm_to_npm(mod);
   let path = TE_lpm_uri_parse(mod_uri).path;
   let get_dep = dep=>{
-    let d, m, v;
+    let d, v;
     if (!(d = dep?.[npm_mod]))
       return;
     if (d[0]=='/')
@@ -566,22 +566,21 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
     }
     if (v=str.starts(d, 'npm:'))
       return X('npm2', 'npm/'+v.rest+path);
-    d = d.replaceAll(' ', '');
-    if (!(m = d.match(/^([^0-9.]*)([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?$/))){
+    let range = semver_range_parse(d);
+    if (!range){
       console.log('invalid dep('+mod+') ver '+d);
       return X('none2', '-');
     }
-    let [, op, ver, rel] = m;
-    if (rel)
-      console.log('dep', d, 'op', op, 'ver', ver, 'rel', rel);
-    rel ||= '';
+    let {op, ver} = range[0];
+    if (range.length>1)
+      console.log('ignoring multi-op dep: '+d);
     if (op=='>=')
       return X('ver', ver);
     if (!(op=='^' || op=='=' || op=='' || op=='~')){
       console.log('invalid dep('+mod+') op '+op);
       return X('none', '-');
     }
-    return X('modver', mod+'@'+ver+rel+path);
+    return X('modver', mod+'@'+ver+path);
   };
   let d
   if (d = get_dep(pkg.lif?.dependencies))

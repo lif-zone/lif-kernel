@@ -897,7 +897,7 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
 };
 const url_uri_parse = TE_to_null(TE_url_uri_parse);
 
-let semver_re_part = /([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
+let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
 let semver_re = new RegExp('^'+semver_re_part.source+'$');
 let semver_parse = semver=>{
@@ -908,7 +908,7 @@ let semver_parse = semver=>{
 };
 exports.semver_parse = semver_parse;
 
-let semver_op_re_start = /^(\^|=|~|>=|<=)/;
+let semver_op_re_start = /^(\^|=|~|>=|<=|\|\|)/;
 let TE_semver_range_parse = semver_range=>{
   let s = semver_range, m, range = [];
   function is(re){
@@ -918,18 +918,24 @@ let TE_semver_range_parse = semver_range=>{
     s = s.slice(m[0].length);
     return true;
   }
+  is(/^ +/);
   while (s){
     let op, ver;
-    is(/^ +/);
     if (is(semver_op_re_start))
       op = m[0];
     is(/^ +/);
+    if (op=='||'){
+      range.push({op: '||', ver: ''});
+      continue;
+    }
     if (!is(semver_re_start))
       throw Error('invalid semver_range '+semver_range);
-    ver = m[0];
+    ver = m[0].replace(/^v/, '');
     range.push({op: op||'', ver});
     is(/^ +/);
   }
+  if (!range.length)
+    throw Error('empty semver range');
   return range;
 };
 exports.TE_semver_range_parse = TE_semver_range_parse;
@@ -1048,11 +1054,14 @@ function test_url_uri(){
   t('1.2.3-a_');
   t = (range, v)=>assert_objv(v, semver_range_parse(range));
   t('1.2.3', [{ver: '1.2.3'}]);
-  t('1.2.3 >=1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
+  t('v1.2.3-ab', [{ver: '1.2.3-ab'}]);
+  t('1.2.3 >=v1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
   t(' = 1.2.3 >= 1.3.4 ', [{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
   t('=1.2.3 +1.3.4', null);
   t('=1.2.3 x.2.3', null);
-  t('^1.2.3 || ^1.2.3', null);
+  t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
+    {op: '^', ver: '4.5.6'}]);
+  t('  ', null);
 }
 test_url_uri();
 
