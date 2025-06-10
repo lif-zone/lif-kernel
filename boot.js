@@ -265,7 +265,6 @@ let boot_kernel = async()=>{
     let slow = eslow(1000, 'sw register');
     const registration = await navigator.serviceWorker.register(
       '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
-    console.log(registration);
     await navigator.serviceWorker.ready;
     slow.end();
     const conn_kernel = async()=>{
