@@ -141,12 +141,12 @@ async function require_single(mod_self, module_id){
   m = modules[module_id] = {module_id, deps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let slow;
-  slow = eslow(1000, ['require_single mod('+module_id+')']);
+  slow = eslow(1000, 'require_single mod('+module_id+')');
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   url = url_expand(url);
   slow.end();
   try {
-    slow = eslow(15000, ['require_single import('+module_id+')', url]);
+    slow = eslow(15000, 'require_single import('+module_id+') '+url);
     D && console.log('boot.js: import '+url);
     m.mod = await import(url);
     slow.end();
@@ -204,7 +204,7 @@ async function _import(mod_self, [url, opt]){
   _url = url_expand(_url);
   let slow;
   try {
-    slow = eslow(15000, ['_import('+_url+')']);
+    slow = eslow(15000, '_import('+_url+')');
     D && console.log('boot.js: import '+_url);
     let ret;
     if (is_worker)
@@ -257,29 +257,38 @@ function init_worker(){
 
 let lif_kernel_base = import.meta.resolve('./x').slice(0, -1);
 let boot_kernel = async()=>{
+  console.log('lif boot version: '+lif_version+' util '+util.version);
   if (boot_kernel.wait)
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
+    let slow = eslow(1000, 'sw register');
     const registration = await navigator.serviceWorker.register(
       '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
+    console.log(registration);
     await navigator.serviceWorker.ready;
+    slow.end();
     const conn_kernel = async()=>{
+      let slow = eslow(1000, 'conn_kernel');
+      let controller = navigator.serviceWorker.controller;
+      if (!controller)
+        controller = (await navigator.serviceWorker.getRegistration()).active;
       kernel_chan = new postmessage_chan();
-      kernel_chan.connect(navigator.serviceWorker.controller);
+      kernel_chan.connect(controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
-      console.log('lif boot version: '+lif_version+' util '+util.version);
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
+      slow.end();
       wait.return();
     };
     // this boots the app if the SW has been installed before or
     // immediately after registration
     // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
-    if (navigator.serviceWorker.controller)
-      await conn_kernel();
-    else
-      navigator.serviceWorker.addEventListener('controllerchange', conn_kernel);
+    navigator.serviceWorker.addEventListener('controllerchange', conn_kernel);
+    await conn_kernel();
+    slow = eslow(1000, 'sw conn');
+    await wait;
+    slow.end();
     return await wait;
   } catch(err){
     console.error('ServiceWorker registration failed', err, err.stack);
