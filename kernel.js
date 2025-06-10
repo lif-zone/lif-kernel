@@ -107,7 +107,6 @@ let import_module = async(url)=>{
   }
 };
 
-let path_dir = path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
 let lif_kernel_base_u = URL.parse(lif_kernel_base);
@@ -116,14 +115,14 @@ let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'util.js');
 let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 let {postmessage_chan, str, OF, OA, assert, ecache,
-  path_ext, _path_ext, path_file, path_is_dir, path_join,
+  path_ext, _path_ext, path_dir, path_file, path_is_dir, path_join,
   path_prefix, qs_enc,
   TE_url_parse, TE_url_uri_parse, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
   lpm_uri_parse, lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   TE_lpm_uri_parse, TE_lpm_uri_str,
   uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_objv, Donce} = util;
-let {qw, diff_pos} = str;
+let {qw} = str;
 let json = JSON.stringify;
 let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
@@ -501,7 +500,7 @@ const file_tr_mjs = (f, opt)=>{
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
   if (slow)
-    pre += `let slow = globalThis.lif.boot.util.eslow(5000, ['load module', ${uri_s}]); `;
+    pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
   if (log) 
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
@@ -560,7 +559,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
       let a = lpm.mod+(v.rest?'/'+v.rest:'')+path;
       let b = 'npm/'+pkg.name+'/'+v.rest+path;
       if (a!=b) 
-        0 && console.log(b, '->', a);
+        1 && console.log(b, '->', a);
       return 'npm/'+pkg.name+'/'+v.rest+path;
       return X('npm1', lpm.mod+(v.rest?'/'+v.rest:'')+path); // XXX: make generic lpm
     }
@@ -746,7 +745,7 @@ function lpm_export_get(pkg, uri){
 
 async function reg_http_get({log, url}){
   let response, err, blob;
-  let slow = eslow(5000, ['fetch', url]);
+  let slow = eslow(5000, 'fetch '+url);
   try {
     D && console.log('fetch '+url+' for '+log.mod);
     response = await fetch(url, fetch_opt(url));
@@ -1138,7 +1137,7 @@ async function _kernel_fetch(event){
 async function kernel_fetch(event){
   let slow;
   try {
-    slow = eslow(15000, ['_kernel_fetch', event.request.url]);
+    slow = eslow(15000, '_kernel_fetch '+event.request.url);
     let res = await _kernel_fetch(event);
     slow.end();
     return res;
