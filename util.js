@@ -301,6 +301,9 @@ class postmessage_chan {
       return true;
     }
   }
+  close(){
+    this.port.close();
+  }
 }
 exports.postmessage_chan = postmessage_chan;
 
