@@ -392,6 +392,7 @@ if (!is_worker){
 }
 
 lif.boot = {
+  miani: '',
   process,
   define,
   require,
