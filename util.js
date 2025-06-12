@@ -47,7 +47,7 @@ const eslow = (ms, arg)=>{
     at_end = Date.now();
     eslow.set.delete(p);
     if (timeout && !done)
-      enable && console.error('slow completed '+(Date.now()-p.now)+'>'+ms, ...arg);
+      enable && console.warn('slow completed '+(Date.now()-p.now)+'>'+ms, ...arg);
     done = true;
   };
   p.print = ()=>console.log('slow('+seq+') '+(done?'completed ':'')+ms
