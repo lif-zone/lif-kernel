@@ -1139,7 +1139,7 @@ async function _kernel_fetch(event){
     return fetch_pass(request, 'external');
   // lif-kernel passthrough
   if (path=='/' || (lif_kernel_base_u.origin==u.origin &&
-    u.pathname.startsWith(lif_kernel_base_u.pathname)))
+    path_dir(u.pathname)==lif_kernel_base_u.pathname))
   {
     return fetch(request);
   }
