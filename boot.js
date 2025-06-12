@@ -262,24 +262,36 @@ let boot_kernel = async()=>{
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
-    let slow = eslow(1000, 'sw register');
-    const registration = await navigator.serviceWorker.register(
-      '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
-    await navigator.serviceWorker.ready;
-    slow.end();
     const conn_kernel = async()=>{
-      let slow = eslow(1000, 'conn_kernel');
+      console.log('conn kernel');
+      if (kernel_chan){
+        console.log('conn closing');
+        kernel_chan.close();
+      }
+      kernel_chan = null;
       let controller = navigator.serviceWorker.controller;
-      if (!controller)
-        controller = (await navigator.serviceWorker.getRegistration()).active;
+      if (!controller){
+        controller = (await navigator.serviceWorker.ready).active;
+        console.log('no controller. active exist: '+!!controller);
+      }
       kernel_chan = new postmessage_chan();
       kernel_chan.connect(controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
+      let slow = eslow(1000, 'conn_kernel chan');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
       slow.end();
+      if (!navigator.serviceWorker.controller){
+        console.log('no sw controllier - reloading');
+        window.location.reload();
+      }
       wait.return();
     };
+    let slow = eslow(1000, 'sw register');
+    const registration = await navigator.serviceWorker.register(
+      '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
+    const sw = await navigator.serviceWorker.ready;
+    slow.end();
     // this boots the app if the SW has been installed before or
     // immediately after registration
     // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
