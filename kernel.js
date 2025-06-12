@@ -1,6 +1,6 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let lif_version = '1.1.12';
-let D = 0; // debug
+let D = 1; // debug
 
 const ewait = ()=>{
   let _return, _throw;
@@ -1137,14 +1137,15 @@ async function _kernel_fetch(event){
     return fetch_pass(request, 'non-GET');
   if (external)
     return fetch_pass(request, 'external');
-  // lif-kernel passthrough
+  // lif-kernel passthrough for local dev
+  let v;
   if (path=='/' || (lif_kernel_base_u.origin==u.origin &&
-    path_dir(u.pathname)==lif_kernel_base_u.pathname))
+    (v=str.starts(path, lif_kernel_base_u.pathname)) &&
+    str.is(v.rest, 'kernel.js', 'boot.js', 'mime_db.js', 'util.js')))
   {
     return fetch(request);
   }
   // LIF+local GET requests
-  let v;
   // LIF requests
   if (v = str.starts(path, '/.lif/')){
     let uri = v.rest;
