@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '1.1.10';
+let lif_version = '1.1.11';
 let D = 0; // debug
 
 const ewait = ()=>{
@@ -56,18 +56,24 @@ function sw_init_pre(){
   // this is needed to activate the worker immediately without reload
   // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
   self.addEventListener('activate', event=>event.waitUntil((async()=>{
+    console.log('kernel activate');
     await lif_kernel.wait_activate;
+    console.log('kernel claim');
     await self.clients.claim(); // move all pages immediatly to new sw
-    console.log('kernel activate', lif_version);
+    console.log('kernel activated', lif_version);
   })()));
-  self.addEventListener('message', event=>{
-    if (!lif_kernel.on_message)
-      return console.error('sw message event before inited', event);
+  self.addEventListener('message', event=>event.waitUntil((async()=>{
+    if (!lif_kernel.on_message){
+      console.warn('sw message event before inited', event);
+      await lif_kernel.wait_activate;
+      console.log('sw message event finished wait');
+    }
     lif_kernel.on_message(event);
-  });
+  })()));
   self.addEventListener('fetch', on_fetch);
 }
 sw_init_pre();
+console.log('pre_init');
 
 (async()=>{try {
 // service worker import() implementation
@@ -110,10 +116,12 @@ let import_module = async(url)=>{
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
 let lif_kernel_base_u = URL.parse(lif_kernel_base);
+console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'util.js');
 let mime_db = await import_module(lif_kernel_base+'mime_db.js');
+console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache,
   path_ext, _path_ext, path_dir, path_file, path_is_dir, path_join,
   path_prefix, qs_enc,
@@ -774,7 +782,7 @@ async function reg_http_get({log, url}){
 }
 async function reg_git_get({log, uri}){ assert(0); }
 async function reg_bittorrent_get({log, uri}){ assert(0); }
-async function reg_get({log, uri, cdn}){
+async function reg_get({log, uri}){
 return await ecache(reg_file_t, uri, async function run(reg){
   let lpm, wait, u;
   reg.uri = uri;
@@ -785,13 +793,15 @@ return await ecache(reg_file_t, uri, async function run(reg){
   //   http://unpkg.com/react@18.3.0/file.js
   //   http://cdn.jsdlivr.net/npm/react@18.3.0/file.js
   let pkg, v;
-  cdn ||= lpm_get_cdn(u);
-  reg.cdn = cdn;
-  let src = cdn.src;
-  if (u.path=='/--get-ver--/'){
-    src = cdn.src_ver;
+  reg.cdn = lpm_get_cdn(u);
+  let src = reg.cdn.src;
+  if (u.submod=='/--get-ver--/' && !u.path){
+    src = reg.cdn.src_ver;
+    u.submod = '';
     u.path = '';
   }
+  if (str.is(u.reg, 'npm', 'git') && !u.ver)
+    throw Error('reg_get missing ver: '+uri);
   let ret;
   for (let _src of src){
     if (_src.fail)
@@ -849,8 +859,7 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm){
   let uri = lpm.mod+'/package.json';
   let dep = lpm_dep_lookup({pkg: lpm_boot_pkg}, uri);
   let _uri = dep||uri;
-  let cdn = lpm.cdn = lpm_get_cdn(_uri);
-  let get = await reg_get({log, uri: _uri, cdn});
+  let get = await reg_get({log, uri: _uri});
   if (get.err)
     throw get.err;
   try {
@@ -860,14 +869,15 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm){
   }
   if (!(lpm.ver = pkg.version))
     throw Error('invalid package.json '+uri);
-  if (!u.ver && u.reg=='npm'){
-    lpm.redirect = TE_lpm_uri_str({...u, ver: lpm.ver});
+  u = TE_lpm_uri_parse(_uri);
+  if (!u.ver && str.is(u.reg, 'npm', 'git')){
+    lpm.redirect = TE_lpm_uri_str({...u, ver: '@'+lpm.ver});
     D && console.log('lpm.redirect', lpm.redirect);
   }
   return lpm;
 }); }
 
-async function lpm_dep_get({log, uri, mod_self, qs}){
+async function lpm_dep_get({log, uri, mod_self}){
   let get_dep = async({log, uri, mod_self})=>{
     let lpm = await lpm_pkg_get(log, lpm_mod(mod_self));
     D && console.log('lpm', uri, 'mod_self', mod_self);
@@ -894,13 +904,12 @@ async function lpm_dep_get({log, uri, mod_self, qs}){
   D && console.log('no version found. TODO - lookup npm.date<=root app date: '+uri);
 }
 
-async function lpm_pkg_ver_get(log, mod){
+async function lpm_pkg_ver_get({log, mod}){
 return await ecache(lpm_pkg_ver_t, mod, async function run(pv){
   pv.mod = mod;
   pv.log = log;
   let uri = pv.mod+'/--get-ver--/';
-  let cdn = pv.cdn = lpm_get_cdn(uri);
-  let get = await reg_get({log, uri, cdn});
+  let get = await reg_get({log, uri});
   if (get.err)
     throw get.err;
   try {
@@ -930,26 +939,41 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
   return max?.ver;
 }
 
+async function _lpm_pkg_ver_get({log, uri}){
+  let u = TE_lpm_uri_parse(uri);
+  if (u.ver)
+    return;
+  if (!str.is(u.reg, 'npm', 'git'))
+    return;
+  let pv = await lpm_pkg_ver_get({log, mod: u.mod});
+  if (!pv)
+    throw Error('no pkg_ver found: '+u.mod); 
+  u.ver = lpm_pkg_ver_lookup(pv, lpm_app_date);
+  if (!u.ver)
+    throw Error('failed mod '+u.mod+' getting pkg_ver list');
+  return TE_lpm_uri_str(u);
+}
 async function lpm_get({log, uri, mod_self}){
   let dep = await lpm_dep_get({log, uri, mod_self});
   if (!dep)
     dep = uri;
   let u = TE_lpm_uri_parse(dep);
-  if (dep!=uri && u.reg!='local')
+  if (dep!=uri && u.reg!='local'){
+    D && console.log('redirect ver/other-lpm '+uri+' -> '+dep);
     return {redirect: '/.lif/'+dep}; // version or other lpm
-  if (!u.ver && str.is(dep, 'npm', 'git')){
-    let pv = await lpm_pkg_ver_get({log, mod: u.mod});
-    u.ver = lpm_pkg_ver_lookup(pv, lpm_app_date);
-    if (!u.ver)
-      throw Error('failed mod '+u.mod+' getting pkg_ver list');
-    dep = TE_lpm_uri_str(u);
-    return {redirect: '/.lif/'+dep};
   }
-  let lpm_pkg = await lpm_pkg_get(log, lpm_mod(dep));
+  if (u.reg=='npm' && !u.ver){
+    let v = await _lpm_pkg_ver_get({log, uri: dep});
+    if (!v)
+      throw Error('no pkg versions found for '+uri);
+    D && console.log('redirect ver??? '+uri+' -> '+v);
+    return {redirect: '/.lif/'+v};
+  }
+  let lpm_pkg = await lpm_pkg_get(log, lpm_mod(uri));
   let {file, redirect} = lpm_export_get(lpm_pkg.pkg, uri);
   if (redirect){
     let _uri = lpm_mod(uri)+'/'+file;
-    D && console.log('redirect '+uri+' -> '+_uri);
+    D && console.log('redirect export '+uri+' -> '+_uri);
     return {redirect: '/.lif/'+_uri};
   }
   let alt = pkg_alt_get(lpm_pkg.pkg, uri);
@@ -957,7 +981,7 @@ async function lpm_get({log, uri, mod_self}){
   if (reg.not_exist)
     return reg;
   if (reg.alt){
-    D && console.log('redirect /.lif/'+uri+' -> '+reg.alt);
+    D && console.log('redirect alt /.lif/'+uri+' -> '+reg.alt);
     return {redirect: '/.lif/'+uri+reg.alt};
   }
   // create result lpm file, and cache it
@@ -1036,8 +1060,10 @@ let ctype_binary = path=>{
 function respond_tr_send({f, qs, uri}){
   let ext = _path_ext(uri);
   let q = new URLSearchParams(qs);
-  if (f.redirect)
+  if (f.redirect){
+    D && console.log('redirect f '+uri+' -> '+f.redirect);
     return Response.redirect('/.lif/'+f.redirect+qs);
+  }
   if (q.has('raw') || ctype_binary(uri))
     return response_send({body: f.blob, uri});
   if (ext=='json')
@@ -1068,8 +1094,10 @@ async function kernel_fetch_lpm({log, uri, mod_self, qs}){
   let f = await lpm_get({log, uri, mod_self});
   if (f.not_exist)
     return new Response('not found', {status: 404, statusText: 'not found'});
-  if (f.redirect)
+  if (f.redirect){
+    D && console.log('redirect lpm-f '+uri+' -> '+f.redirect);
     return Response.redirect(f.redirect+qs);
+  }
   return respond_tr_send({f, qs, uri});
 }
 
@@ -1098,6 +1126,7 @@ async function _kernel_fetch(event){
     mod: url+(ref && ref!=u.origin+'/' ? ' ref '+ref : ''),
     ref: url,
   };
+  D && console.log('sw '+log.mod);
   // external and non GET requests
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-GET');
@@ -1110,7 +1139,6 @@ async function _kernel_fetch(event){
     return fetch(request);
   }
   // LIF+local GET requests
-  D && console.log('req '+log.mod);
   let v;
   // LIF requests
   if (v = str.starts(path, '/.lif/')){
@@ -1260,7 +1288,7 @@ function sw_init_post(){
   lif_kernel.wait_activate.return();
 }
 sw_init_post();
-console.log('lif kernel '+lif_kernel_base
+console.log('lif kernel inited: '+lif_kernel_base
   +' sw '+lif_kernel.version+' util '+util.version);
 } catch(err){console.error('lif kernel failed sw init', err);}})();
 
