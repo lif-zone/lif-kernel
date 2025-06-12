@@ -337,10 +337,8 @@ let boot_app = async(app_pkg)=>{
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+webapp);
-  npm_map = lif.dependencies;
+  npm_map = lif?.dependencies||{};
   npm_root = webapp;
-  if (!npm_map['lif-kernel'])
-    npm_map['lif-kernel'] = '/lif-kernel'; // XXX: lif_kernel_base.slice(0, -1);
   await kernel_chan.cmd('app_pkg', app_pkg);
   // reload page for cross-origin-isolation
   if (coi_enable)
