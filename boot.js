@@ -330,12 +330,18 @@ let coi_reload = async()=>{
   window.location.reload();
 };
 
+// 'lif-basic@1.1.14/main.tsx'
+// '.git/github/xderry/lif-os@main/lif-basic//main.tsx'
+// http://localhost:3000/?webapp=.git/github/xderry/lif-os@main/lif-basic//main.tsx
+let app_pkg_default = ()=>{
+  let u = new URLSearchParams(location.search);
+  let webapp = u.get('webapp') || 'lif-basic@1.1.14/main.tsx';
+  return {lif: {webapp}};
+};
+
 let boot_app = async(app_pkg)=>{
-  if (!app_pkg){
-    let u = new URLSearchParams(location.search);
-    let webapp = u.get('webapp') || 'lif-basic@1.1.14/main.tsx';
-    app_pkg = {lif: {webapp}};
-  }
+  if (!app_pkg)
+    app_pkg = app_pkg_default();
   app_pkg = JSON.parse(JSON.stringify(app_pkg));
   let lif = app_pkg.lif;
   let webapp = lif?.webapp;
