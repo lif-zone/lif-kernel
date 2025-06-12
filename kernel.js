@@ -785,7 +785,7 @@ async function reg_git_get({log, uri}){ assert(0); }
 async function reg_bittorrent_get({log, uri}){ assert(0); }
 async function reg_get({log, uri}){
 return await ecache(reg_file_t, uri, async function run(reg){
-  let lpm, wait, u;
+  let lpm, wait, u, get_ver;
   reg.uri = uri;
   reg.log = log;
   u = reg.u = TE_lpm_uri_parse(reg.uri);
@@ -797,12 +797,16 @@ return await ecache(reg_file_t, uri, async function run(reg){
   reg.cdn = lpm_get_cdn(u);
   let src = reg.cdn.src;
   if (u.submod=='/--get-ver--/' && !u.path){
+    get_ver = true;
     src = reg.cdn.src_ver;
     u.submod = '';
     u.path = '';
+    if (u.ver)
+      throw Error('reg_get invalid get-ver: '+uri);
+  } else {
+    if (str.is(u.reg, 'npm', 'git') && !u.ver)
+      throw Error('reg_get missing ver: '+uri);
   }
-  if (str.is(u.reg, 'npm', 'git') && !u.ver)
-    throw Error('reg_get missing ver: '+uri);
   let ret;
   for (let _src of src){
     if (_src.fail)

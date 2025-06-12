@@ -36,7 +36,7 @@ const eslow = (ms, arg)=>{
     await esleep(ms);
     timeout = true;
     if (!done)
-      enable && console.error('slow('+seq+') '+ms+' stuck', ...arg, p.err);
+      enable && console.warn('slow('+seq+') '+ms+' stuck', ...arg, p.err);
   })();
   eslow.set.add(p);
   p.now = Date.now();
