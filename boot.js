@@ -331,9 +331,14 @@ let coi_reload = async()=>{
 };
 
 let boot_app = async(app_pkg)=>{
+  if (!app_pkg){
+    let u = new URLSearchParams(location.search);
+    let webapp = u.get('webapp') || 'lif-basic@1.1.12/main.tsx';
+    app_pkg = {lif: {webapp}};
+  }
   app_pkg = JSON.parse(JSON.stringify(app_pkg));
   let lif = app_pkg.lif;
-  let webapp = lif.webapp;
+  let webapp = lif?.webapp;
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+webapp);
