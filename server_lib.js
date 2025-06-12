@@ -1,3 +1,4 @@
+#!/usr/bin/env node X=1
 import http from 'http';
 import process from 'process';
 import fs from 'fs';
@@ -88,3 +89,6 @@ function run(opt){
 }
 
 export default run;
+console.log('sds');
+if (process.env.MODMAIN=='1')
+  run({root: import.meta.dirname});
