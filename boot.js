@@ -278,8 +278,10 @@ let boot_kernel = async()=>{
       kernel_chan.connect(controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
       let slow = eslow(1000, 'conn_kernel chan');
+      console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
+      console.log('conn_kernel chan end');
       slow.end();
       if (!navigator.serviceWorker.controller){
         console.log('no sw controllier - reloading');
