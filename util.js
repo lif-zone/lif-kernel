@@ -30,13 +30,17 @@ const eslow = (ms, arg)=>{
   eslow.seq ||= 0;
   let seq = eslow.seq++;
   let done, timeout, at_end;
+  if (typeof ms!='number'){
+    arg = ms;
+    ms = 1000;
+  }
   if (!Array.isArray(arg))
     arg = [arg];
   let p = (async()=>{
     await esleep(ms);
     timeout = true;
     if (!done)
-      enable && console.warn('slow('+seq+') '+ms+' stuck', ...arg, p.err);
+      enable && console.warn('slow('+seq+') '+ms, ...arg, p.err);
   })();
   eslow.set.add(p);
   p.now = Date.now();
@@ -249,7 +253,8 @@ class postmessage_chan {
   id = 0;
   async cmd(cmd, arg){
     let id = ''+(this.id++);
-    let req = this.req[id] = ewait();
+    let req = this.req[id] = {wait: ewait()};
+    req.slow = eslow('post cmd '+cmd);
     this.port.postMessage({cmd, arg, id});
     return await req;
   }
@@ -258,7 +263,9 @@ class postmessage_chan {
     if (!cmd_cb)
       throw Error('invalid cmd', msg.cmd);
     try {
+      let slow = eslow('chan cmd '+msg.cmd);
       let res = await cmd_cb({cmd: msg.cmd, arg: msg.arg});
+      slow.end();
       this.port.postMessage({cmd_res: msg.cmd, id_res: msg.id, res});
     } catch(err){
       console.error('cmd failed', msg);
@@ -271,14 +278,14 @@ class postmessage_chan {
     if (typeof msg.cmd=='string' && typeof msg.id=='string')
       return this.cmd_server_cb(msg);
     if (typeof msg.cmd_res=='string' && typeof msg.id_res=='string'){
-      let id = msg.id_res;
-      if (!this.req[id])
+      let id = msg.id_res, req;
+      if (!(req = this.req[id]))
         throw Error('invalid req msg.id', id);
-      let req = this.req[id];
       delete this.req[id];
+      req.slow.end();
       if (msg.err)
-        return req.throw(msg.err);
-      return req.return(msg.res);
+        return req.wait.throw(msg.err);
+      return req.wait.return(msg.res);
     }
     throw Error('invalid msg', msg);
   }
@@ -758,12 +765,14 @@ exports.TE_lpm_uri_str = TE_lpm_uri_str;
 const lpm_uri_str = TE_to_null(TE_lpm_uri_str);
 exports.lpm_uri_str = lpm_uri_str;
 
-const lpm_mod = uri=>{
+const TE_lpm_mod = uri=>{
   let u = uri;
   if (typeof uri=='string')
     u = TE_lpm_uri_parse(uri);
   return u.mod;
 };
+exports.TE_lpm_mod = TE_lpm_mod;
+const lpm_mod = TE_to_null(TE_lpm_mod);
 exports.lpm_mod = lpm_mod;
 
 // parse-package-name: package.json:dependencies
@@ -802,6 +811,7 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
   throw Error('invalid npm_dep prefix: '+dep);
 };
 const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
+// npm_parse() and lpm_parse(), and npm_parse_basic()
 const TE_npm_uri_parse = npm=>TE_lpm_uri_parse(TE_npm_to_lpm(npm));
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
 const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
@@ -822,7 +832,7 @@ let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
 let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
 
 let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
-  let u = TE_lpm_uri_parse(lpm);
+  let u = typeof lpm=='string' ? TE_lpm_uri_parse(lpm) : lpm;
   if (u.reg=='npm')
     return u.mod.slice(4)+u.path;
   return '.'+u.mod+u.path;
@@ -1008,6 +1018,8 @@ function test_url_uri(){
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t = (npm, v)=>assert_eq(v, npm_to_lpm(npm));
+  // XXX need to add to npm_uri_parse() support for .local ,git...
+  // and make current version a more low level: npm_basic_parse()
   t('mod', 'npm/mod');
   t('mod/dir/file', 'npm/mod/dir/file');
   t('@mod/sub', 'npm/@mod/sub');
@@ -1027,6 +1039,7 @@ function test_url_uri(){
   t('npm/mod', 'mod');
   t('npm/mod/file.js', 'mod/file.js');
   t('npm/mod/sub//file.js', 'mod/sub//file.js');
+  t(lpm_uri_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
   t('git/github/user/repo', '.git/github/user/repo');
   t('git/gitlab/user/repo/file.js', '.git/gitlab/user/repo/file.js');
   t('local', '.local');
@@ -1034,10 +1047,10 @@ function test_url_uri(){
   t('local/dir/file.js', '.local/dir/file.js');
   t('local/sub//dir/file.js', '.local/sub//dir/file.js');
   t = (lpm, mod, path)=>{
-    let u = TE_lpm_uri_parse(lpm);
+    let u = TE_lpm_uri_parse(lpm); // XXX rename lpm_parse()
     assert_eq(path, u.path);
     assert_eq(mod, u.mod);
-    assert_eq(mod, lpm_mod(lpm));
+    assert_eq(mod, TE_lpm_mod(lpm));
     assert_eq(lpm, TE_lpm_uri_str(u));
   };
   t('local', 'local', '');

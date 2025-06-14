@@ -7,6 +7,7 @@ import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq,
   path_file, path_dir, OF, OA, assert, TE_to_null, TE_npm_to_lpm,
   TE_url_uri_parse, TE_url_uri_parse2, uri_enc, qs_enc, qs_append,
+  lpm_uri_parse, npm_to_lpm, lpm_to_npm,
   _debugger} = util;
 let json = JSON.stringify;
 
@@ -141,7 +142,7 @@ async function require_single(mod_self, module_id){
   m = modules[module_id] = {module_id, deps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let slow;
-  slow = eslow(1000, 'require_single mod('+module_id+')');
+  slow = eslow('require_single mod('+module_id+')');
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   url = url_expand(url);
   slow.end();
@@ -267,29 +268,27 @@ let boot_kernel = async()=>{
       if (kernel_chan){
         console.log('conn closing');
         kernel_chan.close();
+        kernel_chan = null;
       }
       kernel_chan = null;
       let controller = navigator.serviceWorker.controller;
       if (!controller){
-        controller = (await navigator.serviceWorker.ready).active;
-        console.log('no controller. active exist: '+!!controller);
+        console.log('no sw controllier - reloading');
+        window.location.reload();
+        return;
       }
       kernel_chan = new postmessage_chan();
       kernel_chan.connect(controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
-      let slow = eslow(1000, 'conn_kernel chan');
+      let slow = eslow('conn_kernel chan');
       console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
       console.log('conn_kernel chan end');
       slow.end();
-      if (!navigator.serviceWorker.controller){
-        console.log('no sw controllier - reloading');
-        window.location.reload();
-      }
       wait.return();
     };
-    let slow = eslow(1000, 'sw register');
+    let slow = eslow('sw register');
     const registration = await navigator.serviceWorker.register(
       '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
     const sw = await navigator.serviceWorker.ready;
@@ -299,7 +298,7 @@ let boot_kernel = async()=>{
     // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
     navigator.serviceWorker.addEventListener('controllerchange', conn_kernel);
     await conn_kernel();
-    slow = eslow(1000, 'sw conn');
+    slow = eslow('sw conn');
     await wait;
     slow.end();
     return await wait;
@@ -332,13 +331,25 @@ let coi_reload = async()=>{
   window.location.reload();
 };
 
-// 'lif-basic@1.1.14/main.tsx'
-// '.git/github/xderry/lif-os@main/lif-basic//main.tsx'
-// http://localhost:3000/?webapp=.git/github/xderry/lif-os@main/lif-basic//main.tsx
+// http://localhost:3000/?lif-os@1.1.16/lif-basic/main.tsx
+// http://localhost:3000/?webapp=lif-os@1.1.16/lif-basic/main.tsx
+// http://localhost:3000/?.git/github/xderry/lif-os@main/lif-basic/main.tsx
 let app_pkg_default = ()=>{
-  let u = new URLSearchParams(location.search);
-  let webapp = u.get('webapp') || 'lif-basic@1.1.14/main.tsx';
-  return {lif: {webapp}};
+  let q = new URLSearchParams(location.search);
+  let e = q.entries();
+  let pkg = {}, v;
+  if (e[0] && !e[1])
+    pkg.webapp = e[0];
+  if (v=q.get('webapp'))
+    pkg.webapp = v;
+  if (!pkg.webapp)
+    pkg.webapp = 'lif-basic@1.1.14/main.tsx';
+  if (v=q.get('src')){
+    let u = lpm_uri_parse(npm_to_lpm(pkg.webapp));
+    u.path = '';
+    pkg.dependencies[lpm_to_npm(u)] = v;
+  }
+  return {lif: pkg};
 };
 
 let boot_app = async(app_pkg)=>{
@@ -352,7 +363,9 @@ let boot_app = async(app_pkg)=>{
   console.log('boot: boot '+webapp);
   npm_map = lif?.dependencies||{};
   npm_root = webapp;
+  let slow = eslow('app_pkg');
   await kernel_chan.cmd('app_pkg', app_pkg);
+  slow.end();
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();
