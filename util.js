@@ -764,6 +764,7 @@ const TE_lpm_uri_str = l=>{
 exports.TE_lpm_uri_str = TE_lpm_uri_str;
 const lpm_uri_str = TE_to_null(TE_lpm_uri_str);
 exports.lpm_uri_str = lpm_uri_str;
+const npm_uri_str = exports.npm_uri_str = u=>lpm_to_npm(lpm_uri_str(u));
 
 const TE_lpm_mod = uri=>{
   let u = uri;
@@ -869,12 +870,12 @@ const __uri_parse = (uri, base)=>{
   return u;
 };
 
-const TE_url_uri_parse = (url_uri, base_uri)=>{
+const TE_npm_url_base = (url_uri, base_uri)=>{
   let t = url_uri_type(url_uri);
   let tbase = base_uri ? url_uri_type(base_uri) : null;
   let u, is = {};
   if (t=='rel' && !tbase)
-    throw Error('url_uri_parse('+url_uri+') rel without base');
+    throw Error('npm_url_base('+url_uri+') rel without base');
   if (t=='rel')
     is.rel = 1;
   if (t=='url' || t=='rel' && tbase=='url'){
@@ -890,27 +891,36 @@ const TE_url_uri_parse = (url_uri, base_uri)=>{
     return u;
   }
   is.mod = 1;
+  let base = base_uri ? TE_npm_uri_parse(base_uri) : undefined;
   if (t=='mod'){
-    u = __uri_parse('/'+url_uri);
-    u.is = is;
-    u.path = u.pathname = u.path.slice(1);
-    u.dir = u.dir.slice(1);
-    u.mod = TE_npm_uri_parse(url_uri);
-    return u;
-  }
-  if (t=='rel' && tbase=='mod'){
-    let base = TE_npm_uri_parse(base_uri);
-    u = __uri_parse(url_uri, base.path);
-    u = __uri_parse('/'+base.name+base.ver+u.path);
+    let mod = TE_npm_uri_parse(url_uri);
+    let uri = url_uri;
+    if (base && mod.reg==base.reg && mod.name==base.name &&
+      str.is(mod.reg, 'npm', 'git') && !mod.ver && base.ver)
+    {
+      is.rel_ver = 1;
+      mod.ver = base.ver;
+      uri = npm_uri_str(mod);
+    }
+    u = __uri_parse('/'+uri);
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
     u.mod = TE_npm_uri_parse(u.path);
     return u;
   }
-  throw Error('url_uri_parse('+url_uri+','+base_uri+') failed');
+  if (t=='rel' && tbase=='mod'){
+    base.path = __uri_parse(url_uri, base.path).path;
+    u = __uri_parse('/'+npm_uri_str(base));
+    u.is = is;
+    u.path = u.pathname = u.path.slice(1);
+    u.dir = u.dir.slice(1);
+    u.mod = TE_npm_uri_parse(u.path);
+    return u;
+  }
+  throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
 };
-const url_uri_parse = TE_to_null(TE_url_uri_parse);
+const npm_url_base = TE_to_null(TE_npm_url_base);
 
 let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
@@ -958,7 +968,7 @@ let semver_range_parse = TE_to_null(TE_semver_range_parse);
 exports.semver_range_parse = semver_range_parse;
 
 function test_url_uri(){
-  let t = (v, arg)=>assert_objv(v, TE_url_uri_parse(...arg));
+  let t = (v, arg)=>assert_objv(v, TE_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
@@ -974,7 +984,20 @@ function test_url_uri(){
   t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, ['../../../c/d', 'mod/a/b']);
   t({path: '@mod/v/c/d', is: {mod: 1, rel: 1}},
     ['../../../c/d', '@mod/v/a/b']);
-  t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod@1.2.3/a']);
+  t({path: 'mod@1.2.3/c/c/d', is: {mod: 1, rel: 1}},
+    ['./c/d', 'mod@1.2.3/c/a']);
+  t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel_ver: 1}},
+    ['mod/c/d', 'mod@1.2.3/c/a']);
+  t({path: 'mod@4.5.6/c/d', is: {mod: 1}}, ['mod@4.5.6/c/d', 'mod@1.2.3/c/a']);
+  t({path: 'mod/c/d', is: {mod: 1}}, ['mod/c/d', 'other@1.2.3/c/a']);
+  t({path: '.git/github/user/repo@v1.2.3/c/d', is: {mod: 1, rel_ver: 1}},
+    ['.git/github/user/repo/c/d', '.git/github/user/repo@v1.2.3/c/a']);
+  t({path: '.git/github/user/repo/c/d', is: {mod: 1}},
+    ['.git/github/user/repo/c/d', '.git/github/other/repo@v1.2.3/c/a']);
+  t({path: 'mod/sub//a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod/sub//a/b']);
+  t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
+  t({path: '.git/github/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
+    ['./c/d', '.git/github/user/repo@1.2.3/a/b']);
   t = (npm, v)=>assert_objv(v, TE_npm_uri_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
@@ -1118,8 +1141,8 @@ exports.path_join = path_join;
 exports.path_prefix = path_prefix;
 exports.url_parse = url_parse;
 exports.TE_url_parse = TE_url_parse;
-exports.url_uri_parse = url_uri_parse;
-exports.TE_url_uri_parse = TE_url_uri_parse;
+exports.npm_url_base = npm_url_base;
+exports.TE_npm_url_base = TE_npm_url_base;
 exports.uri_enc = uri_enc;
 exports.uri_dec = uri_dec;
 exports.qs_enc = qs_enc;
