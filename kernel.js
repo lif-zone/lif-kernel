@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '1.1.12';
+let lif_version = '1.1.17';
 let D = 0; // debug
 
 const ewait = ()=>{
