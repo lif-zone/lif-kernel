@@ -125,10 +125,10 @@ let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache,
   path_ext, _path_ext, path_dir, path_file, path_is_dir, path_join,
-  path_prefix, qs_enc,
+  path_prefix, qs_enc, npm_ver_from_base,
   TE_url_parse, TE_npm_url_base, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
   lpm_uri_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  TE_lpm_uri_parse, TE_lpm_uri_str,
+  TE_lpm_uri_parse, TE_lpm_uri_str, npm_uri_str, lpm_ver_missing,
   uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_objv, Donce} = util;
 let {qw} = str;
@@ -458,20 +458,22 @@ let lpm_dep_lookup = (lpm, uri, opt)=>{
   if (u.ver || u.reg=='local')
     return uri;
   let dep = lpm_dep_ver_lookup({mod: mod_self, pkg}, uri);
-  if (!dep && mod_self){
-    let _self = lpm_uri_parse(mod_self);
-    if (_self && _self.name==u.name) // XXX make generic lpm
-      return _self.mod+u.path;
-  }
   if (!dep || dep=='-')
     return ret_err('dep missing');
-  if (dep.startsWith('local/'))
-    return dep;
-  if (dep.startsWith('-peer-')){
-    if (!lpm_app_pkg)
-      return ret_err('dep lpm_app not set');
-    if (!(dep = lpm_dep_ver_lookup({mod: mod_self, pkg: lpm_app_pkg}, uri)))
-      return ret_err('dep missing lpm_app');
+  if (dep.startsWith('peer:')){
+    if (lpm_app_pkg &&
+      (dep = lpm_dep_ver_lookup({mod: mod_self, pkg: lpm_app_pkg}, uri)))
+    {
+      return dep;
+    }
+    for (let l = lpm; lpm; lpm = lpm.parent){
+      if (!(dep = lpm_dep_ver_lookup(lpm, uri)))
+        continue;
+      if (!dep || dep=='-')
+        continue;
+      return dep;
+    }
+    return ret_err('dep missing lpm_app');
   }
   return dep;
 };
@@ -488,7 +490,8 @@ let tr_mjs_import = f=>{
       if (d.imported)
         v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
-    }
+    } else
+      console.log('import('+f.uri+') missing: '+uri);
   }
   for (let d of f.ast.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
@@ -603,7 +606,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
   if (d = get_dep(pkg.dependencies))
     return d;
   if (d = get_dep(pkg.peerDependencies))
-    return X('peer', '-peer-'+d);
+    return X('peer', 'peer:'+d);
   if (d = get_dep(pkg.devDependencies))
     return d;
 };
@@ -814,7 +817,7 @@ return await ecache(reg_file_t, uri, async function run(reg){
     if (u.ver)
       throw Error('reg_get invalid get-ver: '+uri);
   } else {
-    if (str.is(u.reg, 'npm', 'git') && !u.ver)
+    if (lpm_ver_missing(u))
       throw Error('reg_get missing ver: '+uri);
   }
   let ret;
@@ -866,38 +869,29 @@ async function reg_get_alt({log, uri, alt}){
 async function lpm_get_follow({log, uri}){
   let _uri = uri;
   for (let i=0; i<max_redirect; i++){
-    let lpm = await lpm_pkg_get(log, _uri);
+    let lpm = await lpm_get({log, uri: _uri});
     if (!lpm.redirect)
       return lpm;
     _uri = str.starts(lpm.redirect, '/.lif/').rest;
   }
   throw Error('too many redirects: '+uri+' -> '+_uri);
 }
-async function lpm_pkg_get(log, mod){
-  return await lpm_get({log, uri: mod+'/package.json'});
-}
 
 let max_redirect = 8;
 async function lpm_dep_get({log, uri, mod_self}){
-  let get_dep = async({log, uri, mod_self})=>{
-    // XXX remove with lpm_get_follow
-    let lpm, _mod_self = mod_self;
-    for (let i=0; i<max_redirect; i++){
-      lpm = await lpm_pkg_get(log, TE_lpm_mod(_mod_self));
-      if (!lpm.redirect)
-        break;
-      _mod_self = str.starts(lpm.redirect, '/.lif/').rest;
-    }
-    if (lpm.redirect)
-      throw Error('too many redirects: '+mod_self+' -> '+_mod_self);
+  async function get_dep({log, uri, mod_self}){
+    let lpm = await lpm_get_follow(
+      {log, uri: TE_lpm_mod(mod_self)+'/package.json'});
     D && console.log('lpm', uri, 'mod_self', mod_self);
     if (!lpm)
       throw Error('mod_self('+mod_self+') pkg load failed');
     return lpm_dep_lookup(lpm, uri);
-  };
-  let _uri = uri;
-  let l = TE_lpm_uri_parse(uri);
+  }
+  let _uri = npm_ver_from_base(uri, mod_self);
+  if (_uri && _uri!=uri)
+    return _uri;
   let dep;
+  dep = null;
   lookup: {
     if (lpm_boot && (dep = lpm_dep_lookup({pkg: lpm_boot_pkg}, uri)))
       break lookup;
@@ -909,9 +903,6 @@ async function lpm_dep_get({log, uri, mod_self}){
   if (dep)
     return dep;
   D && console.log('no dep('+mod_self+') found: '+uri);
-  if (l.ver)
-    return uri;
-  D && console.log('no version found. TODO - lookup npm.date<=root app date: '+uri);
 }
 
 async function lpm_pkg_ver_get({log, mod}){
@@ -951,9 +942,7 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
 
 async function _lpm_pkg_ver_get({log, uri}){
   let u = TE_lpm_uri_parse(uri);
-  if (u.ver)
-    return;
-  if (!str.is(u.reg, 'npm', 'git'))
+  if (!lpm_ver_missing(u))
     return;
   let pv = await lpm_pkg_ver_get({log, mod: u.mod});
   if (!pv)
@@ -1047,9 +1036,10 @@ function ctype_get(ext){
   return t;
 }
 let response_send = ({body, ext, uri})=>{
+  let v;
   if (uri)
     ext = _path_ext(TE_npm_url_base(uri).path);
-  let opt = {}, v, ctype = ctype_get(ext), h = {};
+  let opt = {}, ctype = ctype_get(ext), h = {};
   if (!ctype){
     D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
     ctype = ctype_get('text');
