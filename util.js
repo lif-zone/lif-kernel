@@ -870,6 +870,30 @@ const __uri_parse = (uri, base)=>{
   return u;
 };
 
+const lpm_ver_missing = exports.lpm_ver_missing =
+  u=>str.is(u.reg, 'npm', 'git') && !u.ver;
+
+const lpm_ver_from_base = exports.lpm_ver_from_base = (mod, base)=>{
+  if (!base)
+    return;
+  mod = mod.mod ? mod : lpm_uri_parse(mod);
+  base = base.mod ? base : lpm_uri_parse(base);
+  if (!(mod.reg==base.reg && mod.name==base.name &&
+    lpm_ver_missing(mod) && base.ver))
+  {
+    return;
+  }
+  return lpm_uri_str({...mod, ver: base.ver});
+};
+const npm_ver_from_base = exports.npm_ver_from_base = (mod, base)=>{
+  if (!base)
+    return;
+  let v = lpm_ver_from_base(npm_to_lpm(mod), npm_to_lpm(base));
+  if (!v)
+    return;
+  return lpm_to_npm(v);
+};
+
 const TE_npm_url_base = (url_uri, base_uri)=>{
   let t = url_uri_type(url_uri);
   let tbase = base_uri ? url_uri_type(base_uri) : null;
@@ -895,9 +919,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
   if (t=='mod'){
     let mod = TE_npm_uri_parse(url_uri);
     let uri = url_uri;
-    if (base && mod.reg==base.reg && mod.name==base.name &&
-      str.is(mod.reg, 'npm', 'git') && !mod.ver && base.ver)
-    {
+    if (lpm_ver_from_base(mod, base)){
       is.rel_ver = 1;
       mod.ver = base.ver;
       uri = npm_uri_str(mod);
@@ -1086,6 +1108,22 @@ function test_url_uri(){
     'git/github/user/repo', '/dir/file.js');
   t('git/github/user/repo/mod//dir/file.js',
     'git/github/user/repo/mod/', '/dir/file.js');
+  t = (npm, base, v)=>assert_eq(v, npm_ver_from_base(npm, base));
+  t('mod/dir', 'mod@1.2.3/file', 'mod@1.2.3/dir');
+  t('mod/dir', 'mod/file');
+  t('mod/dir', 'mod/dir');
+  t('mod/dir', 'other@1.2.3/file');
+  t('.local/dir/file', '.local/dir@1.2.3/file');
+  t('.git/github/user/repo/dir', '.git/github/user/repo@1.2.3/file',
+    '.git/github/user/repo@1.2.3/dir');
+  t = (lpm, base, v)=>assert_eq(v, lpm_ver_from_base(lpm, base));
+  t('npm/mod/dir', 'npm/mod@1.2.3/file', 'npm/mod@1.2.3/dir');
+  t('npm/mod/dir', 'npm/mod/file');
+  t('npm/mod/dir', 'npm/mod/dir');
+  t('npm/mod/dir', 'npm/other@1.2.3/file');
+  t('local/dir/file', 'local/dir@1.2.3/file');
+  t('git/github/user/repo/dir', 'git/github/user/repo@1.2.3/file',
+    'git/github/user/repo@1.2.3/dir');
   t = (semver, v)=>assert_objv(v, semver_parse(semver));
   t('1.2.3', {ver: '1.2.3', rel: ''});
   t('1.2.3-abc', {ver: '1.2.3', rel: '-abc'});
