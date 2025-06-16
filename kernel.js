@@ -915,6 +915,7 @@ return await ecache(lpm_pkg_ver_t, mod, async function run(pv){
     throw get.err;
   try {
     pv.pkg_ver = JSON.parse(get.body);
+    return pv;
   } catch(err){
     throw Error('invalid package.json parse '+uri);
   }
@@ -947,7 +948,7 @@ async function _lpm_pkg_ver_get({log, uri}){
   let pv = await lpm_pkg_ver_get({log, mod: u.mod});
   if (!pv)
     throw Error('no pkg_ver found: '+u.mod); 
-  u.ver = lpm_pkg_ver_lookup(pv, lpm_app_date);
+  u.ver = lpm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
   if (!u.ver)
     throw Error('failed mod '+u.mod+' getting pkg_ver list');
   return TE_lpm_uri_str(u);
