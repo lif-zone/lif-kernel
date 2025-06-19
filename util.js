@@ -544,7 +544,7 @@ test_path();
 // URL.parse() only available on Chrome>=126
 const URL_parse = (...args)=>{
   try { return new URL(...args); }
-  catch(err){};
+  catch(err){}
 };
 const TE_url_parse = (url, base)=>{
   const u = URL_parse(url, base);
