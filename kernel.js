@@ -440,7 +440,7 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-let lpm_dep_lookup = (lpm, uri, opt)=>{
+let lpm_dep_lookup = ({lpm, uri, npm})=>{
   let D = 0;
   let pkg = lpm.pkg, mod_self = lpm.mod;
   let ret_err = err=>{
@@ -452,7 +452,7 @@ let lpm_dep_lookup = (lpm, uri, opt)=>{
     return;
   if (u.is.rel)
     uri = u.path;
-  else if (opt?.npm)
+  else if (npm)
     uri = npm_to_lpm(uri);
   if (!(u = lpm_uri_parse(uri)))
     return ret_err('invalid lpm uri import');
@@ -485,7 +485,9 @@ let tr_mjs_import = f=>{
     let uri = d.module;
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
-    else if (v=lpm_dep_lookup({pkg: f.pkg, mod: TE_lpm_mod(f.uri)}, d.module, {npm: 1})){
+    else if (v=lpm_dep_lookup({lpm: {pkg: f.pkg, mod: TE_lpm_mod(f.uri)},
+      uri: d.module, npm: 1}))
+    {
       let _v = v;
       v = lpm_to_sw_uri(v);
       if (d.imported)
@@ -960,7 +962,13 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm_pkg){
   lpm_pkg.log = log;
   let _mod;
   for (let p = lpm_self; p; p = p.parent){
-    if (_mod = lpm_dep_lookup(p, mod))
+    let _p = p;
+    if (0 && p.redirect){
+      debugger;
+      let __p = await lpm_pkg_cache_follow(p.mod);
+      console.log(_p, __p);
+    }
+    if (_p && (_mod = lpm_dep_lookup({lpm: _p, uri: mod})))
       break;
   }
   if (!_mod)
@@ -1298,7 +1306,7 @@ function test_lpm(){
   t(lifos, 'npm/react', 'npm/react@18.3.1');
   t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
   t(lifos, 'npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
-  t = (pkg, mod, uri, v)=>assert_eq(v, lpm_dep_lookup({mod, pkg}, uri));
+  t = (pkg, mod, uri, v)=>assert_eq(v, lpm_dep_lookup({lpm: {mod, pkg}, uri}));
   pkg = {lif: {dependencies: {mod: '/mod', react: 'react@18.3.1'}}};
   t(pkg, 'npm/mod', 'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
   t(pkg, 'npm/mod', 'local/file', 'local/file');
