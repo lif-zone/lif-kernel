@@ -1,6 +1,6 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let lif_version = '1.1.17';
-let D = 0; // debug
+let D = 1; // debug
 
 const ewait = ()=>{
   let _return, _throw;
@@ -602,6 +602,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
     return X('modver', mod+'@'+ver+path);
   };
   let d
+  if (!pkg) debugger;
   if (d = get_dep(pkg.lif?.dependencies))
     return d;
   if (d = get_dep(pkg.dependencies))
@@ -926,6 +927,19 @@ async function lpm_pkg_cache(mod){
   assert(lpm_pkg, 'lpm mod not in cache: '+mod);
   return lpm_pkg;
 }
+async function lpm_pkg_cache_follow(mod){
+  let _mod = mod;
+  let lpm_pkg = await lpm_pkg_t[_mod];
+  for (let i=0; lpm_pkg.redirect && i<max_redirect; i++){
+    _mod = str.starts(lpm_pkg.redirect, '/.lif/').rest;
+    lpm_pkg = await lpm_pkg_t[_mod].wait;
+  }
+  if (!lpm_pkg)
+    console.info('mod('+mod+') follow not found: '+_mod);
+  else if (lpm_pkg.redirect)
+    throw Error('lpm_pkg_cache_follow max redirect: '+mod);
+  return lpm_pkg;
+}
 
 async function lpm_pkg_get({log, mod, mod_self}){
 return await ecache(lpm_pkg_t, mod, async function run(lpm_pkg){
@@ -986,7 +1000,7 @@ return await ecache(lpm_file_t, uri, async function run(lpm_file){
   D && console.log('lpm_file_get', uri);
   let alt, pkg;
   lpm_file.uri = uri;
-  let lpm_pkg = lpm_file.lpm_pkg = await lpm_pkg_cache(TE_lpm_mod(uri));
+  let lpm_pkg = lpm_file.lpm_pkg = await lpm_pkg_cache_follow(TE_lpm_mod(uri));
   pkg = lpm_file.pkg = lpm_pkg.pkg;
   lpm_file.npm_uri = lpm_to_npm(uri);
   if (lpm_pkg.redirect)
@@ -1023,7 +1037,7 @@ async function lpm_pkg_resolve({log, mod, mod_self}){
   return lpm_pkg;
 }
 
-async function lpm_pkg_resolve_redir({log, mod, mod_self}){
+async function lpm_pkg_resolve_follow({log, mod, mod_self}){
   let _mod = mod, _mod_self = mod_self;
   for (let i=0; i<max_redirect; i++){
     let lpm_pkg = await lpm_pkg_resolve({log, mod: _mod, mod_self: _mod_self});
@@ -1348,7 +1362,7 @@ let do_app_pkg = async function(boot_pkg){
   let slow = eslow('app_pg lpm_get');
   let _lpm_pkg_app;
   try {
-    _lpm_pkg_app = await lpm_pkg_resolve_redir({log,
+    _lpm_pkg_app = await lpm_pkg_resolve_follow({log,
       mod: TE_lpm_mod(_lpm_app), mod_self: 'local/boot/'});
   } catch(err){
     console.error(err);
