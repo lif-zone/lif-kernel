@@ -541,8 +541,13 @@ function test_path(){
 }
 test_path();
 
+// URL.parse() only available on Chrome>=126
+const URL_parse = (...args)=>{
+  try { return new URL(...args); }
+  catch(err){};
+};
 const TE_url_parse = (url, base)=>{
-  const u = URL.parse(url, base);
+  const u = URL_parse(url, base);
   if (!u)
     throw Error('cannot parse url: '+url);
   // some of these fields are setters, so copy object to normal object
@@ -623,32 +628,35 @@ const TE_lpm_uri_parse = uri=>{
   let l = {};
   let p = uri.split('/');
   let i = 0;
-  let next = err=>{
+  let path_ommit;
+  function next(err){
     let v = p[i++];
     if (typeof v!='string')
       throw Error('lpm_uri_parse missing'+err+': '+uri);
     if (v=='')
       throw Error('lpm_uri_parse empty element: '+uri);
     return v;
-  };
-  let next_submod = ()=>{
+  }
+  function next_submod(){
     let j = p.indexOf('', i);
     if (j==i)
       throw Error('invalid empty submod: '+uri);
     if (j<0)
       return '';
+    if (j==p.length-1)
+      path_ommit = true;
     let submod = '/'+p.slice(i, j).join('/')+'/';
     i = j+1;
     return submod;
-  };
-  let ver_split = name=>{
+  }
+  function ver_split(name){
     let n = name.split('@');
     if (n.length==1)
       return {name: name, ver: '', _ver: null};
     if (n.length==2)
       return {name: n[0], ver: '@'+n[1], _ver: n[1]};
     throw Error('lpm_uri_parse invalid ver inname: '+name);
-  };
+  }
   let v, mod, repo;
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
   switch (l.reg){
@@ -728,6 +736,10 @@ const TE_lpm_uri_parse = uri=>{
   l.mod += l.submod;
   let _p = p.slice(i);
   l.path = path_parts(_p);
+  if (path_ommit){
+    l.path_ommit = path_ommit;
+    l.path = '/';
+  }
   return l;
 };
 exports.TE_lpm_uri_parse = TE_lpm_uri_parse;
@@ -782,7 +794,7 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
   if (v=str.starts(dep, './'))
     return mod_self+'/'+v.rest;
   if (v=str.starts(dep, ['https:', 'http:', 'git:'])){
-    let u = URL.parse(dep), site = u.host;
+    let u = new URL(dep), site = u.host;
     if (u.host=='github.com'){
       site = 'github';
     } else if (site=='gitlab.com'){
@@ -851,7 +863,7 @@ exports.lpm_to_sw_uri = lpm_to_sw_uri;
 const url_uri_type = url_uri=>{
   if (!url_uri)
     throw Error('invalid url_uri type');
-  if (URL.parse(url_uri))
+  if (URL_parse(url_uri))
     return 'url';
   if (url_uri[0]=='/')
     return 'uri';
@@ -1030,18 +1042,28 @@ function test_url_uri(){
     ver: '@1.2.0', _ver: '1.2.0',
     mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
-    assert_objv(v, TE_lpm_uri_parse(lpm));
-    assert_eq(lpm, TE_lpm_uri_str(v));
+    let t;
+    assert_objv(v, t=TE_lpm_uri_parse(lpm));
+    assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_uri_str(t));
   };
-  t('local/package.json',
-    {reg: 'local', submod: '',
+  t('local/package.json', {reg: 'local', submod: '',
     mod: 'local', path: '/package.json'});
-  t('local/mod/sub//package.json',
-    {reg: 'local', submod: '/mod/sub/',
+  t('local/mod/sub//package.json', {reg: 'local', submod: '/mod/sub/',
     mod: 'local/mod/sub/', path: '/package.json'});
-  t('local/mod/sub//dir/file.js',
-    {reg: 'local', submod: '/mod/sub/',
-    mod: 'local/mod/sub/', path: '/dir/file.js'});
+  t('local/mod/sub//dir/file', {reg: 'local', submod: '/mod/sub/',
+    mod: 'local/mod/sub/', path: '/dir/file'});
+  t('local/mod/dir/', {reg: 'local', submod: '/mod/dir/',
+    mod: 'local/mod/dir/', path: '/', path_ommit: true});
+  t('local/mod/sub//', {reg: 'local', submod: '/mod/sub/',
+    mod: 'local/mod/sub/', path: '/'});
+  t('npm/mod/dir/file', {reg: 'npm', submod: '',
+    mod: 'npm/mod', path: '/dir/file'});
+  t('npm/mod/dir/file', {reg: 'npm', submod: '',
+    mod: 'npm/mod', path: '/dir/file'});
+  t('npm/mod/dir/', {reg: 'npm', submod: '/dir/',
+    mod: 'npm/mod/dir/', path: '/', path_ommit: true});
+  t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
+    mod: 'npm/mod/sub/', path: '/'});
   t = (v, lpm)=>assert_eq(v, !!lpm_uri_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
@@ -1096,11 +1118,13 @@ function test_url_uri(){
     assert_eq(path, u.path);
     assert_eq(mod, u.mod);
     assert_eq(mod, TE_lpm_mod(lpm));
-    assert_eq(lpm, TE_lpm_uri_str(u));
+    assert_eq(lpm+(u.path_ommit?'/':''), TE_lpm_uri_str(u));
   };
   t('local', 'local', '');
   t('local/main.tsx', 'local', '/main.tsx');
   t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
+  t('local/mod//', 'local/mod/', '/');
+  t('local/mod/', 'local/mod/', '/');
   t('npm/mod', 'npm/mod', '');
   t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
   t('git/github/user/repo', 'git/github/user/repo', '');
