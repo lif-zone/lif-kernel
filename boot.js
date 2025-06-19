@@ -407,7 +407,7 @@ if (!is_worker){
 }
 
 lif.boot = {
-  miani: 'ANOkI YhVh ALOhYk:La YhYh Lk ALOhIM AHRIM EL PNY:La TsA AT SM YhVh ALOhk LSVa:ZkOR AT YOM hSBT LQDSO:KBD AT AVIk VAT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk',
+  miani: 'ANOkI YhVh aLOhYk:La YhYh Lk aLOhIM AHRIM EL PNY:La TsA aT SM YhVh aLOhk LSVa:ZkOR aT YOM hSBT LQDSO:KBD aT AVIk VaT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk',
   process,
   define,
   require,
