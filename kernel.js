@@ -933,7 +933,7 @@ async function lpm_pkg_cache_follow(mod){
   let _mod = mod;
   let lpm_pkg = await lpm_pkg_t[_mod];
   for (let i=0; lpm_pkg.redirect && i<max_redirect; i++){
-    _mod = str.starts(lpm_pkg.redirect, '/.lif/').rest;
+    _mod = lpm_pkg.redirect;
     lpm_pkg = await lpm_pkg_t[_mod].wait;
   }
   if (!lpm_pkg)
@@ -981,14 +981,14 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm_pkg){
   let u = TE_lpm_uri_parse(_mod);
   if (_mod!=mod){
     D && console.log('redirect ver/other-lpm '+mod+' -> '+_mod);
-    return OA(lpm_pkg, {redirect: '/.lif/'+_mod}); // version or other lpm
+    return OA(lpm_pkg, {redirect: _mod}); // version or other lpm
   }
   if (u.reg=='npm' && !u.ver){
     let v = await _lpm_pkg_ver_get({log, mod: _mod});
     if (!v)
       throw Error('no pkg versions found for '+mod);
     D && console.log('redirect ver??? '+mod+' -> '+v);
-    return OA(lpm_pkg, {redirect: '/.lif/'+v});
+    return OA(lpm_pkg, {redirect: v});
   }
   let reg = await reg_get({log, uri: _mod+'/package.json'});
   if (reg.not_exist)
@@ -1017,15 +1017,15 @@ return await ecache(lpm_file_t, uri, async function run(lpm_file){
   if (redirect){
     let _uri = TE_lpm_mod(uri)+'/'+file;
     D && console.log('redirect export '+uri+' -> '+_uri);
-    return OA(lpm_file, {redirect: '/.lif/'+_uri});
+    return OA(lpm_file, {redirect: _uri});
   }
   alt = pkg_alt_get(pkg, uri);
   let reg = await reg_get_alt({log, uri: uri, alt});
   if (reg.not_exist)
     return reg;
   if (reg.alt){
-    D && console.log('redirect alt /.lif/'+uri+' -> '+reg.alt);
-    return OA(lpm_file, {redirect: '/.lif/'+uri+reg.alt});
+    D && console.log('redirect alt '+uri+' -> '+reg.alt);
+    return OA(lpm_file, {redirect: uri+reg.alt});
   }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
@@ -1039,7 +1039,7 @@ async function lpm_pkg_resolve({log, mod, mod_self}){
   if (mod_self){
     let _mod = npm_ver_from_base(mod, mod_self);
     if (_mod && _mod!=mod)
-      return {redirect: '/.lif/'+mod};
+      return {redirect: mod};
   }
   let lpm_pkg = await lpm_pkg_get({log, mod, mod_self});
   return lpm_pkg;
@@ -1052,7 +1052,7 @@ async function lpm_pkg_resolve_follow({log, mod, mod_self}){
     if (!lpm_pkg.redirect)
       return lpm_pkg;
     _mod_self  = _mod;
-    _mod = str.starts(lpm_pkg.redirect, '/.lif/').rest;
+    _mod = lpm_pkg.redirect;
   }
   throw Error('mod('+mod+') too many redir: '+_mod);
 }
@@ -1175,7 +1175,7 @@ async function kernel_fetch_lpm({log, uri, mod_self, qs}){
     return new Response('not found', {status: 404, statusText: 'not found'});
   if (f.redirect){
     D && console.log('redirect lpm-f '+uri+' -> '+f.redirect);
-    return Response.redirect(f.redirect+qs);
+    return Response.redirect('/.lif/'+f.redirect+qs);
   }
   return respond_tr_send({f, qs, uri});
 }
