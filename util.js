@@ -827,10 +827,10 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
 };
 const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
 // npm_parse() and lpm_parse(), and npm_parse_basic()
-const TE_npm_uri_parse = npm=>TE_lpm_parse(TE_npm_to_lpm(npm));
-exports.TE_npm_uri_parse = TE_npm_uri_parse;
-const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
-exports.npm_uri_parse = npm_uri_parse;
+const TE_npm_parse = npm=>TE_lpm_parse(TE_npm_to_lpm(npm));
+exports.TE_npm_parse = TE_npm_parse;
+const npm_parse = TE_to_null(TE_npm_parse);
+exports.npm_parse = npm_parse;
 
 let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
   let v;
@@ -933,9 +933,9 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     return u;
   }
   is.mod = 1;
-  let base = base_uri ? TE_npm_uri_parse(base_uri) : undefined;
+  let base = base_uri ? TE_npm_parse(base_uri) : undefined;
   if (t=='mod'){
-    let mod = TE_npm_uri_parse(url_uri);
+    let mod = TE_npm_parse(url_uri);
     let uri = url_uri;
     if (lpm_ver_from_base(mod, base)){
       is.rel_ver = 1;
@@ -946,7 +946,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.mod = TE_npm_uri_parse(u.path);
+    u.mod = TE_npm_parse(u.path);
     return u;
   }
   if (t=='rel' && tbase=='mod'){
@@ -955,7 +955,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.mod = TE_npm_uri_parse(u.path);
+    u.mod = TE_npm_parse(u.path);
     return u;
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
@@ -1038,7 +1038,7 @@ function test_url_uri(){
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
   t({path: '.git/github/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
     ['./c/d', '.git/github/user/repo@1.2.3/a/b']);
-  t = (npm, v)=>assert_obj(v, TE_npm_uri_parse(npm));
+  t = (npm, v)=>assert_obj(v, TE_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
@@ -1091,7 +1091,7 @@ function test_url_uri(){
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t = (npm, v)=>assert_eq(v, npm_to_lpm(npm));
-  // XXX need to add to npm_uri_parse() support for .local ,git...
+  // XXX need to add to npm_parse() support for .local ,git...
   // and make current version a more low level: npm_basic_parse()
   t('mod', 'npm/mod');
   t('mod/dir/file', 'npm/mod/dir/file');
