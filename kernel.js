@@ -425,7 +425,7 @@ const file_tr_cjs = (f, opt)=>{
     let exports = module.exports;
     let require = module=>lif_boot.require_cjs(${uri_s}, module);
     let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);
-    let define = function(id, deps, factory){
+    let define = function(id, imps, factory){
       return lif_boot.define_amd(${uri_s}, arguments, module); };
     define.amd = {};
     ${pre}
