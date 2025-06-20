@@ -747,7 +747,7 @@ const TE_lpm_parse = uri=>{
 exports.TE_lpm_parse = TE_lpm_parse;
 const lpm_parse = TE_to_null(TE_lpm_parse);
 exports.lpm_parse = lpm_parse;
-const TE_lpm_uri_str = l=>{
+const TE_lpm_str = l=>{
   switch (l.reg){
   case 'npm':
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
@@ -775,10 +775,10 @@ const TE_lpm_uri_str = l=>{
     throw Error('invalid registry: '+l.reg);
   }
 };
-exports.TE_lpm_uri_str = TE_lpm_uri_str;
-const lpm_uri_str = TE_to_null(TE_lpm_uri_str);
-exports.lpm_uri_str = lpm_uri_str;
-const npm_uri_str = exports.npm_uri_str = u=>lpm_to_npm(lpm_uri_str(u));
+exports.TE_lpm_str = TE_lpm_str;
+const lpm_str = TE_to_null(TE_lpm_str);
+exports.lpm_str = lpm_str;
+const npm_uri_str = exports.npm_uri_str = u=>lpm_to_npm(lpm_str(u));
 
 const TE_lpm_mod = uri=>{
   let u = uri;
@@ -901,7 +901,7 @@ const lpm_ver_from_base = exports.lpm_ver_from_base = (mod, base)=>{
   base = _lpm_parse(base);
   if (!(lpm_same_base(mod, base) && lpm_ver_missing(mod) && base.ver))
     return;
-  return lpm_uri_str({...mod, ver: base.ver});
+  return lpm_str({...mod, ver: base.ver});
 };
 const npm_ver_from_base = exports.npm_ver_from_base = (mod, base)=>{
   if (!base)
@@ -1050,7 +1050,7 @@ function test_url_uri(){
   t = (lpm, v)=>{
     let t;
     assert_obj(v, t=TE_lpm_parse(lpm));
-    assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_uri_str(t));
+    assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
     mod: 'local', path: '/package.json'});
@@ -1120,11 +1120,11 @@ function test_url_uri(){
   t('local/dir/file.js', '.local/dir/file.js');
   t('local/sub//dir/file.js', '.local/sub//dir/file.js');
   t = (lpm, mod, path)=>{
-    let u = TE_lpm_parse(lpm); // XXX rename lpm_parse()
+    let u = TE_lpm_parse(lpm);
     assert_eq(path, u.path);
     assert_eq(mod, u.mod);
     assert_eq(mod, TE_lpm_mod(lpm));
-    assert_eq(lpm+(u.path_ommit?'/':''), TE_lpm_uri_str(u));
+    assert_eq(lpm+(u.path_ommit?'/':''), TE_lpm_str(u));
   };
   t('local', 'local', '');
   t('local/main.tsx', 'local', '/main.tsx');

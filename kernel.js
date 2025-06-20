@@ -128,7 +128,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   path_prefix, qs_enc, npm_ver_from_base,
   TE_url_parse, TE_npm_url_base, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
   lpm_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  TE_lpm_parse, TE_lpm_uri_str, npm_uri_str, lpm_ver_missing,
+  TE_lpm_parse, TE_lpm_str, npm_uri_str, lpm_ver_missing,
   uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
@@ -571,7 +571,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
     if (!(d = dep?.[npm_mod]))
       return;
     if (d[0]=='/')
-      return X('root', TE_lpm_uri_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
+      return X('root', TE_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
     if (v=str.starts(d, './')){
       let mod = lpm.mod||'invalid';
       if (!mod)
@@ -922,7 +922,7 @@ async function _lpm_pkg_ver_get({log, mod}){
   u.ver = lpm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
   if (!u.ver)
     throw Error('failed mod '+u.mod+' getting pkg_ver list');
-  return TE_lpm_uri_str(u);
+  return TE_lpm_str(u);
 }
 
 async function lpm_pkg_cache(mod){
