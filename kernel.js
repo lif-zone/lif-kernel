@@ -127,7 +127,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   _path_ext, path_dir, path_file,
   path_prefix, qs_enc, npm_ver_from_base,
   TE_url_parse, TE_npm_url_base, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
-  lpm_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
+  lpm_parse, TE_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   TE_lpm_parse, TE_lpm_str, lpm_ver_missing,
   uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
@@ -485,7 +485,7 @@ let tr_mjs_import = f=>{
     let uri = d.module;
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
-    else if (v=lpm_dep_lookup({lpm: {pkg: f.pkg, mod: TE_lpm_mod(f.uri)},
+    else if (v=lpm_dep_lookup({lpm: {pkg: f.pkg, mod: TE_lpm_lmod(f.uri)},
       uri: d.module, npm: 1}))
     {
       let _v = v;
@@ -563,7 +563,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
       console.log(reason, pkg.name, mod_uri, val);
     return val;
   };
-  let mod = TE_lpm_mod(mod_uri);
+  let mod = TE_lpm_lmod(mod_uri);
   let npm_mod = TE_lpm_to_npm(mod);
   let path = TE_lpm_parse(mod_uri).path;
   let get_dep = dep=>{
@@ -872,7 +872,7 @@ async function reg_get_alt({log, uri, alt}){
 
 let max_redirect = 8;
 function assert_mod(mod){
-  assert(mod==TE_lpm_mod(mod), 'invalid pkg mod: '+mod); }
+  assert(mod==TE_lpm_lmod(mod), 'invalid pkg mod: '+mod); }
 
 async function lpm_pkg_ver_get({log, mod}){
 return await ecache(lpm_pkg_ver_t, mod, async function run(pv){
@@ -1014,14 +1014,14 @@ return await ecache(lpm_file_t, uri, async function run(lpm_file){
   D && console.log('lpm_file_get', uri);
   let alt, pkg;
   lpm_file.uri = uri;
-  let lpm_pkg = lpm_file.lpm_pkg = await lpm_pkg_cache_follow(TE_lpm_mod(uri));
+  let lpm_pkg = lpm_file.lpm_pkg = await lpm_pkg_cache_follow(TE_lpm_lmod(uri));
   pkg = lpm_file.pkg = lpm_pkg.pkg;
   lpm_file.npm_uri = lpm_to_npm(uri);
   if (lpm_pkg.redirect)
     return OA(lpm_file, {redirect: lpm_pkg.redirect+TE_lpm_parse(uri).path});
   let {file, redirect} = lpm_export_get(pkg, uri);
   if (redirect){
-    let _uri = TE_lpm_mod(uri)+'/'+file;
+    let _uri = TE_lpm_lmod(uri)+'/'+file;
     D && console.log('redirect export '+uri+' -> '+_uri);
     return OA(lpm_file, {redirect: _uri});
   }
@@ -1067,13 +1067,13 @@ async function lpm_file_resolve({log, uri, mod_self}){
   D && console.log('lpm_file_resolve', uri, mod_self);
   if (0 && uri=='npm/components/system/Desktop/Wallpapers/vantaWaves/wallpaper.worker'
     && mod_self=='npm/lif-os/lif-os-boot/main.tsx') debugger;
-  let lpm_pkg = await lpm_pkg_resolve({log, mod: TE_lpm_mod(uri),
-    mod_self: mod_self && TE_lpm_mod(mod_self)});
+  let lpm_pkg = await lpm_pkg_resolve({log, mod: TE_lpm_lmod(uri),
+    mod_self: mod_self && TE_lpm_lmod(mod_self)});
   if (lpm_pkg.redirect){
     let u = TE_lpm_parse(uri);
     return {redirect: lpm_pkg.redirect+u.path};
   }
-  lpm_pkg = await lpm_pkg_t[TE_lpm_mod(uri)];
+  lpm_pkg = await lpm_pkg_t[TE_lpm_lmod(uri)];
   let lpm_file = await lpm_file_get({log, uri});
   return lpm_file;
 }
@@ -1374,12 +1374,12 @@ let do_app_pkg = async function(boot_pkg){
     lpm_pkg.child = [];
     return lpm_pkg;
   });
-  let _lpm_app = TE_lpm_mod(TE_npm_to_lpm(lif.webapp));
+  let _lpm_app = TE_lpm_lmod(TE_npm_to_lpm(lif.webapp));
   let slow = eslow('app_pg lpm_get');
   let _lpm_pkg_app;
   try {
     _lpm_pkg_app = await lpm_pkg_resolve_follow({log,
-      mod: TE_lpm_mod(_lpm_app), mod_self: 'local/boot/'});
+      mod: TE_lpm_lmod(_lpm_app), mod_self: 'local/boot/'});
   } catch(err){
     console.error(err);
     throw app_init_wait.throw(err);

@@ -760,15 +760,15 @@ const lpm_str = T(TE_lpm_str);
 exports.lpm_str = lpm_str;
 const npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
 
-const TE_lpm_mod = lpm=>{
+const TE_lpm_lmod = lpm=>{
   let u = lpm;
   if (typeof lpm=='string')
     u = TE_lpm_parse(lpm);
   return u.lmod;
 };
-exports.TE_lpm_mod = TE_lpm_mod;
-const lpm_mod = T(TE_lpm_mod);
-exports.lpm_mod = lpm_mod;
+exports.TE_lpm_lmod = TE_lpm_lmod;
+const lpm_lmod = T(TE_lpm_lmod);
+exports.lpm_lmod = lpm_lmod;
 
 // parse-package-name: package.json:dependencies
 const TE_npm_dep_to_lpm = (mod_self, dep)=>{
@@ -1103,7 +1103,7 @@ function test_url_uri(){
     let u = TE_lpm_parse(lpm);
     assert_eq(path, u.path);
     assert_eq(mod, u.lmod);
-    assert_eq(mod, TE_lpm_mod(lpm));
+    assert_eq(mod, TE_lpm_lmod(lpm));
     assert_eq(lpm+(u.path_ommit?'/':''), TE_lpm_str(u));
   };
   t('local', 'local', '');
