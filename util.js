@@ -96,11 +96,13 @@ async function ecache(table, id, fn){
   t = table[id] = {id, wait: ewait()};
   try {
     ret = await fn(t);
+    t.wait_complete = true;
   } catch(err){
     throw t.wait.throw(err);
   }
   return t.wait.return(ret);
 }
+ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
 exports.ecache = ecache;
 
 // shortcuts

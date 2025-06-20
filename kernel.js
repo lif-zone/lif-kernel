@@ -925,21 +925,21 @@ async function _lpm_pkg_ver_get({log, mod}){
 }
 
 async function lpm_pkg_cache(mod){
-  let lpm_pkg = await lpm_pkg_t[mod];
+  let lpm_pkg = ecache.get_sync(lpm_pkg_t, mod);
   assert(lpm_pkg, 'lpm mod not in cache: '+mod);
   return lpm_pkg;
 }
 async function lpm_pkg_cache_follow(mod){
   let _mod = mod;
-  let lpm_pkg = await lpm_pkg_t[_mod];
-  for (let i=0; lpm_pkg.redirect && i<max_redirect; i++){
+  let lpm_pkg = ecache.get_sync(lpm_pkg_t, _mod);
+  for (let i=0; lpm_pkg?.redirect && i<max_redirect; i++){
     _mod = lpm_pkg.redirect;
-    lpm_pkg = await lpm_pkg_t[_mod].wait;
+    lpm_pkg = ecache.get_sync(lpm_pkg_t, _mod);
   }
   if (!lpm_pkg)
     console.info('mod('+mod+') follow not found: '+_mod);
-  else if (lpm_pkg.redirect)
-    throw Error('lpm_pkg_cache_follow max redirect: '+mod);
+  if (lpm_pkg?.redirect)
+    return; //throw Error('lpm_pkg_cache_follow max redirect: '+mod);
   return lpm_pkg;
 }
 
@@ -963,10 +963,15 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm_pkg){
   let _mod;
   for (let p = lpm_self; p; p = p.parent){
     let _p = p;
+    _p = await lpm_pkg_cache(p.mod);
+    if (_p.redirect)
+      _p = null;
     if (0 && p.redirect){
-      debugger;
+      //debugger;
       let __p = await lpm_pkg_cache_follow(p.mod);
-      console.log(_p, __p);
+      console.log(_p?.mod, '->', __p?.mod);
+      _p = null;
+      //_p = __p;
     }
     if (_p && (_mod = lpm_dep_lookup({lpm: _p, uri: mod})))
       break;
