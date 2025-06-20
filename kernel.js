@@ -1136,11 +1136,8 @@ let ctype_binary = path=>{
   let ctype = ctype_get(ext)?.ctype;
   if (!ctype)
     return false;
-  if (ctype.startsWith('audio/') || ctype.startsWith('image/') ||
-    ctype.startsWith('video/') || ctype.startsWith('font/'))
-  {
+  if (str.starts(ctype, 'audio/', 'image/', 'video/', 'font/'))
     return true;
-  }
   return false;
 };
 

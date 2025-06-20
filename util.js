@@ -133,47 +133,36 @@ str.es6_str = args=>{
 };
 str.qw = function(s){
   return str.split_ws(!Array.isArray(s) ? s : str.es6_str(arguments)); };
-str.starts = (s, start)=>{
-  if (Array.isArray(start)){
-    let v;
-    for (let i=0; i<start.length && !v; i++)
-      v = str.starts(s, start[i]);
-    return v;
+const arr_deep_find = exports.arr_deep_find = (a, find)=>{
+  if (!Array.isArray(a))
+    return find(a);
+  let v;
+  if (Array.isArray(a)){
+    for (let i=0; i<a.length; i++){
+      if (v = arr_deep_find(a[i], find))
+        return v;
+    }
   }
+};
+str.starts = (s, ..._start)=>arr_deep_find(_start, start=>{
+  let v;
   if (typeof start=='string'){
     if (s.startsWith(start))
       return {start, rest: s.slice(start.length)};
     return;
   }
   if (start instanceof RegExp){
-    let v;
     if ((v=s.match(start)) && v.index==0)
       return {start: v[0], rest: s.slice(v[0].length)};
     return;
   }
   throw Error('invalid str.starts type');
-};
-str.ends = (s, end)=>{
-  if (Array.isArray(end)){
-    let v;
-    for (let i=0; i<end.length && !v; i++)
-      v = str.ends(s, end[i]);
-    return v;
-  }
+});
+str.ends = (s, ..._end)=>arr_deep_find(_end, end=>{
   if (s.endsWith(end))
     return {end, rest: s.slice(0, s.length-end.length)};
-};
-str.is = (s, ...is)=>{
-  for (let i=0; i<is.length; i++){
-    if (Array.isArray(is[i])){
-      if (is[i].includes(s))
-        return true;
-    }
-    else if (is[i]==s)
-      return true;
-  }
-  return false;
-};
+});
+str.is = (s, ..._is)=>arr_deep_find(_is, is=>s==is)||false;
 str.splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 str.diff_pos = (s1, s2)=>{
   if (s1==s2)
@@ -460,28 +449,32 @@ function test_path(){
   t(true, 'ab', ['', 'ab']);
   t(true, 'D', ['d', ['abc', '', 'D']]);
   t(false, 'D', ['d', ['abc', '', 'd']]);
-  t = (s, pre, v)=>assert_obj(v ? {start: v[0], rest: v[1]} : undefined,
-    str.starts(s, pre));
+  t = (s, pre, v)=>{
+    assert_obj(v ? {start: v[0], rest: v[1]} : undefined, str.starts(s, pre));
+    assert_obj(v ? {start: v[0], rest: v[1]} : undefined, str.starts(s, ...pre));
+  };
   t('ab:cd', [''], ['', 'ab:cd']);
   t('ab:cd', ['ab:'], ['ab:', 'cd']);
-  t('ab:cd', ['ac:'], undefined);
+  t('ab:cd', ['ac:']);
   t('ab:cd', ['ab', 'ab.', 'ac:'], ['ab', ':cd']);
   t('ab:cd', ['ab:', 'ab', 'ac:'], ['ab:', 'cd']);
   t('ab:cd', ['ab:', 'ac:'], ['ab:', 'cd']);
-  t('ab:cd', ['cd'], undefined);
-  t('ab:cd', [/b:/], undefined);
+  t('ab:cd', ['cd']);
+  t('ab:cd', [/b:/]);
   t('ab:cd', [/ab:/], ['ab:', 'cd']);
   t('ab:cd', [/^ab:/], ['ab:', 'cd']);
-  t = (s, pre, v)=>assert_obj(v ? {end: v[0], rest: v[1]} : undefined,
-    str.ends(s, pre));
+  t = (s, pre, v)=>{
+    assert_obj(v ? {end: v[0], rest: v[1]} : undefined, str.ends(s, pre));
+    assert_obj(v ? {end: v[0], rest: v[1]} : undefined, str.ends(s, ...pre));
+  };
   t('ab:cd', [''], ['', 'ab:cd']);
   t('ab:cd', [':cd'], [':cd', 'ab']);
-  t('ab:cd', ['ac:'], undefined);
-  t('ab:cd', [':dc'], undefined);
+  t('ab:cd', ['ac:']);
+  t('ab:cd', [':dc']);
   t('ab:cd', ['cd', 'cd.', 'ac:'], ['cd', 'ab:']);
   t('ab:cd', ['ab:', ':c', ':cd'], [':cd', 'ab']);
   t('ab:cd', ['ab:', ':', 'd'], ['d', 'ab:c']);
-  t('ab:cd', ['ab'], undefined);
+  t('ab:cd', ['ab']);
   t = (v, path)=>assert_eq(v, path_ext(path));
   t(undefined, 'dir.js/file');
   t('.js', 'dir.js/file.js');
