@@ -1099,11 +1099,11 @@ function test_url_uri(){
   t('local/file.js', '.local/file.js');
   t('local/dir/file.js', '.local/dir/file.js');
   t('local/sub//dir/file.js', '.local/sub//dir/file.js');
-  t = (lpm, mod, path)=>{
+  t = (lpm, lmod, path)=>{
     let u = T_lpm_parse(lpm);
     assert_eq(path, u.path);
-    assert_eq(mod, u.lmod);
-    assert_eq(mod, T_lpm_lmod(lpm));
+    assert_eq(lmod, u.lmod);
+    assert_eq(lmod, T_lpm_lmod(lpm));
     assert_eq(lpm+(u.path_ommit?'/':''), T_lpm_str(u));
   };
   t('local', 'local', '');
