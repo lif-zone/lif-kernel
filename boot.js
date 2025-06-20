@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq,
-  path_file, path_dir, OF, OA, assert, TE_to_null, TE_npm_to_lpm,
+  path_file, path_dir, OF, OA, assert, T, TE_npm_to_lpm,
   TE_npm_url_base, uri_enc, qs_enc, qs_append,
   lpm_parse, npm_to_lpm, lpm_to_npm,
   _debugger} = util;
@@ -108,7 +108,7 @@ const lpm_2url = (mod_self, url, opt)=>{
   if (u.is.uri)
     return qs_append(url, q);
   let _url = '/.lif/'+TE_npm_to_lpm(u.path);
-  if (!u.mod.ver && !npm_map[u.mod.name])
+  if (!u.lmod.ver && !npm_map[u.lmod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
     q.cjs = 1;
@@ -132,8 +132,7 @@ function test(){
 }
 test();
 
-let url_expand = 
-  TE_to_null(url=>(new URL(url, globalThis.location)).href || url);
+let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
 async function require_single(mod_self, module_id){
   let m;

@@ -916,12 +916,12 @@ async function _lpm_pkg_ver_get({log, mod}){
   let u = TE_lpm_parse(mod);
   if (!lpm_ver_missing(u))
     return;
-  let pv = await lpm_pkg_ver_get({log, mod: u.mod});
+  let pv = await lpm_pkg_ver_get({log, mod: u.lmod});
   if (!pv)
-    throw Error('no pkg_ver found: '+u.mod); 
+    throw Error('no pkg_ver found: '+u.lmod); 
   u.ver = lpm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
   if (!u.ver)
-    throw Error('failed mod '+u.mod+' getting pkg_ver list');
+    throw Error('failed mod '+u.lmod+' getting pkg_ver list');
   return TE_lpm_str(u);
 }
 

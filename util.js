@@ -89,22 +89,6 @@ eslow.print = ()=>{
 exports.eslow = eslow;
 self.esb = eslow;
 
-async function ecache(table, id, fn){
-  let t, ret;
-  if (t = table[id])
-    return await t.wait;
-  t = table[id] = {id, wait: ewait()};
-  try {
-    ret = await fn(t);
-    t.wait_complete = true;
-  } catch(err){
-    throw t.wait.throw(err);
-  }
-  return t.wait.return(ret);
-}
-ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
-exports.ecache = ecache;
-
 // shortcuts
 const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
@@ -118,23 +102,19 @@ const TV = (fn, v)=>(function(){ // convert throw Error to value
   }
 });
 exports.TV = TV;
-const TN = fn=>(function(){ // convert throw Error to null
+const T = fn=>(function(){ // convert throw Error to undefined
   try {
     return fn(...arguments);
-  } catch(err){
-    return null;
-  }
+  } catch(err){}
 });
-exports.TN = TN;
-const TE_to_null = TN;
-exports.TE_to_null = TN;
-const TE = fn=>(function(){ // Throw error on false/null/0
+exports.T = T;
+const TU = fn=>(function(){ // Throw error on undefined
   let v = fn(...arguments);
-  if (!v)
+  if (v===undefined)
     throw Error('failed '+fn.name);
   return v;
 });
-exports.TE = TE;
+exports.TU = TU;
 
 // str.js
 const str = {};
@@ -565,7 +545,7 @@ const TE_url_parse = (url, base)=>{
   _u.dir = path_dir(_u.path);
   return _u;
 };
-const url_parse = TE_to_null(TE_url_parse);
+const url_parse = T(TE_url_parse);
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -659,7 +639,7 @@ const TE_lpm_parse = lpm=>{
       return {name: n[0], ver: '@'+n[1], _ver: n[1]};
     throw Error('lpm_parse invalid ver inname: '+name);
   }
-  let v, mod, repo;
+  let v, lmod, repo;
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
   switch (l.reg){
   case 'npm':
@@ -675,7 +655,7 @@ const TE_lpm_parse = lpm=>{
     }
     l.ver = v.ver;
     l._ver = v._ver;
-    l.mod = l.reg+'/'+l.name+l.ver;
+    l.lmod = l.reg+'/'+l.name+l.ver;
     break;
   case 'git':
     l.site = next('site');
@@ -694,7 +674,7 @@ const TE_lpm_parse = lpm=>{
         'name';
     } else
       l.ver_type = 'name';
-    l.mod = l.reg+'/'+l.site+'/'+l.name+l.ver;
+    l.lmod = l.reg+'/'+l.site+'/'+l.name+l.ver;
     break;
   case 'http':
   case 'https':
@@ -704,38 +684,38 @@ const TE_lpm_parse = lpm=>{
     l.ver = v.ver;
     l._ver = v._ver;
     l.port = v._ver;
-    l.mod = l.reg+'/'+l.blockid;
+    l.lmod = l.reg+'/'+l.blockid;
     break;
   case 'bittorent':
     l.infohash = next('InfoHash');
     break;
   case 'lifcoin':
     l.blockid = next('BlockID');
-    l.mod = l.reg+'/'+l.blockid;
+    l.lmod = l.reg+'/'+l.blockid;
     break;
   case 'bitcoin':
     l.blockid = next('BlockID');
-    l.mod = l.reg+'/'+l.blockid;
+    l.lmod = l.reg+'/'+l.blockid;
     break;
   case 'ethereum':
     throw Error('unsupported etherum '+lpm);
     break;
   case 'ipfs':
     l.cid = next('cid');
-    l.mod = l.reg+'/'+l.cid;
+    l.lmod = l.reg+'/'+l.cid;
     break;
   case 'ipns':
     l.name = next('name');
-    l.mod = l.reg+'/'+l.name;
+    l.lmod = l.reg+'/'+l.name;
     break;
   case 'local':
-    l.mod = l.reg;
+    l.lmod = l.reg;
     break;
   default:
     throw Error('invalid registry: '+lpm);
   }
   l.submod = next_submod();
-  l.mod += l.submod;
+  l.lmod += l.submod;
   let _p = p.slice(i);
   l.path = path_parts(_p);
   if (path_ommit){
@@ -745,7 +725,7 @@ const TE_lpm_parse = lpm=>{
   return l;
 };
 exports.TE_lpm_parse = TE_lpm_parse;
-const lpm_parse = TE_to_null(TE_lpm_parse);
+const lpm_parse = T(TE_lpm_parse);
 exports.lpm_parse = lpm_parse;
 const TE_lpm_str = l=>{
   switch (l.reg){
@@ -776,7 +756,7 @@ const TE_lpm_str = l=>{
   }
 };
 exports.TE_lpm_str = TE_lpm_str;
-const lpm_str = TE_to_null(TE_lpm_str);
+const lpm_str = T(TE_lpm_str);
 exports.lpm_str = lpm_str;
 const npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
 
@@ -784,10 +764,10 @@ const TE_lpm_mod = lpm=>{
   let u = lpm;
   if (typeof lpm=='string')
     u = TE_lpm_parse(lpm);
-  return u.mod;
+  return u.lmod;
 };
 exports.TE_lpm_mod = TE_lpm_mod;
-const lpm_mod = TE_to_null(TE_lpm_mod);
+const lpm_mod = T(TE_lpm_mod);
 exports.lpm_mod = lpm_mod;
 
 // parse-package-name: package.json:dependencies
@@ -825,11 +805,11 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
   // add later bittorent: lifcoin: bitcoin: ethereum: ipfs: ipns:
   throw Error('invalid npm_dep prefix: '+dep);
 };
-const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
+const npm_dep_to_lpm = T(TE_npm_dep_to_lpm);
 // npm_parse() and lpm_parse(), and npm_parse_basic()
 const TE_npm_parse = npm=>TE_lpm_parse(TE_npm_to_lpm(npm));
 exports.TE_npm_parse = TE_npm_parse;
-const npm_parse = TE_to_null(TE_npm_parse);
+const npm_parse = T(TE_npm_parse);
 exports.npm_parse = npm_parse;
 
 let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
@@ -844,15 +824,15 @@ let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
     return 'local'+v.rest;
   throw Error('invalid npm: '+npm);
 };
-let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
+let npm_to_lpm = exports.npm_to_lpm = T(TE_npm_to_lpm);
 
 let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
   let u = typeof lpm=='string' ? TE_lpm_parse(lpm) : lpm;
   if (u.reg=='npm')
-    return u.mod.slice(4)+u.path;
-  return '.'+u.mod+u.path;
+    return u.lmod.slice(4)+u.path;
+  return '.'+u.lmod+u.path;
 };
-let lpm_to_npm = exports.lpm_to_npm = TE_to_null(TE_lpm_to_npm);
+let lpm_to_npm = exports.lpm_to_npm = T(TE_lpm_to_npm);
 
 let lpm_to_sw_uri = lpm=>{
   let v;
@@ -946,7 +926,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.mod = TE_npm_parse(u.path);
+    u.lmod = TE_npm_parse(u.path);
     return u;
   }
   if (t=='rel' && tbase=='mod'){
@@ -955,12 +935,12 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.mod = TE_npm_parse(u.path);
+    u.lmod = TE_npm_parse(u.path);
     return u;
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
 };
-const npm_url_base = TE_to_null(TE_npm_url_base);
+const npm_url_base = T(TE_npm_url_base);
 
 let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
@@ -1004,7 +984,7 @@ let TE_semver_range_parse = semver_range=>{
   return range;
 };
 exports.TE_semver_range_parse = TE_semver_range_parse;
-let semver_range_parse = TE_to_null(TE_semver_range_parse);
+let semver_range_parse = T(TE_semver_range_parse);
 exports.semver_range_parse = semver_range_parse;
 
 function test_url_uri(){
@@ -1042,34 +1022,34 @@ function test_url_uri(){
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
-    mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
+    lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
-    mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
+    lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
     assert_obj(v, t=TE_lpm_parse(lpm));
     assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
-    mod: 'local', path: '/package.json'});
+    lmod: 'local', path: '/package.json'});
   t('local/mod/sub//package.json', {reg: 'local', submod: '/mod/sub/',
-    mod: 'local/mod/sub/', path: '/package.json'});
+    lmod: 'local/mod/sub/', path: '/package.json'});
   t('local/mod/sub//dir/file', {reg: 'local', submod: '/mod/sub/',
-    mod: 'local/mod/sub/', path: '/dir/file'});
+    lmod: 'local/mod/sub/', path: '/dir/file'});
   t('local/mod/dir/', {reg: 'local', submod: '/mod/dir/',
-    mod: 'local/mod/dir/', path: '/', path_ommit: true});
+    lmod: 'local/mod/dir/', path: '/', path_ommit: true});
   t('local/mod/sub//', {reg: 'local', submod: '/mod/sub/',
-    mod: 'local/mod/sub/', path: '/'});
+    lmod: 'local/mod/sub/', path: '/'});
   t('npm/mod/dir/file', {reg: 'npm', submod: '',
-    mod: 'npm/mod', path: '/dir/file'});
+    lmod: 'npm/mod', path: '/dir/file'});
   t('npm/mod/dir/file', {reg: 'npm', submod: '',
-    mod: 'npm/mod', path: '/dir/file'});
+    lmod: 'npm/mod', path: '/dir/file'});
   t('npm/mod/dir/', {reg: 'npm', submod: '/dir/',
-    mod: 'npm/mod/dir/', path: '/', path_ommit: true});
+    lmod: 'npm/mod/dir/', path: '/', path_ommit: true});
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
-    mod: 'npm/mod/sub/', path: '/'});
+    lmod: 'npm/mod/sub/', path: '/'});
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
@@ -1104,7 +1084,7 @@ function test_url_uri(){
   t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
   t('.local', 'local');
   t('.local/file.js', 'local/file.js');
-  t('.none/github/a_user/a_repo/dir/file', null);
+  t('.none/github/a_user/a_repo/dir/file');
   t = (lpm, v)=>assert_eq(v, lpm_to_sw_uri(lpm));
   t('local/dir/file.js', '/dir/file.js');
   t('npm/mod/file.js', '/.lif/npm/mod/file.js');
@@ -1122,7 +1102,7 @@ function test_url_uri(){
   t = (lpm, mod, path)=>{
     let u = TE_lpm_parse(lpm);
     assert_eq(path, u.path);
-    assert_eq(mod, u.mod);
+    assert_eq(mod, u.lmod);
     assert_eq(mod, TE_lpm_mod(lpm));
     assert_eq(lpm+(u.path_ommit?'/':''), TE_lpm_str(u));
   };
@@ -1166,11 +1146,11 @@ function test_url_uri(){
   t('v1.2.3-ab', [{ver: '1.2.3-ab'}]);
   t('1.2.3 >=v1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
   t(' = 1.2.3 >= 1.3.4 ', [{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
-  t('=1.2.3 +1.3.4', null);
-  t('=1.2.3 x.2.3', null);
+  t('=1.2.3 +1.3.4');
+  t('=1.2.3 x.2.3');
   t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
     {op: '^', ver: '4.5.6'}]);
-  t('  ', null);
+  t('  ');
 }
 test_url_uri();
 
@@ -1285,6 +1265,22 @@ function test_Scroll(){
   t('012ABCD5-QW-  -89abcdef');
 }
 test_Scroll();
+
+async function ecache(table, id, fn){
+  let t, ret;
+  if (t = table[id])
+    return await t.wait;
+  t = table[id] = {id, wait: ewait()};
+  try {
+    ret = await fn(t);
+    t.wait_complete = true;
+  } catch(err){
+    throw t.wait.throw(err);
+  }
+  return t.wait.return(ret);
+}
+ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
+exports.ecache = ecache;
 
 exports.html_elm = (name, attr)=>{
   let elm = document.createElement(name);
