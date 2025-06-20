@@ -915,12 +915,12 @@ const T_npm_url_base = (url_uri, base_uri)=>{
   is.mod = 1;
   let base = base_uri ? T_npm_parse(base_uri) : undefined;
   if (t=='mod'){
-    let mod = T_npm_parse(url_uri);
+    let lpm = T_npm_parse(url_uri);
     let uri = url_uri;
-    if (lpm_ver_from_base(mod, base)){
+    if (lpm_ver_from_base(lpm, base)){
       is.rel_ver = 1;
-      mod.ver = base.ver;
-      uri = npm_str(mod);
+      lpm.ver = base.ver;
+      uri = npm_str(lpm);
     }
     u = __uri_parse('/'+uri);
     u.is = is;
