@@ -869,24 +869,24 @@ const lpm_ver_missing = exports.lpm_ver_missing = u=>{
   return str.is(u.reg, 'npm', 'git') && !u.ver;
 };
 const _lpm_parse = exports._lpm_parse =
-  mod=>typeof mod=='string' ? lpm_parse(mod) : mod;
-const lpm_same_base = (mod_a, mod_b)=>{
-  let a = _lpm_parse(mod_a), b = _lpm_parse(mod_b);
+  lpm=>typeof lpm=='string' ? lpm_parse(lpm) : lpm;
+const lpm_same_base = (lmod_a, lmod_b)=>{
+  let a = _lpm_parse(lmod_a), b = _lpm_parse(lmod_b);
   return a.reg==b.reg && a.name==b.name;
 };
-const lpm_ver_from_base = exports.lpm_ver_from_base = (mod, base)=>{
+const lpm_ver_from_base = exports.lpm_ver_from_base = (lpm, base)=>{
   if (!base)
     return;
-  mod = _lpm_parse(mod);
+  lpm = _lpm_parse(lpm);
   base = _lpm_parse(base);
-  if (!(lpm_same_base(mod, base) && lpm_ver_missing(mod) && base.ver))
+  if (!(lpm_same_base(lpm, base) && lpm_ver_missing(lpm) && base.ver))
     return;
-  return lpm_str({...mod, ver: base.ver});
+  return lpm_str({...lpm, ver: base.ver});
 };
-const npm_ver_from_base = exports.npm_ver_from_base = (mod, base)=>{
+const npm_ver_from_base = exports.npm_ver_from_base = (npm, base)=>{
   if (!base)
     return;
-  let v = lpm_ver_from_base(npm_to_lpm(mod), npm_to_lpm(base));
+  let v = lpm_ver_from_base(npm_to_lpm(npm), npm_to_lpm(base));
   if (!v)
     return;
   return lpm_to_npm(v);
