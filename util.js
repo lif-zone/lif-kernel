@@ -626,23 +626,23 @@ const url_parse = TE_to_null(TE_url_parse);
 // import {groupBy} from 'npm:lodash@4.17.21';
 
 const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
-const TE_lpm_parse = uri=>{
+const TE_lpm_parse = lpm=>{
   let l = {};
-  let p = uri.split('/');
+  let p = lpm.split('/');
   let i = 0;
   let path_ommit;
   function next(err){
     let v = p[i++];
     if (typeof v!='string')
-      throw Error('lpm_parse missing'+err+': '+uri);
+      throw Error('lpm_parse missing'+err+': '+lpm);
     if (v=='')
-      throw Error('lpm_parse empty element: '+uri);
+      throw Error('lpm_parse empty element: '+lpm);
     return v;
   }
   function next_submod(){
     let j = p.indexOf('', i);
     if (j==i)
-      throw Error('invalid empty submod: '+uri);
+      throw Error('invalid empty submod: '+lpm);
     if (j<0)
       return '';
     if (j==p.length-1)
@@ -718,7 +718,7 @@ const TE_lpm_parse = uri=>{
     l.mod = l.reg+'/'+l.blockid;
     break;
   case 'ethereum':
-    throw Error('unsupported etherum '+uri);
+    throw Error('unsupported etherum '+lpm);
     break;
   case 'ipfs':
     l.cid = next('cid');
@@ -732,7 +732,7 @@ const TE_lpm_parse = uri=>{
     l.mod = l.reg;
     break;
   default:
-    throw Error('invalid registry: '+uri);
+    throw Error('invalid registry: '+lpm);
   }
   l.submod = next_submod();
   l.mod += l.submod;
@@ -780,10 +780,10 @@ const lpm_str = TE_to_null(TE_lpm_str);
 exports.lpm_str = lpm_str;
 const npm_uri_str = exports.npm_uri_str = u=>lpm_to_npm(lpm_str(u));
 
-const TE_lpm_mod = uri=>{
-  let u = uri;
-  if (typeof uri=='string')
-    u = TE_lpm_parse(uri);
+const TE_lpm_mod = lpm=>{
+  let u = lpm;
+  if (typeof lpm=='string')
+    u = TE_lpm_parse(lpm);
   return u.mod;
 };
 exports.TE_lpm_mod = TE_lpm_mod;
