@@ -130,7 +130,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   lpm_uri_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   TE_lpm_uri_parse, TE_lpm_uri_str, npm_uri_str, lpm_ver_missing,
   uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
-  esleep, eslow, Scroll, _debugger, assert_eq, assert_objv, Donce} = util;
+  esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
 let json = JSON.stringify;
 let clog = console.log.bind(console);
@@ -1271,7 +1271,7 @@ async function kernel_fetch(event){
 
 function test_lpm(){
   let t, pkg;
-  t = (path, match, tr, v)=>assert_objv(v, path_match(path, match, tr));
+  t = (path, match, tr, v)=>assert_obj(v, path_match(path, match, tr));
   t('file', 'file', null, true);
   t('file', 'file', {x: 1}, {x: 1});
   t('file', 'f', undefined);
@@ -1318,7 +1318,7 @@ function test_lpm(){
   pkg = {lif: {dependencies: {mod: '/mod', react: 'react@18.3.1'}}};
   t(pkg, 'npm/mod', 'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
   t(pkg, 'npm/mod', 'local/file', 'local/file');
-  t = (file, alt, v)=>assert_objv(v, pkg_alt_get({lif: {alt}}, file));
+  t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
   t('a/file', undefined, ['.js']);
   t('a/file.ts', undefined, undefined);
@@ -1327,9 +1327,9 @@ function test_lpm(){
   t('a/file.xjs', ['.xjs', '.js'], undefined);
   t('a/file.ico', ['.xjs'], undefined);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
-  t = (pkg, file, v)=>assert_objv(v, pkg_export_lookup(pkg, file));
+  t = (pkg, file, v)=>assert_obj(v, pkg_export_lookup(pkg, file));
   // check 'package.json' is not modified, even if pkg is null
-  t = (pkg, uri, v)=>assert_objv(v, pkg_web_export_lookup(pkg, uri));
+  t = (pkg, uri, v)=>assert_obj(v, pkg_web_export_lookup(pkg, uri));
   pkg = {web_exports: {
     '/dir': '/dir',
     '/d1/d2/': './other/',

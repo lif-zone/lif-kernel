@@ -214,13 +214,13 @@ let assert = (ok, exp, res)=>{
 let assert_eq = (exp, res)=>{
   assert(exp===res, exp, res);
 };
-let assert_objv = (exp, res)=>{ // XXX rename assert_obj
+let assert_obj = (exp, res)=>{
   if (exp===res)
     return;
   if (typeof exp=='object'){
     assert(typeof res=='object', exp, res);
     for (let i in exp)
-      assert_objv(exp[i], res[i]);
+      assert_obj(exp[i], res[i]);
     return;
   }
   assert(0, exp, res);
@@ -243,7 +243,7 @@ let assert_run_ab = (a, b, test)=>{
 };
 exports.assert = assert;
 exports.assert_eq = assert_eq;
-exports.assert_objv = assert_objv;
+exports.assert_obj = assert_obj;
 exports.assert_run_ab = assert_run_ab;
 
 // chan.js
@@ -480,7 +480,7 @@ function test_path(){
   t(true, 'ab', ['', 'ab']);
   t(true, 'D', ['d', ['abc', '', 'D']]);
   t(false, 'D', ['d', ['abc', '', 'd']]);
-  t = (s, pre, v)=>assert_objv(v ? {start: v[0], rest: v[1]} : undefined,
+  t = (s, pre, v)=>assert_obj(v ? {start: v[0], rest: v[1]} : undefined,
     str.starts(s, pre));
   t('ab:cd', [''], ['', 'ab:cd']);
   t('ab:cd', ['ab:'], ['ab:', 'cd']);
@@ -492,7 +492,7 @@ function test_path(){
   t('ab:cd', [/b:/], undefined);
   t('ab:cd', [/ab:/], ['ab:', 'cd']);
   t('ab:cd', [/^ab:/], ['ab:', 'cd']);
-  t = (s, pre, v)=>assert_objv(v ? {end: v[0], rest: v[1]} : undefined,
+  t = (s, pre, v)=>assert_obj(v ? {end: v[0], rest: v[1]} : undefined,
     str.ends(s, pre));
   t('ab:cd', [''], ['', 'ab:cd']);
   t('ab:cd', [':cd'], [':cd', 'ab']);
@@ -1008,7 +1008,7 @@ let semver_range_parse = TE_to_null(TE_semver_range_parse);
 exports.semver_range_parse = semver_range_parse;
 
 function test_url_uri(){
-  let t = (v, arg)=>assert_objv(v, TE_npm_url_base(...arg));
+  let t = (v, arg)=>assert_obj(v, TE_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
@@ -1038,7 +1038,7 @@ function test_url_uri(){
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
   t({path: '.git/github/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
     ['./c/d', '.git/github/user/repo@1.2.3/a/b']);
-  t = (npm, v)=>assert_objv(v, TE_npm_uri_parse(npm));
+  t = (npm, v)=>assert_obj(v, TE_npm_uri_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
@@ -1049,7 +1049,7 @@ function test_url_uri(){
     mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
-    assert_objv(v, t=TE_lpm_uri_parse(lpm));
+    assert_obj(v, t=TE_lpm_uri_parse(lpm));
     assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_uri_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
@@ -1154,14 +1154,14 @@ function test_url_uri(){
   t('local/dir/file', 'local/dir@1.2.3/file');
   t('git/github/user/repo/dir', 'git/github/user/repo@1.2.3/file',
     'git/github/user/repo@1.2.3/dir');
-  t = (semver, v)=>assert_objv(v, semver_parse(semver));
+  t = (semver, v)=>assert_obj(v, semver_parse(semver));
   t('1.2.3', {ver: '1.2.3', rel: ''});
   t('1.2.3-abc', {ver: '1.2.3', rel: '-abc'});
   t('1.2.3-abc2-341.3', {ver: '1.2.3', rel: '-abc2-341.3'});
   t('x1.2.3-abc2-341.3');
   t('1.2.3x-abc2-341.3');
   t('1.2.3-a_');
-  t = (range, v)=>assert_objv(v, semver_range_parse(range));
+  t = (range, v)=>assert_obj(v, semver_range_parse(range));
   t('1.2.3', [{ver: '1.2.3'}]);
   t('v1.2.3-ab', [{ver: '1.2.3-ab'}]);
   t('1.2.3 >=v1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
