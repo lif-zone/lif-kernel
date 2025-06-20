@@ -884,19 +884,23 @@ const __uri_parse = (uri, base)=>{
   return u;
 };
 
-const lpm_ver_missing = exports.lpm_ver_missing =
-  u=>str.is(u.reg, 'npm', 'git') && !u.ver;
-
+const lpm_ver_missing = exports.lpm_ver_missing = u=>{
+  u = _lpm_uri_parse(u);
+  return str.is(u.reg, 'npm', 'git') && !u.ver;
+};
+const _lpm_uri_parse = exports._lpm_uri_parse =
+  mod=>typeof mod=='string' ? lpm_uri_parse(mod) : mod;
+const lpm_same_base = (mod_a, mod_b)=>{
+  let a = _lpm_uri_parse(mod_a), b = _lpm_uri_parse(mod_b);
+  return a.reg==b.reg && a.name==b.name;
+};
 const lpm_ver_from_base = exports.lpm_ver_from_base = (mod, base)=>{
   if (!base)
     return;
-  mod = mod.mod ? mod : lpm_uri_parse(mod);
-  base = base.mod ? base : lpm_uri_parse(base);
-  if (!(mod.reg==base.reg && mod.name==base.name &&
-    lpm_ver_missing(mod) && base.ver))
-  {
+  mod = _lpm_uri_parse(mod);
+  base = _lpm_uri_parse(base);
+  if (!(lpm_same_base(mod, base) && lpm_ver_missing(mod) && base.ver))
     return;
-  }
   return lpm_uri_str({...mod, ver: base.ver});
 };
 const npm_ver_from_base = exports.npm_ver_from_base = (mod, base)=>{

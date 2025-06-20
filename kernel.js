@@ -876,6 +876,7 @@ function assert_mod(mod){
 
 async function lpm_pkg_ver_get({log, mod}){
 return await ecache(lpm_pkg_ver_t, mod, async function run(pv){
+  D && console.log('lpm_pkg_ver_get '+mod);
   pv.mod = mod;
   pv.log = log;
   let uri = pv.mod+'/--get-ver--/';
@@ -1064,6 +1065,8 @@ async function lpm_pkg_resolve_follow({log, mod, mod_self}){
 
 async function lpm_file_resolve({log, uri, mod_self}){
   D && console.log('lpm_file_resolve', uri, mod_self);
+  if (0 && uri=='npm/components/system/Desktop/Wallpapers/vantaWaves/wallpaper.worker'
+    && mod_self=='npm/lif-os/lif-os-boot/main.tsx') debugger;
   let lpm_pkg = await lpm_pkg_resolve({log, mod: TE_lpm_mod(uri),
     mod_self: mod_self && TE_lpm_mod(mod_self)});
   if (lpm_pkg.redirect){
@@ -1237,7 +1240,7 @@ async function _kernel_fetch(event){
   let uri;
   if (!lpm_pkg_app)
     console.info('req before lpm_pkg_app init '+path);
-  else if (uri = pkg_web_export_lookup(lpm_pkg_app, path)){
+  else if (uri = pkg_web_export_lookup(lpm_pkg_app.pkg, path)){
     if (!uri.startsWith('./'))
       throw Error('invalid web_exports '+path+' -> '+uri);
     uri = '/.lif/'+lpm_app+uri.slice(1)+'?raw=1';
