@@ -564,11 +564,11 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
     return val;
   };
   let lmod = T_lpm_lmod(mod_uri);
-  let npm_mod = T_lpm_to_npm(lmod);
+  let npm = T_lpm_to_npm(lmod);
   let path = T_lpm_parse(mod_uri).path;
   let get_dep = dep=>{
     let d, v;
-    if (!(d = dep?.[npm_mod]))
+    if (!(d = dep?.[npm]))
       return;
     if (d[0]=='/')
       return X('root', T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
@@ -871,7 +871,7 @@ async function reg_get_alt({log, uri, alt}){
 }
 
 let max_redirect = 8;
-function assert_mod(lmod){
+function assert_lmod(lmod){
   assert(lmod==T_lpm_lmod(lmod), 'invalid pkg lmod: '+lmod); }
 
 async function lpm_pkg_ver_get({log, lmod}){
@@ -931,14 +931,14 @@ async function lpm_pkg_cache(lmod){
   return lpm_pkg;
 }
 async function lpm_pkg_cache_follow(lmod){
-  let _mod = lmod;
-  let lpm_pkg = ecache.get_sync(lpm_pkg_t, _mod);
+  let _lmod = lmod;
+  let lpm_pkg = ecache.get_sync(lpm_pkg_t, _lmod);
   for (let i=0; lpm_pkg?.redirect && i<max_redirect; i++){
-    _mod = lpm_pkg.redirect;
-    lpm_pkg = ecache.get_sync(lpm_pkg_t, _mod);
+    _lmod = lpm_pkg.redirect;
+    lpm_pkg = ecache.get_sync(lpm_pkg_t, _lmod);
   }
   if (!lpm_pkg)
-    console.info('lmod('+lmod+') follow not found: '+_mod);
+    console.info('lmod('+lmod+') follow not found: '+_lmod);
   if (lpm_pkg?.redirect)
     return; //throw Error('lpm_pkg_cache_follow max redirect: '+lmod);
   return lpm_pkg;
@@ -948,10 +948,10 @@ async function lpm_pkg_get({log, lmod, mod_self}){
 return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   D && console.log('lpm_pkg_get', lmod, mod_self);
   lpm_pkg.lmod = lmod;
-  assert_mod(lmod);
+  assert_lmod(lmod);
   let lpm_self;
   if (mod_self){
-    assert_mod(mod_self);
+    assert_lmod(mod_self);
     lpm_self = await lpm_pkg_cache(mod_self);
   }
   if (!lpm_self)
@@ -961,7 +961,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_self.child.push(lpm_pkg);
   lpm_pkg.child = [];
   lpm_pkg.log = log;
-  let _mod;
+  let _lmod;
   for (let p = lpm_self; p; p = p.parent){
     let _p = p;
     _p = await lpm_pkg_cache(p.lmod);
@@ -974,29 +974,29 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
       _p = null;
       //_p = __p;
     }
-    if (_p && (_mod = lpm_dep_lookup({lpm: _p, uri: lmod})))
+    if (_p && (_lmod = lpm_dep_lookup({lpm: _p, uri: lmod})))
       break;
   }
-  if (!_mod)
-    _mod = lmod;
+  if (!_lmod)
+    _lmod = lmod;
   let is_peer, v;
-  if (v=str.starts(_mod, 'peer:')){
-    _mod = v.rest;
+  if (v=str.starts(_lmod, 'peer:')){
+    _lmod = v.rest;
     is_peer = true;
   }
-  let u = T_lpm_parse(_mod);
-  if (_mod!=lmod){
-    D && console.log('redirect ver/other-lpm '+lmod+' -> '+_mod);
-    return OA(lpm_pkg, {redirect: _mod}); // version or other lpm
+  let u = T_lpm_parse(_lmod);
+  if (_lmod!=lmod){
+    D && console.log('redirect ver/other-lpm '+lmod+' -> '+_lmod);
+    return OA(lpm_pkg, {redirect: _lmod}); // version or other lpm
   }
   if (u.reg=='npm' && !u.ver){
-    let v = await _lpm_pkg_ver_get({log, lmod: _mod});
+    let v = await _lpm_pkg_ver_get({log, lmod: _lmod});
     if (!v)
       throw Error('no pkg versions found for '+lmod);
     D && console.log('redirect ver??? '+lmod+' -> '+v);
     return OA(lpm_pkg, {redirect: v});
   }
-  let reg = await reg_get({log, uri: _mod+'/package.json'});
+  let reg = await reg_get({log, uri: _lmod+'/package.json'});
   if (reg.not_exist)
     return OA(lpm_pkg, reg);
   lpm_pkg.blob = reg.blob;
@@ -1004,7 +1004,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   try {
     lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
   } catch(err){
-    throw Error('lmod('+_mod+'): '+err);
+    throw Error('lmod('+_lmod+'): '+err);
   }
   return lpm_pkg;
 }); }
@@ -1041,10 +1041,10 @@ return await ecache(lpm_file_t, uri, async function run(lpm_file){
 
 async function lpm_pkg_resolve({log, lmod, mod_self}){
   D && console.log('lpm_pkg_resolve', lmod, mod_self);
-  assert_mod(lmod);
+  assert_lmod(lmod);
   if (mod_self){
-    let _mod = npm_ver_from_base(lmod, mod_self);
-    if (_mod && _mod!=lmod)
+    let _lmod = npm_ver_from_base(lmod, mod_self);
+    if (_lmod && _lmod!=lmod)
       return {redirect: lmod};
   }
   let lpm_pkg = await lpm_pkg_get({log, lmod, mod_self});
@@ -1052,15 +1052,15 @@ async function lpm_pkg_resolve({log, lmod, mod_self}){
 }
 
 async function lpm_pkg_resolve_follow({log, lmod, mod_self}){
-  let _mod = lmod, _mod_self = mod_self;
+  let _lmod = lmod, _mod_self = mod_self;
   for (let i=0; i<max_redirect; i++){
-    let lpm_pkg = await lpm_pkg_resolve({log, lmod: _mod, mod_self: _mod_self});
+    let lpm_pkg = await lpm_pkg_resolve({log, lmod: _lmod, mod_self: _mod_self});
     if (!lpm_pkg.redirect)
       return lpm_pkg;
-    _mod_self  = _mod;
-    _mod = lpm_pkg.redirect;
+    _mod_self  = _lmod;
+    _lmod = lpm_pkg.redirect;
   }
-  throw Error('lmod('+lmod+') too many redir: '+_mod);
+  throw Error('lmod('+lmod+') too many redir: '+_lmod);
 }
 
 async function lpm_file_resolve({log, uri, mod_self}){
