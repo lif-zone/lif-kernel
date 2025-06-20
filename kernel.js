@@ -581,7 +581,7 @@ let lpm_imp_ver_lookup = (lpm, mod_uri)=>{
       if (a!=b) 
         0 && console.log(b, '->', a);
       return 'npm/'+pkg.name+'/'+v.rest+path;
-      return X('npm1', lpm.lmod+(v.rest?'/'+v.rest:'')+path); // XXX: make generic lpm
+      return X('npm1', lpm.lmod+(v.rest?'/'+v.rest:'')+path);
     }
     if (v=str.starts(d, 'npm:'))
       return X('npm2', 'npm/'+v.rest+path);
