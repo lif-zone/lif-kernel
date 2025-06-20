@@ -126,9 +126,9 @@ console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache,
   _path_ext, path_dir, path_file,
   path_prefix, qs_enc, npm_ver_from_base,
-  TE_url_parse, TE_npm_url_base, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
-  lpm_parse, TE_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  TE_lpm_parse, TE_lpm_str, lpm_ver_missing,
+  T_url_parse, T_npm_url_base, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
+  lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
+  T_lpm_parse, T_lpm_str, lpm_ver_missing,
   uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
@@ -195,7 +195,7 @@ let lpm_cdn = {
 let lpm_get_cdn = u=>{
   let cdn = lpm_cdn;
   if (typeof u=='string')
-    u = TE_lpm_parse(u);
+    u = T_lpm_parse(u);
   switch (u.reg){
   case 'npm': return cdn.npm;
   case 'git': return cdn.git[u.site];
@@ -447,7 +447,7 @@ let lpm_dep_lookup = ({lpm, uri, npm})=>{
     D && console.log('lpm_dep_lookup('+mod_self+') dep '+uri+': '+err);
   };
   let __uri = uri;
-  let v, u = TE_npm_url_base(uri, mod_self);
+  let v, u = T_npm_url_base(uri, mod_self);
   if (!u.is.mod)
     return;
   if (u.is.rel)
@@ -485,7 +485,7 @@ let tr_mjs_import = f=>{
     let uri = d.module;
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
-    else if (v=lpm_dep_lookup({lpm: {pkg: f.pkg, mod: TE_lpm_lmod(f.uri)},
+    else if (v=lpm_dep_lookup({lpm: {pkg: f.pkg, mod: T_lpm_lmod(f.uri)},
       uri: d.module, npm: 1}))
     {
       let _v = v;
@@ -563,15 +563,15 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
       console.log(reason, pkg.name, mod_uri, val);
     return val;
   };
-  let mod = TE_lpm_lmod(mod_uri);
-  let npm_mod = TE_lpm_to_npm(mod);
-  let path = TE_lpm_parse(mod_uri).path;
+  let mod = T_lpm_lmod(mod_uri);
+  let npm_mod = T_lpm_to_npm(mod);
+  let path = T_lpm_parse(mod_uri).path;
   let get_dep = dep=>{
     let d, v;
     if (!(d = dep?.[npm_mod]))
       return;
     if (d[0]=='/')
-      return X('root', TE_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
+      return X('root', T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
     if (v=str.starts(d, './')){
       let mod = lpm.mod||'invalid';
       if (!mod)
@@ -763,7 +763,7 @@ function pkg_alt_get(pkg, file){
 }
 
 function lpm_export_get(pkg, uri){
-  let {path} = TE_lpm_parse(uri);
+  let {path} = T_lpm_parse(uri);
   let ofile = path.slice(1)||'.';
   return pkg_export_lookup(pkg, ofile);
 }
@@ -805,7 +805,7 @@ return await ecache(reg_file_t, uri, async function run(reg){
   let lpm, wait, u, get_ver;
   reg.uri = uri;
   reg.log = log;
-  u = reg.u = TE_lpm_parse(reg.uri);
+  u = reg.u = T_lpm_parse(reg.uri);
   // select cdn
   // npm/react@18.3.0/file.js
   //   http://unpkg.com/react@18.3.0/file.js
@@ -872,7 +872,7 @@ async function reg_get_alt({log, uri, alt}){
 
 let max_redirect = 8;
 function assert_mod(mod){
-  assert(mod==TE_lpm_lmod(mod), 'invalid pkg mod: '+mod); }
+  assert(mod==T_lpm_lmod(mod), 'invalid pkg mod: '+mod); }
 
 async function lpm_pkg_ver_get({log, mod}){
 return await ecache(lpm_pkg_ver_t, mod, async function run(pv){
@@ -913,7 +913,7 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
 }
 
 async function _lpm_pkg_ver_get({log, mod}){
-  let u = TE_lpm_parse(mod);
+  let u = T_lpm_parse(mod);
   if (!lpm_ver_missing(u))
     return;
   let pv = await lpm_pkg_ver_get({log, mod: u.lmod});
@@ -922,7 +922,7 @@ async function _lpm_pkg_ver_get({log, mod}){
   u.ver = lpm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
   if (!u.ver)
     throw Error('failed mod '+u.lmod+' getting pkg_ver list');
-  return TE_lpm_str(u);
+  return T_lpm_str(u);
 }
 
 async function lpm_pkg_cache(mod){
@@ -984,7 +984,7 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm_pkg){
     _mod = v.rest;
     is_peer = true;
   }
-  let u = TE_lpm_parse(_mod);
+  let u = T_lpm_parse(_mod);
   if (_mod!=mod){
     D && console.log('redirect ver/other-lpm '+mod+' -> '+_mod);
     return OA(lpm_pkg, {redirect: _mod}); // version or other lpm
@@ -1014,14 +1014,14 @@ return await ecache(lpm_file_t, uri, async function run(lpm_file){
   D && console.log('lpm_file_get', uri);
   let alt, pkg;
   lpm_file.uri = uri;
-  let lpm_pkg = lpm_file.lpm_pkg = await lpm_pkg_cache_follow(TE_lpm_lmod(uri));
+  let lpm_pkg = lpm_file.lpm_pkg = await lpm_pkg_cache_follow(T_lpm_lmod(uri));
   pkg = lpm_file.pkg = lpm_pkg.pkg;
   lpm_file.npm_uri = lpm_to_npm(uri);
   if (lpm_pkg.redirect)
-    return OA(lpm_file, {redirect: lpm_pkg.redirect+TE_lpm_parse(uri).path});
+    return OA(lpm_file, {redirect: lpm_pkg.redirect+T_lpm_parse(uri).path});
   let {file, redirect} = lpm_export_get(pkg, uri);
   if (redirect){
-    let _uri = TE_lpm_lmod(uri)+'/'+file;
+    let _uri = T_lpm_lmod(uri)+'/'+file;
     D && console.log('redirect export '+uri+' -> '+_uri);
     return OA(lpm_file, {redirect: _uri});
   }
@@ -1067,13 +1067,13 @@ async function lpm_file_resolve({log, uri, mod_self}){
   D && console.log('lpm_file_resolve', uri, mod_self);
   if (0 && uri=='npm/components/system/Desktop/Wallpapers/vantaWaves/wallpaper.worker'
     && mod_self=='npm/lif-os/lif-os-boot/main.tsx') debugger;
-  let lpm_pkg = await lpm_pkg_resolve({log, mod: TE_lpm_lmod(uri),
-    mod_self: mod_self && TE_lpm_lmod(mod_self)});
+  let lpm_pkg = await lpm_pkg_resolve({log, mod: T_lpm_lmod(uri),
+    mod_self: mod_self && T_lpm_lmod(mod_self)});
   if (lpm_pkg.redirect){
-    let u = TE_lpm_parse(uri);
+    let u = T_lpm_parse(uri);
     return {redirect: lpm_pkg.redirect+u.path};
   }
-  lpm_pkg = await lpm_pkg_t[TE_lpm_lmod(uri)];
+  lpm_pkg = await lpm_pkg_t[T_lpm_lmod(uri)];
   let lpm_file = await lpm_file_get({log, uri});
   return lpm_file;
 }
@@ -1118,7 +1118,7 @@ function ctype_get(ext){
 let response_send = ({body, ext, uri})=>{
   let v;
   if (uri)
-    ext = _path_ext(TE_npm_url_base(uri).path);
+    ext = _path_ext(T_npm_url_base(uri).path);
   let opt = {}, ctype = ctype_get(ext), h = {};
   if (!ctype){
     D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
@@ -1199,7 +1199,7 @@ async function fetch_pass(request, type){
 }
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
-  let u = TE_url_parse(url);
+  let u = T_url_parse(url);
   let ref = request.headers.get('referer');
   let external = u.origin!=self.location.origin;
   let path = uri_dec(u.path);
@@ -1374,12 +1374,12 @@ let do_app_pkg = async function(boot_pkg){
     lpm_pkg.child = [];
     return lpm_pkg;
   });
-  let _lpm_app = TE_lpm_lmod(TE_npm_to_lpm(lif.webapp));
+  let _lpm_app = T_lpm_lmod(T_npm_to_lpm(lif.webapp));
   let slow = eslow('app_pg lpm_get');
   let _lpm_pkg_app;
   try {
     _lpm_pkg_app = await lpm_pkg_resolve_follow({log,
-      mod: TE_lpm_lmod(_lpm_app), mod_self: 'local/boot/'});
+      mod: T_lpm_lmod(_lpm_app), mod_self: 'local/boot/'});
   } catch(err){
     console.error(err);
     throw app_init_wait.throw(err);

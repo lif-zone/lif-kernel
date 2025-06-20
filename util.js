@@ -528,7 +528,7 @@ const URL_parse = (...args)=>{
   try { return new URL(...args); }
   catch(err){}
 };
-const TE_url_parse = (url, base)=>{
+const T_url_parse = (url, base)=>{
   const u = URL_parse(url, base);
   if (!u)
     throw Error('cannot parse url: '+url);
@@ -545,7 +545,7 @@ const TE_url_parse = (url, base)=>{
   _u.dir = path_dir(_u.path);
   return _u;
 };
-const url_parse = T(TE_url_parse);
+const url_parse = T(T_url_parse);
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -606,7 +606,7 @@ const url_parse = T(TE_url_parse);
 // import {groupBy} from 'npm:lodash@4.17.21';
 
 const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
-const TE_lpm_parse = lpm=>{
+const T_lpm_parse = lpm=>{
   let l = {};
   let p = lpm.split('/');
   let i = 0;
@@ -724,10 +724,10 @@ const TE_lpm_parse = lpm=>{
   }
   return l;
 };
-exports.TE_lpm_parse = TE_lpm_parse;
-const lpm_parse = T(TE_lpm_parse);
+exports.T_lpm_parse = T_lpm_parse;
+const lpm_parse = T(T_lpm_parse);
 exports.lpm_parse = lpm_parse;
-const TE_lpm_str = l=>{
+const T_lpm_str = l=>{
   switch (l.reg){
   case 'npm':
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
@@ -755,23 +755,23 @@ const TE_lpm_str = l=>{
     throw Error('invalid registry: '+l.reg);
   }
 };
-exports.TE_lpm_str = TE_lpm_str;
-const lpm_str = T(TE_lpm_str);
+exports.T_lpm_str = T_lpm_str;
+const lpm_str = T(T_lpm_str);
 exports.lpm_str = lpm_str;
 const npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
 
-const TE_lpm_lmod = lpm=>{
+const T_lpm_lmod = lpm=>{
   let u = lpm;
   if (typeof lpm=='string')
-    u = TE_lpm_parse(lpm);
+    u = T_lpm_parse(lpm);
   return u.lmod;
 };
-exports.TE_lpm_lmod = TE_lpm_lmod;
-const lpm_lmod = T(TE_lpm_lmod);
+exports.T_lpm_lmod = T_lpm_lmod;
+const lpm_lmod = T(T_lpm_lmod);
 exports.lpm_lmod = lpm_lmod;
 
 // parse-package-name: package.json:dependencies
-const TE_npm_dep_to_lpm = (mod_self, dep)=>{
+const T_npm_dep_to_lpm = (mod_self, dep)=>{
   let v;
   if (v=str.starts(dep, './'))
     return mod_self+'/'+v.rest;
@@ -805,14 +805,14 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
   // add later bittorent: lifcoin: bitcoin: ethereum: ipfs: ipns:
   throw Error('invalid npm_dep prefix: '+dep);
 };
-const npm_dep_to_lpm = T(TE_npm_dep_to_lpm);
+const npm_dep_to_lpm = T(T_npm_dep_to_lpm);
 // npm_parse() and lpm_parse(), and npm_parse_basic()
-const TE_npm_parse = npm=>TE_lpm_parse(TE_npm_to_lpm(npm));
-exports.TE_npm_parse = TE_npm_parse;
-const npm_parse = T(TE_npm_parse);
+const T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
+exports.T_npm_parse = T_npm_parse;
+const npm_parse = T(T_npm_parse);
 exports.npm_parse = npm_parse;
 
-let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
+let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
   let v;
   if (npm[0]!='.')
     return 'npm/'+npm;
@@ -824,15 +824,15 @@ let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
     return 'local'+v.rest;
   throw Error('invalid npm: '+npm);
 };
-let npm_to_lpm = exports.npm_to_lpm = T(TE_npm_to_lpm);
+let npm_to_lpm = exports.npm_to_lpm = T(T_npm_to_lpm);
 
-let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
-  let u = typeof lpm=='string' ? TE_lpm_parse(lpm) : lpm;
+let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
+  let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
   if (u.reg=='npm')
     return u.lmod.slice(4)+u.path;
   return '.'+u.lmod+u.path;
 };
-let lpm_to_npm = exports.lpm_to_npm = T(TE_lpm_to_npm);
+let lpm_to_npm = exports.lpm_to_npm = T(T_lpm_to_npm);
 
 let lpm_to_sw_uri = lpm=>{
   let v;
@@ -859,7 +859,7 @@ exports.url_uri_type = url_uri_type;
 const __uri_parse = (uri, base)=>{
   if (base && base[0]!='/')
     throw Error('invalid base '+base);
-  let u = TE_url_parse(uri, 'x://x'+(base||''));
+  let u = T_url_parse(uri, 'x://x'+(base||''));
   u.host = u.hostname = u.origin = u.href = u.protocol = '';
   return u;
 };
@@ -892,7 +892,7 @@ const npm_ver_from_base = exports.npm_ver_from_base = (mod, base)=>{
   return lpm_to_npm(v);
 };
 
-const TE_npm_url_base = (url_uri, base_uri)=>{
+const T_npm_url_base = (url_uri, base_uri)=>{
   let t = url_uri_type(url_uri);
   let tbase = base_uri ? url_uri_type(base_uri) : null;
   let u, is = {};
@@ -913,9 +913,9 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     return u;
   }
   is.mod = 1;
-  let base = base_uri ? TE_npm_parse(base_uri) : undefined;
+  let base = base_uri ? T_npm_parse(base_uri) : undefined;
   if (t=='mod'){
-    let mod = TE_npm_parse(url_uri);
+    let mod = T_npm_parse(url_uri);
     let uri = url_uri;
     if (lpm_ver_from_base(mod, base)){
       is.rel_ver = 1;
@@ -926,7 +926,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.lmod = TE_npm_parse(u.path);
+    u.lmod = T_npm_parse(u.path);
     return u;
   }
   if (t=='rel' && tbase=='mod'){
@@ -935,12 +935,12 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.lmod = TE_npm_parse(u.path);
+    u.lmod = T_npm_parse(u.path);
     return u;
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
 };
-const npm_url_base = T(TE_npm_url_base);
+const npm_url_base = T(T_npm_url_base);
 
 let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
@@ -954,7 +954,7 @@ let semver_parse = semver=>{
 exports.semver_parse = semver_parse;
 
 let semver_op_re_start = /^(\^|=|~|>=|<=|\|\|)/;
-let TE_semver_range_parse = semver_range=>{
+let T_semver_range_parse = semver_range=>{
   let s = semver_range, m, range = [];
   function is(re){
     m = s.match(re);
@@ -983,12 +983,12 @@ let TE_semver_range_parse = semver_range=>{
     throw Error('empty semver range');
   return range;
 };
-exports.TE_semver_range_parse = TE_semver_range_parse;
-let semver_range_parse = T(TE_semver_range_parse);
+exports.T_semver_range_parse = T_semver_range_parse;
+let semver_range_parse = T(T_semver_range_parse);
 exports.semver_range_parse = semver_range_parse;
 
 function test_url_uri(){
-  let t = (v, arg)=>assert_obj(v, TE_npm_url_base(...arg));
+  let t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
@@ -1018,7 +1018,7 @@ function test_url_uri(){
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
   t({path: '.git/github/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
     ['./c/d', '.git/github/user/repo@1.2.3/a/b']);
-  t = (npm, v)=>assert_obj(v, TE_npm_parse(npm));
+  t = (npm, v)=>assert_obj(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0', _ver: '1.2.0',
@@ -1029,8 +1029,8 @@ function test_url_uri(){
     lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
-    assert_obj(v, t=TE_lpm_parse(lpm));
-    assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_str(t));
+    assert_obj(v, t=T_lpm_parse(lpm));
+    assert_eq(lpm+(t.path_ommit?'/':''), T_lpm_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
     lmod: 'local', path: '/package.json'});
@@ -1100,11 +1100,11 @@ function test_url_uri(){
   t('local/dir/file.js', '.local/dir/file.js');
   t('local/sub//dir/file.js', '.local/sub//dir/file.js');
   t = (lpm, mod, path)=>{
-    let u = TE_lpm_parse(lpm);
+    let u = T_lpm_parse(lpm);
     assert_eq(path, u.path);
     assert_eq(mod, u.lmod);
-    assert_eq(mod, TE_lpm_lmod(lpm));
-    assert_eq(lpm+(u.path_ommit?'/':''), TE_lpm_str(u));
+    assert_eq(mod, T_lpm_lmod(lpm));
+    assert_eq(lpm+(u.path_ommit?'/':''), T_lpm_str(u));
   };
   t('local', 'local', '');
   t('local/main.tsx', 'local', '/main.tsx');
@@ -1188,9 +1188,9 @@ exports.path_is_dir = path_is_dir;
 exports.path_join = path_join;
 exports.path_prefix = path_prefix;
 exports.url_parse = url_parse;
-exports.TE_url_parse = TE_url_parse;
+exports.T_url_parse = T_url_parse;
 exports.npm_url_base = npm_url_base;
-exports.TE_npm_url_base = TE_npm_url_base;
+exports.T_npm_url_base = T_npm_url_base;
 exports.uri_enc = uri_enc;
 exports.uri_dec = uri_dec;
 exports.qs_enc = qs_enc;

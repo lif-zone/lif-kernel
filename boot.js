@@ -5,8 +5,8 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq,
-  path_file, path_dir, OF, OA, assert, T, TE_npm_to_lpm,
-  TE_npm_url_base, uri_enc, qs_enc, qs_append,
+  path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm,
+  T_npm_url_base, uri_enc, qs_enc, qs_append,
   lpm_parse, npm_to_lpm, lpm_to_npm,
   _debugger} = util;
 let json = JSON.stringify;
@@ -99,7 +99,7 @@ function require_cjs_amd(mod_self, args){
 }
 
 const lpm_2url = (mod_self, url, opt)=>{
-  let u = TE_npm_url_base(url, mod_self);
+  let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
     return url;
   let q = {};
@@ -107,7 +107,7 @@ const lpm_2url = (mod_self, url, opt)=>{
     q.raw = 1;
   if (u.is.uri)
     return qs_append(url, q);
-  let _url = '/.lif/'+TE_npm_to_lpm(u.path);
+  let _url = '/.lif/'+T_npm_to_lpm(u.path);
   if (!u.lmod.ver && !npm_map[u.lmod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
