@@ -124,12 +124,12 @@ let util = await import_module(lif_kernel_base+'util.js');
 let mime_db = await import_module(lif_kernel_base+'mime_db.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache,
-  path_ext, _path_ext, path_dir, path_file, path_is_dir, path_join,
+  _path_ext, path_dir, path_file,
   path_prefix, qs_enc, npm_ver_from_base,
   TE_url_parse, TE_npm_url_base, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
   lpm_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  TE_lpm_parse, TE_lpm_str, npm_uri_str, lpm_ver_missing,
-  uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
+  TE_lpm_parse, TE_lpm_str, lpm_ver_missing,
+  uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
 let json = JSON.stringify;

@@ -778,7 +778,7 @@ const TE_lpm_str = l=>{
 exports.TE_lpm_str = TE_lpm_str;
 const lpm_str = TE_to_null(TE_lpm_str);
 exports.lpm_str = lpm_str;
-const npm_uri_str = exports.npm_uri_str = u=>lpm_to_npm(lpm_str(u));
+const npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
 
 const TE_lpm_mod = lpm=>{
   let u = lpm;
@@ -940,7 +940,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
     if (lpm_ver_from_base(mod, base)){
       is.rel_ver = 1;
       mod.ver = base.ver;
-      uri = npm_uri_str(mod);
+      uri = npm_str(mod);
     }
     u = __uri_parse('/'+uri);
     u.is = is;
@@ -951,7 +951,7 @@ const TE_npm_url_base = (url_uri, base_uri)=>{
   }
   if (t=='rel' && tbase=='mod'){
     base.path = __uri_parse(url_uri, base.path).path;
-    u = __uri_parse('/'+npm_uri_str(base));
+    u = __uri_parse('/'+npm_str(base));
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
