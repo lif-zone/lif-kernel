@@ -81,10 +81,10 @@ console.log('pre_init');
 let fetch_opt = url=>(url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
 let import_modules = {};
 let import_module = async(url)=>{
-  let mod;
-  if (mod = import_modules[url])
-    return await mod.wait;
-  mod = import_modules[url] = {url, wait: ewait()};
+  let imod;
+  if (imod = import_modules[url])
+    return await imod.wait;
+  imod = import_modules[url] = {url, wait: ewait()};
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -92,7 +92,7 @@ let import_module = async(url)=>{
     let body = await response.text();
     let tr = body.replace(/\nexport default ([^;]+);\n/,
       (match, _export)=>'\n;module.exports = '+_export+';\n');
-    mod.script = `'use strict';
+    imod.script = `'use strict';
       let module = {exports: {}};
       let exports = module.exports;
       (()=>{
@@ -102,15 +102,15 @@ let import_module = async(url)=>{
     `;
   } catch(err){
     console.error('import('+url+') failed', err);
-    throw mod.wait.throw(err);
+    throw imod.wait.throw(err);
   }
   try {
-    mod.exports = await eval?.(
-      `//# sourceURL=${url}\n'use strict';${mod.script}`);
-    return mod.wait.return(mod.exports);
+    imod.exports = await eval?.(
+      `//# sourceURL=${url}\n'use strict';${imod.script}`);
+    return imod.wait.return(imod.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
-    throw mod.wait.throw(err);
+    throw imod.wait.throw(err);
   }
 };
 
