@@ -440,11 +440,11 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-let lpm_dep_lookup = ({lpm, uri, npm})=>{
+let lpm_imp_lookup = ({lpm, uri, npm})=>{
   let D = 0;
   let pkg = lpm.pkg, mod_self = lpm.lmod;
   let ret_err = err=>{
-    D && console.log('lpm_dep_lookup('+mod_self+') dep '+uri+': '+err);
+    D && console.log('lpm_imp_lookup('+mod_self+') imp '+uri+': '+err);
   };
   let __uri = uri;
   let v, u = T_npm_url_base(uri, mod_self);
@@ -458,25 +458,25 @@ let lpm_dep_lookup = ({lpm, uri, npm})=>{
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
     return uri;
-  let dep = lpm_dep_ver_lookup({lmod: mod_self, pkg}, uri);
-  if (!dep || dep=='-')
-    return ret_err('dep missing');
-  if (dep.startsWith('peer:')){
+  let imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, uri);
+  if (!imp || imp=='-')
+    return ret_err('imp missing');
+  if (imp.startsWith('peer:')){
     if (lpm_pkg_app &&
-      (dep = lpm_dep_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, uri)))
+      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, uri)))
     {
-      return dep;
+      return imp;
     }
     for (let l = lpm; lpm; lpm = lpm.parent){
-      if (!(dep = lpm_dep_ver_lookup(lpm, uri)))
+      if (!(imp = lpm_imp_ver_lookup(lpm, uri)))
         continue;
-      if (!dep || dep=='-')
+      if (!imp || imp=='-')
         continue;
-      return dep;
+      return imp;
     }
-    return ret_err('dep missing lpm_app');
+    return ret_err('imp missing lpm_app');
   }
-  return dep;
+  return imp;
 };
 
 let tr_mjs_import = f=>{
@@ -485,7 +485,7 @@ let tr_mjs_import = f=>{
     let uri = d.module;
     if (url_uri_type(uri)=='rel')
       s.splice(d.start, d.end, json(uri+'?mjs=1'));
-    else if (v=lpm_dep_lookup({lpm: {pkg: f.pkg, lmod: T_lpm_lmod(f.uri)},
+    else if (v=lpm_imp_lookup({lpm: {pkg: f.pkg, lmod: T_lpm_lmod(f.uri)},
       uri: d.module, npm: 1}))
     {
       let _v = v;
@@ -553,7 +553,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
+let lpm_imp_ver_lookup = (lpm, mod_uri)=>{
   let pkg = lpm.pkg;
   let X = (reason, val)=>{
     return val;
@@ -566,9 +566,9 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
   let lmod = T_lpm_lmod(mod_uri);
   let npm = T_lpm_to_npm(lmod);
   let path = T_lpm_parse(mod_uri).path;
-  let get_dep = dep=>{
+  let get_imp = imp=>{
     let d, v;
-    if (!(d = dep?.[npm]))
+    if (!(d = imp?.[npm]))
       return;
     if (d[0]=='/')
       return X('root', T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
@@ -589,29 +589,29 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
       return X('git', 'git/'+v.rest+path);
     let range = semver_range_parse(d);
     if (!range){
-      console.log('invalid dep('+lmod+') ver '+d);
+      console.log('invalid imp('+lmod+') ver '+d);
       return X('none2', '-');
     }
     let {op, ver} = range[0];
     if (range.length>1)
-      console.log('ignoring multi-op dep: '+d);
+      console.log('ignoring multi-op imp: '+d);
     if (op=='>=')
       return X('ver', ver);
     if (!(op=='^' || op=='=' || op=='' || op=='~')){
-      console.log('invalid dep('+lmod+') op '+op);
+      console.log('invalid imp('+lmod+') op '+op);
       return X('none', '-');
     }
     return X('modver', lmod+'@'+ver+path);
   };
   let d
   if (!pkg) debugger;
-  if (d = get_dep(pkg.lif?.dependencies))
+  if (d = get_imp(pkg.lif?.dependencies))
     return d;
-  if (d = get_dep(pkg.dependencies))
+  if (d = get_imp(pkg.dependencies))
     return d;
-  if (d = get_dep(pkg.peerDependencies))
+  if (d = get_imp(pkg.peerDependencies))
     return X('peer', 'peer:'+d);
-  if (d = get_dep(pkg.devDependencies))
+  if (d = get_imp(pkg.devDependencies))
     return d;
 };
 
@@ -974,7 +974,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
       _p = null;
       //_p = __p;
     }
-    if (_p && (_lmod = lpm_dep_lookup({lpm: _p, uri: lmod})))
+    if (_p && (_lmod = lpm_imp_lookup({lpm: _p, uri: lmod})))
       break;
   }
   if (!_lmod)
@@ -1303,7 +1303,7 @@ function test_lpm(){
   t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
-  t = (lpm, uri, v)=>0 && assert_eq(v, lpm_dep_ver_lookup(lpm, uri));
+  t = (lpm, uri, v)=>0 && assert_eq(v, lpm_imp_ver_lookup(lpm, uri));
   t({lmod: 'npm/a-pkg', pkg: {lif: {dependencies: {'mod': '/mod'}}}},
     'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
   let lifos = {lmod: 'npm/lif-os', pkg: {dependencies:
@@ -1314,7 +1314,7 @@ function test_lpm(){
   t(lifos, 'npm/react', 'npm/react@18.3.1');
   t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
   t(lifos, 'npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
-  t = (pkg, lmod, uri, v)=>assert_eq(v, lpm_dep_lookup({lpm: {lmod, pkg}, uri}));
+  t = (pkg, lmod, uri, v)=>assert_eq(v, lpm_imp_lookup({lpm: {lmod, pkg}, uri}));
   pkg = {lif: {dependencies: {mod: '/mod', react: 'react@18.3.1'}}};
   t(pkg, 'npm/mod', 'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
   t(pkg, 'npm/mod', 'local/file', 'local/file');
