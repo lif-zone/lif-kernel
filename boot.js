@@ -24,21 +24,21 @@ define.amd = {};
 function require(){ return require_cjs_amd(null, arguments); }
 
 function define_amd(mod_self, args, module){
-  let module_id /* ignored */, deps, factory;
-  let deps_default = ['require', 'exports', 'module'];
+  let module_id /* ignored */, imps, factory;
+  let imps_default = ['require', 'exports', 'module'];
   let exports_val; /* not supported */
   if (args.length==1){
     factory = args[0];
-    deps = deps_default;
+    imps = imps_default;
   } else if (args.length==2){
     if (typeof args[0]=='string'){
       module_id = args[0];
-      deps = deps_default;
+      imps = imps_default;
     } else
-      deps = args[0];
+      imps = args[0];
     factory = args[1];
   } else if (args.length==3)
-    [module_id, deps, factory] = args;
+    [module_id, imps, factory] = args;
   else
     throw Error('define() invalid num args');
   if (typeof factory!='function'){
@@ -49,10 +49,10 @@ function define_amd(mod_self, args, module){
   if (modules[mod_self])
     throw Error('define('+mod_self+') already defined');
   let promise = ewait();
-  let m = modules[mod_self] = {mod_self, deps, factory, loaded: false,
+  let m = modules[mod_self] = {mod_self, imps, factory, loaded: false,
     promise, module: module||{exports: {}}};
-  require_amd(mod_self, [deps, function(...deps){
-    let exports = m.factory.apply(m.module.exports, deps);
+  require_amd(mod_self, [imps, function(...imps){
+    let exports = m.factory.apply(m.module.exports, imps);
     if (exports)
       m.module.exports = exports;
     m.loaded = true;
@@ -61,23 +61,23 @@ function define_amd(mod_self, args, module){
   return promise;
 }
 
-function require_amd(mod_self, [deps, cb]){
-  let _deps = [];
+function require_amd(mod_self, [imps, cb]){
+  let _imps = [];
   let m = modules[mod_self] || {module: {exports: {}}};
   return (async()=>{
-    for (let i=0; i<deps.length; i++){
-      let dep = deps[i], v;
-      switch (dep){
+    for (let i=0; i<imps.length; i++){
+      let imp = imps[i], v;
+      switch (imp){
       case 'require':
-        v = (deps, cb)=>require_amd(mod_self, [deps, cb]);
+        v = (imps, cb)=>require_amd(mod_self, [imps, cb]);
         break;
       case 'exports': v = m.module.exports; break;
       case 'module': v = m.module; break;
-      default: v = await require_single(mod_self, dep);
+      default: v = await require_single(mod_self, imp);
       }
-      _deps[i] = v;
+      _imps[i] = v;
     }
-    cb(..._deps);
+    cb(..._imps);
   })();
 }
 
@@ -138,7 +138,7 @@ async function require_single(mod_self, module_id){
   let m;
   if (m = modules[module_id])
     return await m.wait;
-  m = modules[module_id] = {module_id, deps: [], wait: ewait(),
+  m = modules[module_id] = {module_id, imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let slow;
   slow = eslow('require_single mod('+module_id+')');
