@@ -346,6 +346,7 @@ let app_pkg_default = ()=>{
   if (v=q.get('src')){
     let u = lpm_parse(npm_to_lpm(pkg.webapp));
     u.path = '';
+    pkg.dependencies ||= [];
     pkg.dependencies[lpm_to_npm(u)] = v;
   }
   return {lif: pkg};
