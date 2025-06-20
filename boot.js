@@ -7,7 +7,7 @@ import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq,
   path_file, path_dir, OF, OA, assert, TE_to_null, TE_npm_to_lpm,
   TE_npm_url_base, uri_enc, qs_enc, qs_append,
-  lpm_uri_parse, npm_to_lpm, lpm_to_npm,
+  lpm_parse, npm_to_lpm, lpm_to_npm,
   _debugger} = util;
 let json = JSON.stringify;
 
@@ -345,7 +345,7 @@ let app_pkg_default = ()=>{
   if (!pkg.webapp)
     pkg.webapp = 'lif-basic@1.1.14/main.tsx';
   if (v=q.get('src')){
-    let u = lpm_uri_parse(npm_to_lpm(pkg.webapp));
+    let u = lpm_parse(npm_to_lpm(pkg.webapp));
     u.path = '';
     pkg.dependencies[lpm_to_npm(u)] = v;
   }

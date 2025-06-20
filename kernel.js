@@ -127,8 +127,8 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   path_ext, _path_ext, path_dir, path_file, path_is_dir, path_join,
   path_prefix, qs_enc, npm_ver_from_base,
   TE_url_parse, TE_npm_url_base, url_uri_type, TE_npm_to_lpm, TE_lpm_to_npm,
-  lpm_uri_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  TE_lpm_uri_parse, TE_lpm_uri_str, npm_uri_str, lpm_ver_missing,
+  lpm_parse, TE_lpm_mod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
+  TE_lpm_parse, TE_lpm_uri_str, npm_uri_str, lpm_ver_missing,
   uri_enc, uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
@@ -195,7 +195,7 @@ let lpm_cdn = {
 let lpm_get_cdn = u=>{
   let cdn = lpm_cdn;
   if (typeof u=='string')
-    u = TE_lpm_uri_parse(u);
+    u = TE_lpm_parse(u);
   switch (u.reg){
   case 'npm': return cdn.npm;
   case 'git': return cdn.git[u.site];
@@ -454,7 +454,7 @@ let lpm_dep_lookup = ({lpm, uri, npm})=>{
     uri = u.path;
   else if (npm)
     uri = npm_to_lpm(uri);
-  if (!(u = lpm_uri_parse(uri)))
+  if (!(u = lpm_parse(uri)))
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
     return uri;
@@ -565,7 +565,7 @@ let lpm_dep_ver_lookup = (lpm, mod_uri)=>{
   };
   let mod = TE_lpm_mod(mod_uri);
   let npm_mod = TE_lpm_to_npm(mod);
-  let path = TE_lpm_uri_parse(mod_uri).path;
+  let path = TE_lpm_parse(mod_uri).path;
   let get_dep = dep=>{
     let d, v;
     if (!(d = dep?.[npm_mod]))
@@ -763,7 +763,7 @@ function pkg_alt_get(pkg, file){
 }
 
 function lpm_export_get(pkg, uri){
-  let {path} = TE_lpm_uri_parse(uri);
+  let {path} = TE_lpm_parse(uri);
   let ofile = path.slice(1)||'.';
   return pkg_export_lookup(pkg, ofile);
 }
@@ -805,7 +805,7 @@ return await ecache(reg_file_t, uri, async function run(reg){
   let lpm, wait, u, get_ver;
   reg.uri = uri;
   reg.log = log;
-  u = reg.u = TE_lpm_uri_parse(reg.uri);
+  u = reg.u = TE_lpm_parse(reg.uri);
   // select cdn
   // npm/react@18.3.0/file.js
   //   http://unpkg.com/react@18.3.0/file.js
@@ -913,7 +913,7 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
 }
 
 async function _lpm_pkg_ver_get({log, mod}){
-  let u = TE_lpm_uri_parse(mod);
+  let u = TE_lpm_parse(mod);
   if (!lpm_ver_missing(u))
     return;
   let pv = await lpm_pkg_ver_get({log, mod: u.mod});
@@ -984,7 +984,7 @@ return await ecache(lpm_pkg_t, mod, async function run(lpm_pkg){
     _mod = v.rest;
     is_peer = true;
   }
-  let u = TE_lpm_uri_parse(_mod);
+  let u = TE_lpm_parse(_mod);
   if (_mod!=mod){
     D && console.log('redirect ver/other-lpm '+mod+' -> '+_mod);
     return OA(lpm_pkg, {redirect: _mod}); // version or other lpm
@@ -1018,7 +1018,7 @@ return await ecache(lpm_file_t, uri, async function run(lpm_file){
   pkg = lpm_file.pkg = lpm_pkg.pkg;
   lpm_file.npm_uri = lpm_to_npm(uri);
   if (lpm_pkg.redirect)
-    return OA(lpm_file, {redirect: lpm_pkg.redirect+TE_lpm_uri_parse(uri).path});
+    return OA(lpm_file, {redirect: lpm_pkg.redirect+TE_lpm_parse(uri).path});
   let {file, redirect} = lpm_export_get(pkg, uri);
   if (redirect){
     let _uri = TE_lpm_mod(uri)+'/'+file;
@@ -1070,7 +1070,7 @@ async function lpm_file_resolve({log, uri, mod_self}){
   let lpm_pkg = await lpm_pkg_resolve({log, mod: TE_lpm_mod(uri),
     mod_self: mod_self && TE_lpm_mod(mod_self)});
   if (lpm_pkg.redirect){
-    let u = TE_lpm_uri_parse(uri);
+    let u = TE_lpm_parse(uri);
     return {redirect: lpm_pkg.redirect+u.path};
   }
   lpm_pkg = await lpm_pkg_t[TE_lpm_mod(uri)];

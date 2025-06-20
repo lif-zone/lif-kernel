@@ -626,7 +626,7 @@ const url_parse = TE_to_null(TE_url_parse);
 // import {groupBy} from 'npm:lodash@4.17.21';
 
 const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
-const TE_lpm_uri_parse = uri=>{
+const TE_lpm_parse = uri=>{
   let l = {};
   let p = uri.split('/');
   let i = 0;
@@ -634,9 +634,9 @@ const TE_lpm_uri_parse = uri=>{
   function next(err){
     let v = p[i++];
     if (typeof v!='string')
-      throw Error('lpm_uri_parse missing'+err+': '+uri);
+      throw Error('lpm_parse missing'+err+': '+uri);
     if (v=='')
-      throw Error('lpm_uri_parse empty element: '+uri);
+      throw Error('lpm_parse empty element: '+uri);
     return v;
   }
   function next_submod(){
@@ -657,7 +657,7 @@ const TE_lpm_uri_parse = uri=>{
       return {name: name, ver: '', _ver: null};
     if (n.length==2)
       return {name: n[0], ver: '@'+n[1], _ver: n[1]};
-    throw Error('lpm_uri_parse invalid ver inname: '+name);
+    throw Error('lpm_parse invalid ver inname: '+name);
   }
   let v, mod, repo;
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
@@ -744,9 +744,9 @@ const TE_lpm_uri_parse = uri=>{
   }
   return l;
 };
-exports.TE_lpm_uri_parse = TE_lpm_uri_parse;
-const lpm_uri_parse = TE_to_null(TE_lpm_uri_parse);
-exports.lpm_uri_parse = lpm_uri_parse;
+exports.TE_lpm_parse = TE_lpm_parse;
+const lpm_parse = TE_to_null(TE_lpm_parse);
+exports.lpm_parse = lpm_parse;
 const TE_lpm_uri_str = l=>{
   switch (l.reg){
   case 'npm':
@@ -783,7 +783,7 @@ const npm_uri_str = exports.npm_uri_str = u=>lpm_to_npm(lpm_uri_str(u));
 const TE_lpm_mod = uri=>{
   let u = uri;
   if (typeof uri=='string')
-    u = TE_lpm_uri_parse(uri);
+    u = TE_lpm_parse(uri);
   return u.mod;
 };
 exports.TE_lpm_mod = TE_lpm_mod;
@@ -827,7 +827,7 @@ const TE_npm_dep_to_lpm = (mod_self, dep)=>{
 };
 const npm_dep_to_lpm = TE_to_null(TE_npm_dep_to_lpm);
 // npm_parse() and lpm_parse(), and npm_parse_basic()
-const TE_npm_uri_parse = npm=>TE_lpm_uri_parse(TE_npm_to_lpm(npm));
+const TE_npm_uri_parse = npm=>TE_lpm_parse(TE_npm_to_lpm(npm));
 exports.TE_npm_uri_parse = TE_npm_uri_parse;
 const npm_uri_parse = TE_to_null(TE_npm_uri_parse);
 exports.npm_uri_parse = npm_uri_parse;
@@ -847,7 +847,7 @@ let TE_npm_to_lpm = exports.TE_npm_to_lpm = npm=>{
 let npm_to_lpm = exports.npm_to_lpm = TE_to_null(TE_npm_to_lpm);
 
 let TE_lpm_to_npm = exports.TE_lpm_to_npm = lpm=>{
-  let u = typeof lpm=='string' ? TE_lpm_uri_parse(lpm) : lpm;
+  let u = typeof lpm=='string' ? TE_lpm_parse(lpm) : lpm;
   if (u.reg=='npm')
     return u.mod.slice(4)+u.path;
   return '.'+u.mod+u.path;
@@ -885,20 +885,20 @@ const __uri_parse = (uri, base)=>{
 };
 
 const lpm_ver_missing = exports.lpm_ver_missing = u=>{
-  u = _lpm_uri_parse(u);
+  u = _lpm_parse(u);
   return str.is(u.reg, 'npm', 'git') && !u.ver;
 };
-const _lpm_uri_parse = exports._lpm_uri_parse =
-  mod=>typeof mod=='string' ? lpm_uri_parse(mod) : mod;
+const _lpm_parse = exports._lpm_parse =
+  mod=>typeof mod=='string' ? lpm_parse(mod) : mod;
 const lpm_same_base = (mod_a, mod_b)=>{
-  let a = _lpm_uri_parse(mod_a), b = _lpm_uri_parse(mod_b);
+  let a = _lpm_parse(mod_a), b = _lpm_parse(mod_b);
   return a.reg==b.reg && a.name==b.name;
 };
 const lpm_ver_from_base = exports.lpm_ver_from_base = (mod, base)=>{
   if (!base)
     return;
-  mod = _lpm_uri_parse(mod);
-  base = _lpm_uri_parse(base);
+  mod = _lpm_parse(mod);
+  base = _lpm_parse(base);
   if (!(lpm_same_base(mod, base) && lpm_ver_missing(mod) && base.ver))
     return;
   return lpm_uri_str({...mod, ver: base.ver});
@@ -1049,7 +1049,7 @@ function test_url_uri(){
     mod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
-    assert_obj(v, t=TE_lpm_uri_parse(lpm));
+    assert_obj(v, t=TE_lpm_parse(lpm));
     assert_eq(lpm+(t.path_ommit?'/':''), TE_lpm_uri_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
@@ -1070,7 +1070,7 @@ function test_url_uri(){
     mod: 'npm/mod/dir/', path: '/', path_ommit: true});
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
     mod: 'npm/mod/sub/', path: '/'});
-  t = (v, lpm)=>assert_eq(v, !!lpm_uri_parse(lpm));
+  t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
   t = (dep, v)=>assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
@@ -1112,7 +1112,7 @@ function test_url_uri(){
   t('npm/mod', 'mod');
   t('npm/mod/file.js', 'mod/file.js');
   t('npm/mod/sub//file.js', 'mod/sub//file.js');
-  t(lpm_uri_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
+  t(lpm_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
   t('git/github/user/repo', '.git/github/user/repo');
   t('git/gitlab/user/repo/file.js', '.git/gitlab/user/repo/file.js');
   t('local', '.local');
@@ -1120,7 +1120,7 @@ function test_url_uri(){
   t('local/dir/file.js', '.local/dir/file.js');
   t('local/sub//dir/file.js', '.local/sub//dir/file.js');
   t = (lpm, mod, path)=>{
-    let u = TE_lpm_uri_parse(lpm); // XXX rename lpm_parse()
+    let u = TE_lpm_parse(lpm); // XXX rename lpm_parse()
     assert_eq(path, u.path);
     assert_eq(mod, u.mod);
     assert_eq(mod, TE_lpm_mod(lpm));
