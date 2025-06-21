@@ -808,7 +808,7 @@ return await ecache(reg_file_t, lmod, async function run(reg){
   let pkg, v;
   reg.cdn = lpm_get_cdn(u);
   let src = reg.cdn.src;
-  if (u.path=='/--get-ver--/'){
+  if (u.path=='/--get-ver--'){
     get_ver = true;
     src = reg.cdn.src_ver;
     u.submod = '';
@@ -867,22 +867,22 @@ async function reg_get_alt({log, lmod, alt}){
 
 let max_redirect = 8;
 function assert_lmod(lmod){
-  assert(lmod==T_lpm_lmod(lmod), 'invalid pkg lmod: '+lmod); }
+  assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod); }
 
 async function lpm_pkg_ver_get({log, lmod}){
 return await ecache(lpm_pkg_ver_t, lmod, async function run(pv){
   D && console.log('lpm_pkg_ver_get '+lmod);
   pv.lmod = lmod;
   pv.log = log;
-  let lmod = pv.lmod+'/--get-ver--/';
-  let get = await reg_get({log, lmod});
+  let ver_file = pv.lmod+'/--get-ver--';
+  let get = await reg_get({log, lmod: ver_file});
   if (get.err)
     throw get.err;
   try {
     pv.pkg_ver = JSON.parse(get.body);
     return pv;
   } catch(err){
-    throw Error('invalid package.json parse '+lmod);
+    throw Error('invalid package.json parse '+ver_file);
   }
 }); }
 
@@ -939,9 +939,11 @@ async function lpm_pkg_cache_follow(lmod){
   return lpm_pkg;
 }
 
+let DD = 0;
 async function lpm_pkg_get({log, lmod, mod_self}){
 return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   D && console.log('lpm_pkg_get', lmod, mod_self);
+  if (DD && lmod=='npm/components' && mod_self=="npm/lif-os") debugger;
   lpm_pkg.lmod = lmod;
   assert_lmod(lmod);
   let lpm_self;
@@ -1034,13 +1036,54 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   return lpm_file;
 }); }
 
+// npm/lif-os/basic.js:
+// import 'npm/components/file.js'
+// lpm_pkg_resolve:
+// - if mod_self:
+//   - name check vs base:
+//     - same name: npm/react@1.2.3 part of mod_self: npm/react@1.2.3
+//       FINAL: load pkg npm/react@1.2.3
+//       no need to resolve. can just load package
+//     - same name: local/lif-os/ part of mod_self: local/lif-os/
+//       FINAL: load pkg local/lif-os/
+//       no need to resolve. can just load package
+//     - ver complete: npm/react part of mod_self: npm/react@1.2.3
+//       -> redir to @1.2.3
+//   - load mod_self npm/lif-os -> local/lif-os/
+//   - is lif-os/basic in mod_self pkg dependencies?
+// - is lif-os/basic in app_main and root? (local/lif-os/)
+// Example imp scheduler from react-dom@18.3.1:
+// - not same base name
+// - check local/boot/ - not there
+// - load npm/react-dom@18.3.1 pkg. find dep scheduler, return redirect to
+//   scheduler@0.23.2
+// Example imp npm/components from npm/lif-os (-> local/lif-os)
+// - not same base name
+// - check local/boot/ - found dep (should be forceDependencies):
+//   npm/lif-os -> local/lif-of/
+// - load npm/lif-os --> need to get to local/lif-os/
+// - check componenets in local/lif-of/package.json
+async function lpm_pkg_get_follow({log, lmod}){
+  let _lmod = lmod;
+  for (let i=0; i<max_redirect; i++){
+    let lpm_pkg = await lpm_pkg_get({log, lmod: _lmod});
+    if (!lpm_pkg.redirect)
+      return lpm_pkg;
+    _lmod = lpm_pkg.redirect;
+  }
+  throw Error('too many redirects '+lmod);
+}
 async function lpm_pkg_resolve({log, lmod, mod_self}){
   D && console.log('lpm_pkg_resolve', lmod, mod_self);
+  if (0 && lmod=='npm/components' && mod_self=="npm/lif-os") debugger;
   assert_lmod(lmod);
   if (mod_self){
+    assert_lmod(mod_self);
     let _lmod = npm_ver_from_base(lmod, mod_self);
     if (_lmod && _lmod!=lmod)
       return {redirect: lmod};
+    let _mod_self = lpm_pkg_get_follow({log, lmod: mod_self});
+    mod_self = _mod_self.lmod;
   }
   let lpm_pkg = await lpm_pkg_get({log, lmod, mod_self});
   return lpm_pkg;
@@ -1048,6 +1091,7 @@ async function lpm_pkg_resolve({log, lmod, mod_self}){
 
 async function lpm_pkg_resolve_follow({log, lmod, mod_self}){
   D && console.log('lpm_pkg_resolve_follow', lmod, mod_self);
+  if (DD && lmod=='npm/components' && mod_self=="npm/lif-os") debugger;
   let _lmod = lmod, _mod_self = mod_self;
   for (let i=0; i<max_redirect; i++){
     let lpm_pkg = await lpm_pkg_resolve({log, lmod: _lmod, mod_self: _mod_self});
@@ -1061,7 +1105,7 @@ async function lpm_pkg_resolve_follow({log, lmod, mod_self}){
 
 async function lpm_file_resolve({log, lmod, mod_self}){
   D && console.log('lpm_file_resolve', lmod, mod_self);
-  if (0 && lmod=='npm/components/system/Desktop/Wallpapers/vantaWaves/wallpaper.worker'
+  if (DD && lmod=='npm/components/system/Desktop/Wallpapers/vantaWaves/wallpaper.worker'
     && mod_self=='npm/lif-os/lif-os-boot/main.tsx') debugger;
   let lpm_pkg = await lpm_pkg_resolve({log, lmod: T_lpm_lmod(lmod),
     mod_self: mod_self && T_lpm_lmod(mod_self)});
