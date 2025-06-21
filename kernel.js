@@ -600,7 +600,6 @@ let lpm_imp_ver_lookup = (lpm, mod_uri)=>{
     return X('modver', lmod+'@'+ver+path);
   };
   let d
-  if (!pkg) debugger;
   if (d = get_imp(pkg.lif?.dependencies))
     return d;
   if (d = get_imp(pkg.dependencies))
