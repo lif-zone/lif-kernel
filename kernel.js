@@ -440,7 +440,7 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-let lpm_imp_lookup = ({lpm, mod, is_npm})=>{
+let lpm_imp_lookup = ({lpm, mod})=>{
   let D = 0;
   let pkg = lpm.pkg, mod_self = lpm.lmod;
   let ret_err = err=>{
@@ -449,7 +449,7 @@ let lpm_imp_lookup = ({lpm, mod, is_npm})=>{
   let v, u = T_npm_url_base(mod, mod_self);
   if (!u.is.mod)
     return;
-  let lmod = u.is.rel ? u.path : is_npm ? npm_to_lpm(mod) : mod;
+  let lmod = u.is.rel ? u.path : npm_to_lpm(mod);
   if (!(u = lpm_parse(lmod)))
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
@@ -482,7 +482,7 @@ let tr_mjs_import = f=>{
     if (url_uri_type(imp)=='rel')
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
     else if (v=lpm_imp_lookup({lpm: {pkg: f.pkg, lmod: T_lpm_lmod(f.lmod)},
-      mod: d.module, is_npm: 1}))
+      mod: d.module}))
     {
       let _v = v;
       v = lpm_to_sw_uri(v);
@@ -970,8 +970,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
       _p = null;
       //_p = __p;
     }
-    // XXX lpm_to_npm()
-    if (_p && (_lmod = lpm_imp_lookup({lpm: _p, mod: lmod})))
+    if (_p && (_lmod = lpm_imp_lookup({lpm: _p, mod: lpm_to_npm(lmod)})))
       break;
   }
   if (!_lmod)
@@ -1049,6 +1048,7 @@ async function lpm_pkg_resolve({log, lmod, mod_self}){
 }
 
 async function lpm_pkg_resolve_follow({log, lmod, mod_self}){
+  D && console.log('lpm_pkg_resolve_follow', lmod, mod_self);
   let _lmod = lmod, _mod_self = mod_self;
   for (let i=0; i<max_redirect; i++){
     let lpm_pkg = await lpm_pkg_resolve({log, lmod: _lmod, mod_self: _mod_self});
@@ -1309,7 +1309,7 @@ function test_lpm(){
   t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
   t(lifos, 'npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
   t = (pkg, lmod, imp, v)=>assert_eq(v,
-    lpm_imp_lookup({lpm: {lmod, pkg}, mod: imp}));
+    lpm_imp_lookup({lpm: {lmod, pkg}, mod: lpm_to_npm(imp)}));
   pkg = {lif: {dependencies: {mod: '/mod', react: 'react@18.3.1'}}};
   t(pkg, 'npm/mod', 'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
   t(pkg, 'npm/mod', 'local/file', 'local/file');

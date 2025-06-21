@@ -603,7 +603,6 @@ const T_lpm_parse = lpm=>{
   let l = {};
   let p = lpm.split('/');
   let i = 0;
-  let path_ommit;
   function next(err){
     let v = p[i++];
     if (typeof v!='string')
@@ -618,8 +617,6 @@ const T_lpm_parse = lpm=>{
       throw Error('invalid empty submod: '+lpm);
     if (j<0)
       return '';
-    if (j==p.length-1)
-      path_ommit = true;
     let submod = '/'+p.slice(i, j).join('/')+'/';
     i = j+1;
     return submod;
@@ -711,10 +708,6 @@ const T_lpm_parse = lpm=>{
   l.lmod += l.submod;
   let _p = p.slice(i);
   l.path = path_parts(_p);
-  if (path_ommit){
-    l.path_ommit = path_ommit;
-    l.path = '/';
-  }
   return l;
 };
 exports.T_lpm_parse = T_lpm_parse;
@@ -1023,7 +1016,7 @@ function test_url_uri(){
   t = (lpm, v)=>{
     let t;
     assert_obj(v, t=T_lpm_parse(lpm));
-    assert_eq(lpm+(t.path_ommit?'/':''), T_lpm_str(t));
+    assert_eq(lpm, T_lpm_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
     lmod: 'local', path: '/package.json'});
@@ -1032,7 +1025,7 @@ function test_url_uri(){
   t('local/mod/sub//dir/file', {reg: 'local', submod: '/mod/sub/',
     lmod: 'local/mod/sub/', path: '/dir/file'});
   t('local/mod/dir/', {reg: 'local', submod: '/mod/dir/',
-    lmod: 'local/mod/dir/', path: '/', path_ommit: true});
+    lmod: 'local/mod/dir/', path: ''});
   t('local/mod/sub//', {reg: 'local', submod: '/mod/sub/',
     lmod: 'local/mod/sub/', path: '/'});
   t('npm/mod/dir/file', {reg: 'npm', submod: '',
@@ -1040,7 +1033,7 @@ function test_url_uri(){
   t('npm/mod/dir/file', {reg: 'npm', submod: '',
     lmod: 'npm/mod', path: '/dir/file'});
   t('npm/mod/dir/', {reg: 'npm', submod: '/dir/',
-    lmod: 'npm/mod/dir/', path: '/', path_ommit: true});
+    lmod: 'npm/mod/dir/', path: ''});
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
     lmod: 'npm/mod/sub/', path: '/'});
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
@@ -1097,13 +1090,13 @@ function test_url_uri(){
     assert_eq(path, u.path);
     assert_eq(lmod, u.lmod);
     assert_eq(lmod, T_lpm_lmod(lpm));
-    assert_eq(lpm+(u.path_ommit?'/':''), T_lpm_str(u));
+    assert_eq(lpm, T_lpm_str(u));
   };
   t('local', 'local', '');
   t('local/main.tsx', 'local', '/main.tsx');
   t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
   t('local/mod//', 'local/mod/', '/');
-  t('local/mod/', 'local/mod/', '/');
+  t('local/mod/', 'local/mod/', '');
   t('npm/mod', 'npm/mod', '');
   t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
   t('git/github/user/repo', 'git/github/user/repo', '');
