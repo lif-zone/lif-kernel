@@ -558,7 +558,7 @@ let lpm_imp_ver_lookup = (lpm, mod_uri)=>{
   let lmod = T_lpm_lmod(mod_uri);
   let npm = T_lpm_to_npm(lmod);
   let path = T_lpm_parse(mod_uri).path;
-  let get_imp = imp=>{
+  function get_imp(imp){
     let d, v;
     if (!(d = imp?.[npm]))
       return;
@@ -585,7 +585,7 @@ let lpm_imp_ver_lookup = (lpm, mod_uri)=>{
       return X('none', '-');
     }
     return X('modver', lmod+'@'+ver+path);
-  };
+  }
   let d
   if (d = get_imp(pkg.lif?.dependencies))
     return d;
@@ -652,7 +652,7 @@ function pkg_web_export_lookup(pkg, path){
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
 let pkg_export_lookup = (pkg, file)=>{
-  let check_val = (res, dst)=>{
+  function check_val(res, dst){
     let v;
     if (typeof dst!='string')
       return;
@@ -666,8 +666,8 @@ let pkg_export_lookup = (pkg, file)=>{
       throw Error('module('+pkg.name+' dst match * ('+dst+') unsupported');
     res.push(v = {file: dst.slice(0, -1)+dfile});
     return v;
-  };
-  let parse_val = (res, v)=>{
+  }
+  function parse_val(res, v){
     if (typeof v=='string')
       return check_val(res, v);
     if (typeof v!='object')
@@ -684,8 +684,8 @@ let pkg_export_lookup = (pkg, file)=>{
       parse_val(res, v.import) ||
       parse_val(res, v.default) ||
       parse_val(res, v.require);
-  };
-  let parse_section = val=>{
+  }
+  function parse_section(val){
     let res = [], tr;
     for (let [match, v] of OF(val)){
       if (typeof v=='string'
@@ -705,7 +705,7 @@ let pkg_export_lookup = (pkg, file)=>{
     });
     return best;
   }
-  let parse_pkg = ()=>{
+  function parse_pkg(){
     let exports = pkg.exports, v;
     if (typeof exports=='string')
       exports = {'.': exports};
@@ -719,7 +719,7 @@ let pkg_export_lookup = (pkg, file)=>{
     }
     if (v = parse_section(pkg.browser))
       return v;
-  };
+  }
   // start package.json lookup
   if (file=='package.json')
     return {file};
