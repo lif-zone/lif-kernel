@@ -94,18 +94,10 @@ const OF = o=>o ? Object.entries(o) : [];
 exports.OF = OF;
 const OA = Object.assign;
 exports.OA = OA;
-const TV = (fn, v)=>(function(){ // convert throw Error to value
+const T = (fn, throw_val)=>(function(){ // convert throw Error to undefined
   try {
     return fn(...arguments);
-  } catch(err){
-    return v;
-  }
-});
-exports.TV = TV;
-const T = fn=>(function(){ // convert throw Error to undefined
-  try {
-    return fn(...arguments);
-  } catch(err){}
+  } catch(err){ return throw_val; }
 });
 exports.T = T;
 const TU = fn=>(function(){ // Throw error on undefined
@@ -202,8 +194,8 @@ let assert_run = run=>{
   }
 };
 let assert_run_ab = (a, b, test)=>{
-  let _a = TV(a, {got_throw: 1})();
-  let _b = TV(b, {got_throw: 1})();
+  let _a = T(a, {got_throw: 1})();
+  let _b = T(b, {got_throw: 1})();
   assert(!!_a.got_throw==!!_b.got_throw,
     _a.got_throw ? 'a throws, and b does not' : 'b throws, and a does not');
   let ok = assert_run(()=>test(_a, _b));
@@ -856,7 +848,7 @@ const lpm_ver_missing = exports.lpm_ver_missing = u=>{
 };
 const _lpm_parse = exports._lpm_parse =
   lpm=>typeof lpm=='string' ? lpm_parse(lpm) : lpm;
-const lpm_same_base = (lmod_a, lmod_b)=>{
+const lpm_same_base = exports.lpm_same_base = (lmod_a, lmod_b)=>{
   let a = _lpm_parse(lmod_a), b = _lpm_parse(lmod_b);
   return a.reg==b.reg && a.name==b.name;
 };
