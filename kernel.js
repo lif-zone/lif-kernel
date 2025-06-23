@@ -1,6 +1,6 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let lif_version = '1.1.17';
-let D = 1; // debug
+let D = 0; // debug
 
 const ewait = ()=>{
   let _return, _throw;
@@ -926,7 +926,6 @@ async function lpm_pkg_cache_follow(lmod){
   return lpm_pkg;
 }
 
-let DD = 0;
 async function lpm_pkg_get({log, lmod, mod_self}){
 return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   D && console.log('lpm_pkg_get', lmod, mod_self);
