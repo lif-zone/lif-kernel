@@ -839,12 +839,6 @@ const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
 };
 const npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
-// npm_parse() and lpm_parse(), and npm_parse_basic()
-const T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
-exports.T_npm_parse = T_npm_parse;
-const npm_parse = T(T_npm_parse);
-exports.npm_parse = npm_parse;
-
 let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
   let v;
   if (npm[0]!='.')
@@ -858,6 +852,8 @@ let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
   throw Error('invalid npm: '+npm);
 };
 let npm_to_lpm = exports.npm_to_lpm = T(T_npm_to_lpm);
+
+const T_npm_parse = exports.T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
 
 let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
   let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
@@ -1124,8 +1120,6 @@ function test_lpm(){
   //t('npm/os/dir/index.js', 'git:user/github/repo/mod',
   //  'git/github/repo/mod/dir/index.js');
   t = (npm, v)=>assert_eq(v, npm_to_lpm(npm));
-  // XXX need to add to npm_parse() support for .local ,git...
-  // and make current version a more low level: npm_basic_parse()
   t('mod', 'npm/mod');
   t('mod/dir/file', 'npm/mod/dir/file');
   t('@mod/sub', 'npm/@mod/sub');
