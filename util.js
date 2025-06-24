@@ -784,6 +784,37 @@ const T_npm_dep_to_lpm = (mod_self, dep)=>{
   throw Error('invalid npm_dep prefix: '+dep);
 };
 const npm_dep_to_lpm = T(T_npm_dep_to_lpm);
+
+const npm_dep_parse = exports.npm_dep_parse = ({mod_self, imp, dep})=>{
+  let lmod = T_lpm_lmod(imp);
+  let path = T_lpm_parse(imp).path;
+  let d = dep, v;
+  if (d[0]=='/')
+    return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
+  if (v=str.starts(d, './'))
+    return mod_self+(v.rest?'/'+v.rest:'')+path;
+  if (v=str.starts(d, 'npm:'))
+    return 'npm/'+v.rest+path;
+  if (v=str.starts(d, '.npm/'))
+    return 'npm/'+v.rest+path;
+  if (v=str.starts(d, '.git/'))
+    return 'git/'+v.rest+path;
+  let range = semver_range_parse(d);
+  if (!range){
+    console.log('invalid semver_range: '+range);
+    return '-';
+  }
+  let {op, ver} = range[0];
+  if (range.length>1)
+    console.log('ignoring multi-op imp: '+d);
+  if (op=='>=')
+    return '-';
+  if (op=='^' || op=='=' || op=='' || op=='~')
+    return lmod+'@'+ver+path;
+  console.log('invalid op: '+op);
+  return '-';
+};
+
 // npm_parse() and lpm_parse(), and npm_parse_basic()
 const T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
 exports.T_npm_parse = T_npm_parse;
@@ -965,7 +996,7 @@ exports.T_semver_range_parse = T_semver_range_parse;
 let semver_range_parse = T(T_semver_range_parse);
 exports.semver_range_parse = semver_range_parse;
 
-function test_url_uri(){
+function test_lpm(){
   let t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
@@ -1031,7 +1062,11 @@ function test_url_uri(){
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
-  t = (dep, v)=>assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
+  t = (dep, v)=>{
+    assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
+    console.log('npm_dep_parse',
+      npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep}, v));
+  };
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
@@ -1048,6 +1083,25 @@ function test_url_uri(){
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  t = (imp, dep, v)=>
+    assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
+  t('npm/react', '^18.3.1', 'npm/react@18.3.1');
+  t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
+  t('npm/xxx', '/', 'local');
+  t('npm/xxx/file', '/', 'local/file');
+  t('npm/xxx/file', '/DIR', 'local/DIR//file');
+  t('npm/react', '=18.3.1', 'npm/react@18.3.1');
+  t('npm/react', '18.3.1', 'npm/react@18.3.1');
+  t('npm/react', '>=18.3.1', '-');
+  t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
+  t('npm/loc/file.js', '/loc', 'local/loc//file.js');
+  t('npm/react', '^18.3.1', 'npm/react@18.3.1');
+  t('npm/react/index.js', '^18.3.1', 'npm/react@18.3.1/index.js');
+  t('npm/rmod', 'npm:react@18.3.1', 'npm/react@18.3.1');
+  t('npm/os/dir/index.js', '.git/github/repo/mod',
+    'git/github/repo/mod/dir/index.js');
+  //t('npm/os/dir/index.js', 'git:user/github/repo/mod',
+  //  'git/github/repo/mod/dir/index.js');
   t = (npm, v)=>assert_eq(v, npm_to_lpm(npm));
   // XXX need to add to npm_parse() support for .local ,git...
   // and make current version a more low level: npm_basic_parse()
@@ -1130,7 +1184,7 @@ function test_url_uri(){
     {op: '^', ver: '4.5.6'}]);
   t('  ');
 }
-test_url_uri();
+test_lpm();
 
 const uri_enc = path=>encodeURIComponent(path)
   .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');

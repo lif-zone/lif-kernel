@@ -128,7 +128,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   path_prefix, qs_enc, lpm_ver_from_base, lpm_same_base,
   T_url_parse, T_npm_url_base, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  T_lpm_parse, T_lpm_str, lpm_ver_missing,
+  T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   uri_dec, match_glob_to_regex, semver_range_parse,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
@@ -544,34 +544,6 @@ const mjs_import_mjs = (export_default, path, q)=>{
     js += `export {default} from ${_path};\n`;
   return js;
 };
-
-function npm_dep_parse({mod_self, imp, dep}){
-  let lmod = T_lpm_lmod(imp);
-  let path = T_lpm_parse(imp).path;
-  let d = dep, v;
-  if (d[0]=='/')
-    return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
-  if (v=str.starts(d, './'))
-    return mod_self+(v.rest?'/'+v.rest:'')+path;
-  if (v=str.starts(d, 'npm:'))
-    return 'npm/'+v.rest+path;
-  if (v=str.starts(d, '.git/'))
-    return 'git/'+v.rest+path;
-  let range = semver_range_parse(d);
-  if (!range){
-    console.log('invalid semver_range: '+range);
-    return '-';
-  }
-  let {op, ver} = range[0];
-  if (range.length>1)
-    console.log('ignoring multi-op imp: '+d);
-  if (op=='>=')
-    return '-';
-  if (op=='^' || op=='=' || op=='' || op=='~')
-    return lmod+'@'+ver+path;
-  console.log('invalid op: '+op);
-  return '-';
-}
 
 let lpm_imp_ver_lookup = (lpm, imp)=>{
   let pkg = lpm.pkg;
@@ -1323,24 +1295,6 @@ function test_lpm(){
   t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
-  t = (imp, dep, v)=>
-    assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
-  t('npm/react', '^18.3.1', 'npm/react@18.3.1');
-  t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
-  t('npm/MOD', '/', 'local');
-  t('npm/MOD/file', '/', 'local/file');
-  t('npm/MOD/file', '/DIR', 'local/DIR//file');
-  t('npm/react', '=18.3.1', 'npm/react@18.3.1');
-  t('npm/react', '18.3.1', 'npm/react@18.3.1');
-  t('npm/react', '>=18.3.1', '-');
-  t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
-  t('npm/loc/file.js', '/loc', 'local/loc//file.js');
-  t('npm/react', '^18.3.1', 'npm/react@18.3.1');
-  t('npm/react/index.js', '^18.3.1', 'npm/react@18.3.1/index.js');
-  t('npm/os/dir/index.js', '.git/github/repo/mod',
-    'git/github/repo/mod/dir/index.js');
-  //t('npm/os/dir/index.js', 'git:user/github/repo/mod',
-  //  'git/github/repo/mod/dir/index.js');
   let lpm = {lmod: 'npm/lif-os', pkg: {dependencies: {
     pages: './pages',
     loc: '/loc',
