@@ -795,10 +795,8 @@ const npm_dep_parse = exports.npm_dep_parse = ({mod_self, imp, dep})=>{
     return mod_self+(v.rest?'/'+v.rest:'')+path;
   if (v=str.starts(d, 'npm:'))
     return 'npm/'+v.rest+path;
-  if (v=str.starts(d, '.npm/'))
-    return 'npm/'+v.rest+path;
-  if (v=str.starts(d, '.git/'))
-    return 'git/'+v.rest+path;
+  if (v=str.starts(d, '.npm/', '.git/', '.local/'))
+    return v.start.slice(1)+v.rest+path;
   let range = semver_range_parse(d);
   if (!range){
     console.log('invalid semver_range: '+range);
@@ -1064,8 +1062,8 @@ function test_lpm(){
   t(true, 'npm/mod/dir//file.js');
   t = (dep, v)=>{
     assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
-    console.log('npm_dep_parse',
-      npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep}, v));
+    let vv = npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep});
+    console.log('npm_dep_parse', 'dep', dep, 'new', vv, 'old', v==vv?'EQ':v);
   };
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
