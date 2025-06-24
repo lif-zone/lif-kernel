@@ -545,35 +545,62 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-let lpm_imp_ver_lookup = (lpm, mod_uri)=>{
+function _npm_dep_parse(dep){
+  let d = dep, v;
+  if (d[0]=='/')
+    return {is: 'local', lmod: T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/'})};
+  if (v=str.starts(d, './'))
+    return {is: 'rel', rel_path: '/'+v.rest};
+  if (v=str.starts(d, 'npm:'))
+    return {is: 'npm', lmod: 'npm/'+v.rest};
+  if (v=str.starts(d, '.git/'))
+    return {is: 'git', lmod: 'git/'+v.rest};
+  let range = semver_range_parse(d);
+  if (!range)
+    return {is: 'err', err: 'invalid semver_range'};
+  let {op, ver} = range[0];
+  if (range.length>1)
+    console.log('ignoring multi-op imp: '+d);
+  if (op=='>=')
+    return {is: 'ver', ver: '@latest'};
+  if (op=='^' || op=='=' || op=='' || op=='~')
+    return {is: 'ver', ver: '@'+ver};
+  return {is: 'err', err: 'invalid op '+op};
+}
+
+function npm_dep_parse(imp, from, to){
+}
+
+let lpm_imp_ver_lookup = (lpm, imp)=>{
   let pkg = lpm.pkg;
   let X = (reason, val)=>{
+    console.log(reason, pkg.name, imp, val);
     return val;
     if (['npm1', 'modver'].includes(reason))
       return val;
     if (pkg.name=='lif-os')
-      console.log(reason, pkg.name, mod_uri, val);
+      console.log(reason, pkg.name, imp, val);
     return val;
   };
-  let lmod = T_lpm_lmod(mod_uri);
+  let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
-  let path = T_lpm_parse(mod_uri).path;
-  function get_imp(imp){
+  let path = T_lpm_parse(imp).path;
+  function get_imp(deps){
     let d, v;
-    if (!(d = imp?.[npm]))
+    if (!(d = deps?.[npm]))
       return;
     if (d[0]=='/')
-      return X('root', T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
+      return X('X root', T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
     if (v=str.starts(d, './'))
-      return X('same_pkg', lpm.lmod+(v.rest?'/'+v.rest:'')+path);
+      return X('X same_pkg', lpm.lmod+(v.rest?'/'+v.rest:'')+path);
     if (v=str.starts(d, 'npm:'))
-      return X('npm2', 'npm/'+v.rest+path);
+      return X('X npm2', 'npm/'+v.rest+path);
     if (v=str.starts(d, '.git/'))
       return X('git', 'git/'+v.rest+path);
     let range = semver_range_parse(d);
     if (!range){
       console.log('invalid imp('+lmod+') ver '+d);
-      return X('none2', '-');
+      return X('X none2', '-');
     }
     let {op, ver} = range[0];
     if (range.length>1)
@@ -1342,13 +1369,16 @@ function test_lpm(){
     mod: '/MOD',
     react: 'npm:react@18.3.1',
     reactbad: 'reactbad@18.3.1',
-    dir: './DIR'}}}};
+    dir: './DIR',
+    GIT: 'git:.git/user@repo',
+  }}}};
   t(lpm, 'npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t(lpm, 'npm/react', 'npm/react@18.3.1');
   t(lpm, 'npm/react/file.js', 'npm/react@18.3.1/file.js');
   t(lpm, 'npm/reactbad');
   t(lpm, 'local/file', 'local/file');
   t(lpm, 'npm/dir', 'npm/mod/DIR');
+  //t(lpm, 'GIT/github/user/repo', 'local/file');
   t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
   t('a/file', undefined, ['.js']);
