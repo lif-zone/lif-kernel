@@ -545,43 +545,36 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-function _npm_dep_parse(dep){
+function npm_dep_parse({mod_self, imp, dep}){
+  let lmod = T_lpm_lmod(imp);
+  let path = T_lpm_parse(imp).path;
   let d = dep, v;
   if (d[0]=='/')
-    return {is: 'local', lmod: T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/'})};
+    return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
-    return {is: 'rel', rel_path: '/'+v.rest};
+    return mod_self+(v.rest?'/'+v.rest:'')+path;
   if (v=str.starts(d, 'npm:'))
-    return {is: 'npm', lmod: 'npm/'+v.rest};
+    return 'npm/'+v.rest+path;
   if (v=str.starts(d, '.git/'))
-    return {is: 'git', lmod: 'git/'+v.rest};
+    return 'git/'+v.rest+path;
   let range = semver_range_parse(d);
-  if (!range)
-    return {is: 'err', err: 'invalid semver_range'};
+  if (!range){
+    console.log('invalid semver_range: '+range);
+    return '-';
+  }
   let {op, ver} = range[0];
   if (range.length>1)
     console.log('ignoring multi-op imp: '+d);
   if (op=='>=')
-    return {is: 'ver', ver: '@latest'};
+    return '-';
   if (op=='^' || op=='=' || op=='' || op=='~')
-    return {is: 'ver', ver: '@'+ver};
-  return {is: 'err', err: 'invalid op '+op};
-}
-
-function npm_dep_parse(imp, from, to){
+    return lmod+'@'+ver+path;
+  console.log('invalid op: '+op);
+  return '-';
 }
 
 let lpm_imp_ver_lookup = (lpm, imp)=>{
   let pkg = lpm.pkg;
-  let X = (reason, val)=>{
-    console.log(reason, pkg.name, imp, val);
-    return val;
-    if (['npm1', 'modver'].includes(reason))
-      return val;
-    if (pkg.name=='lif-os')
-      console.log(reason, pkg.name, imp, val);
-    return val;
-  };
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
   let path = T_lpm_parse(imp).path;
@@ -589,29 +582,7 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
     let d, v;
     if (!(d = deps?.[npm]))
       return;
-    if (d[0]=='/')
-      return X('X root', T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path}));
-    if (v=str.starts(d, './'))
-      return X('X same_pkg', lpm.lmod+(v.rest?'/'+v.rest:'')+path);
-    if (v=str.starts(d, 'npm:'))
-      return X('X npm2', 'npm/'+v.rest+path);
-    if (v=str.starts(d, '.git/'))
-      return X('git', 'git/'+v.rest+path);
-    let range = semver_range_parse(d);
-    if (!range){
-      console.log('invalid imp('+lmod+') ver '+d);
-      return X('X none2', '-');
-    }
-    let {op, ver} = range[0];
-    if (range.length>1)
-      console.log('ignoring multi-op imp: '+d);
-    if (op=='>=')
-      return X('ver', ver);
-    if (!(op=='^' || op=='=' || op=='' || op=='~')){
-      console.log('invalid imp('+lmod+') op '+op);
-      return X('none', '-');
-    }
-    return X('modver', lmod+'@'+ver+path);
+    return npm_dep_parse({mod_self: lpm.lmod, imp, dep: d});
   }
   let d
   if (d = get_imp(pkg.lif?.dependencies))
@@ -619,7 +590,7 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
   if (d = get_imp(pkg.dependencies))
     return d;
   if (d = get_imp(pkg.peerDependencies))
-    return X('peer', 'peer:'+d);
+    return 'peer:'+d;
   if (d = get_imp(pkg.devDependencies))
     return d;
 };
@@ -1353,6 +1324,16 @@ function test_lpm(){
   t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
+  t = (imp, dep, v)=>
+    assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
+  t('npm/react', '^18.3.1', 'npm/react@18.3.1');
+  t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
+  t('npm/dir', '/', 'local');
+  t('npm/dir/file', '/', 'local/file');
+  t('npm/dir/file', '/DIR', 'local/DIR//file');
+  t('npm/react', '=18.3.1', 'npm/react@18.3.1');
+  t('npm/react', '18.3.1', 'npm/react@18.3.1');
+  t('npm/react', '>=18.3.1', '-');
   t = (lpm, imp, v)=>0 && assert_eq(v, lpm_imp_ver_lookup(lpm, imp));
   t({lmod: 'npm/a-pkg', pkg: {lif: {dependencies: {'mod': '/mod'}}}},
     'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
