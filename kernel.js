@@ -577,7 +577,6 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
   let pkg = lpm.pkg;
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
-  let path = T_lpm_parse(imp).path;
   function get_imp(deps){
     let d, v;
     if (!(d = deps?.[npm]))
@@ -1340,6 +1339,8 @@ function test_lpm(){
   t('npm/react/index.js', '^18.3.1', 'npm/react@18.3.1/index.js');
   t('npm/os/dir/index.js', '.git/github/repo/mod',
     'git/github/repo/mod/dir/index.js');
+  //t('npm/os/dir/index.js', 'git:user/github/repo/mod',
+  //  'git/github/repo/mod/dir/index.js');
   let lpm = {lmod: 'npm/lif-os', pkg: {dependencies: {
     pages: './pages',
     loc: '/loc',
@@ -1377,6 +1378,7 @@ function test_lpm(){
   t('a/file.ico', ['.xjs'], undefined);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
   t = (pkg, file, v)=>assert_obj(v, pkg_export_lookup(pkg, file));
+  // TODO missing tests
   // check 'package.json' is not modified, even if pkg is null
   t = (pkg, uri, v)=>assert_obj(v, pkg_web_export_lookup(pkg, uri));
   pkg = {web_exports: {
