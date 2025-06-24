@@ -1328,37 +1328,44 @@ function test_lpm(){
     assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
   t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
-  t('npm/dir', '/', 'local');
-  t('npm/dir/file', '/', 'local/file');
-  t('npm/dir/file', '/DIR', 'local/DIR//file');
+  t('npm/MOD', '/', 'local');
+  t('npm/MOD/file', '/', 'local/file');
+  t('npm/MOD/file', '/DIR', 'local/DIR//file');
   t('npm/react', '=18.3.1', 'npm/react@18.3.1');
   t('npm/react', '18.3.1', 'npm/react@18.3.1');
   t('npm/react', '>=18.3.1', '-');
-  t = (lpm, imp, v)=>0 && assert_eq(v, lpm_imp_ver_lookup(lpm, imp));
-  t({lmod: 'npm/a-pkg', pkg: {lif: {dependencies: {'mod': '/mod'}}}},
-    'npm/mod/dir/main.tsx', 'local/mod//dir/main.tsx');
-  let lifos = {lmod: 'npm/lif-os', pkg: {dependencies:
-    {pages: './pages', loc: '/loc', react: '^18.3.1',
-    os: '.git/github/repo/mod'}}};
-  t(lifos, 'npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
-  t(lifos, 'npm/loc/file.js', 'local/loc//file.js');
-  t(lifos, 'npm/react', 'npm/react@18.3.1');
-  t(lifos, 'npm/react/index.js', 'npm/react@18.3.1/index.js');
-  t(lifos, 'npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
-  t = (lpm, imp, v)=>assert_eq(v, lpm_imp_lookup({lpm, lmod: imp}));
-  let lpm = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
+  t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
+  t('npm/loc/file.js', '/loc', 'local/loc//file.js');
+  t('npm/react', '^18.3.1', 'npm/react@18.3.1');
+  t('npm/react/index.js', '^18.3.1', 'npm/react@18.3.1/index.js');
+  t('npm/os/dir/index.js', '.git/github/repo/mod',
+    'git/github/repo/mod/dir/index.js');
+  let lpm = {lmod: 'npm/lif-os', pkg: {dependencies: {
+    pages: './pages',
+    loc: '/loc',
+    react: '^18.3.1',
+    os: '.git/github/repo/mod',
+  }}};
+  t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm, imp));
+  t('npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
+  t('npm/loc/file.js', 'local/loc//file.js');
+  t('npm/react', 'npm/react@18.3.1');
+  t('npm/react/index.js', 'npm/react@18.3.1/index.js');
+  t('npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
+  lpm = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
     react: 'npm:react@18.3.1',
     reactbad: 'reactbad@18.3.1',
     dir: './DIR',
     GIT: 'git:.git/user@repo',
   }}}};
-  t(lpm, 'npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
-  t(lpm, 'npm/react', 'npm/react@18.3.1');
-  t(lpm, 'npm/react/file.js', 'npm/react@18.3.1/file.js');
-  t(lpm, 'npm/reactbad');
-  t(lpm, 'local/file', 'local/file');
-  t(lpm, 'npm/dir', 'npm/mod/DIR');
+  t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm, lmod: imp}));
+  t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
+  t('npm/react', 'npm/react@18.3.1');
+  t('npm/react/file.js', 'npm/react@18.3.1/file.js');
+  t('npm/reactbad');
+  t('local/file', 'local/file');
+  t('npm/dir', 'npm/mod/DIR');
   //t(lpm, 'GIT/github/user/repo', 'local/file');
   t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
