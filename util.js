@@ -785,7 +785,7 @@ const T_npm_dep_to_lpm = (mod_self, dep)=>{
 };
 const npm_dep_to_lpm = T(T_npm_dep_to_lpm);
 
-const npm_dep_parse = exports.npm_dep_parse = ({mod_self, imp, dep})=>{
+const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
@@ -793,25 +793,51 @@ const npm_dep_parse = exports.npm_dep_parse = ({mod_self, imp, dep})=>{
     return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
     return mod_self+(v.rest?'/'+v.rest:'')+path;
+  if (v=str.starts(d, ['https:', 'http:', 'git:'])){
+    let u = new URL(d), site = u.host;
+    if (u.host=='github.com'){
+      site = 'github';
+    } else if (site=='gitlab.com'){
+      site = 'gitlab';
+    } else
+      throw Error('invalid http registry '+site);
+    let p = u.pathname.slice(1).split('/');
+    let user = p.shift();
+    let repo = p.shift();
+    if (!user || !repo)
+      throw Error('invalid gith user/repo');
+    if (v=str.ends(repo, '.git'))
+      repo = v.rest;
+    let _path = p.map(p=>'/'+p).join('');
+    let ver = u.hash ? '@'+u.hash.slice(1) : '';
+    return 'git/'+site+'/'+user+'/'+repo+ver+_path;
+  }
   if (v=str.starts(d, 'npm:'))
     return 'npm/'+v.rest+path;
   if (v=str.starts(d, '.npm/', '.git/', '.local/'))
     return v.start.slice(1)+v.rest+path;
+  if (v=str.starts(dep, 'file:')){
+    let file = v.rest;
+    if (!(v=str.starts(file, './')))
+      throw Error('only ./ files supported: '+dep);
+    return mod_self+'/'+v.rest;
+  }
   let range = semver_range_parse(d);
   if (!range){
-    console.log('invalid semver_range: '+range);
+    D && console.log('invalid semver_range: '+range);
     return '-';
   }
   let {op, ver} = range[0];
   if (range.length>1)
-    console.log('ignoring multi-op imp: '+d);
+    D && console.log('ignoring multi-op imp: '+d);
   if (op=='>=')
     return '-';
   if (op=='^' || op=='=' || op=='' || op=='~')
     return lmod+'@'+ver+path;
-  console.log('invalid op: '+op);
+  D && console.log('invalid op: '+op);
   return '-';
 };
+const npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
 // npm_parse() and lpm_parse(), and npm_parse_basic()
 const T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
@@ -1060,11 +1086,8 @@ function test_lpm(){
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
-  t = (dep, v)=>{
-    assert_eq(v, npm_dep_to_lpm('npm/self@4.5.6', dep));
-    let vv = npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep});
-    console.log('npm_dep_parse', 'dep', dep, 'new', vv, 'old', v==vv?'EQ':v);
-  };
+  t = (dep, v)=>assert_eq(v,
+    npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep}));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
