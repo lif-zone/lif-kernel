@@ -1399,11 +1399,7 @@ let do_app_pkg = async function(boot_pkg){
 let boot_chan;
 function sw_init_post(){
   boot_chan = new util.postmessage_chan();
-  //boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
-  boot_chan.add_server_cmd('version', arg=>{
-    debugger;
-    return {version: lif_version};
-  });
+  boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
   boot_chan.add_server_cmd('app_pkg', async({arg})=>await do_app_pkg(arg));
   lif_kernel.on_message = event=>{
     if (boot_chan.listen(event))
