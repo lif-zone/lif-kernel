@@ -547,6 +547,7 @@ const url_parse = T(T_url_parse);
 // Docs:
 //   https://statically.io/ - gh GitHub, gl GitLab, 
 //   https://www.jsdelivr.com/github - link converter
+// Tools: Purge: https://www.jsdelivr.com/tools/purge
 // IPFS
 //   https://ipfs.io/ipfs/QmZULkCELmmk5XNfCgTnCyFgAVxBRBXyDHGGMVoLFLiXEN
 //   https://cloudflare-ipfs.com/ipfs/QmZULkCELmmk5XNfCgTnCyFgAVxBRBXyDHGGMVoLFLiXEN
