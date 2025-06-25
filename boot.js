@@ -257,7 +257,8 @@ function init_worker(){
 
 let lif_kernel_base = import.meta.resolve('./x').slice(0, -1);
 let boot_kernel = async()=>{
-  console.log('lif boot version: '+lif_version+' util '+util.version);
+  console.log('lif boot version: '+lif_version+' util '+util.version
+    +' from '+lif_kernel_base);
   if (boot_kernel.wait)
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
@@ -280,10 +281,10 @@ let boot_kernel = async()=>{
       kernel_chan.connect(controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
       let slow = eslow('conn_kernel chan');
-      console.log('conn_kernel chan start');
+      D && console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
-      console.log('conn_kernel chan end');
+      D && console.log('conn_kernel chan end');
       slow.end();
       wait.return();
     };
