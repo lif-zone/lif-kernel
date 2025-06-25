@@ -1,4 +1,4 @@
-let util_version = '1.1.17';
+let util_version = '1.2.0';
 let exports = {};
 exports.version = util_version;
 let D = 0; // Debug
@@ -219,7 +219,7 @@ class postmessage_chan {
     let req = this.req[id] = {wait: ewait()};
     req.slow = eslow('post cmd '+cmd);
     this.port.postMessage({cmd, arg, id});
-    return await req;
+    return await req.wait;
   }
   async cmd_server_cb(msg){
     let cmd_cb = this.cmd_cb[msg.cmd];
