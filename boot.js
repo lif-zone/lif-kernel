@@ -331,8 +331,9 @@ let coi_reload = async()=>{
   window.location.reload();
 };
 
-// http://localhost:3000/?lif-os@1.1.16/lif-basic/main.tsx
-// http://localhost:3000/?webapp=lif-os@1.1.16/lif-basic/main.tsx
+// http://localhost:3000/?lif-basic@1.2.0/main.tsx
+// http://localhost:3000/?lif-os@1.2.0/lif-basic/main.tsx
+// http://localhost:3000/?webapp=lif-os@1.2.9/lif-basic/main.tsx
 // http://localhost:3000/?.git/github/xderry/lif-os@main/lif-basic/main.tsx
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
@@ -343,7 +344,7 @@ let app_pkg_default = ()=>{
   if (v=q.get('webapp'))
     pkg.webapp = v;
   if (!pkg.webapp)
-    pkg.webapp = 'lif-basic@1.1.14/main.tsx';
+    pkg.webapp = 'lif-basic@1.2.0/main.tsx';
   if (v=q.get('src')){
     let u = lpm_parse(npm_to_lpm(pkg.webapp));
     u.path = '';
