@@ -924,8 +924,10 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   }
   // fetch pkg
   let reg = await reg_get({log, lmod: lmod+'/package.json'});
-  if (reg.not_exist)
-    return OA(lpm_pkg, reg);
+  if (reg.not_exist){
+    lpm_pkg.not_exist = reg.not_exist;
+    return lpm_pkg;
+  }
   lpm_pkg.blob = reg.blob;
   lpm_pkg.body = reg.body;
   try {
@@ -1063,6 +1065,8 @@ async function lpm_file_resolve({log, lmod, mod_self}){
     mod_self = lpm_app;
   let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, lmod: T_lpm_lmod(lmod),
     mod_self: mod_self && T_lpm_lmod(mod_self)});
+  if (lpm_pkg.not_exist)
+    return {not_exist: true};
   if (lpm_pkg.redirect){
     let u = T_lpm_parse(lmod);
     return {redirect: lpm_pkg.redirect+u.path};
@@ -1230,7 +1234,7 @@ async function _kernel_fetch(event){
   }
   // local requests
   let _path;
-  if (!lpm_pkg_app)
+  if (!lpm_pkg_app || !lpm_pkg_app.pkg)
     console.info('req before lpm_pkg_app init '+path);
   else if (_path = pkg_web_export_lookup(lpm_pkg_app.pkg, path)){
     if (!_path.startsWith('./'))
