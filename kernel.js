@@ -713,7 +713,7 @@ function pkg_alt_get(pkg, file){
   return alt;
 }
 
-function lpm_export_get(pkg, lmod){
+function lpm_export_lookup(pkg, lmod){
   let {path} = T_lpm_parse(lmod);
   let ofile = path.slice(1)||'.';
   return pkg_export_lookup(pkg, ofile);
@@ -948,7 +948,7 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   lpm_file.npm_uri = lpm_to_npm(lmod);
   if (lpm_pkg.redirect)
     return OA(lpm_file, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
-  let {file, redirect} = lpm_export_get(pkg, lmod);
+  let {file, redirect} = lpm_export_lookup(pkg, lmod);
   if (redirect){
     let _uri = T_lpm_lmod(lmod)+'/'+file;
     D && console.log('redirect export '+lmod+' -> '+_uri);
