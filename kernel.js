@@ -620,7 +620,10 @@ function pkg_web_export_lookup(pkg, path){
 
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
-let pkg_export_lookup = (pkg, file)=>{
+let pkg_export_lookup = (pkg, path)=>{
+  assert(path[0]=='/', 'invalid path');
+  let file = path.slice(1) || '.'; // XXX remove '.'
+
   function check_val(res, dst){
     let v;
     if (typeof dst!='string')
@@ -689,6 +692,7 @@ let pkg_export_lookup = (pkg, file)=>{
     if (v = parse_section(pkg.browser))
       return v;
   }
+
   // start package.json lookup
   if (file=='package.json')
     return {file};
@@ -711,12 +715,6 @@ function pkg_alt_get(pkg, file){
   if (alt.find(e=>file.endsWith(e)))
     return;
   return alt;
-}
-
-function lpm_export_lookup(pkg, lmod){
-  let {path} = T_lpm_parse(lmod);
-  let ofile = path.slice(1)||'.';
-  return pkg_export_lookup(pkg, ofile);
 }
 
 async function reg_http_get({log, url}){
@@ -948,7 +946,7 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   lpm_file.npm_uri = lpm_to_npm(lmod);
   if (lpm_pkg.redirect)
     return OA(lpm_file, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
-  let {file, redirect} = lpm_export_lookup(pkg, lmod);
+  let {file, redirect} = pkg_export_lookup(pkg, T_lpm_parse(lmod).path);
   if (redirect){
     let _uri = T_lpm_lmod(lmod)+'/'+file;
     D && console.log('redirect export '+lmod+' -> '+_uri);
