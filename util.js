@@ -197,7 +197,6 @@ let assert_run_ab = exports.assert_run_ab = (a, b, test)=>{
 };
 
 // chan.js
-exports.postmessage_chan = postmessage_chan;
 class postmessage_chan {
   req = {};
   cmd_cb = {};
@@ -265,6 +264,7 @@ class postmessage_chan {
     this.port.close();
   }
 }
+exports.postmessage_chan = postmessage_chan;
 
 let utf8_enc = new TextEncoder('utf-8');
 let str_to_buf = buf=>{
@@ -287,7 +287,6 @@ let buf_to_str = (buf, type)=>{
 
 // implementation automatic service-worker/direct SharedArrayBuffer
 // https://github.com/alexmojaki/sync-message
-exports.ipc_sync = ipc_sync;
 class ipc_sync {
   seq = 0;
   constructor(ipc_buf){
@@ -400,6 +399,7 @@ class ipc_sync {
     return buf;
   }
 }
+exports.ipc_sync = ipc_sync;
 
 let path_ext = exports.path_ext = path=>path.match(/\.[^./]*$/)?.[0];
 let _path_ext = exports._path_ext = path=>path.match(/\.([^./]*)$/)?.[1];
