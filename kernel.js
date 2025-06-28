@@ -620,7 +620,7 @@ function pkg_web_export_lookup(pkg, path){
 
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
-let pkg_export_lookup_new = (pkg, path)=>{
+let pkg_export_lookup = (pkg, path)=>{
   let file = path.slice(1) || '.';
 
   function check_val(res, dst){
@@ -701,24 +701,11 @@ let pkg_export_lookup_new = (pkg, path)=>{
     return;
   if (f.startsWith('./'))
     f = f.slice(2);
-  if (f!=file){
+  if (f!=file) // redirect
     D && console.log('export_lookup redirect '+file+' -> '+f);
-    return '/'+f; // redirect
-  }
+    //console.log('export_lookup', pkg, pkg.name, json(path), json(v1));
   return '/'+f;
 };
-
-let pkg_export_lookup = (pkg, path)=>{
-  let v1 = pkg_export_lookup_new(pkg, path);
-  let v2 = pkg_export_lookup_new(pkg, path);
-  //console.log('export_lookup', path, v1);
-  if (v1!=v2){
-    console.error('diff', pkg.name, path);
-    //debugger;
-  }
-  return v1;
-}
-
 
 function pkg_alt_get(pkg, file){
   let ext = _path_ext(file);
@@ -1348,7 +1335,24 @@ function test_lpm(){
   t('a/file.ico', ['.xjs'], undefined);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
   t = (pkg, file, v)=>assert_obj(v, pkg_export_lookup(pkg, file));
-  // TODO missing tests
+  t({exports: {'.': './exp'}}, '', '/exp');
+  t({exports: {'.': './exp'}}, '/', '/exp');
+  t({exports: {'.': './exp'}}, '/exp');
+  t({main: './Main', exports: {'.': './exp'}}, '', '/exp');
+  t({main: 'Main'}, '', '/Main');
+  t({main: 'Main'}, '/', '/Main');
+  t({main: 'Main'}, '/Main');
+  t({main: './Main'}, '/Main');
+  t({main: '././Main'}, '/Main');
+  t({main: 'Main', module: 'Mod'}, '/Mod');
+  t({main: 'Main', exports: 'Exp'}, '/Exp');
+  t({exports: {'.': {server: './ser', default: './def'}}}, '', '/def');
+  t({exports: {'.': {default: 'def', import: 'imp', module: 'mod'}}},
+    '', '/mod');
+  t({exports: {'.': {default: 'def'}}, default: 'Def'}, '', '/def');
+  t({exports: {'.': {default: 'def'}}, import: 'Imp'}, '', '/def');
+  t({exports: {'.': {import: 'imp'}}, module: 'Mod'}, '', '/imp');
+  // {exports: {'./src/*': './src/*'}}
   // check 'package.json' is not modified, even if pkg is null
   t = (pkg, uri, v)=>assert_obj(v, pkg_web_export_lookup(pkg, uri));
   pkg = {web_exports: {
