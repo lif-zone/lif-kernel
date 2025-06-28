@@ -1050,6 +1050,7 @@ function test_lpm(){
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
   t('git://github.com/mochajs/mocha', 'git/github/mochajs/mocha');
+  t('git+https://github.com/mochajs/mocha', 'git/github/mochajs/mocha');
   t('git://github.com/mochajs/mocha.git#4727d357ea',
     'git/github/mochajs/mocha@4727d357ea');
   t('git://github.com/mochajs/mocha.git/index.js#4727d357ea',
