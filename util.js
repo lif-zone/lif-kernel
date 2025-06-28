@@ -1022,7 +1022,6 @@ let pkg_export_lookup = exports.pkg_export_lookup = (pkg, path)=>{
     f = f.slice(2);
   if (f!=file) // redirect
     D && console.log('export_lookup redirect '+file+' -> '+f);
-    //console.log('export_lookup', pkg, pkg.name, json(path), json(v1));
   return '/'+f;
 };
 
@@ -1411,11 +1410,16 @@ function test_util(){
   t({exports: {'.': {default: 'def'}}, default: 'Def'}, '', '/def');
   t({exports: {'.': {default: 'def'}}, import: 'Imp'}, '', '/def');
   t({exports: {'.': {import: 'imp'}}, module: 'Mod'}, '', '/imp');
+  t({exports: {'.': {require: 'req'}}}, '', '/req');
   t({exports: {'.': './exp'}}, '/a');
   t({exports: {'./a': './b'}}, '/a', '/b');
+  t({exports: {'./a': {default: 'Def', import: 'Imp'}}}, '/a', '/Imp');
+  t({exports: {'a': './b'}}, '/a', '/b');
   t({exports: {'./a/*': './b/*'}}, '/a/A', '/b/A');
-  //t({exports: {'./a/*.js': './b/*.esm'}}, '/a/A.js', '/b/A.esm');
-  t({exports: {'./a/*.js': './b/*.esm'}}, '/a/A');
+  t({exports: {'./a/*.js': './b/*.esm'}}, '/a/A'); // * allowed only at end
+  t({exports: {'./a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
+  t({exports: {'a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
+  t({exports: {'./a/*': 'b/*.esm'}}, '/a/A', '/b/A.esm');
   let scr = Scroll('0123456789abcdef');
   t = v=>assert_eq(v, scr.out());
   scr.splice(3, 5, 'ABCD');
