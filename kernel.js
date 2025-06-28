@@ -154,6 +154,16 @@ let cerr = console.error.bind(console);
 // https://cdn.jsdelivr.net/npm/lif-kernel@1.0.6/boot.js
 
 let submod_path = u=>u.submod.replace(/\/$/, '')+u.path;
+let gh_ver = u=>{
+  let ver = typeof u=='string' ? u : u.ver;
+  if (!ver)
+    return '';
+  let _ver = ver.replace(/^@/, '');
+  let v;
+  if (v=str.starts(_ver, 'semver:'))
+    return '@'+v.rest;
+  return ver;
+};
 let lpm_cdn = {
   npm: {src: [{
     name: 'jsdeliver.net',
@@ -171,14 +181,14 @@ let lpm_cdn = {
   git: {
     github: {src: [{
       name: 'jsdeliver.net',
-      url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${u.ver}${submod_path(u)}`
+      url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${submod_path(u)}`
     }, {
       name: 'statically.io',
-      url: u=>`https://statically.io/gh/${u.name}${u.ver}${submod_path(u)}`,
+      url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${submod_path(u)}`,
     }]},
     gitlab: {src: [{
       name: 'statically.io',
-      url: u=>`https://statically.io/gl/${u.name}${u.ver}${submod_path(u)}`,
+      url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${submod_path(u)}`,
     }]},
   },
   ipfs: {src: [{
@@ -1141,8 +1151,13 @@ async function kernel_fetch(event){
   }
 }
 
-function test_lpm(){
+function test_kernel(){
   let t, pkg;
+  t = (lpm_ver, v)=>assert_eq(v, gh_ver(lpm_ver));
+  t('', '');
+  t('@', '@');
+  t('@1.2.3', '@1.2.3');
+  t('@semver:=1.2.3', '@=1.2.3');
   t = (pkg_ver, date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
@@ -1220,7 +1235,7 @@ function test_lpm(){
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
 }
-test_lpm();
+test_kernel();
 
 let do_app_pkg = async function(boot_pkg){
   // XXX todo: store boot_pkg in localStorage
