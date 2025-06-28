@@ -940,7 +940,7 @@ let export_path_match = exports.export_path_match = (path, match, to)=>{
 
 // https://webpack.js.org/guides/package-exports/
 let pkg_export_lookup = exports.pkg_export_lookup = (pkg, path)=>{
-  let file = path.slice(1) || '.';
+  let file = path.replace(/^\//, '') || '.';
 
   function check_val(res, dst){
     let v;
@@ -1420,6 +1420,10 @@ function test_util(){
   t({exports: {'./a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
   t({exports: {'a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
   t({exports: {'./a/*': 'b/*.esm'}}, '/a/A', '/b/A.esm');
+  t({browser: './br'}, '', '/br');
+  t({browser: 'br', exports: 'ex'}, '', '/ex');
+  t({browser: {'a' : 'br'}}, 'a', '/br');
+  t({browser: {'a' : {default: 'Def',  import: 'Imp'}}}, 'a', '/Imp');
   let scr = Scroll('0123456789abcdef');
   t = v=>assert_eq(v, scr.out());
   scr.splice(3, 5, 'ABCD');
