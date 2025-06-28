@@ -784,20 +784,8 @@ const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
       throw Error('only ./ files supported: '+dep);
     return mod_self+'/'+v.rest;
   }
-  let range = semver_range_parse(d);
-  if (!range){
-    D && console.log('invalid semver_range: '+range);
-    return '-';
-  }
-  let {op, ver} = range[0];
-  if (range.length>1)
-    D && console.log('ignoring multi-op imp: '+d);
-  if (op=='>=')
-    return '-';
-  if (op=='^' || op=='=' || op=='' || op=='~')
-    return lmod+'@'+ver+path;
-  D && console.log('invalid op: '+op);
-  return '-';
+  let ver = semver_ver_guess(d);
+  return ver ? lmod+'@'+ver+path : '-';
 };
 const npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
