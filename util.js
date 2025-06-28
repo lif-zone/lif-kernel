@@ -617,9 +617,9 @@ const T_lpm_parse = lpm=>{
   function ver_split(name){
     let n = name.split('@');
     if (n.length==1)
-      return {name: name, ver: '', _ver: null};
+      return {name: name, ver: ''};
     if (n.length==2)
-      return {name: n[0], ver: '@'+n[1], _ver: n[1]};
+      return {name: n[0], ver: '@'+n[1]};
     throw Error('lpm_parse invalid ver inname: '+name);
   }
   let v, lmod, repo;
@@ -637,10 +637,9 @@ const T_lpm_parse = lpm=>{
       l.name = v.name;
     }
     l.ver = v.ver;
-    l._ver = v._ver;
     l.lmod = l.reg+'/'+l.name+l.ver;
     break;
-  case 'git':
+  case 'git': {
     l.site = next('site');
     l.user = next('user');
     repo = next('repo');
@@ -648,25 +647,23 @@ const T_lpm_parse = lpm=>{
     l.repo = v.name;
     l.name = l.user+'/'+l.repo;
     l.ver = v.ver;
-    l._ver = v._ver;
-    if (!l._ver)
-      l.ver_type = l._ver;
-    else if (/^[0-9a-f]+$/.test(l._ver)){
-      l.ver_type = l._ver.length==40 ? 'sha1' : l._ver.length==64 ? 'sha256' :
-        l._ver.length>=4 && !(l._ver.length % 2) && l._ver.length<=20 ? 'shortcut' :
+    let ver = l.ver ? l.ver.slice(1) : '';
+    if (!ver);
+    else if (/^[0-9a-f]+$/.test(ver)){
+      l.ver_type = ver.length==40 ? 'sha1' : ver.length==64 ? 'sha256' :
+        ver.length>=4 && !(ver.length % 2) && ver.length<=20 ? 'shortcut' :
         'name';
     } else
       l.ver_type = 'name';
     l.lmod = l.reg+'/'+l.site+'/'+l.name+l.ver;
-    break;
+    break; }
   case 'http':
   case 'https':
     l.name = next('site name');
     v = ver_split(l.name);
     l.name = v.name;
     l.ver = v.ver;
-    l._ver = v._ver;
-    l.port = v._ver;
+    l.port = v.ver.slice(1);
     l.lmod = l.reg+'/'+l.blockid;
     break;
   case 'bittorent':
@@ -750,42 +747,6 @@ const lpm_lmod = T(T_lpm_lmod);
 exports.lpm_lmod = lpm_lmod;
 
 // parse-package-name: package.json:dependencies
-const T_npm_dep_to_lpm = (mod_self, dep)=>{
-  let v;
-  if (v=str.starts(dep, './'))
-    return mod_self+'/'+v.rest;
-  if (v=str.starts(dep, ['https:', 'http:', 'git:'])){
-    let u = new URL(dep), site = u.host;
-    if (u.host=='github.com'){
-      site = 'github';
-    } else if (site=='gitlab.com'){
-      site = 'gitlab';
-    } else
-      throw Error('invalid http registry '+site);
-    let p = u.pathname.slice(1).split('/');
-    let user = p.shift();
-    let repo = p.shift();
-    if (!user || !repo)
-      throw Error('invalid gith user/repo');
-    if (v=str.ends(repo, '.git'))
-      repo = v.rest;
-    let _path = p.map(p=>'/'+p).join('');
-    let ver = u.hash ? '@'+u.hash.slice(1) : '';
-    return 'git/'+site+'/'+user+'/'+repo+ver+_path;
-  }
-  if (v=str.starts(dep, 'npm:'))
-    return 'npm/'+v.rest;
-  if (v=str.starts(dep, 'file:')){
-    let file = v.rest;
-    if (!(v=str.starts(file, './')))
-      throw Error('only ./ files supported: '+dep);
-    return mod_self+'/'+v.rest;
-  }
-  // add later bittorent: lifcoin: bitcoin: ethereum: ipfs: ipns:
-  throw Error('invalid npm_dep prefix: '+dep);
-};
-const npm_dep_to_lpm = T(T_npm_dep_to_lpm);
-
 const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
@@ -794,7 +755,7 @@ const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
     return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
     return mod_self+(v.rest?'/'+v.rest:'')+path;
-  if (v=str.starts(d, ['https:', 'http:', 'git:'])){
+  if (v=str.starts(d, ['https:', 'http:', 'git:', 'git+https:'])){
     let u = new URL(d), site = u.host;
     if (u.host=='github.com'){
       site = 'github';
@@ -1051,11 +1012,11 @@ function test_lpm(){
   t = (npm, v)=>assert_obj(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
-    ver: '@1.2.0', _ver: '1.2.0',
+    ver: '@1.2.0',
     lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
-    ver: '@1.2.0', _ver: '1.2.0',
+    ver: '@1.2.0',
     lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
