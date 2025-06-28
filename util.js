@@ -945,7 +945,7 @@ let semver_parse = semver=>{
 exports.semver_parse = semver_parse;
 
 let semver_op_re_start = /^(\^|=|~|>=|<=|\|\|)/;
-let T_semver_range_parse = semver_range=>{
+let T_semver_range_parse = exports.T_semver_range_parse = semver_range=>{
   let s = semver_range, m, range = [];
   function is(re){
     m = s.match(re);
@@ -974,9 +974,23 @@ let T_semver_range_parse = semver_range=>{
     throw Error('empty semver range');
   return range;
 };
-exports.T_semver_range_parse = T_semver_range_parse;
-let semver_range_parse = T(T_semver_range_parse);
-exports.semver_range_parse = semver_range_parse;
+let semver_range_parse = exports.semver_range_parse = T(T_semver_range_parse);
+
+let semver_ver_guess = exports.semver_ver_guess = semver_range=>{
+  let range = semver_range_parse(semver_range);
+  if (!range){
+    D && console.log('invalid semver_range: '+semver_range);
+    return;
+  }
+  let {op, ver} = range[0];
+  if (range.length>1)
+    D && console.log('ignoring multi-op imp: '+semver_range);
+  if (op=='>=')
+    return;
+  if (op=='^' || op=='=' || op=='' || op=='~')
+    return ver;
+  D && console.log('invalid op: '+op);
+};
 
 function test_lpm(){
   let t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
@@ -1058,6 +1072,8 @@ function test_lpm(){
   t('git://github.com/mochajs/mocha/dir/file.js',
     'git/github/mochajs/mocha/dir/file.js');
   t('git://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
+  t('git://github.com/npm/cli.git#semver:~1.0.27',
+    'git/github/npm/cli@semver:~1.0.27');
   t('https://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
@@ -1151,15 +1167,22 @@ function test_lpm(){
   t('x1.2.3-abc2-341.3');
   t('1.2.3x-abc2-341.3');
   t('1.2.3-a_');
-  t = (range, v)=>assert_obj(v, semver_range_parse(range));
-  t('1.2.3', [{ver: '1.2.3'}]);
-  t('v1.2.3-ab', [{ver: '1.2.3-ab'}]);
-  t('1.2.3 >=v1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
-  t(' = 1.2.3 >= 1.3.4 ', [{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]);
+  t = (range, v, guess)=>{
+    assert_obj(v, semver_range_parse(range));
+    assert_obj(guess, semver_ver_guess(range));
+  };
+  t('1.2.3', [{ver: '1.2.3'}], '1.2.3');
+  t('v1.2.3-ab', [{ver: '1.2.3-ab'}], '1.2.3-ab');
+  t('=1.2.3', [{ver: '1.2.3', op: '='}], '1.2.3');
+  t('~1.2.3', [{ver: '1.2.3', op: '~'}], '1.2.3');
+  t('1.2.3 >=v1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}],
+    '1.2.3');
+  t(' = 1.2.3 >= 1.3.4 ', [{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}],
+    '1.2.3');
   t('=1.2.3 +1.3.4');
   t('=1.2.3 x.2.3');
   t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
-    {op: '^', ver: '4.5.6'}]);
+    {op: '^', ver: '4.5.6'}], '1.2.3');
   t('  ');
 }
 test_lpm();
