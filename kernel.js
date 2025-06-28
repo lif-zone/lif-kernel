@@ -130,6 +130,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   uri_dec, match_glob_to_regex, semver_range_parse,
+  pkg_export_lookup, export_path_match,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
 let json = JSON.stringify;
@@ -566,48 +567,13 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
     return d;
 };
 
-let file_match = (file, match)=>{
-  let v, f = file, m = match;
-  while (v=str.starts(f, './'))
-    f = v.rest;
-  while (v=str.starts(m, './'))
-    m = v.rest;
-  if (path_prefix(f, m))
-    return true;
-  return false;
-};
-
-let path_match = (path, match, to)=>{
-  let ret_val = typeof to=='string' ? null : to || true;
-  if (!to)
-    to = match;
-  let v, f = path, m = match;
-  while (v=str.starts(path, './'))
-    path = v.rest;
-  while (v=str.starts(match, './'))
-    match = v.rest;
-  if (match.endsWith('/')){
-    if (!(v = str.starts(path, match)))
-      return;
-    return ret_val || to+v.rest;
-  }
-  if (match.endsWith('*')){
-    let re = match_glob_to_regex(match);
-    if (!(v = path.match(re)))
-      return;
-    return ret_val || to.replace('*', v[1]);
-  }
-  if (path==match)
-    return ret_val || to;
-};
-
 function pkg_web_export_lookup(pkg, path){
   function lookup(exports){
     if (!exports)
       return;
     for (let [match, to] of OF(exports)){
       let v;
-      if (v=path_match(path, match, to))
+      if (v=export_path_match(path, match, to))
         return v;
     }
   }
@@ -617,95 +583,6 @@ function pkg_web_export_lookup(pkg, path){
   if (v=lookup(pkg.web_exports))
     return v;
 }
-
-// parse package.exports
-// https://webpack.js.org/guides/package-exports/
-let pkg_export_lookup = (pkg, path)=>{
-  let file = path.slice(1) || '.';
-
-  function check_val(res, dst){
-    let v;
-    if (typeof dst!='string')
-      return;
-    if (!dst.includes('*')){
-      res.push(v = dst);
-      return v;
-    }
-    let dfile = path_file(dst);
-    let ddir = path_dir(dst);
-    if (ddir.includes('*') || dfile!='*')
-      throw Error('module('+pkg.name+' dst match * ('+dst+') unsupported');
-    res.push(v = dst.slice(0, -1)+dfile);
-    return v;
-  }
-  function parse_val(res, v){
-    if (typeof v=='string')
-      return check_val(res, v);
-    if (typeof v!='object')
-      return;
-    if (Array.isArray(v)){
-      for (let e of v){
-        if (parse_val(e))
-          return;
-      }
-      return;
-    }
-    return parse_val(res, v.browser) ||
-      parse_val(res, v.module) ||
-      parse_val(res, v.import) ||
-      parse_val(res, v.default) ||
-      parse_val(res, v.require);
-  }
-  function parse_section(val){
-    let res = [], tr;
-    for (let [match, v] of OF(val)){
-      if (typeof v=='string'
-        ? !(v = path_match(file, match, v))
-        : !path_match(file, match))
-      {
-        continue;
-      }
-      parse_val(res, v);
-    }
-    let best = res[0];
-    if (!best)
-      return;
-    res.forEach(r=>{
-      if (r.length > best.length)
-        best = r;
-    });
-    return best;
-  }
-  function parse_pkg(){
-    let exports = pkg.exports, v;
-    if (typeof exports=='string')
-      exports = {'.': exports};
-    if (v = parse_section(exports))
-      return v;
-    if (file=='.'){
-      return check_val([], pkg.browser) ||
-        check_val([], pkg.module) ||
-        check_val([], pkg.main) ||
-        check_val([], 'index.js');
-    }
-    if (v = parse_section(pkg.browser))
-      return v;
-  }
-
-  // start package.json lookup
-  if (file=='package.json')
-    return file;
-  let v;
-  let f = parse_pkg();
-  if (!f)
-    return;
-  if (f.startsWith('./'))
-    f = f.slice(2);
-  if (f!=file) // redirect
-    D && console.log('export_lookup redirect '+file+' -> '+f);
-    //console.log('export_lookup', pkg, pkg.name, json(path), json(v1));
-  return '/'+f;
-};
 
 function pkg_alt_get(pkg, file){
   let ext = _path_ext(file);
@@ -1266,22 +1143,6 @@ async function kernel_fetch(event){
 
 function test_lpm(){
   let t, pkg;
-  t = (path, match, tr, v)=>assert_obj(v, path_match(path, match, tr));
-  t('file', 'file', null, true);
-  t('file', 'file', {x: 1}, {x: 1});
-  t('file', 'f', undefined);
-  t('.', '.', 'index.js', 'index.js');
-  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
-  t('file', './file', './file.js', './file.js');
-  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
-  t('file.js', './*', './*', './file.js');
-  t('.', '.', './index.js', './index.js');
-  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
-  t = (path, match, v)=>assert_eq(v, path_match(path, match));
-  t('esm/file.js', './esm/', true);
-  t('esm/file.js', './esm');
-  t('esm/file.js', './file.js');
-  t('file.js', './file.jss');
   t = (pkg_ver, date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
@@ -1334,25 +1195,6 @@ function test_lpm(){
   t('a/file.xjs', ['.xjs', '.js'], undefined);
   t('a/file.ico', ['.xjs'], undefined);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
-  t = (pkg, file, v)=>assert_obj(v, pkg_export_lookup(pkg, file));
-  t({exports: {'.': './exp'}}, '', '/exp');
-  t({exports: {'.': './exp'}}, '/', '/exp');
-  t({exports: {'.': './exp'}}, '/exp');
-  t({main: './Main', exports: {'.': './exp'}}, '', '/exp');
-  t({main: 'Main'}, '', '/Main');
-  t({main: 'Main'}, '/', '/Main');
-  t({main: 'Main'}, '/Main');
-  t({main: './Main'}, '/Main');
-  t({main: '././Main'}, '/Main');
-  t({main: 'Main', module: 'Mod'}, '/Mod');
-  t({main: 'Main', exports: 'Exp'}, '/Exp');
-  t({exports: {'.': {server: './ser', default: './def'}}}, '', '/def');
-  t({exports: {'.': {default: 'def', import: 'imp', module: 'mod'}}},
-    '', '/mod');
-  t({exports: {'.': {default: 'def'}}, default: 'Def'}, '', '/def');
-  t({exports: {'.': {default: 'def'}}, import: 'Imp'}, '', '/def');
-  t({exports: {'.': {import: 'imp'}}, module: 'Mod'}, '', '/imp');
-  // {exports: {'./src/*': './src/*'}}
   // check 'package.json' is not modified, even if pkg is null
   t = (pkg, uri, v)=>assert_obj(v, pkg_web_export_lookup(pkg, uri));
   pkg = {web_exports: {

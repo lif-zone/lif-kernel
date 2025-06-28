@@ -6,7 +6,7 @@ let D = 0; // Debug
 let is_worker = typeof window=='undefined';
 
 // Promise with return() and throw()
-const ewait = ()=>{
+let ewait = exports.ewait = ()=>{
   let _return, _throw;
   let promise = new Promise((resolve, reject)=>{
     _return = ret=>{ resolve(ret); return ret; };
@@ -17,15 +17,13 @@ const ewait = ()=>{
   promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
   return promise;
 };
-exports.ewait = ewait;
-const esleep = ms=>{
+let esleep = exports.esleep = ms=>{
   let p = ewait();
   setTimeout(()=>p.return(), ms);
   return p;
 };
-exports.esleep = esleep;
 
-const eslow = (ms, arg)=>{
+let eslow = exports.eslow = (ms, arg)=>{
   let enable = 1;
   eslow.seq ||= 0;
   let seq = eslow.seq++;
@@ -59,9 +57,17 @@ const eslow = (ms, arg)=>{
   return p;
 };
 
+eslow.set = new Set();
+eslow.print = ()=>{
+  console.log('eslow print');
+  for (let p of eslow.set)
+    p.print();
+}
+self.esb = eslow;
+
 let once_obj = {};
 let once_set = new Set();
-const Donce = (once, fn)=>{
+let Donce = exports.Donce = (once, fn)=>{
   if (typeof once=='object'){
     if (!once_set.has(once)){
       once_set.add(once);
@@ -78,39 +84,26 @@ const Donce = (once, fn)=>{
   else
     console.error('invalid once', once);
 };
-exports.Donce = Donce;
-
-eslow.set = new Set();
-eslow.print = ()=>{
-  console.log('eslow print');
-  for (let p of eslow.set)
-    p.print();
-}
-exports.eslow = eslow;
-self.esb = eslow;
 
 // shortcuts
-const OF = o=>o ? Object.entries(o) : [];
-exports.OF = OF;
-const OA = Object.assign;
-exports.OA = OA;
-const T = (fn, throw_val)=>(function(){ // convert throw Error to undefined
+let OF = exports.OF = o=>o ? Object.entries(o) : [];
+let OA = exports.OA = Object.assign;
+// throw Error -> undefined
+let T = exports.T = (fn, throw_val)=>(function(){
   try {
     return fn(...arguments);
   } catch(err){ return throw_val; }
 });
-exports.T = T;
-const TU = fn=>(function(){ // Throw error on undefined
+// undefined -> Throw error
+let TU = exports.TU = fn=>(function(){
   let v = fn(...arguments);
   if (v===undefined)
     throw Error('failed '+fn.name);
   return v;
 });
-exports.TU = TU;
 
 // str.js
-const str = {};
-exports.str = str;
+let str = exports.str = {};
 str.split_ws = s=>s.split(/\s+/).filter(s=>s);
 str.es6_str = args=>{
   var parts = args[0], s = '';
@@ -125,7 +118,7 @@ str.es6_str = args=>{
 };
 str.qw = function(s){
   return str.split_ws(!Array.isArray(s) ? s : str.es6_str(arguments)); };
-const arr_deep_find = exports.arr_deep_find = (a, find)=>{
+let arr_deep_find = exports.arr_deep_find = (a, find)=>{
   if (!Array.isArray(a))
     return find(a);
   let v;
@@ -165,17 +158,17 @@ str.diff_pos = (s1, s2)=>{
 };
 
 // assert.js
-let assert = (ok, exp, res)=>{
+let assert = exports.assert = (ok, exp, res)=>{
   if (ok)
     return;
   console.error('test FAIL: exp', exp, 'res', res);
   debugger; // eslint-disable-line no-debugger
   throw Error('test FAIL');
 };
-let assert_eq = (exp, res)=>{
+let assert_eq = exports.assert_eq = (exp, res)=>{
   assert(exp===res, exp, res);
 };
-let assert_obj = (exp, res)=>{
+let assert_obj = exports.assert_obj = (exp, res)=>{
   if (exp===res)
     return;
   if (typeof exp=='object'){
@@ -193,7 +186,7 @@ let assert_run = run=>{
     assert(0, 'run failed: '+e);
   }
 };
-let assert_run_ab = (a, b, test)=>{
+let assert_run_ab = exports.assert_run_ab = (a, b, test)=>{
   let _a = T(a, {got_throw: 1})();
   let _b = T(b, {got_throw: 1})();
   assert(!!_a.got_throw==!!_b.got_throw,
@@ -202,12 +195,9 @@ let assert_run_ab = (a, b, test)=>{
   assert(ok, 'a and b dont match');
   return {a: _a, b: _b};
 };
-exports.assert = assert;
-exports.assert_eq = assert_eq;
-exports.assert_obj = assert_obj;
-exports.assert_run_ab = assert_run_ab;
 
 // chan.js
+exports.postmessage_chan = postmessage_chan;
 class postmessage_chan {
   req = {};
   cmd_cb = {};
@@ -275,7 +265,6 @@ class postmessage_chan {
     this.port.close();
   }
 }
-exports.postmessage_chan = postmessage_chan;
 
 let utf8_enc = new TextEncoder('utf-8');
 let str_to_buf = buf=>{
@@ -298,6 +287,7 @@ let buf_to_str = (buf, type)=>{
 
 // implementation automatic service-worker/direct SharedArrayBuffer
 // https://github.com/alexmojaki/sync-message
+exports.ipc_sync = ipc_sync;
 class ipc_sync {
   seq = 0;
   constructor(ipc_buf){
@@ -410,14 +400,15 @@ class ipc_sync {
     return buf;
   }
 }
-exports.ipc_sync = ipc_sync;
 
-const path_ext = path=>path.match(/\.[^./]*$/)?.[0];
-const _path_ext = path=>path.match(/\.([^./]*)$/)?.[1];
-const path_file = path=>path.match(/(^.*\/)?([^/]*)$/)?.[2]||'';
-const path_dir = path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
-const path_is_dir = path=>path.endsWith('/');
-const path_join = (...path)=>{
+let path_ext = exports.path_ext = path=>path.match(/\.[^./]*$/)?.[0];
+let _path_ext = exports._path_ext = path=>path.match(/\.([^./]*)$/)?.[1];
+let path_file = exports.path_file =
+  path=>path.match(/(^.*\/)?([^/]*)$/)?.[2]||'';
+let path_dir = exports.path_dir =
+  path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
+let path_is_dir = exports.path_is_dir = path=>path.endsWith('/');
+let path_join = exports.path_join = (...path)=>{
   let p = path[0];
   for (let i=1; i<path.length; i++){
     let add = path[i];
@@ -425,7 +416,7 @@ const path_join = (...path)=>{
   }
   return p;
 };
-const path_prefix = (path, start)=>{
+let path_prefix = exports.path_prefix = (path, start)=>{
   let v;
   if (!(v=str.starts(path, start)))
     return;
@@ -433,87 +424,39 @@ const path_prefix = (path, start)=>{
     return v;
 };
 
-function test_path(){
-  let t;
-  t = (v, s, arr)=>assert_eq(v, str.is(s, ...arr));
-  t(false, 'ab', ['']);
-  t(true, 'ab', ['ab']);
-  t(true, 'ab', ['', 'ab']);
-  t(true, 'D', ['d', ['abc', '', 'D']]);
-  t(false, 'D', ['d', ['abc', '', 'd']]);
-  t = (s, pre, v)=>{
-    assert_obj(v ? {start: v[0], rest: v[1]} : undefined, str.starts(s, pre));
-    assert_obj(v ? {start: v[0], rest: v[1]} : undefined, str.starts(s, ...pre));
-  };
-  t('ab:cd', [''], ['', 'ab:cd']);
-  t('ab:cd', ['ab:'], ['ab:', 'cd']);
-  t('ab:cd', ['ac:']);
-  t('ab:cd', ['ab', 'ab.', 'ac:'], ['ab', ':cd']);
-  t('ab:cd', ['ab:', 'ab', 'ac:'], ['ab:', 'cd']);
-  t('ab:cd', ['ab:', 'ac:'], ['ab:', 'cd']);
-  t('ab:cd', ['cd']);
-  t('ab:cd', [/b:/]);
-  t('ab:cd', [/ab:/], ['ab:', 'cd']);
-  t('ab:cd', [/^ab:/], ['ab:', 'cd']);
-  t = (s, pre, v)=>{
-    assert_obj(v ? {end: v[0], rest: v[1]} : undefined, str.ends(s, pre));
-    assert_obj(v ? {end: v[0], rest: v[1]} : undefined, str.ends(s, ...pre));
-  };
-  t('ab:cd', [''], ['', 'ab:cd']);
-  t('ab:cd', [':cd'], [':cd', 'ab']);
-  t('ab:cd', ['ac:']);
-  t('ab:cd', [':dc']);
-  t('ab:cd', ['cd', 'cd.', 'ac:'], ['cd', 'ab:']);
-  t('ab:cd', ['ab:', ':c', ':cd'], [':cd', 'ab']);
-  t('ab:cd', ['ab:', ':', 'd'], ['d', 'ab:c']);
-  t('ab:cd', ['ab']);
-  t = (v, path)=>assert_eq(v, path_ext(path));
-  t(undefined, 'dir.js/file');
-  t('.js', 'dir.js/file.js');
-  t('.', 'dir.js/file.');
-  t = (v, path)=>assert_eq(v, _path_ext(path));
-  t(undefined, 'dir.js/file');
-  t('js', 'dir.js/file.js');
-  t('', 'dir.js/file.');
-  t = (v, path)=>assert_eq(v, path_file(path));
-  t('file.js', 'another/dir/dir.js/file.js');
-  t('file.js', '/file.js');
-  t('', '/');
-  t('', 'dir/');
-  t('', '');
-  t = (v, path)=>assert_eq(v, path_dir(path));
-  t('another/dir/dir.js/', 'another/dir/dir.js/file.js');
-  t('/', '/file.js');
-  t('/', '/');
-  t('dir/', 'dir/');
-  t('', '');
-  t = (v, path)=>assert_eq(v, path_is_dir(path));
-  t(false, '/file.js');
-  t(true, '/');
-  t(true, 'dir/');
-  t(false, '');
-  t = (v, ...path)=>assert_eq(v, path_join(...path));
-  t('a/b/c', 'a/b', 'c');
-  t('a/b/c', 'a/b', '/c');
-  t('a/b/c', 'a/b/', '/c');
-  t('a/b//c', 'a/b//', '/c');
-  t = (v, path, prefix)=>assert_eq(v, path_prefix(path, prefix)?.rest);
-  t(undefined, 'aa/bb/cc', 'a');
-  t(undefined, 'aa/bb/cc', 'aa/b');
-  t('/bb/cc', 'aa/bb/cc', 'aa');
-  t('bb/cc', 'aa/bb/cc', 'aa/');
-  t('/cc', 'aa/bb/cc', 'aa/bb');
-  t('cc', 'aa/bb/cc', 'aa/bb/');
-  t('', 'aa/bb/cc', 'aa/bb/cc');
-}
-test_path();
+let uri_enc = exports.uri_enc = path=>encodeURIComponent(path)
+  .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
+let uri_dec = exports.uri_dec = uri=>decodeURIComponent(uri);
+
+let esc_regex = s=>s.replace(/[[\]{}()*+?.\\^$|\/]/g, '\\$&');
+
+let match_glob_to_regex_str = exports.match_glob_to_regex_str = glob=>{
+  return '^(?:'
+  +glob.replace(/(\?|\*\*|\*)|([^?*]+)/g,
+    m=>m=='?' ? '[^/]' : m=='**' ? '(.*)' : m=='*' ? '([^/]*)' : esc_regex(m))
+  +')$';
+};
+let match_glob_to_regex = exports.match_glob_to_regex =
+  glob=>new RegExp(match_glob_to_regex_str(glob));
+let match_glob = exports.match_glob =
+  (glob, value)=>match_glob_to_regex(glob).test(value);
+let qs_enc = exports.qs_enc = (q, qmark)=>{
+  let _q = ''+(new URLSearchParams(q));
+  return _q ? (qmark ? '?' : '')+_q : '';
+};
+let qs_append = exports.qs_append = (url, q)=>{
+  let _q = typeof q=='string' ? q : ''+(new URLSearchParams(q));
+  if (!_q)
+    return url;
+  return url+(url.includes('?') ? '&' : '?')+_q;
+};
 
 // URL.parse() only available on Chrome>=126
-const URL_parse = (...args)=>{
+let URL_parse = (...args)=>{
   try { return new URL(...args); }
   catch(err){}
 };
-const T_url_parse = (url, base)=>{
+let T_url_parse = exports.T_url_parse = (url, base)=>{
   const u = URL_parse(url, base);
   if (!u)
     throw Error('cannot parse url: '+url);
@@ -530,7 +473,7 @@ const T_url_parse = (url, base)=>{
   _u.dir = path_dir(_u.path);
   return _u;
 };
-const url_parse = T(T_url_parse);
+let url_parse = exports.url_parse = T(T_url_parse);
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -591,8 +534,8 @@ const url_parse = T(T_url_parse);
 // try to support this one day:
 // import {groupBy} from 'npm:lodash@4.17.21';
 
-const path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
-const T_lpm_parse = lpm=>{
+let path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
+let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   let l = {};
   let p = lpm.split('/');
   let i = 0;
@@ -700,10 +643,8 @@ const T_lpm_parse = lpm=>{
   l.path = path_parts(_p);
   return l;
 };
-exports.T_lpm_parse = T_lpm_parse;
-const lpm_parse = T(T_lpm_parse);
-exports.lpm_parse = lpm_parse;
-const T_lpm_str = l=>{
+let lpm_parse = exports.lpm_parse = T(T_lpm_parse);
+let T_lpm_str = exports.T_lpm_str = l=>{
   switch (l.reg){
   case 'npm':
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
@@ -731,23 +672,19 @@ const T_lpm_str = l=>{
     throw Error('invalid registry: '+l.reg);
   }
 };
-exports.T_lpm_str = T_lpm_str;
-const lpm_str = T(T_lpm_str);
-exports.lpm_str = lpm_str;
-const npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
+let lpm_str = exports.lpm_str = T(T_lpm_str);
+let npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
 
-const T_lpm_lmod = lpm=>{
+let T_lpm_lmod = exports.T_lpm_lmod = lpm=>{
   let u = lpm;
   if (typeof lpm=='string')
     u = T_lpm_parse(lpm);
   return u.lmod;
 };
-exports.T_lpm_lmod = T_lpm_lmod;
-const lpm_lmod = T(T_lpm_lmod);
-exports.lpm_lmod = lpm_lmod;
+let lpm_lmod = exports.lpm_lmod = T(T_lpm_lmod);
 
 // parse-package-name: package.json:dependencies
-const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
+let T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
@@ -787,7 +724,7 @@ const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
   let ver = semver_ver_guess(d);
   return ver ? lmod+'@'+ver+path : undefined;
 };
-const npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
+let npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
 let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
   let v;
@@ -803,7 +740,7 @@ let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
 };
 let npm_to_lpm = exports.npm_to_lpm = T(T_npm_to_lpm);
 
-const T_npm_parse = exports.T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
+let T_npm_parse = exports.T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
 
 let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
   let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
@@ -813,15 +750,14 @@ let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
 };
 let lpm_to_npm = exports.lpm_to_npm = T(T_lpm_to_npm);
 
-let lpm_to_sw_uri = lpm=>{
+let lpm_to_sw_uri = exports.lpm_to_sw_uri = lpm=>{
   let v;
   if (v=str.starts(lpm, 'local/'))
     return '/'+v.rest;
   return '/.lif/'+lpm;
 };
-exports.lpm_to_sw_uri = lpm_to_sw_uri;
 
-const url_uri_type = url_uri=>{
+let url_uri_type = exports.url_uri_type = url_uri=>{
   if (!url_uri)
     throw Error('invalid url_uri type');
   if (URL_parse(url_uri))
@@ -833,9 +769,8 @@ const url_uri_type = url_uri=>{
     return 'rel';
   return 'mod';
 };
-exports.url_uri_type = url_uri_type;
 
-const __uri_parse = (uri, base)=>{
+let __uri_parse = (uri, base)=>{
   if (base && base[0]!='/')
     throw Error('invalid base '+base);
   let u = T_url_parse(uri, 'x://x'+(base||''));
@@ -843,17 +778,17 @@ const __uri_parse = (uri, base)=>{
   return u;
 };
 
-const lpm_ver_missing = exports.lpm_ver_missing = u=>{
+let lpm_ver_missing = exports.lpm_ver_missing = u=>{
   u = _lpm_parse(u);
   return str.is(u.reg, 'npm', 'git') && !u.ver;
 };
-const _lpm_parse = exports._lpm_parse =
+let _lpm_parse = exports._lpm_parse =
   lpm=>typeof lpm=='string' ? lpm_parse(lpm) : lpm;
-const lpm_same_base = exports.lpm_same_base = (lmod_a, lmod_b)=>{
+let lpm_same_base = exports.lpm_same_base = (lmod_a, lmod_b)=>{
   let a = _lpm_parse(lmod_a), b = _lpm_parse(lmod_b);
   return a.reg==b.reg && a.name==b.name;
 };
-const lpm_ver_from_base = exports.lpm_ver_from_base = (lpm, base)=>{
+let lpm_ver_from_base = exports.lpm_ver_from_base = (lpm, base)=>{
   if (!base)
     return;
   lpm = _lpm_parse(lpm);
@@ -862,7 +797,7 @@ const lpm_ver_from_base = exports.lpm_ver_from_base = (lpm, base)=>{
     return;
   return lpm_str({...lpm, ver: base.ver});
 };
-const npm_ver_from_base = exports.npm_ver_from_base = (npm, base)=>{
+let npm_ver_from_base = exports.npm_ver_from_base = (npm, base)=>{
   if (!base)
     return;
   let v = lpm_ver_from_base(npm_to_lpm(npm), npm_to_lpm(base));
@@ -871,7 +806,7 @@ const npm_ver_from_base = exports.npm_ver_from_base = (npm, base)=>{
   return lpm_to_npm(v);
 };
 
-const T_npm_url_base = (url_uri, base_uri)=>{
+let T_npm_url_base = exports.T_npm_url_base = (url_uri, base_uri)=>{
   let t = url_uri_type(url_uri);
   let tbase = base_uri ? url_uri_type(base_uri) : null;
   let u, is = {};
@@ -919,18 +854,17 @@ const T_npm_url_base = (url_uri, base_uri)=>{
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
 };
-const npm_url_base = T(T_npm_url_base);
+let npm_url_base = exports.npm_url_base = T(T_npm_url_base);
 
 let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
 let semver_re = new RegExp('^'+semver_re_part.source+'$');
-let semver_parse = semver=>{
+let semver_parse = exports.semver_parse = semver=>{
   let m = semver.match(semver_re);
   if (!m)
     return
   return {ver: m[1], rel: m[2]||''};
 };
-exports.semver_parse = semver_parse;
 
 let semver_op_re_start = /^(\^|=|~|>=|<=|\|\|)/;
 let T_semver_range_parse = exports.T_semver_range_parse = semver_range=>{
@@ -980,8 +914,279 @@ let semver_ver_guess = exports.semver_ver_guess = semver_range=>{
   D && console.log('invalid op: '+op);
 };
 
-function test_lpm(){
-  let t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
+let export_path_match = exports.export_path_match = (path, match, to)=>{
+  let ret_val = typeof to=='string' ? null : to || true;
+  if (!to)
+    to = match;
+  let v, f = path, m = match;
+  while (v=str.starts(path, './'))
+    path = v.rest;
+  while (v=str.starts(match, './'))
+    match = v.rest;
+  if (match.endsWith('/')){
+    if (!(v = str.starts(path, match)))
+      return;
+    return ret_val || to+v.rest;
+  }
+  if (match.endsWith('*')){
+    let re = match_glob_to_regex(match);
+    if (!(v = path.match(re)))
+      return;
+    return ret_val || to.replace('*', v[1]);
+  }
+  if (path==match)
+    return ret_val || to;
+};
+
+// https://webpack.js.org/guides/package-exports/
+let pkg_export_lookup = exports.pkg_export_lookup = (pkg, path)=>{
+  let file = path.slice(1) || '.';
+
+  function check_val(res, dst){
+    let v;
+    if (typeof dst!='string')
+      return;
+    if (!dst.includes('*')){
+      res.push(v = dst);
+      return v;
+    }
+    let dfile = path_file(dst);
+    let ddir = path_dir(dst);
+    if (ddir.includes('*') || dfile!='*')
+      throw Error('module('+pkg.name+' dst match * ('+dst+') unsupported');
+    res.push(v = dst.slice(0, -1)+dfile);
+    return v;
+  }
+  function parse_val(res, v){
+    if (typeof v=='string')
+      return check_val(res, v);
+    if (typeof v!='object')
+      return;
+    if (Array.isArray(v)){
+      for (let e of v){
+        if (parse_val(e))
+          return;
+      }
+      return;
+    }
+    return parse_val(res, v.browser) ||
+      parse_val(res, v.module) ||
+      parse_val(res, v.import) ||
+      parse_val(res, v.default) ||
+      parse_val(res, v.require);
+  }
+  function parse_section(val){
+    let res = [], tr;
+    for (let [match, v] of OF(val)){
+      if (typeof v=='string'
+        ? !(v = export_path_match(file, match, v))
+        : !export_path_match(file, match))
+      {
+        continue;
+      }
+      parse_val(res, v);
+    }
+    let best = res[0];
+    if (!best)
+      return;
+    res.forEach(r=>{
+      if (r.length > best.length)
+        best = r;
+    });
+    return best;
+  }
+  function parse_pkg(){
+    let exports = pkg.exports, v;
+    if (typeof exports=='string')
+      exports = {'.': exports};
+    if (v = parse_section(exports))
+      return v;
+    if (file=='.'){
+      return check_val([], pkg.browser) ||
+        check_val([], pkg.module) ||
+        check_val([], pkg.main) ||
+        check_val([], 'index.js');
+    }
+    if (v = parse_section(pkg.browser))
+      return v;
+  }
+
+  // start package.json lookup
+  if (file=='package.json')
+    return file;
+  let v;
+  let f = parse_pkg();
+  if (!f)
+    return;
+  if (f.startsWith('./'))
+    f = f.slice(2);
+  if (f!=file) // redirect
+    D && console.log('export_lookup redirect '+file+' -> '+f);
+    //console.log('export_lookup', pkg, pkg.name, json(path), json(v1));
+  return '/'+f;
+};
+
+// useful debugging script: stop on first time
+//{ if (file.includes('getProto') && match.includes('getPro') && !self._x_) {self._x_=1; debugger;} }
+let _debugger = exports._debugger = function(stop){
+  if ((!arguments.length || stop) && !self._x_){
+    self._x_=1;
+    debugger; // eslint-disable-line no-debugger
+  }
+};
+// useful for locating who is changes window.location
+let detect_unload = exports.detect_unload =
+  ()=>addEventListener('beforeunload',()=>{debugger}); // eslint-disable-line no-debugger
+
+exports.Scroll = Scroll;
+function Scroll(s){
+  if (!(this instanceof Scroll))
+    return new Scroll(...arguments);
+  this.s = s;
+  this.diff = [];
+  this.len = this.s.length;
+}
+Scroll.prototype.get_diff_pos = function(start, end){
+  if (start>end)
+    throw Error('diff start>end');
+  if (end>this.len)
+    throw Error('diff out of s range');
+  let i, d;
+  // use binary-search in the future
+  for (i=0; d=this.diff[i]; i++){
+    if (start>=d.end)
+      continue;
+    if (end<=d.start)
+      return i;
+    throw Error('diff overlaping');
+  }
+  return i;
+};
+Scroll.prototype.splice = function(start, end, s){
+  // find the frag pos of src in dst, and update
+  let i = this.get_diff_pos(start, end);
+  this.diff.splice(i, 0, {start, end, s});
+};
+Scroll.prototype.out = function(){
+  let s = '', at = 0, d;
+  for (let i=0; d=this.diff[i]; i++){
+    s += this.s.slice(at, d.start)+d.s;
+    at = d.end;
+  }
+  s += this.s.slice(at, this.len);
+  return s;
+};
+
+let ecache = exports.ecache = async function(table, id, fn){
+  let t, ret;
+  if (t = table[id])
+    return await t.wait;
+  t = table[id] = {id, wait: ewait()};
+  try {
+    ret = await fn(t);
+    t.wait_complete = true;
+  } catch(err){
+    throw t.wait.throw(err);
+  }
+  return t.wait.return(ret);
+}
+ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
+
+exports.html_elm = (name, attr)=>{
+  let elm = document.createElement(name);
+  for (let [k, v] of OF(attr))
+    elm[k] = v;
+  return elm;
+};
+exports.html_favicon_set = href=>{
+  let link = document.createElement('link');
+  link.rel = 'icon';
+  link.href = href;
+  document.head.appendChild(link);
+};
+exports.html_stylesheet_add = href=>{
+  // also possible with import
+  //let style = (await import(href, {with: {type: 'css'}})).default;
+  //document.adoptedStyleSheets = [style];
+  let link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+};
+
+function test_util(){
+  let t;
+  t = (v, s, arr)=>assert_eq(v, str.is(s, ...arr));
+  t(false, 'ab', ['']);
+  t(true, 'ab', ['ab']);
+  t(true, 'ab', ['', 'ab']);
+  t(true, 'D', ['d', ['abc', '', 'D']]);
+  t(false, 'D', ['d', ['abc', '', 'd']]);
+  t = (s, pre, v)=>{
+    assert_obj(v ? {start: v[0], rest: v[1]} : undefined, str.starts(s, pre));
+    assert_obj(v ? {start: v[0], rest: v[1]} : undefined, str.starts(s, ...pre));
+  };
+  t('ab:cd', [''], ['', 'ab:cd']);
+  t('ab:cd', ['ab:'], ['ab:', 'cd']);
+  t('ab:cd', ['ac:']);
+  t('ab:cd', ['ab', 'ab.', 'ac:'], ['ab', ':cd']);
+  t('ab:cd', ['ab:', 'ab', 'ac:'], ['ab:', 'cd']);
+  t('ab:cd', ['ab:', 'ac:'], ['ab:', 'cd']);
+  t('ab:cd', ['cd']);
+  t('ab:cd', [/b:/]);
+  t('ab:cd', [/ab:/], ['ab:', 'cd']);
+  t('ab:cd', [/^ab:/], ['ab:', 'cd']);
+  t = (s, pre, v)=>{
+    assert_obj(v ? {end: v[0], rest: v[1]} : undefined, str.ends(s, pre));
+    assert_obj(v ? {end: v[0], rest: v[1]} : undefined, str.ends(s, ...pre));
+  };
+  t('ab:cd', [''], ['', 'ab:cd']);
+  t('ab:cd', [':cd'], [':cd', 'ab']);
+  t('ab:cd', ['ac:']);
+  t('ab:cd', [':dc']);
+  t('ab:cd', ['cd', 'cd.', 'ac:'], ['cd', 'ab:']);
+  t('ab:cd', ['ab:', ':c', ':cd'], [':cd', 'ab']);
+  t('ab:cd', ['ab:', ':', 'd'], ['d', 'ab:c']);
+  t('ab:cd', ['ab']);
+  t = (v, path)=>assert_eq(v, path_ext(path));
+  t(undefined, 'dir.js/file');
+  t('.js', 'dir.js/file.js');
+  t('.', 'dir.js/file.');
+  t = (v, path)=>assert_eq(v, _path_ext(path));
+  t(undefined, 'dir.js/file');
+  t('js', 'dir.js/file.js');
+  t('', 'dir.js/file.');
+  t = (v, path)=>assert_eq(v, path_file(path));
+  t('file.js', 'another/dir/dir.js/file.js');
+  t('file.js', '/file.js');
+  t('', '/');
+  t('', 'dir/');
+  t('', '');
+  t = (v, path)=>assert_eq(v, path_dir(path));
+  t('another/dir/dir.js/', 'another/dir/dir.js/file.js');
+  t('/', '/file.js');
+  t('/', '/');
+  t('dir/', 'dir/');
+  t('', '');
+  t = (v, path)=>assert_eq(v, path_is_dir(path));
+  t(false, '/file.js');
+  t(true, '/');
+  t(true, 'dir/');
+  t(false, '');
+  t = (v, ...path)=>assert_eq(v, path_join(...path));
+  t('a/b/c', 'a/b', 'c');
+  t('a/b/c', 'a/b', '/c');
+  t('a/b/c', 'a/b/', '/c');
+  t('a/b//c', 'a/b//', '/c');
+  t = (v, path, prefix)=>assert_eq(v, path_prefix(path, prefix)?.rest);
+  t(undefined, 'aa/bb/cc', 'a');
+  t(undefined, 'aa/bb/cc', 'aa/b');
+  t('/bb/cc', 'aa/bb/cc', 'aa');
+  t('bb/cc', 'aa/bb/cc', 'aa/');
+  t('/cc', 'aa/bb/cc', 'aa/bb');
+  t('cc', 'aa/bb/cc', 'aa/bb/');
+  t('', 'aa/bb/cc', 'aa/bb/cc');
+  t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
@@ -1172,158 +1377,55 @@ function test_lpm(){
   t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
     {op: '^', ver: '4.5.6'}], '1.2.3');
   t('  ');
-}
-test_lpm();
-
-const uri_enc = path=>encodeURIComponent(path)
-  .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
-const uri_dec = uri=>decodeURIComponent(uri);
-
-const esc_regex = s=>s.replace(/[[\]{}()*+?.\\^$|\/]/g, '\\$&');
-
-const match_glob_to_regex_str = glob=>{
-  return '^(?:'
-  +glob.replace(/(\?|\*\*|\*)|([^?*]+)/g,
-    m=>m=='?' ? '[^/]' : m=='**' ? '(.*)' : m=='*' ? '([^/]*)' : esc_regex(m))
-  +')$';
-};
-const match_glob_to_regex = glob=>new RegExp(match_glob_to_regex_str(glob));
-const match_glob = (glob, value)=>
-  match_glob_to_regex(glob).test(value);
-const qs_enc = (q, qmark)=>{
-  let _q = ''+(new URLSearchParams(q));
-  return _q ? (qmark ? '?' : '')+_q : '';
-};
-let qs_append = (url, q)=>{
-  let _q = typeof q=='string' ? q : ''+(new URLSearchParams(q));
-  if (!_q)
-    return url;
-  return url+(url.includes('?') ? '&' : '?')+_q;
-};
-
-exports.path_ext = path_ext;
-exports._path_ext = _path_ext;
-exports.path_file = path_file;
-exports.path_dir = path_dir;
-exports.path_is_dir = path_is_dir;
-exports.path_join = path_join;
-exports.path_prefix = path_prefix;
-exports.url_parse = url_parse;
-exports.T_url_parse = T_url_parse;
-exports.npm_url_base = npm_url_base;
-exports.T_npm_url_base = T_npm_url_base;
-exports.uri_enc = uri_enc;
-exports.uri_dec = uri_dec;
-exports.qs_enc = qs_enc;
-exports.qs_append = qs_append;
-exports.match_glob_to_regex = match_glob_to_regex;
-exports.match_glob = match_glob;
-
-// useful debugging script: stop on first time
-//{ if (file.includes('getProto') && match.includes('getPro') && !self._x_) {self._x_=1; debugger;} }
-const _debugger = function(stop){
-  if ((!arguments.length || stop) && !self._x_){
-    self._x_=1;
-    debugger; // eslint-disable-line no-debugger
-  }
-};
-exports._debugger = _debugger;
-// useful for locating who is changes window.location
-const detect_unload = ()=>addEventListener('beforeunload',()=>{debugger}); // eslint-disable-line no-debugger
-exports.detect_unload = detect_unload;
-
-function Scroll(s){
-  if (!(this instanceof Scroll))
-    return new Scroll(...arguments);
-  this.s = s;
-  this.diff = [];
-  this.len = this.s.length;
-}
-Scroll.prototype.get_diff_pos = function(start, end){
-  if (start>end)
-    throw Error('diff start>end');
-  if (end>this.len)
-    throw Error('diff out of s range');
-  let i, d;
-  // use binary-search in the future
-  for (i=0; d=this.diff[i]; i++){
-    if (start>=d.end)
-      continue;
-    if (end<=d.start)
-      return i;
-    throw Error('diff overlaping');
-  }
-  return i;
-};
-Scroll.prototype.splice = function(start, end, s){
-  // find the frag pos of src in dst, and update
-  let i = this.get_diff_pos(start, end);
-  this.diff.splice(i, 0, {start, end, s});
-};
-Scroll.prototype.out = function(){
-  let s = '', at = 0, d;
-  for (let i=0; d=this.diff[i]; i++){
-    s += this.s.slice(at, d.start)+d.s;
-    at = d.end;
-  }
-  s += this.s.slice(at, this.len);
-  return s;
-};
-exports.Scroll = Scroll;
-
-function test_Scroll(){
-  let t = v=>assert_eq(v, s.out());
-  let s = Scroll('0123456789abcdef');
-  s.splice(3, 5, 'ABCD');
+  t = (path, match, tr, v)=>assert_obj(v, export_path_match(path, match, tr));
+  t('file', 'file', null, true);
+  t('file', 'file', {x: 1}, {x: 1});
+  t('file', 'f', undefined);
+  t('.', '.', 'index.js', 'index.js');
+  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
+  t('file', './file', './file.js', './file.js');
+  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
+  t('file.js', './*', './*', './file.js');
+  t('.', '.', './index.js', './index.js');
+  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
+  t = (path, match, v)=>assert_eq(v, export_path_match(path, match));
+  t('esm/file.js', './esm/', true);
+  t('esm/file.js', './esm');
+  t('esm/file.js', './file.js');
+  t('file.js', './file.jss');
+  t = (pkg, file, v)=>assert_obj(v, pkg_export_lookup(pkg, file));
+  t({exports: {'.': './exp'}}, '', '/exp');
+  t({exports: {'.': './exp'}}, '/', '/exp');
+  t({exports: {'.': './exp'}}, '/exp');
+  t({main: './Main', exports: {'.': './exp'}}, '', '/exp');
+  t({main: 'Main'}, '', '/Main');
+  t({main: 'Main'}, '/', '/Main');
+  t({main: 'Main'}, '/Main');
+  t({main: './Main'}, '/Main');
+  t({main: '././Main'}, '/Main');
+  t({main: 'Main', module: 'Mod'}, '/Mod');
+  t({main: 'Main', exports: 'Exp'}, '/Exp');
+  t({exports: {'.': {server: './ser', default: './def'}}}, '', '/def');
+  t({exports: {'.': {default: 'def', import: 'imp', module: 'mod'}}},
+    '', '/mod');
+  t({exports: {'.': {default: 'def'}}, default: 'Def'}, '', '/def');
+  t({exports: {'.': {default: 'def'}}, import: 'Imp'}, '', '/def');
+  t({exports: {'.': {import: 'imp'}}, module: 'Mod'}, '', '/imp');
+  // {exports: {'./src/*': './src/*'}}
+  let scr = Scroll('0123456789abcdef');
+  t = v=>assert_eq(v, scr.out());
+  scr.splice(3, 5, 'ABCD');
   t('012ABCD56789abcdef');
-  s.splice(6, 7, 'QW');
+  scr.splice(6, 7, 'QW');
   t('012ABCD5QW789abcdef');
-  s.splice(7, 8, '  ');
+  scr.splice(7, 8, '  ');
   t('012ABCD5QW  89abcdef');
-  s.splice(6, 6, '-');
-  s.splice(7, 7, '-');
-  s.splice(8, 8, '-');
+  scr.splice(6, 6, '-');
+  scr.splice(7, 7, '-');
+  scr.splice(8, 8, '-');
   t('012ABCD5-QW-  -89abcdef');
 }
-test_Scroll();
-
-async function ecache(table, id, fn){
-  let t, ret;
-  if (t = table[id])
-    return await t.wait;
-  t = table[id] = {id, wait: ewait()};
-  try {
-    ret = await fn(t);
-    t.wait_complete = true;
-  } catch(err){
-    throw t.wait.throw(err);
-  }
-  return t.wait.return(ret);
-}
-ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
-exports.ecache = ecache;
-
-exports.html_elm = (name, attr)=>{
-  let elm = document.createElement(name);
-  for (let [k, v] of OF(attr))
-    elm[k] = v;
-  return elm;
-};
-exports.html_favicon_set = href=>{
-  let link = document.createElement('link');
-  link.rel = 'icon';
-  link.href = href;
-  document.head.appendChild(link);
-};
-exports.html_stylesheet_add = href=>{
-  // also possible with import
-  //let style = (await import(href, {with: {type: 'css'}})).default;
-  //document.adoptedStyleSheets = [style];
-  let link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = href;
-  document.head.appendChild(link);
-};
+test_util();
 
 export default exports;
 
