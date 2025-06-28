@@ -620,30 +620,22 @@ function pkg_web_export_lookup(pkg, path){
 
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
-let pkg_export_lookup = (pkg, path, do_null)=>{
+let pkg_export_lookup_new = (pkg, path)=>{
   let file = path.slice(1) || '.';
-  if (do_null===undefined){
-    let v1 = pkg_export_lookup(pkg, path, true);
-    let v2 = pkg_export_lookup(pkg, path, false);
-    if (v1.file!=v2.file){
-    console.error('diff', pkg.name, path);
-    }
-    return v2;
-  }
 
   function check_val(res, dst){
     let v;
     if (typeof dst!='string')
       return;
     if (!dst.includes('*')){
-      res.push(v = {file: dst});
+      res.push(v = dst);
       return v;
     }
     let dfile = path_file(dst);
     let ddir = path_dir(dst);
     if (ddir.includes('*') || dfile!='*')
       throw Error('module('+pkg.name+' dst match * ('+dst+') unsupported');
-    res.push(v = {file: dst.slice(0, -1)+dfile});
+    res.push(v = dst.slice(0, -1)+dfile);
     return v;
   }
   function parse_val(res, v){
@@ -679,7 +671,7 @@ let pkg_export_lookup = (pkg, path, do_null)=>{
     if (!best)
       return;
     res.forEach(r=>{
-      if (r.file.length > best.file.length)
+      if (r.length > best.length)
         best = r;
     });
     return best;
@@ -702,17 +694,31 @@ let pkg_export_lookup = (pkg, path, do_null)=>{
 
   // start package.json lookup
   if (file=='package.json')
-    return {file};
+    return file;
   let v;
-  let {file: f} = parse_pkg()||{file};
+  let f = parse_pkg();
+  if (!f)
+    return;
   if (f.startsWith('./'))
     f = f.slice(2);
   if (f!=file){
     D && console.log('export_lookup redirect '+file+' -> '+f);
-    return {file: f, redirect: f};
+    return '/'+f; // redirect
   }
-  return {file: f};
+  return '/'+f;
 };
+
+let pkg_export_lookup = (pkg, path)=>{
+  let v1 = pkg_export_lookup_new(pkg, path);
+  let v2 = pkg_export_lookup_new(pkg, path);
+  //console.log('export_lookup', path, v1);
+  if (v1!=v2){
+    console.error('diff', pkg.name, path);
+    //debugger;
+  }
+  return v1;
+}
+
 
 function pkg_alt_get(pkg, file){
   let ext = _path_ext(file);
@@ -953,9 +959,10 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   lpm_file.npm_uri = lpm_to_npm(lmod);
   if (lpm_pkg.redirect)
     return OA(lpm_file, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
-  let {file, redirect} = pkg_export_lookup(pkg, T_lpm_parse(lmod).path);
-  if (redirect){
-    let _uri = T_lpm_lmod(lmod)+'/'+file;
+  let path = T_lpm_parse(lmod).path;
+  let _path = pkg_export_lookup(pkg, path);
+  if (_path && _path!=path){
+    let _uri = T_lpm_lmod(lmod)+_path;
     D && console.log('redirect export '+lmod+' -> '+_uri);
     return OA(lpm_file, {redirect: _uri});
   }
