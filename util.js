@@ -1411,7 +1411,11 @@ function test_util(){
   t({exports: {'.': {default: 'def'}}, default: 'Def'}, '', '/def');
   t({exports: {'.': {default: 'def'}}, import: 'Imp'}, '', '/def');
   t({exports: {'.': {import: 'imp'}}, module: 'Mod'}, '', '/imp');
-  // {exports: {'./src/*': './src/*'}}
+  t({exports: {'.': './exp'}}, '/a');
+  t({exports: {'./a': './b'}}, '/a', '/b');
+  t({exports: {'./a/*': './b/*'}}, '/a/A', '/b/A');
+  //t({exports: {'./a/*.js': './b/*.esm'}}, '/a/A.js', '/b/A.esm');
+  t({exports: {'./a/*.js': './b/*.esm'}}, '/a/A');
   let scr = Scroll('0123456789abcdef');
   t = v=>assert_eq(v, scr.out());
   scr.splice(3, 5, 'ABCD');
