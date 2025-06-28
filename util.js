@@ -785,7 +785,7 @@ const T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
     return mod_self+'/'+v.rest;
   }
   let ver = semver_ver_guess(d);
-  return ver ? lmod+'@'+ver+path : '-';
+  return ver ? lmod+'@'+ver+path : undefined;
 };
 const npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
@@ -1076,7 +1076,7 @@ function test_lpm(){
   t('npm/xxx/file', '/DIR', 'local/DIR//file');
   t('npm/react', '=18.3.1', 'npm/react@18.3.1');
   t('npm/react', '18.3.1', 'npm/react@18.3.1');
-  t('npm/react', '>=18.3.1', '-');
+  t('npm/react', '>=18.3.1');
   t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
   t('npm/loc/file.js', '/loc', 'local/loc//file.js');
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');

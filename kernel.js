@@ -553,7 +553,7 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
     let d, v;
     if (!(d = deps?.[npm]))
       return;
-    return npm_dep_parse({mod_self: lpm.lmod, imp, dep: d});
+    return npm_dep_parse({mod_self: lpm.lmod, imp, dep: d}) || '-';
   }
   let d
   if (d = get_imp(pkg.lif?.dependencies))
@@ -620,9 +620,16 @@ function pkg_web_export_lookup(pkg, path){
 
 // parse package.exports
 // https://webpack.js.org/guides/package-exports/
-let pkg_export_lookup = (pkg, path)=>{
-  assert(path[0]=='/', 'invalid path');
-  let file = path.slice(1) || '.'; // XXX remove '.'
+let pkg_export_lookup = (pkg, path, do_null)=>{
+  let file = path.slice(1) || '.';
+  if (do_null===undefined){
+    let v1 = pkg_export_lookup(pkg, path, true);
+    let v2 = pkg_export_lookup(pkg, path, false);
+    if (v1.file!=v2.file){
+    console.error('diff', pkg.name, path);
+    }
+    return v2;
+  }
 
   function check_val(res, dst){
     let v;
