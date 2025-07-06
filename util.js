@@ -773,7 +773,7 @@ let url_uri_type = exports.url_uri_type = url_uri=>{
 let __uri_parse = (uri, base)=>{
   if (base && base[0]!='/')
     throw Error('invalid base '+base);
-  let u = T_url_parse(uri, 'x://x'+(base||''));
+  let u = T_url_parse(uri, 'xxx://x'+(base||''));
   u.host = u.hostname = u.origin = u.href = u.protocol = '';
   return u;
 };
