@@ -1,8 +1,31 @@
 import http from 'http';
+import https from 'https';
 import process from 'process';
 import fs from 'fs';
 import path from 'path';
 import mime_db from './mime_db.js';
+import x509 from '@peculiar/x509';
+import dnss from './dnss.js';
+import acme from './acme.js';
+
+const WEEK = 7*24*3600*1000;
+const MONTH = 30*24*3600*1000;
+const ssl_dir = '/var/lif/ssl';
+let acme_cert_key, acme_account_key;
+
+// XXX: copy from date.js
+function pad(num, size){ return ('000'+num).slice(-size); }
+function to_sql_ms(d){
+  d = d||new Date();
+  if (isNaN(d))
+    return '0000-00-00 00:00:00.000';
+  return pad(d.getUTCFullYear(), 4)+'-'+pad(d.getUTCMonth()+1, 2)
+    +'-'+pad(d.getUTCDate(), 2)
+    +' '+pad(d.getUTCHours(), 2)+':'+pad(d.getUTCMinutes(), 2)
+    +':'+pad(d.getUTCSeconds(), 2)
+    +'.'+pad(d.getUTCMilliseconds(), 3);
+}
+function to_sql(d){ return to_sql_ms(d).replace(/( 00:00:00)?....$/, ''); }
 
 const str_starts = (url, start)=>{
   if (url.startsWith(start))
@@ -31,7 +54,7 @@ const res_send = (res, _path)=>{
 
 let map;
 let root;
-const server = http.createServer((req, res)=>{
+const http_listener = (req, res)=>{
   let opt = {directoryListing: false, cleanUrls: false};
   let uri = URL.parse('http://localhost'+req.url).pathname;
   let _uri, dir;
@@ -59,12 +82,136 @@ const server = http.createServer((req, res)=>{
   log_url = uri+(uri!=_uri ? '->'+dir+' '+_uri : '');
   let p = path.join((dir[0]=='/' ? '' : root+'/')+dir+'/'+_uri);
   return res_send(res, p);
-});
+};
 
-function run(opt){
-  let port = 3000;
+function sni_cb(server_name, cb){
+  console.log('XXX sni_cb %s', server_name);
+}
+
+const server = http.createServer(http_listener);
+const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
+
+
+function get_acme_cert_files(domain){
+  domain = domain.replace(/\./g, '_');
+  return {cert: ssl_dir+'/acme_star_'+domain+'.crt',
+    key: ssl_dir+'/acme_star_'+domain+'.key'};
+}
+
+const load_cert = async(domain, opt)=>{
+  let file_cert = opt.cert, file_key = opt.key, cert, key;
+  cert = await fs.promises.readFile(file_cert);
+  key = await fs.promises.readFile(file_key);
+  await set_cert(domain, file_cert, file_key, cert, key);
+};
+
+const ssl_cert = {};
+
+function cert_valid_for(valid_from, valid_to){
+  let ts = new Date();
+  if (!valid_from || !valid_to)
+    return 0;
+  if (valid_from > ts)
+    return 0;
+  if (valid_to < ts)
+    return 0;
+  return valid_to - ts;
+}
+
+const get_key = async(opt)=>{
+  let file = ssl_dir+'/'+opt.file, pem;
+  await fs.promises.mkdir(ssl_dir, {recursive: true});
+  try {
+    pem = await fs.promises.readFile(file);
+  } catch(err){ console.log('ssl: acme key not found at %s ', file); }
+  if (pem)
+    return new Buffer(pem);
+  let key = await opt.func();
+  console.log('ssl: save acme key at %s', file);
+  await fs.promises.writeFile(file, key.toString());
+  return key;
+};
+const get_acme_account_key = ()=>get_key({file: 'acme_account_key.pem',
+  func: acme.create_account_key});
+const get_acme_cert_key = ()=>get_key({file: 'acme_cert_key.pem',
+  func: acme.create_cert_key});
+
+const set_cert = async(domain, file_cert, file_key, cert, key)=>{
+  let cert_o = new x509.X509Certificate(cert);
+  if (cert_o.subject.toLowerCase().search(domain)==-1) // XXX need api
+    throw new Error('domain not found in cert '+domain);
+  let ts = new Date(), ctx;
+  let valid_from = new Date(cert_o.notBefore);
+  let valid_to = new Date(cert_o.notAfter);
+  let valid_for = cert_valid_for(valid_from, valid_to);
+  if (!valid_for){
+    console.error('ssl: %s cert expired valid from %s to %s now %s', domain,
+      to_sql(valid_from), to_sql(valid_to), to_sql(ts));
+  } else if (valid_for < WEEK){
+    console.error('ssl: %s cert expire soon valid from %s to %s', domain,
+      to_sql(valid_from), to_sql(valid_to));
+  }
+  // XXX TODO: check *.domain
+  ctx = tls.createSecureContext({key, cert});
+  ssl_cert[domain] = {ts, file_cert, file_key, cert, key, valid_from, valid_to,
+    ctx};
+  console.log('ssl: set cert %s valid from %s to %s', domain,
+    to_sql(valid_from), to_sql(valid_to));
+};
+
+let ssl_busy;
+const acme_check_if_need_ssl = async()=>{
+    try {
+        if (ssl_busy) // XXX: replace with etask.wait
+            return setInterval(acme_check_if_need_ssl, 1000);
+        ssl_busy = true;
+        console.log('ssl: acme_check_if_need_ssl %O', dnss.domains);
+        let queue = [];
+        if (!dnss.domains)
+          return;
+        for (let name in dnss.domains){
+            if (dnss.domains[name].ssl)
+                queue.push(name);
+        }
+        for (let i=0; i<queue.length; i++){
+            let name = queue[i], cert;
+            console.log('ssl: load_cert domain %s', name);
+            try { await load_cert(name, get_acme_cert_files(name)); }
+            catch(err){ console.log('ssl: failed load acme cert %s', err); }
+            let info = ssl_cert[name];
+            if (info){
+                let valid_for = cert_valid_for(info.valid_from,
+                    info.valid_to);
+                if (valid_for > MONTH)
+                    continue;
+                console.log('ssl: cert %s will expire soon, renew', name);
+            }
+            try {
+              console.log('ssl: requet_cert %s', name);
+              cert = await acme.requet_cert({domain: name,
+                  account_key: acme_account_key, cert_key: acme_cert_key});
+          } catch(err){
+            console.error('ssl: failed issue acme cert %s %s', name, err);
+            continue;
+          }
+          let o = get_acme_cert_files(name);
+          try { await fs.promises.writeFile(o.cert, cert.toString()); }
+          catch(err){
+            console.error('ssl: failed save cert %s %s', o.cert, err);
+          } try {
+              await fs.promises.writeFile(o.key, acme_cert_key.toString());
+          }
+          catch(err){ console.error('ssl: failed save key %s %s', o.key, err); }
+          await set_cert(name, o.cert, o.key, cert, acme_cert_key);
+        }
+    } catch(err){ console.error('acme: check_if_need_ssl failed %O', err.stack); }
+    finally { ssl_busy = null; }
+};
+
+async function run(opt){
+  let port = 3000, sport = 8080;
   let [...argv] = [...process.argv];
-  map = {...(opt?.map)||{}};
+  map = {...opt?.map||{}};
   root = opt.root||process.cwd();
   argv.shift();
   argv.shift();
@@ -82,9 +229,22 @@ function run(opt){
     throw 'invalid args '+JSON.stringify(argv);
   if (!map['/lif-kernel'])
     map['/lif-kernel'] = import.meta.dirname+'/';
+  let dnss_opt = {port: 54};
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
   });
+  // XXX: need to configure sport?
+  sserver.listen(sport, ()=>{
+    console.log(`Serving SSL ${root} on https://localhost:${sport}`);
+  });
+  if (true) return; // XXX arik: WIP
+  dnss.start(dnss_opt);
+  acme.init({dnss: dnss});
+  acme_account_key = await get_acme_account_key();
+  acme_cert_key = await get_acme_cert_key();
+  dnss.set_domains({'test.com': {ssl: true, ip: '10.20.30.40', ns: ['ns1']}});
+  acme_check_if_need_ssl();
+  setInterval(acme_check_if_need_ssl, WEEK);
 }
 
 export default run;
