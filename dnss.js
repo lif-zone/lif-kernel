@@ -26,6 +26,7 @@ E.is_our_domain = is_our_domain;
 E.get_our_domain = get_our_domain;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
+    console.log('XXX set_txt %s %s', name, val);
     E.txt[name.toLowerCase()] = val;
     E.domains[name.toLowerCase()] = {txt: val};
 };
@@ -179,8 +180,8 @@ E.start = opt=>{
         }
         let [query] = req.questions, {name, type} = query;
         if (0) // XXX:debug
-        console.log('dns query len %s name %s type %s query %O h %O',
-          req.questions.length, name, type, query, req.header);
+        console.log('dns query len %s name %s type %s query %s h %s',
+          req.questions.length, name, type, JSON.stringify(query), JSON.stringify(req.header));
         name = name.toLowerCase();
         if (!is_our_domain(name)){
           console.log('dns query SKIP %s', name);
