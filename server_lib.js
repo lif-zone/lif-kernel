@@ -2,6 +2,7 @@ import http from 'http';
 import https from 'https';
 import process from 'process';
 import fs from 'fs';
+import tls from 'tls';
 import path from 'path';
 import mime_db from './mime_db.js';
 import x509 from '@peculiar/x509';
@@ -56,7 +57,7 @@ let map;
 let root;
 const http_listener = (req, res)=>{
   let opt = {directoryListing: false, cleanUrls: false};
-  let uri = URL.parse('http://localhost'+req.url).pathname;
+  let uri = new URL('http://localhost'+req.url).pathname;
   let _uri, dir;
   let log_url = uri;
   res.on('finish', ()=>console.log(
@@ -86,6 +87,19 @@ const http_listener = (req, res)=>{
 
 function sni_cb(server_name, cb){
   console.log('XXX sni_cb %s', server_name);
+  let domain = dnss.get_our_domain(server_name);
+  if (!domain){
+    let err = 'domain not handled '+server_name;
+    console.error('server: %s', err);
+    return cb(err, null);
+  }
+  let ctx = ssl_cert[server_name] && ssl_cert[server_name].ctx;
+  if (!ctx){
+    let err = 'failed to get ssl ctx for '+server_name;
+    console.error('server: %s', err);
+    return cb(err, null);
+  }
+  cb(null, ctx);
 }
 
 const server = http.createServer(http_listener);
@@ -209,7 +223,7 @@ const acme_check_if_need_ssl = async()=>{
 };
 
 async function run(opt){
-  let port = 3000, sport = 8080;
+  let port = 3000, sport = 443;
   let [...argv] = [...process.argv];
   map = {...opt?.map||{}};
   root = opt.root||process.cwd();
@@ -242,7 +256,9 @@ async function run(opt){
   acme.init({dnss: dnss});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
-  dnss.set_domains({'test.com': {ssl: true, ip: '10.20.30.40', ns: ['ns1']}});
+  dnss.set_domains({
+    'arik.center': {ssl: true, ip: '165.227.185.44', ns: ['ns1', 'ns2']}
+  });
   acme_check_if_need_ssl();
   setInterval(acme_check_if_need_ssl, WEEK);
 }
