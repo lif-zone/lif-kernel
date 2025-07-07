@@ -243,7 +243,7 @@ async function run(opt){
     throw 'invalid args '+JSON.stringify(argv);
   if (!map['/lif-kernel'])
     map['/lif-kernel'] = import.meta.dirname+'/';
-  let dnss_opt = {port: 54};
+  let dnss_opt = {address: '0.0.0.0', port: 53};
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
   });
@@ -251,7 +251,6 @@ async function run(opt){
   sserver.listen(sport, ()=>{
     console.log(`Serving SSL ${root} on https://localhost:${sport}`);
   });
-  if (true) return; // XXX arik: WIP
   dnss.start(dnss_opt);
   acme.init({dnss: dnss});
   acme_account_key = await get_acme_account_key();

@@ -142,7 +142,7 @@ E.start = opt=>{
   if (E.server)
     throw new Error('dnss: already started');
   opt = opt||{};
-  let {port} = opt;
+  let {port, address} = opt;
   E.res_cache = {};
   E.txt = {};
   E.port = port = opt.port||DEF_PORT;
@@ -187,8 +187,9 @@ E.start = opt=>{
   });
   server.on('close', ()=>console.log('dnss: closed'));
   server.on('error', err=>console.error('dnss: error', err));
-  console.log('dnss: listen on udp+tcp ports %s', port);
-  server.listen({udp: port, tcp: port});
+  console.log('dnss: listen on %s udp+tcp ports %s', address, port);
+  server.listen({udp: {host: address, address, port},
+    tcp: {host: address, address, port}});
 };
 
 E.stop = ()=>{
