@@ -44,14 +44,6 @@ function res_type_a(name){
   let ips = info.ip;
   ips.forEach(ip=>ret.push({name, type, class: c, ttl: E.ttl, address: ip}));
   return ret;
-    /*
-  let type = Packet.TYPE.A, c = Packet.CLASS.IN;
-  let o = E.res_cache[name] = E.res_cache[name]||{}, ret = [];
-  if (o[type])
-    return o[type];
-  E.ip.forEach(ip=>ret.push({name, type, class: c, ttl: E.ttl, address: ip}));
-  return o[type] = ret;
-  */
 }
 
 function res_type_ns(name){
@@ -63,15 +55,6 @@ function res_type_ns(name){
   info.ns.forEach(ns=>ret.push({name, type, class: c, ttl: E.ttl,
       ns: ns+'.'+name}));
   return ret;
-/*
-  let type = Packet.TYPE.NS, c = Packet.CLASS.IN;
-  let o = E.res_cache[name] = E.res_cache[name]||{};
-  if (o[type])
-    return o[type];
-  let ns1 = 'lif--dns1.'+name, ns2 = 'lif--dns2.'+name;
-  return o[type] = [{name, type, class: c, ttl: E.ttl, ns: ns1},
-    {name, type, class: c, ttl: E.ttl, ns: ns2}];
-*/
 }
 
 function res_type_any(name){
