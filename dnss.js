@@ -138,14 +138,58 @@ E.set_domains = domains=>{
     }
 };
 
+function create_dns_server(ips){
+  if (E.servers)
+    throw new Error('dnss: already started servers');
+  E.servers = [];
+  for (let {address, port} of ips){
+    port = port||DEF_PORT;
+    let server = dns2.createServer({udp: !E.noudp, tcp: !E.notcp,
+      handle: (req, send, rinfo)=>{
+        try {
+          let res = Packet.createResponseFromRequest(req);
+          if (req.questions.length!=1){
+            res.header.rcode = 0x4; // not implemented
+            return send(res);
+          }
+          let [query] = req.questions, {name, type} = query;
+          name = name.toLowerCase();
+          if (!is_our_domain(name)){
+            console.log('dns query SKIP %s', name);
+            return send(res);
+          }
+          // https://tools.ietf.org/html/rfc1035#section-4.1.1
+          res.header.aa = 1; // set authoritive answer
+          switch (type){
+          case Packet.TYPE.A: res.answers = res_type_a(name); break;
+          case Packet.TYPE.NS: res.answers = res_type_ns(name); break;
+          case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
+          case Packet.TYPE.ANY: res.answers = res_type_any(name); break;
+          case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
+          case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
+          // XXX TODO
+          default: console.error('dnss: unsupported type %s', type);
+          }
+          send(res);
+        } catch(err){ console.error('dnss: error %s', err.stack||err); }
+      }
+    });
+    server.on('close', ()=>console.log('dnss: closed'));
+    server.on('error', err=>console.error('dnss: error', err));
+    console.log('dnss: listen on %s udp+tcp ports %s', address, port);
+    server.listen({udp: {host: address, address, port},
+      tcp: {host: address, address, port}});
+    E.servers.push(server);
+  }
+}
+
 E.start = opt=>{
-  if (E.server)
+  if (E.servers)
     throw new Error('dnss: already started');
   opt = opt||{};
-  let {port, address} = opt;
+  let {ips} = opt;
   E.res_cache = {};
   E.txt = {};
-  E.port = port = opt.port||DEF_PORT;
   E.ttl = opt.ttl||DEF_TTL;
   E.ttl_refresh = opt.ttl_refresh||DEF_TTL_REFRESH;
   E.ttl_retry = opt.ttl_refresh||DEF_TTL_RETRY;
@@ -153,49 +197,14 @@ E.start = opt=>{
   E.ttl_minimum = opt.ttl_refresh||DEF_TTL_MINIMUM;
   E.notcp = opt.notcp;
   E.noudp = opt.noudp;
-  let server = E.server = dns2.createServer({udp: !E.noudp, tcp: !E.notcp,
-    handle: (req, send, rinfo)=>{
-      try {
-        let res = Packet.createResponseFromRequest(req);
-        if (req.questions.length!=1){
-          res.header.rcode = 0x4; // not implemented
-          return send(res);
-        }
-        let [query] = req.questions, {name, type} = query;
-        if (0) // XXX:debug
-        console.log('dns query len %s name %s type %s query %s h %s',
-          req.questions.length, name, type, JSON.stringify(query), JSON.stringify(req.header));
-        name = name.toLowerCase();
-        if (!is_our_domain(name)){
-          console.log('dns query SKIP %s', name);
-          return send(res);
-        }
-        // https://tools.ietf.org/html/rfc1035#section-4.1.1
-        res.header.aa = 1; // set authoritive answer
-        switch (type){
-        case Packet.TYPE.A: res.answers = res_type_a(name); break;
-        case Packet.TYPE.NS: res.answers = res_type_ns(name); break;
-        case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
-        case Packet.TYPE.ANY: res.answers = res_type_any(name); break;
-        case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
-        case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
-        default: console.error('dnss: unsupported type %s', type); // XXX TODO
-        }
-        send(res);
-      } catch(err){ console.error('dnss: error %s', err.stack||err); }
-    }
-  });
-  server.on('close', ()=>console.log('dnss: closed'));
-  server.on('error', err=>console.error('dnss: error', err));
-  console.log('dnss: listen on %s udp+tcp ports %s', address, port);
-  server.listen({udp: {host: address, address, port},
-    tcp: {host: address, address, port}});
+  create_dns_server(ips);
 };
 
 E.stop = ()=>{
-  if (!E.server)
+  if (!E.servers)
       return;
-  E.server.close();
-  E.server = undefined;
+  for (let server of E.servers)
+    server.close();
+  E.servers = undefined;
 };
 

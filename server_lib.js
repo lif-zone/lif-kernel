@@ -2,6 +2,7 @@ import http from 'http';
 import https from 'https';
 import process from 'process';
 import fs from 'fs';
+import os from 'os';
 import tls from 'tls';
 import path from 'path';
 import mime_db from './mime_db.js';
@@ -215,12 +216,27 @@ const acme_check_if_need_ssl = async()=>{
           } try {
               await fs.promises.writeFile(o.key, acme_cert_key.toString());
           }
-          catch(err){ console.error('ssl: failed save key %s %s', o.key, err); }
+          catch(err){
+            console.error('ssl: failed save key %s %s', o.key, err); }
           await set_cert(name, o.cert, o.key, cert, acme_cert_key);
         }
-    } catch(err){ console.error('acme: check_if_need_ssl failed %O', err.stack); }
+    } catch(err){ console.error('acme: check_if_need_ssl failed %O',
+      err.stack);
+    }
     finally { ssl_busy = null; }
 };
+
+function get_wan_ips(){
+  let interfaces = os.networkInterfaces();
+  let ret = [];
+  for (let [name, infos] of Object.entries(interfaces)){
+    for (const info of infos){
+      if (!info.internal && info.family=='IPv4')
+        ret.push({name, address: info.address});
+      }
+  }
+  return ret;
+}
 
 async function run(opt){
   let port = 3000, sport = 443;
@@ -243,7 +259,10 @@ async function run(opt){
     throw 'invalid args '+JSON.stringify(argv);
   if (!map['/lif-kernel'])
     map['/lif-kernel'] = import.meta.dirname+'/';
-  let dnss_opt = {address: '0.0.0.0', port: 53};
+  let wan_ips = get_wan_ips();
+  let dnss_opt = {ips: []};
+  for (let o of wan_ips)
+    dnss_opt.ips.push({address: o.address, port: 53});
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
   });
