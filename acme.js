@@ -33,7 +33,8 @@ E.requet_cert = async opt=>{
   // XXX: how to cancel acme on timeout
   const client = new acme.Client({accountKey: account_key,
     directoryUrl: acme.directory.letsencrypt.production});
-  const [, csr] = await acme.forge.createCsr({commonName: domain}, cert_key);
+  const [, csr] = await acme.forge.createCsr({commonName: domain,
+    altNames: [domain, '*.'+domain]}, cert_key);
   const cert = await client.auto({csr, email, termsOfServiceAgreed: true,
     challengePriority: ['dns-01'], challengeCreateFn: dns_add_cb,
     challengeRemoveFn: dns_rm_cb});

@@ -94,7 +94,7 @@ function sni_cb(server_name, cb){
     console.error('server: %s', err);
     return cb(err, null);
   }
-  let ctx = ssl_cert[server_name] && ssl_cert[server_name].ctx;
+  let ctx = ssl_cert[domain.name] && ssl_cert[domain.name].ctx;
   if (!ctx){
     let err = 'failed to get ssl ctx for '+server_name;
     console.error('server: %s', err);
@@ -105,7 +105,6 @@ function sni_cb(server_name, cb){
 
 const server = http.createServer(http_listener);
 const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
-
 
 function get_acme_cert_files(domain){
   domain = domain.replace(/\./g, '_');
