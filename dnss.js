@@ -127,7 +127,7 @@ E.set_domains = domains=>{
         return;
     for (let name in domains){
         let o = domains[name];
-        o = E.domains[name] = Object.assign({}, o);
+        o = E.domains[name] = Object.assign({name}, o);
         if (o.ip && !Array.isArray(o.ip))
             o.ip = [o.ip];
         if (o.ns && !Array.isArray(o.ns))
@@ -136,7 +136,7 @@ E.set_domains = domains=>{
             for (let i=0; i<o.ns.length; i++){
                 let ns_name = o.ns[i]+'.'+name;
                 if (!domains[ns_name])
-                  E.domains[ns_name] = {ip: o.ip};
+                  E.domains[ns_name] = {name: ns_name, ip: o.ip};
             }
         }
     }
