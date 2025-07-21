@@ -17,7 +17,12 @@ export default E;
 function get_our_domain(name){
   if (!E.domains)
     return;
-  return E.domains[name];
+  name = name.toLowerCase();
+  if (E.domains[name])
+    return E.domains[name];
+  let parent = name.split('.').slice(1).join('.');
+  if (E.domains[parent])
+    return E.domains[parent];
 }
 
 function is_our_domain(name){ return !!get_our_domain(name); }
@@ -26,7 +31,6 @@ E.is_our_domain = is_our_domain;
 E.get_our_domain = get_our_domain;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
-    console.log('XXX set_txt %s %s', name, val);
     E.txt[name.toLowerCase()] = val;
     E.domains[name.toLowerCase()] = {txt: val};
 };
@@ -153,7 +157,6 @@ function create_dns_server(ips){
             return send(res);
           }
           let [query] = req.questions, {name, type} = query;
-          name = name.toLowerCase();
           if (!is_our_domain(name)){
             console.log('dns query SKIP %s', name);
             return send(res);
