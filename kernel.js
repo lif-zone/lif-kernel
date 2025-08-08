@@ -216,6 +216,17 @@ let lpm_get_cdn = u=>{
   throw Error('invalid reg '+u.reg);
 };
 
+// bitcoin ordinals: 
+// /content/547a6709441bc5c9d206150ce5fb7605c28a90c46bd6e4330c4420cb41477aeai0
+// /content/99dfe03e22d556dc6e12209403936f840ff0eb542d075cfb0efa7f794192862bi0
+// ID = /[a-z0-9]{66}/
+// /content/ID
+// /.lif/bitcoin/ordinal/content/ID
+// fetch from:
+// https://ordiscan.com/content/547a6709441bc5c9d206150ce5fb7605c28a90c46bd6e4330c4420cb41477aeai0
+// A nice HTML orginal 3D world, movable by mouse:
+// https://ordiscan.com/inscription/69458794
+
 let lpm_app;
 let lpm_pkg_app;
 let lpm_app_date = +new Date();
