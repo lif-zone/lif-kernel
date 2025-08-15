@@ -175,54 +175,54 @@ const set_cert = async(domain, file_cert, file_key, cert, key)=>{
 
 let ssl_busy;
 const acme_check_if_need_ssl = async()=>{
-    try {
-        if (ssl_busy) // XXX: replace with etask.wait
-            return setInterval(acme_check_if_need_ssl, 1000);
-        ssl_busy = true;
-        console.log('ssl: acme_check_if_need_ssl %O', dnss.domains);
-        let queue = [];
-        if (!dnss.domains)
-          return;
-        for (let name in dnss.domains){
-            if (dnss.domains[name].ssl)
-                queue.push(name);
-        }
-        for (let i=0; i<queue.length; i++){
-            let name = queue[i], cert;
-            console.log('ssl: load_cert domain %s', name);
-            try { await load_cert(name, get_acme_cert_files(name)); }
-            catch(err){ console.log('ssl: failed load acme cert %s', err); }
-            let info = ssl_cert[name];
-            if (info){
-                let valid_for = cert_valid_for(info.valid_from,
-                    info.valid_to);
-                if (valid_for > MONTH)
-                    continue;
-                console.log('ssl: cert %s will expire soon, renew', name);
-            }
-            try {
-              console.log('ssl: requet_cert %s', name);
-              cert = await acme.requet_cert({domain: name,
-                  account_key: acme_account_key, cert_key: acme_cert_key});
-          } catch(err){
-            console.error('ssl: failed issue acme cert %s %s', name, err);
-            continue;
-          }
-          let o = get_acme_cert_files(name);
-          try { await fs.promises.writeFile(o.cert, cert.toString()); }
-          catch(err){
-            console.error('ssl: failed save cert %s %s', o.cert, err);
-          } try {
-              await fs.promises.writeFile(o.key, acme_cert_key.toString());
-          }
-          catch(err){
-            console.error('ssl: failed save key %s %s', o.key, err); }
-          await set_cert(name, o.cert, o.key, cert, acme_cert_key);
-        }
-    } catch(err){ console.error('acme: check_if_need_ssl failed %O',
-      err.stack);
+  try {
+    if (ssl_busy) // XXX: replace with etask.wait
+      return setInterval(acme_check_if_need_ssl, 1000);
+    ssl_busy = true;
+    console.log('ssl: acme_check_if_need_ssl %O', dnss.domains);
+    let queue = [];
+    if (!dnss.domains)
+      return;
+    for (let name in dnss.domains){
+      if (dnss.domains[name].ssl)
+        queue.push(name);
     }
-    finally { ssl_busy = null; }
+    for (let i=0; i<queue.length; i++){
+      let name = queue[i], cert;
+      console.log('ssl: load_cert domain %s', name);
+      try { await load_cert(name, get_acme_cert_files(name)); }
+      catch(err){ console.log('ssl: failed load acme cert %s', err); }
+      let info = ssl_cert[name];
+      if (info){
+        let valid_for = cert_valid_for(info.valid_from,
+          info.valid_to);
+        if (valid_for > MONTH)
+          continue;
+        console.log('ssl: cert %s will expire soon, renew', name);
+      }
+      try {
+        console.log('ssl: requet_cert %s', name);
+        cert = await acme.requet_cert({domain: name,
+          account_key: acme_account_key, cert_key: acme_cert_key});
+      } catch(err){
+        console.error('ssl: failed issue acme cert %s %s', name, err);
+        continue;
+      }
+      let o = get_acme_cert_files(name);
+      try { await fs.promises.writeFile(o.cert, cert.toString()); }
+      catch(err){
+        console.error('ssl: failed save cert %s %s', o.cert, err);
+      } try {
+          await fs.promises.writeFile(o.key, acme_cert_key.toString());
+      }
+      catch(err){
+        console.error('ssl: failed save key %s %s', o.key, err); }
+      await set_cert(name, o.cert, o.key, cert, acme_cert_key);
+    }
+  } catch(err){ console.error('acme: check_if_need_ssl failed %O',
+    err.stack);
+  }
+  finally { ssl_busy = null; }
 };
 
 function get_wan_ips(){
@@ -232,7 +232,7 @@ function get_wan_ips(){
     for (const info of infos){
       if (!info.internal && info.family=='IPv4')
         ret.push({name, address: info.address});
-      }
+    }
   }
   return ret;
 }
