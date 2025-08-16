@@ -185,7 +185,7 @@ const get_acme_cert_key = ()=>get_key({file: 'acme_cert_key.pem',
 const set_cert = async(domain, file_cert, file_key, cert, key)=>{
   let cert_o = new x509.X509Certificate(cert);
   if (cert_o.subject.toLowerCase().search(domain)==-1) // XXX need api
-    throw new Error('domain not found in cert '+domain);
+    throw Error('domain not found in cert '+domain);
   let ts = new Date(), ctx;
   let valid_from = new Date(cert_o.notBefore);
   let valid_to = new Date(cert_o.notAfter);
