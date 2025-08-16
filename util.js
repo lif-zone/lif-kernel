@@ -63,7 +63,8 @@ eslow.print = ()=>{
   for (let p of eslow.set)
     p.print();
 }
-self.esb = eslow;
+if (D)
+  globalThis.esb = eslow;
 
 let once_obj = {};
 let once_set = new Set();
