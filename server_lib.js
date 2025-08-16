@@ -1,3 +1,4 @@
+/* eslint-env node */
 import http from 'http';
 import https from 'https';
 import process from 'process';
@@ -10,6 +11,7 @@ import util from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
+let {esleep, assert_eq, path_prefix, path_join} = util;
 
 const MS = {
   SEC: 1000,
@@ -33,17 +35,6 @@ function to_sql_ms(d){
 }
 function to_sql(d){ return to_sql_ms(d).replace(/( 00:00:00)?....$/, ''); }
 
-const str_starts = (url, start)=>{
-  if (url.startsWith(start))
-    return {start, rest: url.substr(start.length)};
-};
-const path_prefix = (path, prefix)=>{
-  let v;
-  if (!(v=str_starts(path, prefix)))
-    return;
-  if (!v.rest || v.rest[0]=='/' || prefix.endsWith('/'))
-    return v;
-};
 const res_err = (res, code, msg)=>{
   res.writeHead(code, msg, {'cache-control': 'no-cache'}).end();
 };
@@ -58,43 +49,73 @@ const res_send = (res, _path)=>{
   stream.pipe(res);
 };
 
-let map;
-let root;
 const map_uri = ({uri, opt})=>{
   let _uri, dir;
   let v;
-  for (let f in map){
-    let to = map[f];
+  for (let f in opt.map){
+    let to = opt.map[f];
     if (v=path_prefix(uri, f)){
       dir = to;
-      _uri = v.rest || f.split('/').at(-1);
+      _uri = v.rest;
       break;
     }
   }
-  if (!_uri && !opt.strict_map){
-    dir = './';
+  if (_uri==undefined){
+    if (opt.strict_map)
+      return {};
+    dir = '.';
     _uri = uri;
   }
-  if (!_uri)
-    return {};
   if (_uri.endsWith('/'))
     _uri = _uri+'index.html';
-  //req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
-  let p = path.join((dir[0]=='/' ? '' : root+'/')+dir+'/'+_uri);
-  return {uri: _uri, p, dir};
+  let _dir = dir[0]=='/' ? dir : opt.root+'/'+dir;
+  let _path = path.join(_dir+_uri);
+  return {uri: _uri, path: _path};
 };
+function test_server(){
+  let map = {
+    '/os': '../',
+    '/kernel': '/root/os/kernel/',
+    '/sw.js': '/root/os/kernel/sw.js',
+  };
+  let root = '/root/os/boot';
+  let t = (uri, _uri, path, p)=>{
+    let {uri: __uri, path: _path, p: _p} = map_uri({uri,
+      opt: {map, root, strict_map: _uri.strict_map}});
+    if (_uri.strict_map){
+      assert_eq(undefined, __uri);
+      return;
+    }
+    assert_eq(_uri, __uri);
+    assert_eq(path, _path);
+  };
+  t('/', '/index.html', '/root/os/boot/index.html',
+    '/root/os/boot/.///index.html');
+  t('/', {strict_map: 1});
+  t('/util.js', '/util.js', '/root/os/boot/util.js',
+    '/root/os/boot/.///util.js');
+  t('/util.js', {strict_map: 1});
+  t('/sw.js', '', '/root/os/kernel/sw.js',
+    '/root/os/kernel/.///sw.js');
+  t('/kernel/kernel.js', '/kernel.js', '/root/os/kernel/kernel.js',
+    '/root/os/kernel///kernel.js');
+  t('/os/package.json', '/package.json', '/root/os/package.json',
+    '/root/os/boot/..///package.json');
+}
+test_server();
+
+let map;
+let root;
 const http_listener = (req, res)=>{
-  let opt = {directoryListing: false, cleanUrls: false};
   let uri = new URL('http://localhost'+req.url).pathname;
-  let {uri: _uri, p: _p, dir} = map_uri({uri, opt});
-  let log_url = uri;
+  let opt = {map, root, strict_map: false};
+  let {uri: _uri, path} = map_uri({uri, opt});
   res.on('finish', ()=>console.log(
-    `${uri} ${res.statusCode} ${res.statusMessage}`));
+    `${_uri} ${res.statusCode} ${res.statusMessage}`));
   if (!_uri)
     return res_err(res, 404, 'no map found');
-  req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
-  log_url = uri+(uri!=_uri ? ' -> '+dir+' '+_uri : '');
-  return res_send(res, _p);
+  req.url = encodeURI(_uri);
+  return res_send(res, path);
 };
 
 function sni_cb(server_name, cb){
@@ -234,7 +255,7 @@ const _acme_check_if_need_ssl = async()=>{
 const acme_check_if_need_ssl = async()=>{
   while (1){
     await _acme_check_if_need_ssl();
-    await util.esleep(MS.WEEK);
+    await esleep(MS.WEEK);
   }
 }
 
