@@ -6,6 +6,7 @@ import os from 'os';
 import tls from 'tls';
 import path from 'path';
 import mime_db from './mime_db.js';
+import util from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
@@ -59,13 +60,8 @@ const res_send = (res, _path)=>{
 
 let map;
 let root;
-const http_listener = (req, res)=>{
-  let opt = {directoryListing: false, cleanUrls: false};
-  let uri = new URL('http://localhost'+req.url).pathname;
+const map_uri = ({uri, opt})=>{
   let _uri, dir;
-  let log_url = uri;
-  res.on('finish', ()=>console.log(
-    `${log_url} ${res.statusCode} ${res.statusMessage}`));
   let v;
   for (let f in map){
     let to = map[f];
@@ -80,13 +76,25 @@ const http_listener = (req, res)=>{
     _uri = uri;
   }
   if (!_uri)
-    return res_err(res, 404, 'no map found');
+    return {};
   if (_uri.endsWith('/'))
     _uri = _uri+'index.html';
-  req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
-  log_url = uri+(uri!=_uri ? '->'+dir+' '+_uri : '');
+  //req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
   let p = path.join((dir[0]=='/' ? '' : root+'/')+dir+'/'+_uri);
-  return res_send(res, p);
+  return {uri: _uri, p, dir};
+};
+const http_listener = (req, res)=>{
+  let opt = {directoryListing: false, cleanUrls: false};
+  let uri = new URL('http://localhost'+req.url).pathname;
+  let {uri: _uri, p: _p, dir} = map_uri({uri, opt});
+  let log_url = uri;
+  res.on('finish', ()=>console.log(
+    `${uri} ${res.statusCode} ${res.statusMessage}`));
+  if (!_uri)
+    return res_err(res, 404, 'no map found');
+  req.url = encodeURIComponent(_uri).replaceAll('%2F', '/');
+  log_url = uri+(uri!=_uri ? ' -> '+dir+' '+_uri : '');
+  return res_send(res, _p);
 };
 
 function sni_cb(server_name, cb){
@@ -195,7 +203,7 @@ const _acme_check_if_need_ssl = async()=>{
       if (info){
         let valid_for = cert_valid_for(info.valid_from,
           info.valid_to);
-        if (valid_for > MONTH)
+        if (valid_for > MS.MONTH)
           continue;
         console.log('ssl: cert %s will expire soon, renew', name);
       }
@@ -287,6 +295,8 @@ async function run(opt){
     throw 'invalid args '+JSON.stringify(argv);
   if (!map['/lif-kernel'])
     map['/lif-kernel'] = import.meta.dirname+'/';
+  if (0 && !map['/lif_kernel_sw.js'])
+    map['/lif_kernel_sw.js'] = map['/lif-kernel']+'/lif_kernel_sw.js';
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
   });
