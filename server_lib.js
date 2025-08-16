@@ -176,7 +176,7 @@ const set_cert = async(domain, file_cert, file_key, cert, key)=>{
 let ssl_busy;
 const acme_check_if_need_ssl = async()=>{
   try {
-    if (ssl_busy) // XXX: replace with etask.wait
+    if (ssl_busy) // XXX: replace with etask.wait/util.js:esleep(1000)
       return setInterval(acme_check_if_need_ssl, 1000);
     ssl_busy = true;
     console.log('ssl: acme_check_if_need_ssl %O', dnss.domains);
