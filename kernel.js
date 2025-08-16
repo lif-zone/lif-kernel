@@ -474,18 +474,17 @@ let lpm_imp_lookup = ({lpm, lmod})=>{
   if (u.ver || u.reg=='local')
     return _lmod;
   let imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, _lmod);
-  if (!imp || imp=='-')
+  if (!imp || imp=='any:')
     return ret_err('imp missing');
   if (imp.startsWith('peer:')){
     if (lpm_pkg_app &&
-      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, _lmod)))
+      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, _lmod)) &&
+      imp!='any:')
     {
       return imp;
     }
     for (let l = lpm; lpm; lpm = lpm.parent){
-      if (!(imp = lpm_imp_ver_lookup(lpm, lmod)))
-        continue;
-      if (!imp || imp=='-')
+      if (!(imp = lpm_imp_ver_lookup(lpm, lmod)) || imp=='any:')
         continue;
       return imp;
     }
@@ -507,8 +506,9 @@ let tr_mjs_import = f=>{
       if (d.imported)
         v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
-    } else
+    } else {
       console.log('import('+f.lmod+') missing: '+imp);
+    }
   }
   for (let d of f.ast.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
@@ -575,7 +575,9 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
     let d, v;
     if (!(d = deps?.[npm]))
       return;
-    return npm_dep_parse({mod_self: lpm.lmod, imp, dep: d}) || '-';
+    if (v = npm_dep_parse({mod_self: lpm.lmod, imp, dep: d}))
+      return v;
+    return 'any:';
   }
   let d
   if (d = get_imp(pkg.lif?.dependencies))
@@ -1189,6 +1191,7 @@ function test_kernel(){
     pages: './pages',
     loc: '/loc',
     react: '^18.3.1',
+    dom: '>=18.3.1',
     os: '.git/github/repo/mod',
   }}};
   t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm, imp));
@@ -1196,6 +1199,7 @@ function test_kernel(){
   t('npm/loc/file.js', 'local/loc//file.js');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react/index.js', 'npm/react@18.3.1/index.js');
+  t('npm/dom', 'any:');
   t('npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
   lpm = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
