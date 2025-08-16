@@ -51,9 +51,8 @@ const res_send = (res, _path)=>{
 
 const map_uri = ({uri, opt})=>{
   let _uri, dir;
-  let v;
   for (let f in opt.map){
-    let to = opt.map[f];
+    let to = opt.map[f], v;
     if (v=path_prefix(uri, f)){
       dir = to;
       _uri = v.rest;
@@ -62,15 +61,14 @@ const map_uri = ({uri, opt})=>{
   }
   if (_uri==undefined){
     if (opt.strict_map)
-      return {};
+      return;
     dir = '.';
     _uri = uri;
   }
   if (_uri.endsWith('/'))
     _uri = _uri+'index.html';
   let _dir = dir[0]=='/' ? dir : opt.root+'/'+dir;
-  let _path = path.join(_dir+_uri);
-  return {uri: _uri, path: _path};
+  return path.join(_dir+_uri);
 };
 function test_server(){
   let map = {
@@ -79,28 +77,17 @@ function test_server(){
     '/sw.js': '/root/os/kernel/sw.js',
   };
   let root = '/root/os/boot';
-  let t = (uri, _uri, path, p)=>{
-    let {uri: __uri, path: _path, p: _p} = map_uri({uri,
-      opt: {map, root, strict_map: _uri.strict_map}});
-    if (_uri.strict_map){
-      assert_eq(undefined, __uri);
-      return;
-    }
-    assert_eq(_uri, __uri);
+  let t = (uri, path, opt)=>{
+    let _path = map_uri({uri, opt: {map, root, strict_map: opt?.strict_map}});
     assert_eq(path, _path);
   };
-  t('/', '/index.html', '/root/os/boot/index.html',
-    '/root/os/boot/.///index.html');
-  t('/', {strict_map: 1});
-  t('/util.js', '/util.js', '/root/os/boot/util.js',
-    '/root/os/boot/.///util.js');
-  t('/util.js', {strict_map: 1});
-  t('/sw.js', '', '/root/os/kernel/sw.js',
-    '/root/os/kernel/.///sw.js');
-  t('/kernel/kernel.js', '/kernel.js', '/root/os/kernel/kernel.js',
-    '/root/os/kernel///kernel.js');
-  t('/os/package.json', '/package.json', '/root/os/package.json',
-    '/root/os/boot/..///package.json');
+  t('/', '/root/os/boot/index.html');
+  t('/', undefined, {strict_map: 1});
+  t('/util.js', '/root/os/boot/util.js');
+  t('/util.js', undefined, {strict_map: 1});
+  t('/sw.js', '/root/os/kernel/sw.js');
+  t('/kernel/kernel.js', '/root/os/kernel/kernel.js');
+  t('/os/package.json', '/root/os/package.json');
 }
 test_server();
 
@@ -109,12 +96,11 @@ let root;
 const http_listener = (req, res)=>{
   let uri = new URL('http://localhost'+req.url).pathname;
   let opt = {map, root, strict_map: false};
-  let {uri: _uri, path} = map_uri({uri, opt});
+  let path = map_uri({uri, opt});
   res.on('finish', ()=>console.log(
-    `${_uri} ${res.statusCode} ${res.statusMessage}`));
-  if (!_uri)
+    `${uri} ${res.statusCode} ${res.statusMessage}`));
+  if (!path)
     return res_err(res, 404, 'no map found');
-  req.url = encodeURI(_uri);
   return res_send(res, path);
 };
 
@@ -316,7 +302,7 @@ async function run(opt){
     throw 'invalid args '+JSON.stringify(argv);
   if (!map['/lif-kernel'])
     map['/lif-kernel'] = import.meta.dirname+'/';
-  if (0 && !map['/lif_kernel_sw.js'])
+  if (!map['/lif_kernel_sw.js'])
     map['/lif_kernel_sw.js'] = map['/lif-kernel']+'/lif_kernel_sw.js';
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
