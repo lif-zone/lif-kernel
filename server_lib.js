@@ -10,8 +10,11 @@ import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
 
-const WEEK = 7*24*3600*1000;
-const MONTH = 30*24*3600*1000;
+const MS = {
+  SEC: 1000,
+  WEEK: 7*24*3600*1000,
+  MONTH: 30*24*3600*1000,
+};
 const ssl_dir = '/var/lif/ssl';
 let acme_cert_key, acme_account_key;
 
@@ -161,7 +164,7 @@ const set_cert = async(domain, file_cert, file_key, cert, key)=>{
   if (!valid_for){
     console.error('ssl: %s cert expired valid from %s to %s now %s', domain,
       to_sql(valid_from), to_sql(valid_to), to_sql(ts));
-  } else if (valid_for < WEEK){
+  } else if (valid_for < MS.WEEK){
     console.error('ssl: %s cert expire soon valid from %s to %s', domain,
       to_sql(valid_from), to_sql(valid_to));
   }
@@ -173,12 +176,8 @@ const set_cert = async(domain, file_cert, file_key, cert, key)=>{
     to_sql(valid_from), to_sql(valid_to));
 };
 
-let ssl_busy;
-const acme_check_if_need_ssl = async()=>{
+const _acme_check_if_need_ssl = async()=>{
   try {
-    if (ssl_busy) // XXX: replace with etask.wait/util.js:esleep(1000)
-      return setInterval(acme_check_if_need_ssl, 1000);
-    ssl_busy = true;
     console.log('ssl: acme_check_if_need_ssl %O', dnss.domains);
     let queue = [];
     if (!dnss.domains)
@@ -222,8 +221,14 @@ const acme_check_if_need_ssl = async()=>{
   } catch(err){ console.error('acme: check_if_need_ssl failed %O',
     err.stack);
   }
-  finally { ssl_busy = null; }
 };
+
+const acme_check_if_need_ssl = async()=>{
+  while (1){
+    await _acme_check_if_need_ssl();
+    await util.esleep(MS.WEEK);
+  }
+}
 
 function get_wan_ips(){
   let interfaces = os.networkInterfaces();
@@ -237,47 +242,56 @@ function get_wan_ips(){
   return ret;
 }
 
-async function run(opt){
-  let port = 3000, sport = 443;
-  let [...argv] = [...process.argv];
-  map = {...opt?.map||{}};
-  root = opt.root||process.cwd();
-  argv.shift();
-  argv.shift();
-  while (argv[0]!=undefined){
-    if (argv[0]=='-p'){
-      argv.shift();
-      port = +argv.shift();
-    } else if (argv[0]=='-m'){
-      argv.shift();
-      map[argv.shift()] = argv.shift();
-      break;
-    }
-  }
-  if (argv[0]!=undefined)
-    throw 'invalid args '+JSON.stringify(argv);
-  if (!map['/lif-kernel'])
-    map['/lif-kernel'] = import.meta.dirname+'/';
+async function do_ssl(opt){
   let wan_ips = get_wan_ips();
   let dnss_opt = {ips: []};
+  let sport = opt?.sport||443;
   for (let o of wan_ips)
     dnss_opt.ips.push({address: o.address, port: 53});
-  server.listen(port, ()=>{
-    console.log(`Serving ${root} on http://localhost:${port}`);
-  });
-  // XXX: need to configure sport?
-  sserver.listen(sport, ()=>{
-    console.log(`Serving SSL ${root} on https://localhost:${sport}`);
-  });
   dnss.start(dnss_opt);
+  console.log('service DNS port 53');
   acme.init({dnss: dnss});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
   dnss.set_domains({
     'arik.center': {ssl: true, ip: '165.227.185.44', ns: ['ns1', 'ns2']}
   });
-  acme_check_if_need_ssl();
-  setInterval(acme_check_if_need_ssl, WEEK);
+  sserver.listen(sport, ()=>{
+    console.log(`Serving SSL ${root} on https://localhost:${sport}`);
+  });
+  acme_check_if_need_ssl(); // background: dont wait
+}
+
+async function run(opt){
+  let port = 3000;
+  let [...argv] = [...process.argv];
+  let a, ssl;
+  map = {...opt?.map||{}};
+  root = opt.root||process.cwd();
+  argv.shift();
+  argv.shift();
+  while ((a=argv[0])!=undefined){
+    if (a=='-p' || a=='--port'){
+      argv.shift();
+      port = +argv.shift();
+    } else if (a=='-m' || a=='--map'){
+      argv.shift();
+      map[argv.shift()] = argv.shift();
+      break;
+    } else if (a=='-s' || a=='--ssl'){
+      argv.shift();
+      ssl = 1;
+    }
+  }
+  if (argv[0]!=undefined)
+    throw 'invalid args '+JSON.stringify(argv);
+  if (!map['/lif-kernel'])
+    map['/lif-kernel'] = import.meta.dirname+'/';
+  server.listen(port, ()=>{
+    console.log(`Serving ${root} on http://localhost:${port}`);
+  });
+  if (ssl)
+    do_ssl();
 }
 
 export default run;
