@@ -1,6 +1,7 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let lif_version = '1.2.0';
 let D = 0; // debug
+let in_test = 0;
 
 const ewait = ()=>{
   let _return, _throw;
@@ -464,30 +465,27 @@ const file_tr_cjs = (f, opt)=>{
 
 let lpm_imp_lookup = ({lpm, lmod})=>{
   let D = 0;
-  let pkg = lpm.pkg, mod_self = lpm.lmod;
+  let pkg = lpm.pkg, mod_self = lpm.lmod, u;
   let ret_err = err=>{
     D && console.log('lpm_imp_lookup('+mod_self+') imp '+lmod+': '+err);
   };
-  let u, _lmod = lmod;
-  if (!(u = lpm_parse(_lmod)))
+  if (!(u = lpm_parse(lmod)))
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
-    return _lmod;
-  let imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, _lmod);
-  if (!imp)
-    return ret_err('imp missing');
-  if (imp.startsWith(':peer:')){
+    return lmod;
+  let imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, lmod);
+  if (!imp || imp.startsWith(':peer:')){
     if (lpm_pkg_app &&
-      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, _lmod)))
+      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, lmod)))
     {
       return imp;
     }
-    for (let l = lpm; lpm; lpm = lpm.parent){
-      if (!(imp = lpm_imp_ver_lookup(lpm, lmod)))
+    for (let l = lpm_pkg_app; l; l = l.parent){
+      if (!(imp = lpm_imp_ver_lookup(l, lmod)))
         continue;
       return imp;
     }
-    return ret_err('imp missing lpm_app');
+    return ret_err('imp missing');
   }
   return imp;
 };
@@ -505,12 +503,8 @@ let tr_mjs_import = f=>{
       if (d.imported)
         v += '?imported='+d.imported.join(',');
       s.splice(d.start, d.end, json(v));
-    } else {
-      console.log('import('+f.lmod+') missing: '+imp);
-      //XXX debugger;
-      //v=lpm_imp_lookup({lpm: {pkg: f.pkg, lmod: T_lpm_lmod(f.lmod)},
-      //  lmod: T_npm_to_lpm(imp)});
-    }
+    } else
+      console.warn('import('+f.lmod+') missing: '+imp);
   }
   for (let d of f.ast.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
@@ -579,6 +573,7 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
       return;
     if (v = npm_dep_parse({mod_self: lpm.lmod, imp, dep: d}))
       return v;
+    in_test || console.warn('invalid import('+pkg.name+') format '+imp, d);
     return '';
   }
   let d
@@ -1168,6 +1163,7 @@ async function kernel_fetch(event){
 
 function test_kernel(){
   let t, pkg;
+  in_test = 1;
   t = (lpm_ver, v)=>assert_eq(v, gh_ver(lpm_ver));
   t('', '');
   t('@', '@');
@@ -1258,6 +1254,7 @@ function test_kernel(){
   t(pkg, '/d1/d2/file', './other/file');
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
+  in_test = 0;
 }
 test_kernel();
 
@@ -1277,7 +1274,6 @@ let do_app_pkg = async function(boot_pkg){
   lpm_pkg_root = await ecache(lpm_pkg_t, 'local/--boot/', async function run(lpm_pkg){
     lpm_pkg.lmod = 'local/--boot/';
     lpm_pkg.pkg = boot_pkg;
-    //XXX console.log('BOOT PKG', boot_pkg);
     lpm_pkg.child = [];
     return lpm_pkg;
   });
