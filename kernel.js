@@ -474,17 +474,16 @@ let lpm_imp_lookup = ({lpm, lmod})=>{
   if (u.ver || u.reg=='local')
     return _lmod;
   let imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, _lmod);
-  if (!imp || imp=='any:')
+  if (!imp)
     return ret_err('imp missing');
-  if (imp.startsWith('peer:')){
+  if (imp.startsWith(':peer:')){
     if (lpm_pkg_app &&
-      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, _lmod)) &&
-      imp!='any:')
+      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, _lmod)))
     {
       return imp;
     }
     for (let l = lpm; lpm; lpm = lpm.parent){
-      if (!(imp = lpm_imp_ver_lookup(lpm, lmod)) || imp=='any:')
+      if (!(imp = lpm_imp_ver_lookup(lpm, lmod)))
         continue;
       return imp;
     }
@@ -508,6 +507,9 @@ let tr_mjs_import = f=>{
       s.splice(d.start, d.end, json(v));
     } else {
       console.log('import('+f.lmod+') missing: '+imp);
+      //XXX debugger;
+      //v=lpm_imp_lookup({lpm: {pkg: f.pkg, lmod: T_lpm_lmod(f.lmod)},
+      //  lmod: T_npm_to_lpm(imp)});
     }
   }
   for (let d of f.ast.imports_dyn)
@@ -577,7 +579,7 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
       return;
     if (v = npm_dep_parse({mod_self: lpm.lmod, imp, dep: d}))
       return v;
-    return 'any:';
+    return '';
   }
   let d
   if (d = get_imp(pkg.lif?.dependencies))
@@ -585,7 +587,7 @@ let lpm_imp_ver_lookup = (lpm, imp)=>{
   if (d = get_imp(pkg.dependencies))
     return d;
   if (d = get_imp(pkg.peerDependencies))
-    return 'peer:'+d;
+    return ':peer:'+d;
   if (d = get_imp(pkg.devDependencies))
     return d;
 };
@@ -871,7 +873,7 @@ async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v, _lmod;
   if (_lmod = lpm_imp_lookup({lpm: lpm_pkg_root, lmod})){
-    if (_lmod.startsWith('peer:'))
+    if (_lmod.startsWith(':peer:'))
       _lmod = undefined;
   }
   if (_lmod && _lmod!=lmod){
@@ -939,11 +941,11 @@ async function lpm_pkg_resolve({log, lmod, mod_self}){
   imp = lpm_imp_lookup({lpm: lpm_self, lmod});
   found ||= !!imp;
   let v;
-  if (imp && imp.startsWith('peer:')){
+  if (imp && (v=imp.startsWith(':peer:'))){
     let peer = v.rest, _imp;
     for (let p = lpm_self.parent; p; p = p.parent){
       _imp = lpm_imp_lookup({lpm: p, lmod});
-      if (_imp && !_imp.startsWith('peer:')){
+      if (_imp && !_imp.startsWith(':peer:')){
         imp = _imp;
         break;
       }
@@ -1193,18 +1195,24 @@ function test_kernel(){
     react: '^18.3.1',
     dom: '>=18.3.1',
     os: '.git/github/repo/mod',
+  }, peerDependencies: {
+    react_p: '^18.3.1',
+    dom_p: '>=18.3.1',
   }}};
   t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm, imp));
   t('npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
   t('npm/loc/file.js', 'local/loc//file.js');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react/index.js', 'npm/react@18.3.1/index.js');
-  t('npm/dom', 'any:');
+  t('npm/dom');
+  t('npm/react_p', ':peer:npm/react_p@18.3.1');
+  t('npm/dom_p');
   t('npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
   lpm = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
-    react: 'npm:react@18.3.1',
-    reactbad: 'reactbad@18.3.1',
+    react: '18.3.1',
+    reactok: 'npm:react@18.3.1',
+    reactbad: 'react@18.3.1', // currently not supported in NPM
     dir: './DIR',
     GIT: 'git:.git/user@repo',
   }}}};
@@ -1212,6 +1220,7 @@ function test_kernel(){
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react/file.js', 'npm/react@18.3.1/file.js');
+  t('npm/reactok', 'npm/react@18.3.1');
   t('npm/reactbad');
   t('local/file', 'local/file');
   t('npm/dir', 'npm/mod/DIR');
@@ -1253,7 +1262,7 @@ function test_kernel(){
 test_kernel();
 
 let do_app_pkg = async function(boot_pkg){
-  // XXX todo: store boot_pkg in localStorage
+  // XXX TODO: store boot_pkg in localStorage
   let lif = boot_pkg.lif;
   let log = {lmod: 'local/--boot'};
   // remove previous app setup
@@ -1268,6 +1277,7 @@ let do_app_pkg = async function(boot_pkg){
   lpm_pkg_root = await ecache(lpm_pkg_t, 'local/--boot/', async function run(lpm_pkg){
     lpm_pkg.lmod = 'local/--boot/';
     lpm_pkg.pkg = boot_pkg;
+    //XXX console.log('BOOT PKG', boot_pkg);
     lpm_pkg.child = [];
     return lpm_pkg;
   });
