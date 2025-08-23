@@ -271,14 +271,15 @@ let file_ast = f=>{
     ast.is_jsx = ext=='jsx' || ext=='tsx';
     f.js = f.body;
     if (ast.is_ts || ast.is_jsx){
-      let opt = {presets: [], plugins: [], sourceMaps: true,
-        generatorOpts: {importAttributesKeyword: 'with'}};
+      let opt = {presets: [], plugins: []};
+      // XXX together with react, it strips unused module imports.
+      // {modules: false} did not solve it.
       if (ast.is_ts){
-        opt.presets.push('typescript');
+        opt.presets.push(['typescript', {modules: false}]);
         opt.filename = path_file(lmod);
       }
       if (ast.is_jsx)
-        opt.presets.push('react');
+        opt.presets.push(['react', {modules: false, useSpread: true}]);
       try {
         ({code: f.js} = Babel.transform(f.body, opt));
       } catch(err){
