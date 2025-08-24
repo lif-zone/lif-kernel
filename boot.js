@@ -144,11 +144,12 @@ async function require_single(mod_self, module_id){
   slow = eslow('require_single mod('+module_id+')');
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   url = url_expand(url);
+  let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   slow.end();
   try {
     slow = eslow(15000, 'require_single import('+module_id+') '+url);
     D && console.log('boot.js: import '+url);
-    m.mod = await import(url);
+    m.mod = await import(url, opt);
     slow.end();
   } catch(err){
     console.error('import('+module_id+') failed. required from '+mod_self,
