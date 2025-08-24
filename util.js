@@ -196,6 +196,14 @@ let assert_run_ab = exports.assert_run_ab = (a, b, test)=>{
   assert(ok, 'a and b dont match');
   return {a: _a, b: _b};
 };
+let assert_te = fn=>{
+  try {
+    fn();
+  } catch(err){
+    return;
+  }
+  assert(0, 'didnt throw');
+};
 
 // chan.js
 class postmessage_chan {
@@ -536,6 +544,7 @@ let url_parse = exports.url_parse = T(T_url_parse);
 // import {groupBy} from 'npm:lodash@4.17.21';
 
 let path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
+let lpm_submod_strict = 1;
 let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   let l = {};
   let p = lpm.split('/');
@@ -550,8 +559,11 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   }
   function next_submod(){
     let j = p.indexOf('', i);
-    if (j==i)
-      throw Error('invalid empty submod: '+lpm);
+    if (j==i){
+      if (lpm_submod_strict)
+        throw Error('invalid empty submod: '+lpm);
+      return '';
+    }
     if (j<0)
       return '';
     let submod = '/'+p.slice(i, j).join('/')+'/';
@@ -1227,8 +1239,9 @@ function test_util(){
     lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
-    assert_obj(v, t=T_lpm_parse(lpm));
-    assert_eq(lpm, T_lpm_str(t));
+    assert_obj(v, t=lpm_parse(lpm));
+    if (v)
+      assert_eq(lpm, T_lpm_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
     lmod: 'local', path: '/package.json'});
@@ -1248,6 +1261,10 @@ function test_util(){
     lmod: 'npm/mod/dir/', path: ''});
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
     lmod: 'npm/mod/sub/', path: '/'});
+  lpm_submod_strict = 1;
+  t('npm/mod/');
+  lpm_submod_strict = 0;
+  t('npm/mod/', {reg: 'npm', submod: '', lmod: 'npm/mod', path: '/'});
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
