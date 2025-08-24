@@ -533,7 +533,7 @@ const file_tr_mjs = (f, opt)=>{
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
     post += `slow.end(); `;
-  if (pre && tr[0]=='#' && tr[1]=='!') // #!/usr/bin/node shebang
+  if (pre && tr.startsWith('#!')) // #!/usr/bin/node shebang
     pre += '//';
   return pre+tr+post;
 };
