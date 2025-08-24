@@ -612,7 +612,7 @@ function pkg_alt_get(pkg, file){
   let ext = _path_ext(file);
   if (ext && ctype_get(ext))
     return;
-  let alt = pkg.lif?.alt||['.js']; // also /index.js?
+  let alt = pkg.lif?.alt|| ['.js', '/index.js'];
   if (alt.find(e=>file.endsWith(e)))
     return;
   return alt;
