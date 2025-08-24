@@ -409,8 +409,8 @@ if (!is_worker){
 }
 
 lif.boot = {
-  miani:  'ANOkI YhVh aLOhYk:La YhYh Lk aLOhIM AHRIM EL PNY:La TsA aT SM YhVh aLOhk LSVa:ZkOR aT YOM hSBT LQDSO:KBD aT AVIk VaT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk',
-  //miani:'anoKi yhvh AlohyK:lA yhyh lK Alohim aHrim el pny:lA tsa At Sm yhvh AlohK lSvA:zKor At yom hSbt lqdSo:kbd At aviK vAt amK:lo trXH:lo tnaf:lo tgnv:lo tenh breK ed Sqr:lo tHmd byt reK',
+  miani:  'ANOkI YhVh ALOhYk:La YhYh Lk ALOhIM AHRIM EL PNY:La TsA AT SM YhVh ALOhk LSVA:ZkOR AT YOM hSBT LQDSO:KBD AT AVIk VAT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk',
+  //miani:'anoKi yhvh alohyK:lA yhyh lK alohim aHrim el pny:lA tsa at Sm yhvh alohK lSva:zKor at yom hSbt lqdSo:kbd at aviK vat amK:lo trXH:lo tnaf:lo tgnv:lo tenh breK ed Sqr:lo tHmd byt reK',
   process,
   define,
   require,
