@@ -241,18 +241,20 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
-let ast_get_scope_type = path=>{
+let ast_get_scope_type = (path, opt)=>{
+  let _try = opt?.try;
   for (; path; path=path.parentPath){
-    if (path.type=='TryStatement')
+    if (_try && path.type=='TryStatement')
       return 'try';
     let b = path.scope.block;
     if (b.type=='FunctionExpression' ||
       b.type=='ArrowFunctionExpression' ||
-      b.type=='FunctionDeclaration')
+      b.type=='FunctionDeclaration' ||
+      b.type=='ClassMethod')
     {
       return b.async ? 'async' : 'sync';
     }
-    if (b.type=='CatchClause')
+    if (_try && b.type=='CatchClause')
       return 'catch';
     if (b.type=='Program')
       return 'program';
@@ -316,7 +318,7 @@ let file_ast = f=>{
       if (n.source.type=='StringLiteral'){
         let s = n.source;
         let v = s.value;
-        let type = ast_get_scope_type(path);
+        let type = ast_get_scope_type(path, {try: 1});
         let imported = [];
         n.specifiers?.forEach(spec=>{
           if (spec.type=='ImportSpecifier')
@@ -385,7 +387,7 @@ let file_ast = f=>{
           n.arguments.length==1 && n.arguments[0].type=='StringLiteral')
         {
           v = n.arguments[0].value;
-          let type = ast_get_scope_type(path);
+          let type = ast_get_scope_type(path, {try: 1});
           ast.requires.push({module: v, start: n.start, end: n.end, type});
           has.require = true;
         }
