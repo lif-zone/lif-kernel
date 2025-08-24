@@ -271,7 +271,8 @@ let file_ast = f=>{
     ast.is_jsx = ext=='jsx' || ext=='tsx';
     f.js = f.body;
     if (ast.is_ts || ast.is_jsx){
-      let opt = {presets: [], plugins: []};
+      let opt = {presets: [], plugins: [],
+        generatorOpts: {importAttributesKeyword: 'with'}};
       // XXX together with react, it strips unused module imports.
       // {modules: false} did not solve it.
       if (ast.is_ts){
@@ -1056,7 +1057,7 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: file_tr_cjs(f), ext: 'js'});
   if (q.has('cjs_es5'))
     return response_send({body: file_tr_cjs(f, {'es5': 1}), ext: 'js'});
-  if (q.has('mjs')){
+  if (q.has('mjs') && (type=='mjs' || !type)){
     return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
