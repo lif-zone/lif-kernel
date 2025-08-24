@@ -612,7 +612,7 @@ function pkg_alt_get(pkg, file){
   let ext = _path_ext(file);
   if (ext && ctype_get(ext))
     return;
-  let alt = pkg.lif?.alt||['.js'];
+  let alt = pkg.lif?.alt||['.js']; // also /index.js?
   if (alt.find(e=>file.endsWith(e)))
     return;
   return alt;
@@ -1262,6 +1262,11 @@ function test_kernel(){
 }
 test_kernel();
 
+// builtin nodejs APIs in browser: browserify:
+// versions of npm shims
+// https://github.com/browserify/browserify/blob/master/package.json
+// mappong nodejs npm->browser npm shim
+// https://github.com/browserify/browserify/blob/master/lib/builtins.js
 let do_app_pkg = async function(boot_pkg){
   // XXX TODO: store boot_pkg in localStorage
   let lif = boot_pkg.lif;
