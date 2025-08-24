@@ -921,20 +921,20 @@ async function lpm_pkg_resolve({log, lmod, mod_self}){
   assert_lmod(lmod);
   if (!mod_self)
     return {lpm_pkg: await lpm_pkg_get_follow({log, lmod})};
-  assert_lmod(mod_self);
+  let lmod_self = T_lpm_lmod(mod_self);
   // same name & ver
-  //if (lmod==mod_self)
-  //  break mod_self;
+  //if (lmod==lmod_self)
+  //  break lmod_self;
   // same name, empty ver; use base to complete ver
-  let imp = lpm_ver_from_base(lmod, mod_self);
+  let imp = lpm_ver_from_base(lmod, lmod_self);
   if (imp && imp!=lmod)
     return {redirect: lmod};
-  let found = lpm_same_base(lmod, mod_self);
+  let found = lpm_same_base(lmod, lmod_self);
   // different modules: load parent, and lookup imports.
   // when loading package, use boot packege for redirects
-  let lpm_self = await lpm_pkg_get_follow({log, lmod: mod_self});
+  let lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
   // same package?
-  if (mod_self==lmod)
+  if (lmod_self==lmod)
     return {lpm_pkg: lpm_self};
   // lookup imports from parent
   imp = lpm_imp_lookup({lpm: lpm_self, lmod});
@@ -964,7 +964,7 @@ async function lpm_file_resolve({log, lmod, mod_self}){
   if (!mod_self)
     mod_self = lpm_app;
   let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, lmod: T_lpm_lmod(lmod),
-    mod_self: mod_self && T_lpm_lmod(mod_self)});
+    mod_self});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
   if (lpm_pkg.redirect){
