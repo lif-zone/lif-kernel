@@ -544,11 +544,11 @@ let url_parse = exports.url_parse = T(T_url_parse);
 // import {groupBy} from 'npm:lodash@4.17.21';
 
 let path_parts = parts=>parts.length ? '/'+parts.join('/') : '';
-let lpm_submod_strict = 1;
 let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   let l = {};
   let p = lpm.split('/');
   let i = 0;
+  let is_npm;
   function next(err){
     let v = p[i++];
     if (typeof v!='string')
@@ -560,7 +560,9 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   function next_submod(){
     let j = p.indexOf('', i);
     if (j==i){
-      if (lpm_submod_strict)
+      // in nodejs require('util/') forces it to use npm util, not builtin util
+      // but probably should not be allowed for other uses
+      if (!is_npm)
         throw Error('invalid empty submod: '+lpm);
       return '';
     }
@@ -582,6 +584,7 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
   switch (l.reg){
   case 'npm':
+    is_npm = 1;
     l.name = next('module name');
     if (l.name[0]=='@'){
       l.scoped = true;
@@ -1261,9 +1264,6 @@ function test_util(){
     lmod: 'npm/mod/dir/', path: ''});
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
     lmod: 'npm/mod/sub/', path: '/'});
-  lpm_submod_strict = 1;
-  t('npm/mod/');
-  lpm_submod_strict = 0;
   t('npm/mod/', {reg: 'npm', submod: '', lmod: 'npm/mod', path: '/'});
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
