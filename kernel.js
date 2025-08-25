@@ -500,9 +500,7 @@ let tr_mjs_import = f=>{
     let imp = d.module;
     if (url_uri_type(imp)=='rel')
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
-    else if (v=lpm_imp_lookup({lpm: {pkg: f.pkg, lmod: T_lpm_lmod(f.lmod)},
-      lmod: T_npm_to_lpm(imp)}))
-    {
+    else if (v=lpm_imp_lookup({lpm: f.lpm_pkg, lmod: T_npm_to_lpm(imp)})){
       v = '/.lif/'+v;
       if (d.imported)
         v += '?imported='+d.imported.join(',');
