@@ -479,10 +479,11 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
   if (l.reg)
     return l.reg;
-  let peer = {}; // parent
+  // in npm language: peer==parent, dep==child==import
+  let peer = {}; // peer==parent
   if (l.peer!=undefined){
-    for (let parent = lpm_pkg.parent; parent; parent = parent.parent){
-      let _l = lpm_imp_ver_lookup({lpm_pkg: parent, imp});
+    for (let p = lpm_pkg.parent; p; p = p.parent){
+      let _l = lpm_imp_ver_lookup({lpm_pkg: p, imp});
       peer.reg ||= _l.reg;
       peer.dev ||= _l.dev;
     }
@@ -493,6 +494,11 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
     return l.dev;
   if (peer.dev)
     return peer.dev;
+  if (lpm_pkg_root){
+    l = lpm_imp_ver_lookup({lpm_pkg: lpm_pkg_root, imp});
+    if (l.reg)
+      return l.reg;
+  }
   return ret_err('imp missing');
 };
 
