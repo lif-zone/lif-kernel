@@ -467,9 +467,9 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-let lpm_imp_lookup = ({lpm, imp})=>{
+let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let D = 0;
-  let pkg = lpm.pkg, mod_self = lpm.lmod, u;
+  let pkg = lpm_pkg.pkg, mod_self = lpm_pkg.lmod, u;
   let ret_err = err=>{
     D && console.log('lpm_imp_lookup('+mod_self+') imp '+imp+': '+err);
   };
@@ -500,7 +500,7 @@ let tr_mjs_import = f=>{
     let imp = d.module;
     if (url_uri_type(imp)=='rel')
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
-    else if (v=lpm_imp_lookup({lpm: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
+    else if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
       v = '/.lif/'+v;
       if (d.imported)
         v += '?imported='+d.imported.join(',');
@@ -565,15 +565,15 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-let lpm_imp_ver_lookup = (lpm, imp)=>{
-  let pkg = lpm.pkg;
+let lpm_imp_ver_lookup = (lpm_pkg, imp)=>{
+  let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
   function get_imp(deps){
     let d, v;
     if (!(d = deps?.[npm]))
       return;
-    if (v = npm_dep_parse({mod_self: lpm.lmod, imp, dep: d}))
+    if (v = npm_dep_parse({mod_self: lpm_pkg.lmod, imp, dep: d}))
       return v;
     in_test || console.warn('invalid import('+pkg.name+') format '+imp, d);
     return '';
@@ -650,7 +650,7 @@ async function reg_git_get({log, lmod}){ assert(0); }
 async function reg_bittorrent_get({log, lmod}){ assert(0); }
 async function reg_get({log, lmod}){
 return await ecache(reg_file_t, lmod, async function run(reg){
-  let lpm, wait, u, get_ver;
+  let wait, u, get_ver;
   reg.lmod = lmod;
   reg.log = log;
   u = reg.u = T_lpm_parse(reg.lmod);
@@ -869,7 +869,7 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v, _lmod;
-  if (_lmod = lpm_imp_lookup({lpm: lpm_pkg_root, imp: lmod})){
+  if (_lmod = lpm_imp_lookup({lpm_pkg: lpm_pkg_root, imp: lmod})){
     if (_lmod.startsWith(':peer:'))
       _lmod = undefined;
   }
@@ -935,13 +935,13 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   if (lmod_self==imp)
     return {lpm_pkg: lpm_self};
   // lookup imports from parent
-  _imp = lpm_imp_lookup({lpm: lpm_self, imp});
+  _imp = lpm_imp_lookup({lpm_pkg: lpm_self, imp});
   found ||= !!_imp;
   let v;
   if (_imp && (v=_imp.startsWith(':peer:'))){
     let peer = v.rest, i;
     for (let p = lpm_self.parent; p; p = p.parent){
-      i = lpm_imp_lookup({lpm: p, imp});
+      i = lpm_imp_lookup({lpm_pkg: p, imp});
       if (i && !i.startsWith(':peer:')){
         _imp = i;
         break;
@@ -1187,7 +1187,7 @@ function test_kernel(){
   t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
-  let lpm = {lmod: 'npm/lif-os', pkg: {dependencies: {
+  let lpm_pkg = {lmod: 'npm/lif-os', pkg: {dependencies: {
     pages: './pages',
     loc: '/loc',
     react: '^18.3.1',
@@ -1197,7 +1197,7 @@ function test_kernel(){
     react_p: '^18.3.1',
     dom_p: '>=18.3.1',
   }}};
-  t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm, imp));
+  t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm_pkg, imp));
   t('npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
   t('npm/loc/file.js', 'local/loc//file.js');
   t('npm/react', 'npm/react@18.3.1');
@@ -1206,7 +1206,7 @@ function test_kernel(){
   t('npm/react_p', ':peer:npm/react_p@18.3.1');
   t('npm/dom_p');
   t('npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
-  lpm = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
+  lpm_pkg = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
     react: '18.3.1',
     reactok: 'npm:react@18.3.1',
@@ -1214,7 +1214,7 @@ function test_kernel(){
     dir: './DIR',
     GIT: 'git:.git/user@repo',
   }}}};
-  t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm, imp}));
+  t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react/file.js', 'npm/react@18.3.1/file.js');
@@ -1222,7 +1222,7 @@ function test_kernel(){
   t('npm/reactbad');
   t('local/file', 'local/file');
   t('npm/dir', 'npm/mod/DIR');
-  //t(lpm, 'GIT/github/user/repo', 'local/file');
+  //t(lpm_pkg, 'GIT/github/user/repo', 'local/file');
   t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
   t('a/file', undefined, ['.js']);
