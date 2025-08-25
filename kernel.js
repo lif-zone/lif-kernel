@@ -1190,6 +1190,8 @@ function test_kernel(){
   }, peerDependencies: {
     react_p: '^18.3.1',
     dom_p: '>=18.3.1',
+  }, globDependencies: {
+    glb: '1.2.0',
   }}};
   t = (imp, v)=>{
     let res = lpm_imp_ver_lookup({lpm_pkg, imp});
@@ -1205,6 +1207,7 @@ function test_kernel(){
   t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
   t('npm/dom_p', {peer: ''});
   t('npm/os/dir/index.js', {reg: 'git/github/repo/mod/dir/index.js'});
+  t('npm/glb', {glob: 'npm/glb@1.2.0'});
   lpm_pkg = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
     react: '18.3.1',
@@ -1213,6 +1216,7 @@ function test_kernel(){
     dir: './DIR',
     GIT: 'git:.git/user@repo',
   }}}};
+  // XXX not tests for peer/dev/glob lookups
   t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
