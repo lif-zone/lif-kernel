@@ -914,45 +914,45 @@ async function lpm_pkg_get_follow({log, lmod}){
 //   npm/lif-os -> local/lif-of/
 // - load npm/lif-os --> need to get to local/lif-os/
 // - check componenets in local/lif-of/package.json
-async function lpm_pkg_resolve({log, lmod, mod_self}){
-  D && console.log('lpm_pkg_resolve', lmod, mod_self);
-  assert_lmod(lmod);
+async function lpm_pkg_resolve({log, imp, mod_self}){
+  D && console.log('lpm_pkg_resolve', imp, mod_self);
+  assert_lmod(imp);
   if (!mod_self)
-    return {lpm_pkg: await lpm_pkg_get_follow({log, lmod})};
+    return {lpm_pkg: await lpm_pkg_get_follow({log, lmod: imp})};
   let lmod_self = T_lpm_lmod(mod_self);
   // same name & ver
-  //if (lmod==lmod_self)
+  //if (imp==lmod_self)
   //  break lmod_self;
   // same name, empty ver; use base to complete ver
-  let imp = lpm_ver_from_base(lmod, lmod_self);
-  if (imp && imp!=lmod)
-    return {redirect: lmod};
-  let found = lpm_same_base(lmod, lmod_self);
+  let _imp = lpm_ver_from_base(imp, lmod_self);
+  if (_imp && _imp!=imp)
+    return {redirect: imp};
+  let found = lpm_same_base(imp, lmod_self);
   // different modules: load parent, and lookup imports.
   // when loading package, use boot packege for redirects
   let lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
   // same package?
-  if (lmod_self==lmod)
+  if (lmod_self==imp)
     return {lpm_pkg: lpm_self};
   // lookup imports from parent
-  imp = lpm_imp_lookup({lpm: lpm_self, imp: lmod});
-  found ||= !!imp;
+  _imp = lpm_imp_lookup({lpm: lpm_self, imp});
+  found ||= !!_imp;
   let v;
-  if (imp && (v=imp.startsWith(':peer:'))){
-    let peer = v.rest, _imp;
+  if (_imp && (v=_imp.startsWith(':peer:'))){
+    let peer = v.rest, i;
     for (let p = lpm_self.parent; p; p = p.parent){
-      _imp = lpm_imp_lookup({lpm: p, imp: lmod});
-      if (_imp && !_imp.startsWith(':peer:')){
-        imp = _imp;
+      i = lpm_imp_lookup({lpm: p, imp});
+      if (i && !i.startsWith(':peer:')){
+        _imp = i;
         break;
       }
     }
   }
-  let _lmod = imp || lmod;
-  let u = T_lpm_parse(_lmod);
+  let lmod = _imp || imp;
+  let u = T_lpm_parse(lmod);
   if (u.reg=='npm' && !u.ver && !found)
-    throw Error('mod('+mod_self+') missing dependency: '+lmod);
-  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(_lmod),
+    throw Error('mod('+mod_self+') missing dependency: '+imp);
+  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
     mod_self: lpm_self.lmod});
   return {lpm_pkg, subdir: u.path};
 }
@@ -961,7 +961,7 @@ async function lpm_file_resolve({log, lmod, mod_self}){
   D && console.log('lpm_file_resolve', lmod, mod_self);
   if (!mod_self)
     mod_self = lpm_app;
-  let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, lmod: T_lpm_lmod(lmod),
+  let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(lmod),
     mod_self});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
@@ -1289,7 +1289,7 @@ let do_app_pkg = async function(boot_pkg){
   let _lpm_pkg_app;
   try {
     ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve({log,
-      lmod: T_lpm_lmod(_lpm_app), mod_self: 'local/--boot/'}));
+      imp: T_lpm_lmod(_lpm_app), mod_self: 'local/--boot/'}));
   } catch(err){
     console.error(err);
     throw app_init_wait.throw(err);
