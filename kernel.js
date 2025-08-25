@@ -479,26 +479,28 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
   if (l.reg)
     return l.reg;
+  if (l.glob)
+    return l.glob;
   // in npm language: peer==parent, dep==child==import
-  let peer = {}; // peer==parent
+  let pp = {}; // peer==parent
+  for (let p = lpm_pkg.parent; p; p = p.parent){
+    let _l = lpm_imp_ver_lookup({lpm_pkg: p, imp});
+    pp.reg ||= _l.reg;
+    pp.dev ||= _l.dev;
+    pp.glob ||= _l.glob;
+  }
   if (l.peer!=undefined){
-    for (let p = lpm_pkg.parent; p; p = p.parent){
-      let _l = lpm_imp_ver_lookup({lpm_pkg: p, imp});
-      peer.reg ||= _l.reg;
-      peer.dev ||= _l.dev;
-    }
-    if (peer.reg)
-      return peer.reg;
+    if (pp.reg)
+      return pp.reg;
+    if (pp.glob)
+      return pp.glob;
   }
   if (l.dev)
     return l.dev;
-  if (peer.dev)
-    return peer.dev;
-  if (lpm_pkg_root){
-    l = lpm_imp_ver_lookup({lpm_pkg: lpm_pkg_root, imp});
-    if (l.reg)
-      return l.reg;
-  }
+  if (pp.dev)
+    return pp.dev;
+  if (pp.glob)
+    return pp.glob;
   return ret_err('imp missing');
 };
 
@@ -588,6 +590,7 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
     return '';
   }
   let found = {};
+  found.glob = get_imp(pkg.lif?.globDependencies);
   found.reg = get_imp(pkg.lif?.dependencies);
   found.reg ||= get_imp(pkg.dependencies);
   found.peer = get_imp(pkg.peerDependencies, true);
