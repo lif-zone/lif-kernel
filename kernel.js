@@ -830,7 +830,8 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
     return OA(lpm_pkg, {redirect: v});
   }
   // fetch pkg
-  let reg = await reg_get({log, lmod: lmod+'/package.json'});
+  let pkg_json = lmod+'/package.json';
+  let reg = await reg_get({log, lmod: pkg_json});
   if (reg.not_exist){
     lpm_pkg.not_exist = reg.not_exist;
     return lpm_pkg;
@@ -840,7 +841,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   try {
     lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
   } catch(err){
-    throw Error('lmod('+lmod+'): '+err);
+    throw Error('lmod('+pkg_json+') invalid JSON: '+err);
   }
   return lpm_pkg;
 }); }
