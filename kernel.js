@@ -1,7 +1,6 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let lif_version = '1.2.0';
 let D = 0; // debug
-let in_test = 0;
 
 const ewait = ()=>{
   let _return, _throw;
@@ -572,19 +571,20 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
   let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
-  function get_imp(deps){
+  function get_imp(deps, is_peer){
     let d, v;
     if (!(d = deps?.[npm]))
       return;
     if (v = npm_dep_parse({mod_self: lpm_pkg.lmod, imp, dep: d}))
       return v;
-    in_test || console.warn('invalid import('+pkg.name+') format '+imp, d);
+    if (!is_peer)
+      console.warn('invalid import('+pkg.name+') format '+imp, d);
     return '';
   }
   let found = {};
   found.reg = get_imp(pkg.lif?.dependencies);
   found.reg ||= get_imp(pkg.dependencies);
-  found.peer = get_imp(pkg.peerDependencies);
+  found.peer = get_imp(pkg.peerDependencies, true);
   found.dev = get_imp(pkg.devDependencies);
   return found;
 };
@@ -868,8 +868,8 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
 
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
-  let v, _lmod;
-  _lmod = lpm_imp_lookup({lpm_pkg: lpm_pkg_root, imp: lmod});
+  let v;
+  let _lmod = lpm_imp_ver_lookup({lpm_pkg: lpm_pkg_root, imp: lmod}).reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
     lmod = _lmod;
@@ -1151,7 +1151,6 @@ async function kernel_fetch(event){
 
 function test_kernel(){
   let t, pkg;
-  in_test = 1;
   t = (lpm_ver, v)=>assert_eq(v, gh_ver(lpm_ver));
   t('', '');
   t('@', '@');
@@ -1247,7 +1246,6 @@ function test_kernel(){
   t(pkg, '/d1/d2/file', './other/file');
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
-  in_test = 0;
 }
 test_kernel();
 
