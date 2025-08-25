@@ -143,7 +143,6 @@ async function require_single(mod_self, module_id){
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   url = url_expand(url);
   let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
-  slow.end();
   let slow;
   try {
     slow = eslow(15000, 'require_single import('+module_id+') '+url);
