@@ -477,15 +477,16 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
     return imp;
-  let _imp = lpm_imp_ver_lookup(lpm_pkg, imp);
+  let _imp = lpm_imp_ver_lookup(lpm_pkg, imp, true, true);
   if (!_imp || _imp.startsWith(':peer:')){
     if (lpm_pkg_app &&
-      (_imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, imp)))
+      (_imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, imp,
+      true, true)))
     {
       return _imp;
     }
     for (let l = lpm_pkg_app; l; l = l.parent){
-      if (!(_imp = lpm_imp_ver_lookup(l, imp)))
+      if (!(_imp = lpm_imp_ver_lookup(l, imp, true, true)))
         continue;
       return _imp;
     }
@@ -565,7 +566,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-let lpm_imp_ver_lookup = (lpm_pkg, imp)=>{
+let lpm_imp_ver_lookup = (lpm_pkg, imp, peer, dev)=>{
   let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
@@ -583,9 +584,9 @@ let lpm_imp_ver_lookup = (lpm_pkg, imp)=>{
     return d;
   if (d = get_imp(pkg.dependencies))
     return d;
-  if (d = get_imp(pkg.peerDependencies))
+  if (peer && (d = get_imp(pkg.peerDependencies)))
     return ':peer:'+d;
-  if (d = get_imp(pkg.devDependencies))
+  if (dev && (d = get_imp(pkg.devDependencies)))
     return d;
 };
 
@@ -1197,7 +1198,7 @@ function test_kernel(){
     react_p: '^18.3.1',
     dom_p: '>=18.3.1',
   }}};
-  t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm_pkg, imp));
+  t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup(lpm_pkg, imp, true, true));
   t('npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
   t('npm/loc/file.js', 'local/loc//file.js');
   t('npm/react', 'npm/react@18.3.1');
