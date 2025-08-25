@@ -477,7 +477,7 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
     return imp;
-  let _imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, imp);
+  let _imp = lpm_imp_ver_lookup(lpm_pkg, imp);
   if (!_imp || _imp.startsWith(':peer:')){
     if (lpm_pkg_app &&
       (_imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, imp)))
