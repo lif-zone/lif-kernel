@@ -477,23 +477,24 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
     return imp;
-  let _imp = lpm_imp_ver_lookup({lpm_pkg, imp, peer: true, dev: true});
-  if (!_imp || _imp.startsWith(':peer:')){
-    if (lpm_pkg_app &&
-      (_imp = lpm_imp_ver_lookup({
-        lpm_pkg: {lmod: mod_self, pkg: lpm_pkg_app.pkg}, imp,
-        peer: true, dev: true})))
-    {
-      return _imp;
+  let l = lpm_imp_ver_lookup({lpm_pkg, imp});
+  if (l.reg)
+    return l.reg;
+  let peer = {}; // parent
+  if (l.peer){
+    for (let parent = lpm_pkg.parent; parent; parent = parent.parent){
+      let _l = lpm_imp_ver_lookup({lpm_pkg: parent, imp});
+      peer.reg ||= _l.reg;
+      peer.dev ||= _l.dev;
     }
-    for (let l = lpm_pkg_app; l; l = l.parent){
-      if (!(_imp = lpm_imp_ver_lookup({lpm_pkg: l, imp, peer: true, dev: true})))
-        continue;
-      return _imp;
-    }
-    return ret_err('imp missing');
+    if (peer.reg)
+      return peer.reg;
   }
-  return _imp;
+  if (l.dev)
+    return l.dev;
+  if (peer.dev)
+    return peer.dev;
+  return ret_err('imp missing');
 };
 
 let tr_mjs_import = f=>{
@@ -567,7 +568,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
-let lpm_imp_ver_lookup = ({lpm_pkg, imp, peer, dev})=>{
+let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
   let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
@@ -580,15 +581,12 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp, peer, dev})=>{
     in_test || console.warn('invalid import('+pkg.name+') format '+imp, d);
     return '';
   }
-  let d
-  if (d = get_imp(pkg.lif?.dependencies))
-    return d;
-  if (d = get_imp(pkg.dependencies))
-    return d;
-  if (peer && (d = get_imp(pkg.peerDependencies)))
-    return ':peer:'+d;
-  if (dev && (d = get_imp(pkg.devDependencies)))
-    return d;
+  let found = {};
+  found.reg = get_imp(pkg.lif?.dependencies);
+  found.reg ||= get_imp(pkg.dependencies);
+  found.peer = get_imp(pkg.peerDependencies);
+  found.dev = get_imp(pkg.devDependencies);
+  return found;
 };
 
 function pkg_web_export_lookup(pkg, path){
@@ -871,10 +869,7 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v, _lmod;
-  if (_lmod = lpm_imp_lookup({lpm_pkg: lpm_pkg_root, imp: lmod})){
-    if (_lmod.startsWith(':peer:'))
-      _lmod = undefined;
-  }
+  _lmod = lpm_imp_lookup({lpm_pkg: lpm_pkg_root, imp: lmod});
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
     lmod = _lmod;
@@ -929,7 +924,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   let _imp = lpm_ver_from_base(imp, lmod_self);
   if (_imp && _imp!=imp)
     return {redirect: imp};
-  let found = lpm_same_base(imp, lmod_self);
+  let found = lpm_same_base(imp, lmod_self); // XXX what is this for?
   // different modules: load parent, and lookup imports.
   // when loading package, use boot packege for redirects
   let lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
@@ -939,17 +934,6 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   // lookup imports from parent
   _imp = lpm_imp_lookup({lpm_pkg: lpm_self, imp});
   found ||= !!_imp;
-  let v;
-  if (_imp && (v=_imp.startsWith(':peer:'))){
-    let peer = v.rest, i;
-    for (let p = lpm_self.parent; p; p = p.parent){
-      i = lpm_imp_lookup({lpm_pkg: p, imp});
-      if (i && !i.startsWith(':peer:')){
-        _imp = i;
-        break;
-      }
-    }
-  }
   let lmod = _imp || imp;
   let u = T_lpm_parse(lmod);
   if (u.reg=='npm' && !u.ver && !found)
@@ -1189,7 +1173,7 @@ function test_kernel(){
   t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
-  let lpm_pkg = {lmod: 'npm/lif-os', pkg: {dependencies: {
+  let lpm_pkg = {lmod: 'npm/lif_os', pkg: {dependencies: {
     pages: './pages',
     loc: '/loc',
     react: '^18.3.1',
@@ -1199,16 +1183,20 @@ function test_kernel(){
     react_p: '^18.3.1',
     dom_p: '>=18.3.1',
   }}};
-  t = (imp, v)=>assert_eq(v, lpm_imp_ver_lookup({lpm_pkg, imp,
-    peer: true, dev: true}));
-  t('npm/pages/_app.tsx', 'npm/lif-os/pages/_app.tsx');
-  t('npm/loc/file.js', 'local/loc//file.js');
-  t('npm/react', 'npm/react@18.3.1');
-  t('npm/react/index.js', 'npm/react@18.3.1/index.js');
-  t('npm/dom');
-  t('npm/react_p', ':peer:npm/react_p@18.3.1');
-  t('npm/dom_p');
-  t('npm/os/dir/index.js', 'git/github/repo/mod/dir/index.js');
+  t = (imp, v)=>{
+    let res = lpm_imp_ver_lookup({lpm_pkg, imp});
+    assert.eq(v.reg, res.reg);
+    assert.eq(v.peer, res.peer);
+    assert.eq(v.dev, res.dev);
+  };
+  t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
+  t('npm/loc/file.js', {reg: 'local/loc//file.js'});
+  t('npm/react', {reg: 'npm/react@18.3.1'});
+  t('npm/react/index.js', {reg: 'npm/react@18.3.1/index.js'});
+  t('npm/dom', {reg: ''});
+  t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
+  t('npm/dom_p', {peer: ''});
+  t('npm/os/dir/index.js', {reg: 'git/github/repo/mod/dir/index.js'});
   lpm_pkg = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
     react: '18.3.1',
