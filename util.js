@@ -63,7 +63,7 @@ eslow.print = ()=>{
   for (let p of eslow.set)
     p.print();
 }
-if (D)
+if (D||1)
   globalThis.esb = eslow;
 
 let once_obj = {};
@@ -166,10 +166,10 @@ let assert = exports.assert = (ok, exp, res)=>{
   debugger; // eslint-disable-line no-debugger
   throw Error('test FAIL');
 };
-let assert_eq = exports.assert_eq = (exp, res)=>{
+let assert_eq = exports.assert_eq = assert.eq = (exp, res)=>{
   assert(exp===res, exp, res);
 };
-let assert_obj = exports.assert_obj = (exp, res)=>{
+let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
   if (exp===res)
     return;
   if (typeof exp=='object'){
@@ -180,14 +180,14 @@ let assert_obj = exports.assert_obj = (exp, res)=>{
   }
   assert(0, exp, res);
 };
-let assert_run = run=>{
+let assert_run = assert.run = run=>{
   try {
     return run();
   } catch(e){
     assert(0, 'run failed: '+e);
   }
 };
-let assert_run_ab = exports.assert_run_ab = (a, b, test)=>{
+let assert_run_ab = exports.assert_run_ab = assert.run_ab = (a, b, test)=>{
   let _a = T(a, {got_throw: 1})();
   let _b = T(b, {got_throw: 1})();
   assert(!!_a.got_throw==!!_b.got_throw,
@@ -196,7 +196,7 @@ let assert_run_ab = exports.assert_run_ab = (a, b, test)=>{
   assert(ok, 'a and b dont match');
   return {a: _a, b: _b};
 };
-let assert_te = fn=>{
+let assert_te = assert.te = fn=>{
   try {
     fn();
   } catch(err){
