@@ -957,21 +957,21 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   return {lpm_pkg, subdir: u.path};
 }
 
-async function lpm_file_resolve({log, lmod, mod_self}){
-  D && console.log('lpm_file_resolve', lmod, mod_self);
+async function lpm_file_resolve({log, imp, mod_self}){
+  D && console.log('lpm_file_resolve', imp, mod_self);
   if (!mod_self)
     mod_self = lpm_app;
-  let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(lmod),
+  let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp),
     mod_self});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
   if (lpm_pkg.redirect){
-    let u = T_lpm_parse(lmod);
+    let u = T_lpm_parse(imp);
     return {redirect: lpm_pkg.redirect+u.path};
   }
-  let u = T_lpm_parse(lmod);
-  let _lmod = lpm_pkg.lmod+(subdir||'')+u.path;
-  let lpm_file = await lpm_file_get({log, lmod: _lmod, lpm_pkg});
+  let u = T_lpm_parse(imp);
+  let lmod = lpm_pkg.lmod+(subdir||'')+u.path;
+  let lpm_file = await lpm_file_get({log, lmod, lpm_pkg});
   return lpm_file;
 }
 
@@ -1071,15 +1071,15 @@ function respond_tr_send({f, qs, lmod}){
   throw Error('invalid lpm file type '+type);
 }
 
-async function kernel_fetch_lpm({log, lmod, mod_self, qs}){
-  let f = await lpm_file_resolve({log, lmod, mod_self});
+async function kernel_fetch_lpm({log, imp, mod_self, qs}){
+  let f = await lpm_file_resolve({log, imp, mod_self});
   if (f.not_exist)
     return new Response('not found', {status: 404, statusText: 'not found'});
   if (f.redirect){
-    D && console.log('redirect lpm-f '+lmod+' -> '+f.redirect);
+    D && console.log('redirect lpm-f '+imp+' -> '+f.redirect);
     return Response.redirect('/.lif/'+f.redirect+qs);
   }
-  return respond_tr_send({f, qs, lmod});
+  return respond_tr_send({f, qs, lmod: imp});
 }
 
 async function fetch_pass(request, type){
@@ -1128,7 +1128,7 @@ async function _kernel_fetch(event){
     let slow = eslow('app_init');
     await app_init_wait;
     slow.end();
-    return await kernel_fetch_lpm({log, mod_self, lmod, qs});
+    return await kernel_fetch_lpm({log, mod_self, imp: lmod, qs});
   }
   // local requests
   let _path;
