@@ -481,7 +481,7 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   if (l.reg)
     return l.reg;
   let peer = {}; // parent
-  if (l.peer){
+  if (l.peer!=undefined){
     for (let parent = lpm_pkg.parent; parent; parent = parent.parent){
       let _l = lpm_imp_ver_lookup({lpm_pkg: parent, imp});
       peer.reg ||= _l.reg;

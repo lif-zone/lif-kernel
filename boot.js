@@ -82,11 +82,12 @@ function require_amd(mod_self, [imps, cb]){
 }
 
 function require_cjs(mod_self, module_id){
-  let m = modules[module_id];
+  let _module_id = lpm_2url(mod_self, module_id, {cjs: 1});
+  let m = modules[_module_id];
   if (!m)
-    throw Error('module '+module_id+' not loaded beforehand');
+    throw Error('module '+_module_id+' not loaded beforehand');
   if (!m.loaded)
-    throw Error('module '+module_id+' not loaded completion');
+    throw Error('module '+_module_id+' not loaded completion');
   return m.module.exports;
 }
 
@@ -135,13 +136,14 @@ test();
 let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
 async function require_single(mod_self, module_id){
-  let m;
-  if (m = modules[module_id])
-    return await m.wait;
-  m = modules[module_id] = {module_id, imps: [], wait: ewait(),
-    loaded: false, module: {exports: {}}};
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
+  let _module_id = url;
   url = url_expand(url);
+  let m;
+  if (m = modules[_module_id])
+    return await m.wait;
+  m = modules[_module_id] = {module_id: _module_id, imps: [], wait: ewait(),
+    loaded: false, module: {exports: {}}};
   let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   let slow;
   try {
