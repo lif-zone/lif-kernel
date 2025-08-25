@@ -467,31 +467,31 @@ const file_tr_cjs = (f, opt)=>{
   return js;
 }
 
-let lpm_imp_lookup = ({lpm, lmod})=>{
+let lpm_imp_lookup = ({lpm, imp})=>{
   let D = 0;
   let pkg = lpm.pkg, mod_self = lpm.lmod, u;
   let ret_err = err=>{
-    D && console.log('lpm_imp_lookup('+mod_self+') imp '+lmod+': '+err);
+    D && console.log('lpm_imp_lookup('+mod_self+') imp '+imp+': '+err);
   };
-  if (!(u = lpm_parse(lmod)))
+  if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
   if (u.ver || u.reg=='local')
-    return lmod;
-  let imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, lmod);
-  if (!imp || imp.startsWith(':peer:')){
+    return imp;
+  let _imp = lpm_imp_ver_lookup({lmod: mod_self, pkg}, imp);
+  if (!_imp || _imp.startsWith(':peer:')){
     if (lpm_pkg_app &&
-      (imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, lmod)))
+      (_imp = lpm_imp_ver_lookup({lmod: mod_self, pkg: lpm_pkg_app.pkg}, imp)))
     {
-      return imp;
+      return _imp;
     }
     for (let l = lpm_pkg_app; l; l = l.parent){
-      if (!(imp = lpm_imp_ver_lookup(l, lmod)))
+      if (!(_imp = lpm_imp_ver_lookup(l, imp)))
         continue;
-      return imp;
+      return _imp;
     }
     return ret_err('imp missing');
   }
-  return imp;
+  return _imp;
 };
 
 let tr_mjs_import = f=>{
@@ -500,7 +500,7 @@ let tr_mjs_import = f=>{
     let imp = d.module;
     if (url_uri_type(imp)=='rel')
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
-    else if (v=lpm_imp_lookup({lpm: f.lpm_pkg, lmod: T_npm_to_lpm(imp)})){
+    else if (v=lpm_imp_lookup({lpm: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
       v = '/.lif/'+v;
       if (d.imported)
         v += '?imported='+d.imported.join(',');
@@ -869,7 +869,7 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v, _lmod;
-  if (_lmod = lpm_imp_lookup({lpm: lpm_pkg_root, lmod})){
+  if (_lmod = lpm_imp_lookup({lpm: lpm_pkg_root, imp: lmod})){
     if (_lmod.startsWith(':peer:'))
       _lmod = undefined;
   }
@@ -935,13 +935,13 @@ async function lpm_pkg_resolve({log, lmod, mod_self}){
   if (lmod_self==lmod)
     return {lpm_pkg: lpm_self};
   // lookup imports from parent
-  imp = lpm_imp_lookup({lpm: lpm_self, lmod});
+  imp = lpm_imp_lookup({lpm: lpm_self, imp: lmod});
   found ||= !!imp;
   let v;
   if (imp && (v=imp.startsWith(':peer:'))){
     let peer = v.rest, _imp;
     for (let p = lpm_self.parent; p; p = p.parent){
-      _imp = lpm_imp_lookup({lpm: p, lmod});
+      _imp = lpm_imp_lookup({lpm: p, imp: lmod});
       if (_imp && !_imp.startsWith(':peer:')){
         imp = _imp;
         break;
@@ -1214,7 +1214,7 @@ function test_kernel(){
     dir: './DIR',
     GIT: 'git:.git/user@repo',
   }}}};
-  t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm, lmod: imp}));
+  t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm, imp}));
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react/file.js', 'npm/react@18.3.1/file.js');
