@@ -591,6 +591,7 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
   }
   let found = {};
   found.glob = get_imp(pkg.lif?.globDependencies);
+  found.glob ||= get_imp(pkg.globDependencies);
   found.reg = get_imp(pkg.lif?.dependencies);
   found.reg ||= get_imp(pkg.dependencies);
   found.peer = get_imp(pkg.peerDependencies, true);
@@ -1198,6 +1199,7 @@ function test_kernel(){
     assert.eq(v.reg, res.reg);
     assert.eq(v.peer, res.peer);
     assert.eq(v.dev, res.dev);
+    assert.eq(v.glob, res.glob);
   };
   t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
   t('npm/loc/file.js', {reg: 'local/loc//file.js'});
