@@ -1183,18 +1183,16 @@ function test_kernel(){
   t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
   t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
-  let lpm_pkg = {lmod: 'npm/lif_os', pkg: {dependencies: {
-    pages: './pages',
-    loc: '/loc',
-    react: '^18.3.1',
-    dom: '>=18.3.1',
-    os: '.git/github/repo/mod',
-  }, peerDependencies: {
-    react_p: '^18.3.1',
-    dom_p: '>=18.3.1',
-  }, globDependencies: {
-    glb: '1.2.0',
-  }}};
+  let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
+    lif: {
+      dependencies: {over: '2.0.0'},
+      globDependencies: {overg: '2.0.0'},
+    },
+    dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
+      dom: '>=18.3.1', os: '.git/github/repo/mod', over: '1.0.0'},
+    peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
+    globDependencies: {glb: '1.2.0', overg: '1.0.0'},
+  }};
   t = (imp, v)=>{
     let res = lpm_imp_ver_lookup({lpm_pkg, imp});
     assert.eq(v.reg, res.reg);
@@ -1211,6 +1209,8 @@ function test_kernel(){
   t('npm/dom_p', {peer: ''});
   t('npm/os/dir/index.js', {reg: 'git/github/repo/mod/dir/index.js'});
   t('npm/glb', {glob: 'npm/glb@1.2.0'});
+  t('npm/over', {reg: 'npm/over@2.0.0'});
+  t('npm/overg', {glob: 'npm/overg@2.0.0'});
   lpm_pkg = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
     react: '18.3.1',
