@@ -554,6 +554,7 @@ const mjs_import_cjs = (path, q)=>{
   let imported  = q.get('imported')?.split(',');
   let _q = new URLSearchParams(q);
   _q.delete('imported');
+  _q.delete('mod_self');
   _q.set('cjs', 1);
   _q.sort();
   let _path = json(path+qs_enc(_q, '?'));
