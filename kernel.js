@@ -1249,7 +1249,6 @@ function test_kernel(){
     gparent: '22.0.0',
     gpeerdev: '99.9.9',
   }}}};
-  // XXX not tests for peer/dev/glob lookups
   t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
