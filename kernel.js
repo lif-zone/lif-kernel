@@ -937,14 +937,10 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   if (!mod_self)
     return {lpm_pkg: await lpm_pkg_get_follow({log, lmod: imp})};
   let lmod_self = T_lpm_lmod(mod_self);
-  // same name & ver
-  //if (imp==lmod_self)
-  //  break lmod_self;
-  // same name, empty ver; use base to complete ver
+  // same module, empty ver and base completes it? use base to complete ver
   let _imp = lpm_ver_from_base(imp, lmod_self);
   if (_imp && _imp!=imp)
     return {redirect: imp};
-  let found = lpm_same_base(imp, lmod_self); // XXX what is this for?
   // different modules: load parent, and lookup imports.
   // when loading package, use boot packege for redirects
   let lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
