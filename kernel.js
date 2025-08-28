@@ -477,13 +477,7 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   // no need to lookup final versioned imports and local imports
   if (u.ver || u.reg=='local')
     return imp;
-  // lookup regular imports (dependencies)
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
-  if (l.reg)
-    return l.reg;
-  // lookup global imports of this package (globDependencies)
-  if (l.glob)
-    return l.glob;
   // collect parents info
   let par = {}; // in npm: peer==parent, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
@@ -492,21 +486,22 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
     par.dev ||= _l.dev;
     par.glob ||= _l.glob;
   }
-  // lookup parent peer/global imports (peerDependencies, globDependencies)
-  if (l.peer!=undefined){
-    if (par.reg)
-      return par.reg;
-    if (par.glob)
-      return par.glob;
-  }
-  // lookup devDependencies: current, then parent
-  if (l.dev)
-    return l.dev;
-  if (par.dev)
-    return par.dev;
-  // last resort - globDependencies of parents
+  // lookup globDependencies of current and parents
+  if (l.glob)
+    return l.glob;
   if (par.glob)
     return par.glob;
+  // lookup dependencies (regular imports): current
+  if (l.reg)
+    return l.reg;
+  // lookup parent peer/global imports (peerDependencies, globDependencies)
+  if (l.peer){
+    if (par.reg)
+      return par.reg;
+  }
+  // lookup devDependencies: current
+  if (l.dev)
+    return l.dev;
   return ret_err('imp missing');
 };
 
@@ -1224,18 +1219,20 @@ function test_kernel(){
     reactbad: 'react@18.3.1', // currently not supported in NPM
     dir: './DIR',
     GIT: 'git://github.com/user/repo@v1',
+    glob: '99.9.9',
+    glob2: '99.9.9',
   }, peerDependencies: {
     peer: '>=1.0.0',
     gpeer: '99.9.9',
-    gpeerdev: '99.9.9',
+    gpeerdev: '96.9.9',
   }, devDependencies: {
     dev: '2.0.0',
     peer: '2.0.0',
-    gpeerdev: '99.9.9',
+    gpeerdev: '97.9.9',
     gmod: '99.9.9',
   }, globDependencies: {
-    reactok: '99.9.9',
     gmod: '21.0.0',
+    glob2: '15.0.0',
   }}}, parent: {lmod: 'npm/par', pkg: {dependencies: {
     peer: '1.1.1',
     gparent: '99.9.9',
@@ -1243,8 +1240,9 @@ function test_kernel(){
     gpeer: '13.0.1',
     gpeerdev: '13.0.1',
   }, globDependencies: {
+    glob: '18.0.0',
+    glob2: '99.9.9',
     gparent: '22.0.0',
-    gpeerdev: '99.9.9',
   }}}};
   t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
