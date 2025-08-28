@@ -825,9 +825,8 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_self.child.push(lpm_pkg);
   lpm_pkg.child = [];
   lpm_pkg.log = log;
-  let u = T_lpm_parse(lmod);
   // resolve ver
-  if (u.reg=='npm' && !u.ver){
+  if (lpm_ver_missing(lmod)){
     let v = await _lpm_pkg_ver_get({log, lmod});
     if (!v)
       throw Error('no pkg versions found for '+lmod);
@@ -949,7 +948,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   same_mod ||= !!_imp;
   let lmod = _imp || imp;
   let u = T_lpm_parse(lmod);
-  if (u.reg=='npm' && !u.ver && !same_mod)
+  if (lpm_ver_missing(lmod) && !same_mod)
     throw Error('mod('+mod_self+') missing dependency: '+imp);
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
     mod_self: lpm_self.lmod});

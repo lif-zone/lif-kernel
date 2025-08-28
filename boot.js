@@ -7,7 +7,7 @@ import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq,
   path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm,
   T_npm_url_base, uri_enc, qs_enc, qs_append,
-  lpm_parse, npm_to_lpm, lpm_to_npm,
+  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing,
   _debugger} = util;
 let json = JSON.stringify;
 
@@ -109,7 +109,7 @@ const lpm_2url = (mod_self, url, opt)=>{
   if (u.is.uri)
     return qs_append(url, q);
   let _url = '/.lif/'+T_npm_to_lpm(u.path);
-  if (!u.lmod.ver && !npm_map[u.lmod.name])
+  if (lpm_ver_missing(u.lmod) && !npm_map[u.lmod.name])
     q.mod_self = mod_self;
   if (opt?.cjs && u.is.rel)
     q.cjs = 1;
