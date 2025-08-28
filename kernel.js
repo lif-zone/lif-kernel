@@ -949,10 +949,11 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     return {lpm_pkg: lpm_self};
   // lookup imports from parent
   _imp = lpm_imp_lookup({lpm_pkg: lpm_self, imp});
-  found ||= !!_imp;
+  let same_mod = lpm_same_base(imp, lmod_self); // same module, different versions?
+  same_mod ||= !!_imp;
   let lmod = _imp || imp;
   let u = T_lpm_parse(lmod);
-  if (u.reg=='npm' && !u.ver && !found)
+  if (u.reg=='npm' && !u.ver && !same_mod)
     throw Error('mod('+mod_self+') missing dependency: '+imp);
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
     mod_self: lpm_self.lmod});
