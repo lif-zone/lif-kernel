@@ -468,39 +468,45 @@ const file_tr_cjs = (f, opt)=>{
 
 let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let D = 0;
-  let pkg = lpm_pkg.pkg, mod_self = lpm_pkg.lmod, u;
+  let u;
   let ret_err = err=>{
-    D && console.log('lpm_imp_lookup('+mod_self+') imp '+imp+': '+err);
+    D && console.log('lpm_imp_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
   };
   if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
+  // no need to lookup final versioned imports and local imports
   if (u.ver || u.reg=='local')
     return imp;
+  // lookup regular imports (dependencies)
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
   if (l.reg)
     return l.reg;
+  // lookup global imports of this package (globDependencies)
   if (l.glob)
     return l.glob;
-  // in npm language: peer==parent, dep==child==import
-  let pp = {}; // peer==parent
+  // collect parents info
+  let par = {}; // in npm: peer==parent, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
     let _l = lpm_imp_ver_lookup({lpm_pkg: p, imp});
-    pp.reg ||= _l.reg;
-    pp.dev ||= _l.dev;
-    pp.glob ||= _l.glob;
+    par.reg ||= _l.reg;
+    par.dev ||= _l.dev;
+    par.glob ||= _l.glob;
   }
+  // lookup parent peer/global imports (peerDependencies, globDependencies)
   if (l.peer!=undefined){
-    if (pp.reg)
-      return pp.reg;
-    if (pp.glob)
-      return pp.glob;
+    if (par.reg)
+      return par.reg;
+    if (par.glob)
+      return par.glob;
   }
+  // lookup devDependencies: current, then parent
   if (l.dev)
     return l.dev;
-  if (pp.dev)
-    return pp.dev;
-  if (pp.glob)
-    return pp.glob;
+  if (par.dev)
+    return par.dev;
+  // last resort - globDependencies of parents
+  if (par.glob)
+    return par.glob;
   return ret_err('imp missing');
 };
 
@@ -585,8 +591,9 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
       return;
     if (v = npm_dep_parse({mod_self: lpm_pkg.lmod, imp, dep: d}))
       return v;
-    if (!is_peer)
-      console.warn('invalid import('+pkg.name+') format '+imp, d);
+    if (is_peer)
+      return d; // we dont currently use peer's version range
+    console.warn('invalid import('+pkg.name+') format '+imp, d);
     return '';
   }
   let found = {};
@@ -594,8 +601,10 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
   found.glob ||= get_imp(pkg.globDependencies);
   found.reg = get_imp(pkg.lif?.dependencies);
   found.reg ||= get_imp(pkg.dependencies);
-  found.peer = get_imp(pkg.peerDependencies, true);
-  found.dev = get_imp(pkg.devDependencies);
+  found.peer = get_imp(pkg.lif?.peerDependencies, true);
+  found.peer ||= get_imp(pkg.peerDependencies, true);
+  found.dev = get_imp(pkg.lif?.devDependencies);
+  found.dev ||= get_imp(pkg.devDependencies);
   return found;
 };
 
@@ -1206,7 +1215,7 @@ function test_kernel(){
   t('npm/react/index.js', {reg: 'npm/react@18.3.1/index.js'});
   t('npm/dom', {reg: ''});
   t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
-  t('npm/dom_p', {peer: ''});
+  t('npm/dom_p', {peer: '>=18.3.1'});
   t('npm/os/dir/index.js', {reg: 'git/github/repo/mod/dir/index.js'});
   t('npm/glb', {glob: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
@@ -1217,18 +1226,47 @@ function test_kernel(){
     reactok: 'npm:react@18.3.1',
     reactbad: 'react@18.3.1', // currently not supported in NPM
     dir: './DIR',
-    GIT: 'git:.git/user@repo',
+    GIT: 'git://github.com/user/repo@v1',
+  }, peerDependencies: {
+    peer: '>=1.0.0',
+    gpeer: '99.9.9',
+    gpeerdev: '99.9.9',
+  }, devDependencies: {
+    dev: '2.0.0',
+    peer: '2.0.0',
+    gpeerdev: '99.9.9',
+    gmod: '99.9.9',
+  }, globDependencies: {
+    reactok: '99.9.9',
+    gmod: '21.0.0',
+  }}}, parent: {lmod: 'npm/par', pkg: {dependencies: {
+    peer: '1.1.1',
+    gparent: '99.9.9',
+    gparent2: '99.9.9',
+    gpeer: '13.0.1',
+    gpeerdev: '13.0.1',
+  }, globDependencies: {
+    gparent: '22.0.0',
+    gpeerdev: '99.9.9',
   }}}};
   // XXX not tests for peer/dev/glob lookups
   t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
+  t('npm/react@16.3.1', 'npm/react@16.3.1');
   t('npm/react/file.js', 'npm/react@18.3.1/file.js');
   t('npm/reactok', 'npm/react@18.3.1');
   t('npm/reactbad');
   t('local/file', 'local/file');
   t('npm/dir', 'npm/mod/DIR');
-  //t(lpm_pkg, 'GIT/github/user/repo', 'local/file');
+  t('npm/peer', 'npm/peer@1.1.1');
+  t('npm/gmod', 'npm/gmod@21.0.0');
+  t('npm/gparent', 'npm/gparent@22.0.0');
+  t('npm/gparent2');
+  t('npm/gpeer', 'npm/gpeer@13.0.1');
+  t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
+  t('npm/GIT/github/user/repo', 'git/github/user/repo@v1');
+  t('git/github/user/repo@vX', 'git/github/user/repo@vX');
   t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
   t('a/file', undefined, ['.js']);
