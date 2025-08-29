@@ -1073,10 +1073,6 @@ async function kernel_fetch_lpm({log, imp, mod_self, qs}){
   let f = await lpm_file_resolve({log, imp, mod_self});
   if (f.not_exist)
     return new Response('not found', {status: 404, statusText: 'not found'});
-  if (f.redirect){
-    D && console.log('redirect lpm-f '+imp+' -> '+f.redirect);
-    return Response.redirect('/.lif/'+f.redirect+qs);
-  }
   return respond_tr_send({f, qs, lmod: imp});
 }
 
