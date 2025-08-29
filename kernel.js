@@ -1036,13 +1036,19 @@ let ctype_binary = path=>{
   return false;
 };
 
+function response_redirect({f, qs, lmod}){
+  D && console.log('redirect f '+lmod+' -> '+f.redirect);
+  let q = new URLSearchParams(qs);
+  let l = lpm_parse(f.redirect);
+  if (l && !lpm_ver_missing(l))
+    q.delete('mod_self');
+  return Response.redirect('/.lif/'+f.redirect+qs_enc(q, true));
+}
 function respond_tr_send({f, qs, lmod}){
   let ext = _path_ext(lmod);
   let q = new URLSearchParams(qs);
-  if (f.redirect){
-    D && console.log('redirect f '+lmod+' -> '+f.redirect);
-    return Response.redirect('/.lif/'+f.redirect+qs);
-  }
+  if (f.redirect)
+    return response_redirect({f, qs, lmod});
   if (q.has('raw') || ctype_binary(lmod))
     return response_send({body: f.blob, uri: lmod});
   if (ext=='json')
