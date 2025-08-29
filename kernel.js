@@ -475,7 +475,7 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
   // no need to lookup final versioned imports and local imports
-  if (u.ver || u.reg=='local')
+  if (!lpm_ver_missing(u))
     return imp;
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
   // collect parents info
