@@ -1307,7 +1307,8 @@ test_kernel();
 let do_app_pkg = async function(boot_pkg){
   // XXX TODO: store boot_pkg in localStorage
   let lif = boot_pkg.lif;
-  let log = {lmod: 'local/--boot'};
+  let lmod_root = 'local/.lif.boot/';
+  let log = {lmod: lmod_root};
   // remove previous app setup
   lpm_app = undefined;
   lpm_pkg_app = undefined;
@@ -1317,8 +1318,8 @@ let do_app_pkg = async function(boot_pkg){
   lpm_pkg_ver_t = {};
   lpm_file_t = {};
   // init new app
-  lpm_pkg_root = await ecache(lpm_pkg_t, 'local/--boot/', async function run(lpm_pkg){
-    lpm_pkg.lmod = 'local/--boot/';
+  lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
+    lpm_pkg.lmod = lmod_root;
     lpm_pkg.pkg = boot_pkg;
     lpm_pkg.child = [];
     return lpm_pkg;
@@ -1328,7 +1329,7 @@ let do_app_pkg = async function(boot_pkg){
   let _lpm_pkg_app;
   try {
     ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve({log,
-      imp: T_lpm_lmod(_lpm_app), mod_self: 'local/--boot/'}));
+      imp: T_lpm_lmod(_lpm_app), mod_self: lmod_root}));
   } catch(err){
     console.error(err);
     throw app_init_wait.throw(err);
