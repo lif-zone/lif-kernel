@@ -119,7 +119,7 @@ const lpm_2url = (mod_self, url, opt)=>{
     q.cjs_es5 = 1;
   if (0 && opt?.es5)
     q.cjs_es5 = 1;
-  if (lpm_ver_missing(u.lmod) && !npm_map[u.lmod.name])
+  if (1 || lpm_ver_missing(u.lmod) && !npm_map[u.lmod.name])
     q.mod_self = mod_self;
   return qs_append(_url, q);
 };
@@ -128,15 +128,15 @@ function test(){
   let t;
   t = (mod_self, url, opt, v)=>assert_eq(v, lpm_2url(mod_self, url, opt));
   t('mod@1.2.3', './a/file.js', {cjs: 1},
-    '/.lif/npm/mod@1.2.3/a/file.js?cjs=1');
+    '/.lif/npm/mod@1.2.3/a/file.js?cjs=1&mod_self=mod@1.2.3');
   t('.local/other.js', './a/file.js', {cjs: 1},
-    '/.lif/local/a/file.js?cjs=1');
+    '/.lif/local/a/file.js?cjs=1&mod_self=.local/other.js');
   t('.local/mod/', './a/file.js', {cjs: 1},
-    '/.lif/local/mod//a/file.js?cjs=1');
+    '/.lif/local/mod//a/file.js?cjs=1&mod_self=.local/mod/');
   t('react@1.2.3', 'mod/file.js', {cjs: 1},
     '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
   t('react@1.2.3', 'mod@4.5.6/file.js', {cjs: 1},
-    '/.lif/npm/mod@4.5.6/file.js');
+    '/.lif/npm/mod@4.5.6/file.js?mod_self=react@1.2.3');
 }
 test();
 

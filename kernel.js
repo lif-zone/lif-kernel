@@ -513,8 +513,11 @@ let tr_mjs_import = f=>{
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
     else if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
       v = '/.lif/'+v;
+      let q = {};
       if (d.imported)
-        v += '?imported='+d.imported.join(',');
+        q.imported = d.imported.join(',');
+      q.mod_self = f.npm_uri;
+      v += qs_enc(q, true);
       s.splice(d.start, d.end, json(v));
     } else
       console.warn('import('+f.lmod+') missing: '+imp);
@@ -554,7 +557,7 @@ const mjs_import_cjs = (path, q)=>{
   let imported  = q.get('imported')?.split(',');
   let _q = new URLSearchParams(q);
   _q.delete('imported');
-  _q.delete('mod_self');
+  0 && _q.delete('mod_self');
   _q.set('cjs', 1);
   _q.sort();
   let _path = json(path+qs_enc(_q, '?'));
@@ -889,7 +892,7 @@ async function lpm_pkg_get_follow({log, lmod}){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
     lmod = _lmod;
   }
-  let lpm_pkg = lpm_pkg_get({log, lmod});
+  let lpm_pkg = await lpm_pkg_get({log, lmod});
   if (_lmod = lpm_pkg.redirect){
     console.log('redirect ver: '+lmod+' -> '+_lmod);
     lpm_pkg = lpm_pkg_get({log, lmod: _lmod});
@@ -929,46 +932,41 @@ async function lpm_pkg_get_follow({log, lmod}){
 async function lpm_pkg_resolve({log, imp, mod_self}){
   D && console.log('lpm_pkg_resolve', imp, mod_self);
   assert_lmod(imp);
-  if (!mod_self)
-    return {lpm_pkg: await lpm_pkg_get_follow({log, lmod: imp})};
-  let lmod_self = T_lpm_lmod(mod_self);
-  // same module, empty ver and base completes it? use base to complete ver
-  let _imp = lpm_ver_from_base(imp, lmod_self);
-  if (_imp && _imp!=imp)
-    return {lpm_pkg: {redirect: imp}};
-  // different modules: load parent, and lookup imports.
-  // when loading package, use boot packege for redirects
-  let lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
-  // same package?
-  if (lmod_self==imp)
-    return {lpm_pkg: lpm_self};
+  let lmod_self, lpm_self;
+  if (mod_self){
+    lmod_self = T_lpm_lmod(mod_self);
+    // same module, empty ver and base completes it? use base to complete ver
+    let _imp = lpm_ver_from_base(imp, lmod_self);
+    if (_imp && _imp!=imp)
+      return {lpm_pkg: {redirect: imp}};
+    // different modules: load pkg, and lookup imports.
+    lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
+    // same package?
+    if (lmod_self==imp)
+      return {lpm_pkg: lpm_self};
+  } else
+    lpm_self = lpm_pkg_root;
   // lookup imports from parent
-  _imp = lpm_imp_lookup({lpm_pkg: lpm_self, imp});
-  let same_mod = lpm_same_base(imp, lmod_self); // same module, different versions?
-  same_mod ||= !!_imp;
+  let _imp = lpm_imp_lookup({lpm_pkg: lpm_self, imp});
+  // located import, and it got changed
+  if (_imp && _imp!=imp)
+    return {lpm_pkg: {redirect: _imp}};
   let lmod = _imp || imp;
-  let u = T_lpm_parse(lmod);
-  if (lpm_ver_missing(lmod) && !same_mod)
-    throw Error('mod('+mod_self+') missing dependency: '+imp);
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
     mod_self: lpm_self.lmod});
-  return {lpm_pkg, subdir: u.path};
+  let subdir = T_lpm_parse(imp).path;
+  return {lpm_pkg, subdir};
 }
 
 async function lpm_file_resolve({log, imp, mod_self}){
   D && console.log('lpm_file_resolve', imp, mod_self);
-  if (!mod_self)
-    mod_self = lpm_app;
+  let path = T_lpm_parse(imp).path;
   let {lpm_pkg, subdir} = await lpm_pkg_resolve(
     {log, imp: T_lpm_lmod(imp), mod_self});
   if (lpm_pkg.redirect)
-    console.error('unexpected redir', mod_self, imp);
+    return {redirect: lpm_pkg.redirect+path};
   if (lpm_pkg.not_exist)
     return {not_exist: true};
-  if (lpm_pkg.redirect){
-    let u = T_lpm_parse(imp);
-    return {redirect: lpm_pkg.redirect+u.path};
-  }
   let u = T_lpm_parse(imp);
   let lmod = lpm_pkg.lmod+(subdir||'')+u.path;
   let lpm_file = await lpm_file_get({log, lmod, lpm_pkg});
@@ -1043,7 +1041,7 @@ function response_redirect({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
-    q.delete('mod_self');
+    0 && q.delete('mod_self');
   return Response.redirect('/.lif/'+f.redirect+qs_enc(q, true));
 }
 function respond_tr_send({f, qs, lmod}){
@@ -1301,6 +1299,21 @@ function test_kernel(){
 }
 test_kernel();
 
+async function lpm_pkg_resolve_follow(opt){
+  try {
+    let imp, res;
+    for (imp = opt.imp; imp;){
+      let res = await lpm_pkg_resolve({...opt, imp});
+      if (!(imp = res?.lpm_pkg?.redirect))
+        return res;
+    }
+    return res;
+  } catch(err){
+    console.error(err);
+    throw err;
+  }
+}
+
 // builtin nodejs APIs in browser: browserify:
 // versions of npm shims
 // https://github.com/browserify/browserify/blob/master/package.json
@@ -1330,7 +1343,7 @@ let do_app_pkg = async function(boot_pkg){
   let slow = eslow('app_pg lpm_get');
   let _lpm_pkg_app;
   try {
-    ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve({log,
+    ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve_follow({log,
       imp: T_lpm_lmod(_lpm_app), mod_self: lmod_root}));
   } catch(err){
     console.error(err);
