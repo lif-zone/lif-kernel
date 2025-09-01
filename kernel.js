@@ -1067,7 +1067,7 @@ function respond_tr_send({f, qs, lmod}){
   let ast = file_ast(f);
   let type = ast.type;
   if (q.has('cjs')){
-    if (0 && q.size>1)
+    if (q.size>1)
       return Response.redirect('/.lif/'+lmod+'?cjs=1');
     return response_send({body: file_tr_cjs(f), ext: 'js'});
   }
