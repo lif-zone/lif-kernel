@@ -451,7 +451,8 @@ let match_glob = exports.match_glob =
   (glob, value)=>match_glob_to_regex(glob).test(value);
 let qs_enc = exports.qs_enc = (q, qmark)=>{
   let _q = (''+new URLSearchParams(q))
-  .replaceAll('%2F', '/').replaceAll('%40', '@').replaceAll('%3A', ':');
+  .replaceAll('%2F', '/').replaceAll('%40', '@').replaceAll('%3A', ':')
+  .replaceAll('%2C', ',');
   return _q ? (qmark ? '?' : '')+_q : '';
 };
 let qs_append = exports.qs_append = (url, q)=>{
