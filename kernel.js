@@ -573,11 +573,20 @@ const mjs_import_mjs = (export_default, path, q)=>{
   _q.delete('mod_self');
   _q.set('mjs', 1);
   _q.sort();
-  let _path = json(path+'?'+_q);
+  let _path = json(path+qs_enc(_q, true));
   let js = `export * from ${_path};\n`;
   if (export_default)
     js += `export {default} from ${_path};\n`;
   return js;
+};
+
+const mjs_import_mjs_redirect = (path, q)=>{
+  let _q = new URLSearchParams(q);
+  _q.delete('imported');
+  _q.delete('mod_self');
+  _q.set('mjs', 1);
+  _q.sort();
+  return path+qs_enc(_q, true);
 };
 
 let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
@@ -1057,8 +1066,11 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
-  if (q.has('cjs'))
+  if (q.has('cjs')){
+    if (0 && q.size>1)
+      return Response.redirect('/.lif/'+lmod+'?cjs=1');
     return response_send({body: file_tr_cjs(f), ext: 'js'});
+  }
   if (q.has('cjs_es5'))
     return response_send({body: file_tr_cjs(f, {'es5': 1}), ext: 'js'});
   if (q.has('mjs') && (type=='mjs' || !type)){
@@ -1068,6 +1080,8 @@ function respond_tr_send({f, qs, lmod}){
   if (type=='cjs' || type=='amd' || type=='')
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs'){
+    if (0)
+      return Response.redirect(mjs_import_mjs_redirect('/.lif/'+lmod, q));
     return response_send({
       body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
       ext: 'js'});
