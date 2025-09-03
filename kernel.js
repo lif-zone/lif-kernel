@@ -557,7 +557,7 @@ const mjs_import_cjs = (path, q)=>{
   let imported  = q.get('imported')?.split(',');
   let _q = new URLSearchParams(q);
   _q.delete('imported');
-  0 && _q.delete('mod_self');
+  _q.delete('mod_self');
   _q.set('cjs', 1);
   _q.sort();
   let _path = json(path+qs_enc(_q, '?'));
@@ -578,15 +578,6 @@ const mjs_import_mjs = (export_default, path, q)=>{
   if (export_default)
     js += `export {default} from ${_path};\n`;
   return js;
-};
-
-const mjs_import_mjs_redirect = (path, q)=>{
-  let _q = new URLSearchParams(q);
-  _q.delete('imported');
-  _q.delete('mod_self');
-  _q.set('mjs', 1);
-  _q.sort();
-  return path+qs_enc(_q, true);
 };
 
 let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
@@ -1080,8 +1071,6 @@ function respond_tr_send({f, qs, lmod}){
   if (type=='cjs' || type=='amd' || type=='')
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs'){
-    if (0)
-      return Response.redirect(mjs_import_mjs_redirect('/.lif/'+lmod, q));
     return response_send({
       body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
       ext: 'js'});
