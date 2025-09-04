@@ -1041,7 +1041,7 @@ function response_redirect({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
-    0 && q.delete('mod_self');
+    q.delete('mod_self');
   return Response.redirect('/.lif/'+f.redirect+qs_enc(q, true));
 }
 function respond_tr_send({f, qs, lmod}){
