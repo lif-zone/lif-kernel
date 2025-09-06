@@ -1207,6 +1207,12 @@ function test_util(){
   t('/cc', 'aa/bb/cc', 'aa/bb');
   t('cc', 'aa/bb/cc', 'aa/bb/');
   t('', 'aa/bb/cc', 'aa/bb/cc');
+  t('', 'http://site/dir', 'http://site/dir');
+  t(undefined, 'http://site/dir.', 'http://site/dir');
+  t(undefined, 'http://site/dir', 'http://site/dir.');
+  t(undefined, 'http://site/dir', 'http://site/dir/');
+  t('/', 'http://site/dir/', 'http://site/dir');
+  t('/file', 'http://site/dir/file', 'http://site/dir');
   t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);

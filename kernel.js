@@ -1136,12 +1136,8 @@ async function _kernel_fetch(event){
     return fetch_pass(request, 'external');
   // lif-kernel passthrough for local dev
   let v;
-  if (path=='/' || (lif_kernel_base_u.origin==u.origin &&
-    (v=str.starts(path, lif_kernel_base_u.pathname)) &&
-    str.is(v.rest, 'kernel.js', 'boot.js', 'mime_db.js', 'util.js')))
-  {
+  if (path=='/' || path_prefix(url, lif_kernel_base))
     return fetch(request);
-  }
   // LIF+local GET requests
   // LIF requests
   if (lpm_pkg_app && (v = str.starts(path, '/.lif/'))){
