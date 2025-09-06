@@ -1021,8 +1021,8 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
-  coi_set_headers(h);
   opt.headers = new Headers(h);
+  coi_set_headers(opt.headers);
   return new Response(body, opt);
 };
 
