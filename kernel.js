@@ -1,6 +1,7 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let lif_version = '1.2.0';
 let D = 0; // debug
+let in_test = 0;
 
 const ewait = ()=>{
   let _return, _throw;
@@ -603,7 +604,7 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
       return v;
     if (is_peer)
       return d; // we dont currently use peer's version range
-    console.warn('invalid import('+pkg.name+') format '+imp, d);
+    !in_test && console.warn('invalid import('+pkg.name+') format '+imp, d);
     return '';
   }
   let found = {};
@@ -1217,7 +1218,9 @@ function test_kernel(){
     globDependencies: {glb: '1.2.0', overg: '1.0.0'},
   }};
   t = (imp, v)=>{
+    in_test = 1;
     let res = lpm_imp_ver_lookup({lpm_pkg, imp});
+    in_test = 0;
     assert.eq(v.reg, res.reg);
     assert.eq(v.peer, res.peer);
     assert.eq(v.dev, res.dev);
