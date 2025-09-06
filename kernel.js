@@ -961,12 +961,13 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     lpm_self = lpm_pkg_root;
   // lookup imports from parent
   let _imp = lpm_imp_lookup({lpm_pkg: lpm_self, imp});
+  let lmod = _imp || imp;
+  // load the module, even if redirect later, so its loaded with mod_self
+  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
+    mod_self: lpm_self.lmod});
   // located import, and it got changed
   if (_imp && _imp!=imp)
     return {lpm_pkg: {redirect: _imp}};
-  let lmod = _imp || imp;
-  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
-    mod_self: lpm_self.lmod});
   let subdir = T_lpm_parse(imp).path;
   return {lpm_pkg, subdir};
 }
