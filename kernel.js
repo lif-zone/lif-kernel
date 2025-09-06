@@ -840,10 +840,10 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_pkg.log = log;
   // resolve ver
   if (lpm_ver_missing(lmod)){
-    console.error('no version found for '+lmod);
+    console.error('no version defined for import '+lmod);
     let v = await _lpm_pkg_ver_get({log, lmod});
     if (!v)
-      throw Error('no pkg versions found for '+lmod);
+      throw Error('no pkg versions defined for import '+lmod);
     console.log('redirect ver '+lmod+' -> '+v);
     return OA(lpm_pkg, {redirect: v});
   }
