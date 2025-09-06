@@ -590,6 +590,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
   return js;
 };
 
+// https://docs.npmjs.com/cli/v11/configuring-npm/package-json
 let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
   let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
@@ -606,6 +607,7 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
     return '';
   }
   let found = {};
+  // TODO rename globDependencies to overrides
   found.glob = get_imp(pkg.lif?.globDependencies);
   found.glob ||= get_imp(pkg.globDependencies);
   found.reg = get_imp(pkg.lif?.dependencies);
@@ -840,7 +842,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_pkg.log = log;
   // resolve ver
   if (lpm_ver_missing(lmod)){
-    console.error('no version defined for import '+lmod);
+    console.error('module('+mod_self+') no version defined for import '+lmod);
     let v = await _lpm_pkg_ver_get({log, lmod});
     if (!v)
       throw Error('no pkg versions defined for import '+lmod);
