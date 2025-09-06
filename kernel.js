@@ -202,6 +202,14 @@ let lpm_cdn = {
     name: 'local',
     url: u=>submod_path(u),
   }]},
+  https: {src: [{
+    name: 'https',
+    url: u=>`https://${u.site}${submod_path(u)}`,
+  }]},
+  http: {src: [{
+    name: 'http',
+    url: u=>`http://${u.site}${submod_path(u)}`,
+  }]},
 };
 let lpm_get_cdn = u=>{
   let cdn = lpm_cdn;
@@ -212,6 +220,8 @@ let lpm_get_cdn = u=>{
   case 'git': return cdn.git[u.site];
   case 'ipfs': return cdn.ipfs;
   case 'local': return cdn.local;
+  case 'https': return cdn.https;
+  case 'http': return cdn.http;
   }
   throw Error('invalid reg '+u.reg);
 };
@@ -830,10 +840,11 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_pkg.log = log;
   // resolve ver
   if (lpm_ver_missing(lmod)){
+    console.error('no version found for '+lmod);
     let v = await _lpm_pkg_ver_get({log, lmod});
     if (!v)
       throw Error('no pkg versions found for '+lmod);
-    D && console.log('redirect ver '+lmod+' -> '+v);
+    console.log('redirect ver '+lmod+' -> '+v);
     return OA(lpm_pkg, {redirect: v});
   }
   // fetch pkg
@@ -1331,7 +1342,7 @@ async function lpm_pkg_resolve_follow(opt){
 // https://github.com/browserify/browserify/blob/master/lib/builtins.js
 let do_app_pkg = async function(boot_pkg){
   // XXX TODO: store boot_pkg in localStorage
-  let lif = boot_pkg.lif;
+  let lif = boot_pkg.lif ||= {};
   let lmod_root = 'local/.lif.boot/';
   let log = {lmod: lmod_root};
   // remove previous app setup
@@ -1342,6 +1353,10 @@ let do_app_pkg = async function(boot_pkg){
   lpm_pkg_t = {};
   lpm_pkg_ver_t = {};
   lpm_file_t = {};
+  // add lif-kernel package
+  if (!boot_pkg.globDependencies?.['lif-kernel'] && !lif.globDependencies?.['lif-kernel'])
+    lif.globDependencies ||= {};
+    lif.globDependencies['lif-kernel'] = lif_kernel_base;
   // init new app
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
     lpm_pkg.lmod = lmod_root;

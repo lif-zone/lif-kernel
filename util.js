@@ -618,15 +618,6 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
       l.ver_type = 'name';
     l.lmod = l.reg+'/'+l.site+'/'+l.name+l.ver;
     break; }
-  case 'http':
-  case 'https':
-    l.name = next('site name');
-    v = ver_split(l.name);
-    l.name = v.name;
-    l.ver = v.ver;
-    l.port = v.ver.slice(1);
-    l.lmod = l.reg+'/'+l.blockid;
-    break;
   case 'bittorent':
     l.infohash = next('InfoHash');
     break;
@@ -652,6 +643,10 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   case 'local':
     l.lmod = l.reg;
     break;
+  case 'https': case 'http':
+    l.site = next('site');
+    l.lmod = l.reg+'/'+l.site;
+    break;
   default:
     throw Error('invalid registry: '+lpm);
   }
@@ -668,9 +663,6 @@ let T_lpm_str = exports.T_lpm_str = l=>{
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
   case 'git':
     return l.reg+'/'+l.site+'/'+l.name+l.ver+l.submod+l.path;
-  case 'http':
-  case 'https':
-    return l.reg+'/'+l.name+(l.port ? '@'+l.port : '')+l.submod+l.path;
   case 'bittorent':
     return l.reg+'/'+l.infohash+l.submod+l.path;
   case 'lifcoin':
@@ -686,6 +678,8 @@ let T_lpm_str = exports.T_lpm_str = l=>{
     return l.reg+'/'+l.name+l.submod+l.path;
   case 'local':
     return l.reg+l.submod+l.path;
+  case 'https': case 'http':
+    return l.reg+'/'+l.site+'/'+l.submod+l.path;
   default:
     throw Error('invalid registry: '+l.reg);
   }
@@ -710,7 +704,11 @@ let T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
     return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
     return mod_self+(v.rest?'/'+v.rest:'')+path;
-  if (v=str.starts(d, ['https:', 'http:', 'git:', 'git+https:'])){
+  if (v=str.starts(d, 'https://github.com/'))
+    d = 'git://github.com/'+v.rest;
+  if (v=str.starts(d, 'https://gitlab.com/'))
+    d = 'git://gitlab.com/'+v.rest;
+  if (v=str.starts(d, ['git:', 'git+https:'])){
     let u = new URL(d), site = u.host;
     if (u.host=='github.com'){
       site = 'github';
@@ -729,6 +727,8 @@ let T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
     let ver = u.hash ? '@'+u.hash.slice(1) : '';
     return 'git/'+site+'/'+user+'/'+repo+ver+_path;
   }
+  if (v=str.starts(d, ['http://', 'https://']))
+    return v.start.replaceAll('://', '/')+v.rest;
   if (v=str.starts(d, 'npm:'))
     return 'npm/'+v.rest+path;
   if (v=str.starts(d, '.npm/', '.git/', '.local/'))
@@ -754,6 +754,10 @@ let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
     return 'git'+v.rest;
   if (v=path_prefix(npm, '.local'))
     return 'local'+v.rest;
+  if (v=path_prefix(npm, '.https'))
+    return 'https'+v.rest;
+  if (v=path_prefix(npm, '.http'))
+    return 'http'+v.rest;
   throw Error('invalid npm: '+npm);
 };
 let npm_to_lpm = exports.npm_to_lpm = T(T_npm_to_lpm);
@@ -1289,6 +1293,10 @@ function test_util(){
   t('https://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
+  t('https://any.com/dir', 'https/any.com/dir');
+  t('http://any.com/dir', 'http/any.com/dir');
+  t('https://any.com:9000/dir', 'https/any.com:9000/dir');
+  t('http://any.com:9000/dir', 'http/any.com:9000/dir');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t = (imp, dep, v)=>
