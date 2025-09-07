@@ -62,7 +62,7 @@ eslow.print = ()=>{
   console.log('eslow print');
   for (let p of eslow.set)
     p.print();
-}
+};
 if (D||1)
   globalThis.esb = eslow;
 
@@ -292,7 +292,7 @@ let buf_to_str = (buf, type)=>{
   if (type=='string')
     return utf8_dec.decode(buf);
   throw Error('buf_to_str: invalid type');
-}
+};
 
 // implementation automatic service-worker/direct SharedArrayBuffer
 // https://github.com/alexmojaki/sync-message
@@ -884,7 +884,7 @@ let semver_re = new RegExp('^'+semver_re_part.source+'$');
 let semver_parse = exports.semver_parse = semver=>{
   let m = semver.match(semver_re);
   if (!m)
-    return
+    return;
   return {ver: m[1], rel: m[2]||''};
 };
 
@@ -1057,7 +1057,7 @@ let _debugger = exports._debugger = function(stop){
 };
 // useful for locating who is changes window.location
 let detect_unload = exports.detect_unload =
-  ()=>addEventListener('beforeunload',()=>{debugger}); // eslint-disable-line no-debugger
+  ()=>addEventListener('beforeunload', ()=>{debugger;}); // eslint-disable-line no-debugger
 
 exports.Scroll = Scroll;
 function Scroll(s){
@@ -1110,7 +1110,7 @@ let ecache = exports.ecache = async function(table, id, fn){
     throw t.wait.throw(err);
   }
   return t.wait.return(ret);
-}
+};
 ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
 
 exports.html_elm = (name, attr)=>{
