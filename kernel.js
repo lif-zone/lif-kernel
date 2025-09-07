@@ -458,7 +458,7 @@ const file_tr_cjs = (f, opt)=>{
   }
   let js = `
     let lif_boot = globalThis.lif?.boot;
-    let module = {exports: {}};
+    let module = lif_boot.require_register_cb(${uri_s});
     let exports = module.exports;
     let require = module=>lif_boot.require_cjs(${uri_s}, module);
     let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);

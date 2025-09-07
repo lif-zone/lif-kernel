@@ -12,6 +12,7 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq,
 let json = JSON.stringify;
 
 let modules = {};
+let modules_cache = {};
 let kernel_chan;
 let npm_root;
 let npm_map = {};
@@ -142,6 +143,13 @@ test();
 
 let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
+function require_register_cb(mod_self){
+  let m;
+  if (m = modules_cache[mod_self])
+    console.error('module '+mod_self+' already loaded');
+  m = modules_cache[mod_self] = {exports: {}};
+  return m;
+}
 async function require_single(mod_self, module_id){
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   let _module_id = url;
@@ -427,6 +435,7 @@ lif.boot = {
   require_cjs,
   require_cjs_amd,
   require_single,
+  require_register_cb,
   version: lif_version,
   _import,
   util,
