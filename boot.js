@@ -143,11 +143,17 @@ test();
 
 let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
-function require_register_cb(mod_self){
+function require_register_cb({uri, parent_mod}){
   let m;
-  if (m = modules_cache[mod_self])
-    console.error('module '+mod_self+' already loaded');
-  m = modules_cache[mod_self] = {exports: {}};
+  if (m = modules_cache[uri]){
+    console.error('module '+uri+' already loaded (orig from '+m.parent_mod+
+      ' and now from '+parent_mod);
+  }
+  m = modules_cache[uri] = {
+    exports: {},
+    parent_mod,
+    uri,
+  };
   return m;
 }
 async function require_single(mod_self, module_id){

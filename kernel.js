@@ -450,6 +450,7 @@ let tr_cjs_require = f=>{
 
 const file_tr_cjs = (f, opt)=>{
   let uri_s = json(f.npm_uri);
+  let mod_data = json({uri: f.npm_uri, parent_mod: f.lpm_pkg.parent_mod});
   let tr = tr_cjs_require(f);
   let pre = '';
   for (let r of f.ast.requires){
@@ -458,7 +459,7 @@ const file_tr_cjs = (f, opt)=>{
   }
   let js = `
     let lif_boot = globalThis.lif?.boot;
-    let module = lif_boot.require_register_cb(${uri_s});
+    let module = lif_boot.require_register_cb(${mod_data});
     let exports = module.exports;
     let require = module=>lif_boot.require_cjs(${uri_s}, module);
     let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);
@@ -841,6 +842,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_self.child.push(lpm_pkg);
   lpm_pkg.child = [];
   lpm_pkg.log = log;
+  lpm_pkg.parent_mod = mod_self;
   // resolve ver
   if (lpm_ver_missing(lmod)){
     console.error('module('+mod_self+') no version defined for import '+lmod);
