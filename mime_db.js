@@ -83,7 +83,7 @@ const mime2ext = exports.mime2ext = {
   "video/x-ms-asf": ["asx","asf"],
   "video/x-ms-wmv": ["wmv"],
   "video/x-msvideo": ["avi"],
-}
+};
 const ext2mime = exports.ext2mime = {};
 for (let t in mime2ext){
   let e = mime2ext[t];
