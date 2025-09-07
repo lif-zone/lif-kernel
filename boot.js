@@ -154,6 +154,7 @@ function require_register_cb({uri, parent_mod}){
     parent_mod,
     uri,
   };
+  m.require = imp=>require_cjs(uri, imp);
   return m;
 }
 async function require_single(mod_self, module_id){
