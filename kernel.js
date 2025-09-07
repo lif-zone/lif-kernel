@@ -458,14 +458,11 @@ const file_tr_cjs = (f, opt)=>{
       pre += 'await require_async('+json(r.module)+');\n';
   }
   let js = `
-    let lif_boot = globalThis.lif?.boot;
-    let module = lif_boot.require_register_cb(${mod_data});
+    let module = globalThis.lif.boot.require_register_cb(${mod_data});
     let exports = module.exports;
     let require = module.require;
-    let require_async = async(module)=>await lif_boot.require_single(${uri_s}, module);
-    let define = function(id, imps, factory){
-      return lif_boot.define_amd(${uri_s}, arguments, module); };
-    define.amd = {};
+    let require_async = module.require_async;
+    let define = module.define;
     ${pre}
     await (async()=>{
     ${tr}

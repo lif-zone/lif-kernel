@@ -155,6 +155,10 @@ function require_register_cb({uri, parent_mod}){
     uri,
   };
   m.require = imp=>require_cjs(uri, imp);
+  m.require_async = async(imp)=>await require_single(uri, imp);
+  m.define = function(id, imps, factory){
+    return define_amd(uri, arguments, m); };
+  m.define.amd = {};
   return m;
 }
 async function require_single(mod_self, module_id){
