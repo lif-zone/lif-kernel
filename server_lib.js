@@ -243,7 +243,7 @@ const acme_check_if_need_ssl = async()=>{
     await _acme_check_if_need_ssl();
     await esleep(MS.WEEK);
   }
-}
+};
 
 function get_wan_ips(){
   let interfaces = os.networkInterfaces();
