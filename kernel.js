@@ -450,7 +450,8 @@ let tr_cjs_require = f=>{
 
 const file_tr_cjs = (f, opt)=>{
   let uri_s = json(f.npm_uri);
-  let mod_data = json({uri: f.npm_uri, parent_mod: f.lpm_pkg.parent_mod});
+  let mod_data = json({uri: f.npm_uri, parent_mod: f.lpm_pkg.parent_mod,
+    log: f.log});
   let tr = tr_cjs_require(f);
   let pre = '';
   for (let r of f.ast.requires){
@@ -473,7 +474,7 @@ const file_tr_cjs = (f, opt)=>{
   else
     js += `export default module.exports;`;
   return js;
-}
+};
 
 let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let D = 0;
@@ -671,7 +672,7 @@ async function reg_http_get({log, url}){
   } catch(err){
     err = Error('fetch('+url+'): '+err);
     console.log(err);
-    return {err, fail_cdn: true}
+    return {err, fail_cdn: true};
   }
   return {blob};
 }
@@ -874,6 +875,8 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   lpm_file.lpm_pkg = lpm_pkg;
   pkg = lpm_file.pkg = lpm_pkg.pkg;
   lpm_file.npm_uri = lpm_to_npm(lmod);
+  lpm_file.log = log;
+  lpm_pkg.log ||= log;
   if (lpm_pkg.redirect)
     return OA(lpm_file, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
   let path = T_lpm_parse(lmod).path;
@@ -1056,6 +1059,8 @@ function response_redirect({f, qs, lmod}){
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
     q.delete('mod_self');
+  if (q.size==1 && q.get('cjs')=='1')
+    q.set('cjs', '2');
   return Response.redirect('/.lif/'+f.redirect+qs_enc(q, true));
 }
 function respond_tr_send({f, qs, lmod}){
@@ -1129,7 +1134,7 @@ async function _kernel_fetch(event){
   let ext = _path_ext(path);
   let log = {
     mod: url+(ref && ref!=u.origin+'/' ? ' ref '+ref : ''),
-    ref: url,
+    imp: url,
   };
   D && console.log('sw '+log.mod);
   // external and non GET requests

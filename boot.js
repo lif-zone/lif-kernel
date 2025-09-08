@@ -84,7 +84,8 @@ function require_amd(mod_self, [imps, cb]){
 
 function require_cjs(mod_self, module_id){
   let _module_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let m = modules[_module_id];
+  let mod_id = mod_self+' '+_module_id;
+  let m = modules[mod_id];
   if (!m)
     throw Error('module '+_module_id+' not loaded beforehand');
   if (!m.loaded)
@@ -143,17 +144,19 @@ test();
 
 let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
-function require_register_cb({uri, parent_mod}){
+function require_register_cb({uri, parent_mod, log}){
   let m;
   if (m = modules_cache[uri]){
-    console.error('module '+uri+' already loaded (orig from '+m.parent_mod+
-      ' and now from '+parent_mod);
+    console.error('module '+uri+' loaded twice: 1st '+
+      m.parent_mod+' '+m.parent_url+
+      '\n2nd '+parent_mod+' '+log.mod+' '+log.imp);
   }
   m = modules_cache[uri] = {
     exports: {},
     parent_mod,
     uri,
   };
+  m.log = {...log};
   m.require = imp=>require_cjs(uri, imp);
   m.require_async = async(imp)=>await require_single(uri, imp);
   m.define = function(id, imps, factory){
@@ -165,10 +168,11 @@ async function require_single(mod_self, module_id){
   let url = lpm_2url(mod_self, module_id, {cjs: 1});
   let _module_id = url;
   url = url_expand(url);
+  let mod_id = mod_self+' '+_module_id;
   let m;
-  if (m = modules[_module_id])
+  if (m = modules[mod_id])
     return await m.wait;
-  m = modules[_module_id] = {module_id: _module_id, imps: [], wait: ewait(),
+  m = modules[mod_id] = {module_id: _module_id, imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   let slow;
