@@ -1076,14 +1076,15 @@ let ctype_binary = path=>{
 };
 
 function response_redirect({f, qs, lmod}){
-  D && console.log('redirect f '+lmod+' -> '+f.redirect);
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
     q.delete('mod_self');
   if (q.size==1 && q.get('cjs')==1)
     q.set('cjs', '2');
-  return Response.redirect('/.lif/'+f.redirect+qs_enc(q, true));
+  let redirect = '/.lif/'+f.redirect+qs_enc(q, true);
+  D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
+  return Response.redirect(redirect);
 }
 function respond_tr_send({f, qs, lmod}){
   let ext = _path_ext(lmod);
@@ -1102,7 +1103,7 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (q.get('cjs')==1){
     if (q.size>1)
-      return Response.redirect('/.lif/'+lmod+'?cjs=1');
+      return Response.redirect('/.lif/'+lmod+'?cjs=2');
     return response_send({body: file_tr_cjs(f), ext: 'js'});
   }
   if (q.has('cjs_es5'))
