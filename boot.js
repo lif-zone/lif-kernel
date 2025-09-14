@@ -12,6 +12,7 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq,
 let json = JSON.stringify;
 
 let modules = {};
+let modules_self = {};
 let modules_cache = {};
 let kernel_chan;
 let npm_root;
@@ -82,14 +83,29 @@ function require_amd(mod_self, [imps, cb]){
   })();
 }
 
-function require_cjs(mod_self, module_id){
-  let _module_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let mod_id = mod_self+' '+_module_id;
-  let m = modules[mod_id];
+function require_cjs_silent(mod_self, module_id){
+  let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
+  let mc = modules_cache[mod_id];
+  if (mc)
+    return mc.exports;
+  let mod_self_id = mod_self+' '+mod_id;
+  let m = modules[mod_self_id];
   if (!m)
-    throw Error('module '+_module_id+' not loaded beforehand');
+    return;
+  return m.module.exports;
+}
+
+function require_cjs(mod_self, module_id){
+  let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
+  let mc = modules_cache[mod_id];
+  if (mc)
+    return mc.exports;
+  let mod_self_id = mod_self+' '+mod_id;
+  let m = modules[mod_self_id];
+  if (!m)
+    throw Error('module '+mod_id+' not loaded beforehand');
   if (!m.loaded)
-    throw Error('module '+_module_id+' not loaded completion');
+    throw Error('module '+mod_id+' not loaded completion');
   return m.module.exports;
 }
 
@@ -165,14 +181,16 @@ function require_register_cb({uri, parent_mod, log}){
   return m;
 }
 async function require_single(mod_self, module_id){
-  let url = lpm_2url(mod_self, module_id, {cjs: 1});
-  let _module_id = url;
-  url = url_expand(url);
-  let mod_id = mod_self+' '+_module_id;
+  let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
+  let url = url_expand(mod_id);
+  let mc;
+  if (mc = modules_cache[mod_id])
+    return mc.exports;
+  let mod_self_id = mod_self+' '+mod_id;
   let m;
-  if (m = modules[mod_id])
+  if (m = modules[mod_self_id])
     return await m.wait;
-  m = modules[mod_id] = {module_id: _module_id, imps: [], wait: ewait(),
+  m = modules[mod_self_id] = {module_id: mod_id, imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   let slow;
@@ -449,11 +467,15 @@ lif.boot = {
   require_amd,
   require_cjs,
   require_cjs_amd,
+  require_cjs_silent,
   require_single,
   require_register_cb,
   version: lif_version,
   _import,
   util,
+  // debug
+  modules,
+  modules_cache,
 };
 if (is_worker){
   OA(lif.boot, {_importScripts});

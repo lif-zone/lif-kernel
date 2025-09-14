@@ -564,7 +564,8 @@ let tr_mjs_import = f=>{
 const file_tr_mjs = (f, opt)=>{
   let uri_s = json(f.npm_uri);
   let tr = tr_mjs_import(f);
-  let slow = 1, log = 0, pre = '', post = '';
+  let slow = 0; // has problem with lif-kernel/util.js
+  let log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
   if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
@@ -595,7 +596,11 @@ const mjs_import_cjs = (path, q)=>{
   _q.set('cjs', 1);
   _q.sort();
   let _path = json(path+qs_enc(_q, '?'));
-  let js = `let exports = (await import(${_path})).default;\n`;
+  let uri_s = json(path);
+  let js = '';
+  js += `let exports; `;
+  js += `if (exports = globalThis.lif.boot.require_cjs_silent(${uri_s}, ${_path})); `;
+  js += `else exports = (await globalThis.lif.boot._import(${uri_s}, [${_path}])).default;\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
