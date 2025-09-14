@@ -451,10 +451,15 @@ let tr_cjs_require = f=>{
 function require_non_toplevel(lpm_pkg){
   let u = lpm_parse(lpm_pkg.lmod);
   if (u.reg=='npm' && (u.name=='react' || u.name=='react-dom')){
-    // NPM react: require('react') in a function
+    // NPM react: require('react') in a function: self referencing
     // react@18.3.1/cjs/react-jsx-runtime.development.js:25
-    // NPM react-dom: require('react') in a function
+    // should be solved by making require('react') in react detect "self"
+    //
+    // NPM react-dom: require('react') in a function: parent import (peer dep)
     // react-dom@18.3.1/cjs/react-dom.development.js:36
+    // need to put callbacks also in mjs modules so they register like cjs
+    // on load, and then in sync require() locate it from the table.
+    // this will also solve the self-referencing cases.
     console.log('require_non_topmevel', lpm_pkg.lmod);
     return true;
   }
