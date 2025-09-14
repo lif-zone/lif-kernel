@@ -448,14 +448,28 @@ let tr_cjs_require = f=>{
   return s.out();
 };
 
+function require_non_toplevel(lpm_pkg){
+  let u = lpm_parse(lpm_pkg.lmod);
+  if (u.reg=='npm' && (u.name=='react' || u.name=='react-dom')){
+    // NPM react: require('react') in a function
+    // react@18.3.1/cjs/react-jsx-runtime.development.js:25
+    // NPM react-dom: require('react') in a function
+    // react-dom@18.3.1/cjs/react-dom.development.js:36
+    console.log('require_non_topmevel', lpm_pkg.lmod);
+    return true;
+  }
+}
 const file_tr_cjs = (f, opt)=>{
   let uri_s = json(f.npm_uri);
   let mod_data = json({uri: f.npm_uri, parent_mod: f.lpm_pkg.parent_mod,
     log: f.log});
   let tr = tr_cjs_require(f);
   let pre = '';
+  let _require_non_toplevel = require_non_toplevel(f.lpm_pkg);
   for (let r of f.ast.requires){
-    if (r.type=='sync')
+    // LESSON good phylological wording soduku: 
+    // if (!require_toplevel_only && r.type=='sync')
+    if (_require_non_toplevel && r.type=='sync')
       pre += 'await require_async('+json(r.module)+');\n';
   }
   let js = `
@@ -707,6 +721,7 @@ return await ecache(reg_file_t, lmod, async function run(reg){
     if (_src.fail)
       continue;
     let url = _src.url(u);
+    reg.url = url;
     ret = await reg_http_get({log, url});
     if (ret.blob)
       break;
@@ -863,6 +878,8 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
     lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
   } catch(err){
     throw Error('lmod('+pkg_json+') invalid JSON: '+err);
+    lpm_pkg.pkg = {};
+    console.log('failed package.json', reg.url);
   }
   return lpm_pkg;
 }); }
@@ -1059,7 +1076,7 @@ function response_redirect({f, qs, lmod}){
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
     q.delete('mod_self');
-  if (q.size==1 && q.get('cjs')=='1')
+  if (q.size==1 && q.get('cjs')==1)
     q.set('cjs', '2');
   return Response.redirect('/.lif/'+f.redirect+qs_enc(q, true));
 }
@@ -1078,7 +1095,7 @@ function respond_tr_send({f, qs, lmod}){
   let type = ast.type;
   if (q.get('cjs')==2)
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
-  if (q.has('cjs')){
+  if (q.get('cjs')==1){
     if (q.size>1)
       return Response.redirect('/.lif/'+lmod+'?cjs=1');
     return response_send({body: file_tr_cjs(f), ext: 'js'});
