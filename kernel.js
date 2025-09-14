@@ -469,7 +469,8 @@ const file_tr_cjs = (f, opt)=>{
   let mod_data = json({uri: f.npm_uri, parent_mod: f.lpm_pkg.parent_mod,
     log: f.log});
   let tr = tr_cjs_require(f);
-  let pre = '';
+  let slow = 0;
+  let pre = '', post = '';
   let _require_non_toplevel = require_non_toplevel(f.lpm_pkg);
   for (let r of f.ast.requires){
     // LESSON good phylological wording soduku: 
@@ -477,6 +478,10 @@ const file_tr_cjs = (f, opt)=>{
     if (_require_non_toplevel && r.type=='sync')
       pre += 'await require_async('+json(r.module)+');\n';
   }
+  if (slow)
+    pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
+  if (slow)
+    post += `slow.end(); `;
   let js = `
     let module = globalThis.lif.boot.require_register_cb(${mod_data});
     let exports = module.exports;
@@ -486,7 +491,7 @@ const file_tr_cjs = (f, opt)=>{
     ${pre}
     await (async()=>{
     ${tr}
-    })();
+    })(); ${post}
   `;
   if (opt?.es5)
     js += `module.exports`;
@@ -559,7 +564,7 @@ let tr_mjs_import = f=>{
 const file_tr_mjs = (f, opt)=>{
   let uri_s = json(f.npm_uri);
   let tr = tr_mjs_import(f);
-  let slow = 0, log = 0, pre = '', post = '';
+  let slow = 1, log = 0, pre = '', post = '';
   let _import = f.ast.imports.length;
   if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
