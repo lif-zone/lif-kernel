@@ -362,7 +362,7 @@ let file_ast = f=>{
         // AMD detection code: 'module' / 'exports' used from global scope:
         // if (typeof exports === 'object' && typeof module === 'object')
         //   module.exports = WDOSBOX;
-        // else if (typeof define === 'function' && define['amd'])
+        // else if (typeof define === 'function' && define.amd)
         //   define([], function() { return WDOSBOX; });
         // else if (typeof exports === 'object')
         //   exports["WDOSBOX"] = WDOSBOX;
