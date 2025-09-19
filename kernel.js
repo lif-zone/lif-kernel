@@ -498,7 +498,7 @@ const file_tr_cjs = (f, opt)=>{
     js += `module.exports`;
   else
     js += `export default module.exports;`;
-  1 && (js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`);
+  js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`;
   return js;
 };
 

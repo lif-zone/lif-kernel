@@ -5,7 +5,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq,
-  path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm,
+  path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing,
   _debugger} = util;
@@ -14,6 +14,7 @@ let json = JSON.stringify;
 let modules = {};
 let modules_self = {};
 let modules_cache = {};
+let modules_cache_url = {};
 let kernel_chan;
 let npm_root;
 let npm_map = {};
@@ -85,7 +86,7 @@ function require_amd(mod_self, [imps, cb]){
 
 function require_cjs_silent(mod_self, module_id){
   let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let mc = modules_cache[mod_id];
+  let mc = modules_cache_url[mod_id];
   if (mc)
     return mc.exports;
   let mod_self_id = mod_self+' '+mod_id;
@@ -97,7 +98,7 @@ function require_cjs_silent(mod_self, module_id){
 
 function require_cjs(mod_self, module_id){
   let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let mc = modules_cache[mod_id];
+  let mc = modules_cache_url[mod_id];
   if (mc)
     return mc.exports;
   let mod_self_id = mod_self+' '+mod_id;
@@ -160,37 +161,51 @@ test();
 
 let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
-function require_register_cb({uri, parent_mod, log}){
+function require_register_cb({npm_uri, url, parent_mod, log}){
   let m;
-  if (m = modules_cache[uri]){
-    console.error('module '+uri+' loaded twice: 1st '+
+  if (m = modules_cache_url[url]){
+    console.error('module '+url+' loaded twice: 1st '+
       m.parent_mod+' '+m.parent_url+
       '\n2nd '+parent_mod+' '+log.mod+' '+log.imp);
   }
-  m = modules_cache[uri] = {
+  if (m = modules_cache[npm_uri]){
+    console.error('module '+npm_uri+' loaded twice: 1st '+
+      m.parent_mod+' '+m.parent_url+
+      '\n2nd '+parent_mod+' '+log.mod+' '+log.imp);
+  }
+  m = modules_cache[npm_uri] = modules_cache_url[url] = {
     exports: {},
     parent_mod,
-    uri,
+    lmod: npm_uri,
+    npm_uri,
+    url,
   };
   m.log = {...log};
-  m.require = imp=>require_cjs(uri, imp);
-  m.require_async = async(imp)=>await require_single(uri, imp);
+  m.require = imp=>require_cjs(npm_uri, imp);
+  m.require_async = async(imp)=>await require_single(npm_uri, imp);
   m.define = function(id, imps, factory){
-    return define_amd(uri, arguments, m); };
+    return define_amd(npm_uri, arguments, m); };
   m.define.amd = {};
   return m;
 }
 async function require_single(mod_self, module_id){
+  let u = T_npm_url_base(module_id, mod_self);
+  let npm_uri;
+  if (u.is.mod)
+    npm_uri = npm_str(u.lmod);
   let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
   let url = url_expand(mod_id);
   let mc;
-  if (mc = modules_cache[mod_id])
+  if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[mod_id]){
+    assert(mc.inited, 'not inited '+mod_id);
     return mc.exports;
+  }
   let mod_self_id = mod_self+' '+mod_id;
   let m;
   if (m = modules[mod_self_id])
     return await m.wait;
-  m = modules[mod_self_id] = {module_id: mod_id, imps: [], wait: ewait(),
+  m = modules[mod_self_id] = {module_id: mod_id, npm_uri,
+    imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   let slow;
@@ -210,6 +225,12 @@ async function require_single(mod_self, module_id){
   return m.wait.return(m.module.exports);
 }
 
+function require_register_cb_end({npm_uri, url, parent_mod, log}){
+  let m;
+  if (!(m = modules_cache_url[url]))
+    assert(0, 'require_end no start', url);
+  m.inited = 1;
+}
 // web worker importScripts()/require() implementation
 let fetch_opt = url=>
   (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
@@ -470,12 +491,14 @@ lif.boot = {
   require_cjs_silent,
   require_single,
   require_register_cb,
+  require_register_cb_end,
   version: lif_version,
   _import,
   util,
   // debug
   modules,
   modules_cache,
+  modules_cache_url,
 };
 if (is_worker){
   OA(lif.boot, {_importScripts});
