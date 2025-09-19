@@ -51,17 +51,17 @@ function define_amd(mod_self, args, module){
   }
   if (modules[mod_self])
     throw Error('define('+mod_self+') already defined');
-  let promise = ewait();
+  let wait = ewait();
   let m = modules[mod_self] = {mod_self, imps, factory, loaded: false,
-    promise, module: module||{exports: {}}};
+    wait, module: module||{exports: {}}};
   require_amd(mod_self, [imps, function(...imps){
     let exports = m.factory.apply(m.module.exports, imps);
     if (exports)
       m.module.exports = exports;
     m.loaded = true;
-    promise.return(m.module.exports);
+    wait.return(m.module.exports);
   }]);
-  return promise;
+  return wait;
 }
 
 function require_amd(mod_self, [imps, cb]){
