@@ -394,7 +394,8 @@ let file_ast = f=>{
       CallExpression: path=>{
         let n = path.node, v;
         if (n.callee.type=='Identifier' && n.callee.name=='require' &&
-          n.arguments.length==1 && n.arguments[0].type=='StringLiteral')
+          n.arguments.length==1 && n.arguments[0].type=='StringLiteral' &&
+          !path.scope.getBinding('require'))
         {
           v = n.arguments[0].value;
           let type = ast_get_scope_type(path, {try: 1});
@@ -406,8 +407,13 @@ let file_ast = f=>{
         // AMD detection code: 'define' used and called from global scope:
         // else if (typeof define === 'function' && define.amd)
         //   define([], function() { return WDOSBOX; });
-        if (n.callee.type=='Identifier' && n.callee.name=='define')
+        // current code detects: define() calls.
+        // TODO: also detect typedef define
+        if (n.callee.type=='Identifier' && n.callee.name=='define' &&
+          !path.scope.getBinding('define'))
+        {
           has.define = true;
+        }
       },
       ImportDeclaration: path=>handle_import_source(path),
       ExportNamedDeclaration: path=>{
