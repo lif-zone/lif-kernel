@@ -466,8 +466,9 @@ function require_non_toplevel(lpm_pkg){
 }
 const file_tr_cjs = (f, opt)=>{
   let uri_s = json(f.npm_uri);
-  let mod_data = json({uri: f.npm_uri, parent_mod: f.lpm_pkg.parent_mod,
-    log: f.log});
+  let mod_data = `{npm_uri: ${json(f.npm_uri)},
+    url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
+    log: ${json(f.log)}}`;
   let tr = tr_cjs_require(f);
   let slow = 0;
   let pre = '', post = '';
@@ -497,6 +498,7 @@ const file_tr_cjs = (f, opt)=>{
     js += `module.exports`;
   else
     js += `export default module.exports;`;
+  1 && (js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`);
   return js;
 };
 
