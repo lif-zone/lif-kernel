@@ -404,7 +404,7 @@ let file_ast = f=>{
         if (n.callee.type=='Import')
           ast.imports_dyn.push({start: n.callee.start, end: n.callee.end});
         // AMD detection code: 'define' used and called from global scope:
-        // else if (typeof define === 'function' && define['amd'])
+        // else if (typeof define === 'function' && define.amd)
         //   define([], function() { return WDOSBOX; });
         if (n.callee.type=='Identifier' && n.callee.name=='define')
           has.define = true;
