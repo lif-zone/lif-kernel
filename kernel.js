@@ -435,8 +435,8 @@ let file_ast = f=>{
       },
     });
     ast.type = has.import||has.export||has.await ? 'mjs' :
-      has.require||has.module||has.exports ? 'cjs' : 
-      has.define ? 'amd' : '';
+      has.define ? 'amd' :
+      has.require||has.module||has.exports ? 'cjs' : '';
     ast.exports = array_unique(ast.exports).sort();
   };
   tr_jsx_ts();
@@ -471,6 +471,44 @@ function require_non_toplevel(lpm_pkg){
   }
 }
 const file_tr_cjs = (f, opt)=>{
+  let uri_s = json(f.npm_uri);
+  let mod_data = `{npm_uri: ${json(f.npm_uri)},
+    url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
+    log: ${json(f.log)}}`;
+  let tr = tr_cjs_require(f);
+  let slow = 0;
+  let pre = '', post = '';
+  let _require_non_toplevel = require_non_toplevel(f.lpm_pkg);
+  for (let r of f.ast.requires){
+    // LESSON good phylological wording soduku: 
+    // if (!require_toplevel_only && r.type=='sync')
+    if (_require_non_toplevel && r.type=='sync')
+      pre += 'await require_async('+json(r.module)+');\n';
+  }
+  if (slow)
+    pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
+  if (slow)
+    post += `slow.end(); `;
+  let js = `
+    let module = globalThis.lif.boot.require_register_cb(${mod_data});
+    let exports = module.exports;
+    let require = module.require;
+    let require_async = module.require_async;
+    let define = module.define;
+    ${pre}
+    await (async()=>{
+    ${tr}
+    })(); ${post}
+  `;
+  if (opt?.es5)
+    js += `module.exports`;
+  else
+    js += `export default module.exports;`;
+  js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`;
+  return js;
+};
+
+const file_tr_amd = (f, opt)=>{
   let uri_s = json(f.npm_uri);
   let mod_data = `{npm_uri: ${json(f.npm_uri)},
     url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
@@ -609,6 +647,22 @@ const mjs_import_cjs = (path, q)=>{
   js += `let exports; `;
   js += `if (exports = globalThis.lif.boot.require_cjs_silent(${uri_s}, ${_path})); `;
   js += `else exports = (await globalThis.lif.boot._import(${uri_s}, [${_path}])).default;\n`;
+  imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
+  js += `export default exports;\n`;
+  return js;
+};
+
+const mjs_import_amd = (path, q)=>{
+  let imported  = q.get('imported')?.split(',');
+  let _q = new URLSearchParams(q);
+  _q.delete('imported');
+  _q.delete('mod_self');
+  _q.set('amd', 1);
+  _q.sort();
+  let _path = json(path+qs_enc(_q, '?'));
+  let uri_s = json(path);
+  let js = '';
+  js += `let exports = (await globalThis.lif.boot._import(${uri_s}, [${_path}])).default;\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
@@ -1124,6 +1178,13 @@ function respond_tr_send({f, qs, lmod}){
       return Response.redirect('/.lif/'+lmod+'?cjs=2');
     return response_send({body: file_tr_cjs(f), ext: 'js'});
   }
+  if (q.get('amd')==2)
+    return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
+  if (q.get('amd')==1){
+    if (q.size>1)
+      return Response.redirect('/.lif/'+lmod+'?amd=2');
+    return response_send({body: file_tr_amd(f), ext: 'js'});
+  }
   if (q.has('cjs_es5'))
     return response_send({body: file_tr_cjs(f, {'es5': 1}), ext: 'js'});
   if (q.get('mjs')==2){
@@ -1135,10 +1196,15 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
-  if (type=='cjs' || type=='amd' || type==''){
+  if (type=='cjs'){
     if (!q.get('imported'))
       return Response.redirect('/.lif/'+lmod+'?cjs=2');
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
+  }
+  if (type=='amd' || type==''){
+    if (!q.get('imported'))
+      return Response.redirect('/.lif/'+lmod+'?amd=2');
+    return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
   }
   if (type=='mjs')
     return Response.redirect('/.lif/'+lmod+'?mjs=2');
