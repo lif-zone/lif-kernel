@@ -499,10 +499,7 @@ const file_tr_cjs = (f, opt)=>{
     ${tr}
     })(); ${post}
   `;
-  if (opt?.es5)
-    js += `module.exports`;
-  else
-    js += `export default module.exports;`;
+  js += `export default module.exports;`;
   js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`;
   return js;
 };
@@ -512,16 +509,8 @@ const file_tr_amd = (f, opt)=>{
   let mod_data = `{npm_uri: ${json(f.npm_uri)},
     url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
     log: ${json(f.log)}}`;
-  let tr = tr_cjs_require(f);
   let slow = 0;
   let pre = '', post = '';
-  let _require_non_toplevel = require_non_toplevel(f.lpm_pkg);
-  for (let r of f.ast.requires){
-    // LESSON good phylological wording soduku: 
-    // if (!require_toplevel_only && r.type=='sync')
-    if (_require_non_toplevel && r.type=='sync')
-      pre += 'await require_async('+json(r.module)+');\n';
-  }
   if (slow)
     pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
   if (slow)
@@ -530,13 +519,10 @@ const file_tr_amd = (f, opt)=>{
     let define = globalThis.lif.boot.require_register_cb(${mod_data}).define;
     ${pre}
     await (async()=>{
-    ${tr}
+    ${f.js}
     })(); ${post}
   `;
-  if (opt?.es5)
-    js += `module.exports`;
-  else
-    js += `export default module.exports;`;
+  js += `export default module.exports;`;
   js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`;
   return js;
 };
@@ -1181,8 +1167,6 @@ function respond_tr_send({f, qs, lmod}){
       return Response.redirect('/.lif/'+lmod+'?amd=2');
     return response_send({body: file_tr_amd(f), ext: 'js'});
   }
-  if (q.has('cjs_es5'))
-    return response_send({body: file_tr_cjs(f, {'es5': 1}), ext: 'js'});
   if (q.get('mjs')==2){
     return response_send({
       body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
