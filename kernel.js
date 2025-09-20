@@ -323,7 +323,7 @@ let file_ast = f=>{
     ast.imports_dyn = [];
     ast.exports_require = [];
     let has = ast.has = {};
-    let _handle_import_source = path=>{
+    function _handle_import_source(path){
       let n = path.node;
       if (n.source.type=='StringLiteral'){
         let s = n.source;
@@ -346,16 +346,24 @@ let file_ast = f=>{
         ast.imports.push({module: v, start: s.start, end: s.end, type,
           imported: imported.length ? imported : null});
       }
-    };
-    let handle_import_source = path=>{
+    }
+    function handle_import_source(path){
       has.import = true;
       _handle_import_source(path);
-    };
-    let handle_export_source = path=>{
+    }
+    function handle_export_source(path){
       has.export = true;
       if (path.node.source)
         _handle_import_source(path);
-    };
+    }
+    function keep_comment(path){
+      let comment = path.node.leadingComments?.[0];
+      if (comment && comment.type=='CommentBlock' &&
+        comment.value.trim()=='keep')
+      {
+        return true;
+      }
+    }
     traverse(ast.ast, {
       AssignmentExpression: path=>{
         let n = path.node, l = n.left, r = n.right;
@@ -402,7 +410,7 @@ let file_ast = f=>{
           ast.requires.push({module: v, start: n.start, end: n.end, type});
           has.require = true;
         }
-        if (n.callee.type=='Import')
+        if (n.callee.type=='Import' && !keep_comment(path))
           ast.imports_dyn.push({start: n.callee.start, end: n.callee.end});
         // AMD detection code: 'define' used and called from global scope:
         // else if (typeof define === 'function' && define.amd)

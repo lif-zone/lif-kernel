@@ -220,7 +220,7 @@ async function require_cjs(mod_self, module_id){
   let slow;
   try {
     slow = eslow(15000, 'require_cjs import('+module_id+') '+url);
-    m.mod = await import(url, opt);
+    m.mod = await /*keep*/ import(url, opt);
     slow.end();
   } catch(err){
     console.error('import('+module_id+') failed. required from '+mod_self,
@@ -315,7 +315,7 @@ async function import_esm(mod_self, [imp, opt]){
     if (is_worker)
       ret = await worker_import({mod_self, imp, opt});
     else
-      ret = await import(_url, opt);
+      ret = await /*keep*/ import(_url, opt);
     slow.end();
     return ret;
   } catch(err){
