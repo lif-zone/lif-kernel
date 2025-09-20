@@ -317,11 +317,8 @@ async function import_esm(mod_self, [imp, opt]){
   }
 }
 
-let import_amd_via_import = false;
 async function import_amd(mod_self, [imp, opt]){
   D && console.log('import_amd', imp, mod_self);
-  if (import_amd_via_import)
-    return (await import_esm(mod_self, [imp, opt])).default;
   let _imp = lpm_2uri(mod_self, imp);
   let uri = qs_append(_imp, {raw: 1});
   return await import_module_script({mod_self, imp: _imp, url: uri,
