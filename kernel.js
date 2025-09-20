@@ -483,7 +483,7 @@ const file_tr_cjs = (f, opt)=>{
     // LESSON good phylological wording soduku: 
     // if (!require_toplevel_only && r.type=='sync')
     if (_require_non_toplevel && r.type=='sync')
-      pre += 'await require_async('+json(r.module)+');\n';
+      pre += `await require_async(${json(r.module)});\n`;
   }
   if (slow)
     pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
