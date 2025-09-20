@@ -662,7 +662,7 @@ const mjs_import_amd = (path, q)=>{
   let _path = json(path+qs_enc(_q, '?'));
   let uri_s = json(path);
   let js = '';
-  js += `let exports = (await globalThis.lif.boot._import(${uri_s}, [${_path}])).default;\n`;
+  js += `let exports = await globalThis.lif.boot.import_amd(${uri_s}, [${_path}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;

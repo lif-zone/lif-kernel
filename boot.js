@@ -31,16 +31,22 @@ function define_amd(mod_self, args, module){
   let imps_default = ['require', 'exports', 'module'];
   let exports_val; /* not supported */
   if (args.length==1){
+    // define(function(){...})
+    // define(function(require, exports, module){...});
     factory = args[0];
     imps = imps_default;
   } else if (args.length==2){
     if (typeof args[0]=='string'){
+      // define('my_mod', function(require, exports, module){...});
       module_id = args[0];
       imps = imps_default;
-    } else
+    } else {
+      // define(['imp1', 'imp2'], function(imp1, imp2){...});
       imps = args[0];
+    }
     factory = args[1];
   } else if (args.length==3)
+    // define('my_mod', ['imp1', 'imp2'], function(imp1, imp2){...});
     [module_id, imps, factory] = args;
   else
     throw Error('define() invalid num args');
@@ -64,6 +70,7 @@ function define_amd(mod_self, args, module){
   return wait;
 }
 
+// AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
 function require_amd(mod_self, [imps, cb]){
   let _imps = [];
   let m = modules[mod_self] || {module: {exports: {}}};
@@ -76,7 +83,9 @@ function require_amd(mod_self, [imps, cb]){
         break;
       case 'exports': v = m.module.exports; break;
       case 'module': v = m.module; break;
-      default: v = await require_single(mod_self, imp);
+      default:
+        // TOOO validate npm module or relative file
+        v = await require_single(mod_self, imp);
       }
       _imps[i] = v;
     }
@@ -197,7 +206,7 @@ async function require_single(mod_self, module_id){
   let url = url_expand(mod_id);
   let mc;
   if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[mod_id]){
-    assert(mc.inited, 'not inited '+mod_id);
+    assert(mc.loaded, 'not loaded '+mod_id);
     return mc.exports;
   }
   let mod_self_id = mod_self+' '+mod_id;
@@ -229,7 +238,7 @@ function require_register_cb_end({npm_uri, url, parent_mod, log}){
   let m;
   if (!(m = modules_cache_url[url]))
     assert(0, 'require_end no start', url);
-  m.inited = 1;
+  m.loaded = 1;
 }
 // web worker importScripts()/require() implementation
 let fetch_opt = url=>
@@ -288,6 +297,11 @@ async function _import(mod_self, [url, opt]){
     slow.end();
     throw err;
   }
+}
+
+async function import_amd(mod_self, [url, opt]){
+  D && console.log('import_amd', url, mod_self);
+  return (await _import(mod_self, [url, opt])).default;
 }
 
 function sync_worker_fetch(url){
@@ -494,6 +508,7 @@ lif.boot = {
   require_register_cb_end,
   version: lif_version,
   _import,
+  import_amd,
   util,
   // debug
   modules,
