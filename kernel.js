@@ -527,11 +527,7 @@ const file_tr_amd = (f, opt)=>{
   if (slow)
     post += `slow.end(); `;
   let js = `
-    let module = globalThis.lif.boot.require_register_cb(${mod_data});
-    let exports = module.exports;
-    let require = module.require;
-    let require_async = module.require_async;
-    let define = module.define;
+    let define = globalThis.lif.boot.require_register_cb(${mod_data}).define;
     ${pre}
     await (async()=>{
     ${tr}
