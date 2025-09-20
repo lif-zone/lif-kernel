@@ -152,8 +152,23 @@ const lpm_2url = (mod_self, url, opt)=>{
   return qs_append(_url, q);
 };
 
+const lpm_2uri = (mod_self, url)=>{
+  let u = T_npm_url_base(url, mod_self);
+  if (u.is.url)
+    return url;
+  if (u.is.uri)
+    return url;
+  return '/.lif/'+T_npm_to_lpm(u.path);
+};
+
 function test(){
   let t;
+  t = (mod_self, url, v)=>assert_eq(v, lpm_2uri(mod_self, url));
+  t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
+  t('.local/other.js', './a/file.js', '/.lif/local/a/file.js');
+  t('.local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
+  t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
+  t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
   t = (mod_self, url, opt, v)=>assert_eq(v, lpm_2url(mod_self, url, opt));
   t('mod@1.2.3', './a/file.js', {cjs: 1},
     '/.lif/npm/mod@1.2.3/a/file.js?cjs=1&mod_self=mod@1.2.3');
@@ -244,42 +259,60 @@ function require_register_cb_end({npm_uri, url, parent_mod, log}){
 let fetch_opt = url=>
   (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
 let import_modules = {};
-let import_module_script = async(url)=>{
-  let mod;
-  if (mod = import_modules[url])
-    return await mod.wait;
-  mod = import_modules[url] = {url, wait: ewait()};
+let import_module_script = async({mod_self, imp, url, opt})=>{
+  let m;
+  if (m = import_modules[imp]){
+    assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
+    return await m.wait;
+  }
+  m = import_modules[imp] = {id: imp, url, wait: ewait(), parent: mod_self,
+    exports: {}, loaded: false};
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
-    mod.script = await response.text();
+    m.script = await response.text();
   } catch(err){
     console.error('import('+url+') failed', err);
-    throw mod.wait.throw(err);
+    throw m.wait.throw(err);
   }
+  let js = `//# sourceURL=${url}\n`;
+  if (opt.amd){
+    m.define = function(id, imps, factory){
+      return define_amd(imp, arguments, m); };
+    m.define.amd = {};
+    js += `let define = lif.boot.import_modules_get(${json(imp)}).define;`;
+  }
+  js += m.script;
   try {
-    mod.exports = await eval.call(globalThis,
-      `//# sourceURL=${url}\n;${mod.script}`);
-    return mod.wait.return(mod.exports);
+    eval.call(null, js); // script return value is ignored
+    return m.wait.return(m.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
-    throw mod.wait.throw(err);
+    throw m.wait.throw(err);
   }
 };
+function import_modules_get(imp){
+  let m = import_modules[imp];
+  assert(m, 'module not found: '+imp);
+  return m;
+}
 
 // worker
-async function worker_import(url, opt){
+async function worker_import({mod_self, imp, opt}){
+  let url = lpm_2url(mod_self, imp, opt);
   let q;
   if (opt?.type=='script')
     q = {raw: 1};
   else
     assert(0, 'module import not yet supportedd');
-  return await import_module_script(qs_append(url, q));
+  url = qs_append(url, q);
+  let _imp = lpm_2uri(mod_self, imp);
+  return await import_module_script({mod_self, imp: _imp, url, opt: {worker: 1}});
 }
 
-async function _import(mod_self, [url, opt]){
-  let _url = lpm_2url(mod_self, url, opt);
+async function _import(mod_self, [imp, opt]){
+  let _url = lpm_2url(mod_self, imp, opt);
   _url = url_expand(_url);
   let slow;
   try {
@@ -287,7 +320,7 @@ async function _import(mod_self, [url, opt]){
     D && console.log('boot.js: import '+_url);
     let ret;
     if (is_worker)
-      ret = await worker_import(_url, opt);
+      ret = await worker_import({mod_self, imp, opt});
     else
       ret = await import(_url, opt);
     slow.end();
@@ -299,9 +332,15 @@ async function _import(mod_self, [url, opt]){
   }
 }
 
-async function import_amd(mod_self, [url, opt]){
-  D && console.log('import_amd', url, mod_self);
-  return (await _import(mod_self, [url, opt])).default;
+let import_amd_via_import = false;
+async function import_amd(mod_self, [imp, opt]){
+  D && console.log('import_amd', imp, mod_self);
+  if (import_amd_via_import)
+    return (await _import(mod_self, [imp, opt])).default;
+  let url = lpm_2url(mod_self, imp, opt);
+  let _imp = lpm_2uri(mod_self, imp);
+  let uri = qs_append(_imp, {raw: 1});
+  return await import_module_script({mod_self, imp: _imp, url: uri, opt: {amd: 1}});
 }
 
 function sync_worker_fetch(url){
@@ -509,6 +548,7 @@ lif.boot = {
   version: lif_version,
   _import,
   import_amd,
+  import_modules_get,
   util,
   // debug
   modules,

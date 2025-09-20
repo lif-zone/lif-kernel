@@ -655,6 +655,7 @@ const mjs_import_cjs = (path, q)=>{
 const mjs_import_amd = (path, q)=>{
   let imported  = q.get('imported')?.split(',');
   let _q = new URLSearchParams(q);
+  let mod_self = q.get('mod_self');
   _q.delete('imported');
   _q.delete('mod_self');
   _q.set('amd', 1);
@@ -662,7 +663,7 @@ const mjs_import_amd = (path, q)=>{
   let _path = json(path+qs_enc(_q, '?'));
   let uri_s = json(path);
   let js = '';
-  js += `let exports = await globalThis.lif.boot.import_amd(${uri_s}, [${_path}]);\n`;
+  js += `let exports = await globalThis.lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
@@ -1380,7 +1381,11 @@ function test_kernel(){
     glob2: '99.9.9',
     gparent: '22.0.0',
   }}}};
-  t = (imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
+  t = (imp, v)=>{
+    in_test = 1;
+    assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
+    in_test = 0;
+  };
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react@16.3.1', 'npm/react@16.3.1');
