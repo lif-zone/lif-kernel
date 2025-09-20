@@ -195,9 +195,6 @@ function require_register_cb({npm_uri, url, parent_mod, log}){
   m.log = {...log};
   m.require = imp=>require_cjs(npm_uri, imp);
   m.require_async = async(imp)=>await require_single(npm_uri, imp);
-  m.define = function(id, imps, factory){
-    return define_amd(npm_uri, arguments, m); };
-  m.define.amd = {};
   return m;
 }
 async function require_single(mod_self, module_id){
