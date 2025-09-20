@@ -499,8 +499,8 @@ const file_tr_cjs = (f, opt)=>{
     ${tr}
     })(); ${post}
   `;
-  js += `export default module.exports;`;
-  js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`;
+  js += `export default module.exports;\n`;
+  js += `globalThis.lif.boot.require_register_cb_end(${mod_data});\n`;
   return js;
 };
 
@@ -522,8 +522,8 @@ const file_tr_amd = (f, opt)=>{
     ${f.js}
     })(); ${post}
   `;
-  js += `export default module.exports;`;
-  js += `globalThis.lif.boot.require_register_cb_end(${mod_data});`;
+  js += `export default module.exports;\n`;
+  js += `globalThis.lif.boot.require_register_cb_end(${mod_data});\n`;
   return js;
 };
 
