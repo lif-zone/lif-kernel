@@ -299,12 +299,12 @@ async function worker_import({mod_self, imp, opt}){
   return await import_module_script({mod_self, imp: _imp, url, opt: {worker: 1}});
 }
 
-async function _import(mod_self, [imp, opt]){
+async function import_esm(mod_self, [imp, opt]){
   let _url = lpm_2url(mod_self, imp, opt);
   _url = url_expand(_url);
   let slow;
   try {
-    slow = eslow(15000, '_import('+_url+')');
+    slow = eslow(15000, 'import_esm('+_url+')');
     D && console.log('boot.js: import '+_url);
     let ret;
     if (is_worker)
@@ -314,7 +314,7 @@ async function _import(mod_self, [imp, opt]){
     slow.end();
     return ret;
   } catch(err){
-    console.error('_import('+_url+' '+mod_self+')', err);
+    console.error('import_esm('+_url+' '+mod_self+')', err);
     slow.end();
     throw err;
   }
@@ -324,7 +324,7 @@ let import_amd_via_import = false;
 async function import_amd(mod_self, [imp, opt]){
   D && console.log('import_amd', imp, mod_self);
   if (import_amd_via_import)
-    return (await _import(mod_self, [imp, opt])).default;
+    return (await import_esm(mod_self, [imp, opt])).default;
   let _imp = lpm_2uri(mod_self, imp);
   let uri = qs_append(_imp, {raw: 1});
   return await import_module_script({mod_self, imp: _imp, url: uri,
@@ -484,7 +484,7 @@ let boot_app = async(app_pkg)=>{
     await coi_reload();
   // load app
   try {
-    return await _import(webapp, [webapp]);
+    return await import_esm(webapp, [webapp]);
   } catch(err){
     console.error('boot: app('+webapp+') failed');
     throw err;
@@ -522,20 +522,16 @@ if (!is_worker){
 lif.boot = {
   miani:  'ANkI YhVh ALOhYk:La YhYh Lk ALOhIM AHRIM EL PNY:La TsA AT SM YhVh ALOhk LSVA:ZkOR AT YOM hSBT LQDSO:KBD AT AVIk VAT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk:',
   //miani:'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
+  version: lif_version,
   process,
-  define_amd,
-  require_amd,
-  require_cjs,
   require_cjs_silent,
-  require_single,
   require_register_cb,
   require_register_cb_end,
-  version: lif_version,
-  _import,
+  import_esm,
   import_amd,
   import_modules_get,
-  util,
   // debug
+  util,
   modules,
   modules_cache,
   modules_cache_url,

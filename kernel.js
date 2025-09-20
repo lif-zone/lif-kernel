@@ -601,7 +601,7 @@ const file_tr_mjs = (f, opt)=>{
     pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
   }
   if (f.ast.imports_dyn.length)
-    pre += `let import_lif = function(){ return globalThis.lif.boot._import(${uri_s}, arguments); }; `;
+    pre += `let import_lif = function(){ return globalThis.lif.boot.import_esm(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
   if (slow)
@@ -627,7 +627,7 @@ const mjs_import_cjs = (path, q)=>{
   let js = '';
   js += `let exports; `;
   js += `if (exports = globalThis.lif.boot.require_cjs_silent(${uri_s}, ${_path})); `;
-  js += `else exports = (await globalThis.lif.boot._import(${uri_s}, [${_path}])).default;\n`;
+  js += `else exports = (await globalThis.lif.boot.import_esm(${uri_s}, [${_path}])).default;\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
