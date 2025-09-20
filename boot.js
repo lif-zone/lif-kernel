@@ -22,10 +22,6 @@ let npm_map = {};
 let process = globalThis.process ||= {env: {}};
 let is_worker = typeof window=='undefined';
 
-function define(){ return define_amd(null, arguments); }
-define.amd = {};
-function require(){ return require_cjs_amd(null, arguments); }
-
 function define_amd(mod_self, args, module){
   let module_id /* ignored */, imps, factory;
   let imps_default = ['require', 'exports', 'module'];
@@ -117,14 +113,6 @@ function require_cjs(mod_self, module_id){
   if (!m.loaded)
     throw Error('module '+mod_id+' not loaded completion');
   return m.module.exports;
-}
-
-function require_cjs_amd(mod_self, args){
-  if (args.length==1)
-    return require_cjs(mod_self, args[0]);
-  if (args.length==2)
-    return require_amd(mod_self, args);
-  throw Error('invalid call to require()');
 }
 
 const lpm_2url = (mod_self, url, opt)=>{
@@ -337,10 +325,10 @@ async function import_amd(mod_self, [imp, opt]){
   D && console.log('import_amd', imp, mod_self);
   if (import_amd_via_import)
     return (await _import(mod_self, [imp, opt])).default;
-  let url = lpm_2url(mod_self, imp, opt);
   let _imp = lpm_2uri(mod_self, imp);
   let uri = qs_append(_imp, {raw: 1});
-  return await import_module_script({mod_self, imp: _imp, url: uri, opt: {amd: 1}});
+  return await import_module_script({mod_self, imp: _imp, url: uri,
+    opt: {amd: 1}});
 }
 
 function sync_worker_fetch(url){
@@ -535,12 +523,9 @@ lif.boot = {
   miani:  'ANkI YhVh ALOhYk:La YhYh Lk ALOhIM AHRIM EL PNY:La TsA AT SM YhVh ALOhk LSVA:ZkOR AT YOM hSBT LQDSO:KBD AT AVIk VAT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk:',
   //miani:'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
   process,
-  define,
-  require,
   define_amd,
   require_amd,
   require_cjs,
-  require_cjs_amd,
   require_cjs_silent,
   require_single,
   require_register_cb,

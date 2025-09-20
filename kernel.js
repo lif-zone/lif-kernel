@@ -494,7 +494,6 @@ const file_tr_cjs = (f, opt)=>{
     let exports = module.exports;
     let require = module.require;
     let require_async = module.require_async;
-    let define = module.define;
     ${pre}
     await (async()=>{
     ${tr}
