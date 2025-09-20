@@ -24,7 +24,7 @@ let esleep = exports.esleep = ms=>{
 };
 
 let eslow = exports.eslow = (ms, arg)=>{
-  let enable = 1;
+  let enable = 0;
   eslow.seq ||= 0;
   let seq = eslow.seq++;
   let done, timeout, at_end;
