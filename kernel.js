@@ -618,6 +618,7 @@ const file_tr_mjs = (f, opt)=>{
 const mjs_import_cjs = (path, q)=>{
   let imported  = q.get('imported')?.split(',');
   let _q = new URLSearchParams(q);
+  let mod_self = q.get('mod_self');
   _q.delete('imported');
   _q.delete('mod_self');
   _q.set('cjs', 1);
@@ -625,9 +626,7 @@ const mjs_import_cjs = (path, q)=>{
   let _path = json(path+qs_enc(_q, '?'));
   let uri_s = json(path);
   let js = '';
-  js += `let exports; `;
-  js += `if (exports = globalThis.lif.boot.require_cjs_silent(${uri_s}, ${_path})); `;
-  js += `else exports = (await globalThis.lif.boot.import_esm(${uri_s}, [${_path}])).default;\n`;
+  js += `let exports = (await globalThis.lif.boot.require_cjs(${json(mod_self)}, ${_path}));\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
@@ -641,7 +640,6 @@ const mjs_import_amd = (path, q)=>{
   _q.delete('mod_self');
   _q.set('amd', 1);
   _q.sort();
-  let _path = json(path+qs_enc(_q, '?'));
   let uri_s = json(path);
   let js = '';
   js += `let exports = await globalThis.lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;

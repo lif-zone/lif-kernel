@@ -81,7 +81,7 @@ function require_amd(mod_self, [imps, cb]){
       case 'module': v = m.module; break;
       default:
         // TOOO validate npm module or relative file
-        v = await require_single(mod_self, imp);
+        v = await require_cjs(mod_self, imp);
       }
       _imps[i] = v;
     }
@@ -101,7 +101,7 @@ function require_cjs_silent(mod_self, module_id){
   return m.module.exports;
 }
 
-function require_cjs(mod_self, module_id){
+function require_cjs_cache(mod_self, module_id){
   let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
   let mc = modules_cache_url[mod_id];
   if (mc)
@@ -193,11 +193,11 @@ function require_register_cb({npm_uri, url, parent_mod, log}){
     url,
   };
   m.log = {...log};
-  m.require = imp=>require_cjs(npm_uri, imp);
-  m.require_async = async(imp)=>await require_single(npm_uri, imp);
+  m.require = imp=>require_cjs_cache(npm_uri, imp);
+  m.require_async = async(imp)=>await require_cjs(npm_uri, imp);
   return m;
 }
-async function require_single(mod_self, module_id){
+async function require_cjs(mod_self, module_id){
   let u = T_npm_url_base(module_id, mod_self);
   let npm_uri;
   if (u.is.mod)
@@ -219,8 +219,7 @@ async function require_single(mod_self, module_id){
   let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   let slow;
   try {
-    slow = eslow(15000, 'require_single import('+module_id+') '+url);
-    D && console.log('boot.js: import '+url);
+    slow = eslow(15000, 'require_cjs import('+module_id+') '+url);
     m.mod = await import(url, opt);
     slow.end();
   } catch(err){
@@ -519,7 +518,7 @@ lif.boot = {
   //miani:'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
   version: lif_version,
   process,
-  require_cjs_silent,
+  require_cjs,
   require_register_cb,
   require_register_cb_end,
   import_esm,
