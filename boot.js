@@ -277,10 +277,19 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
     throw m.wait.throw(err);
   }
 };
+
 function import_modules_get(imp){
   let m = import_modules[imp];
   assert(m, 'module not found: '+imp);
   return m;
+}
+
+async function import_amd(mod_self, [imp, opt]){
+  D && console.log('import_amd', imp, mod_self);
+  let _imp = lpm_2uri(mod_self, imp);
+  let uri = qs_append(_imp, {raw: 1});
+  return await import_module_script({mod_self, imp: _imp, url: uri,
+    opt: {amd: 1}});
 }
 
 // worker
@@ -315,14 +324,6 @@ async function import_esm(mod_self, [imp, opt]){
     slow.end();
     throw err;
   }
-}
-
-async function import_amd(mod_self, [imp, opt]){
-  D && console.log('import_amd', imp, mod_self);
-  let _imp = lpm_2uri(mod_self, imp);
-  let uri = qs_append(_imp, {raw: 1});
-  return await import_module_script({mod_self, imp: _imp, url: uri,
-    opt: {amd: 1}});
 }
 
 function sync_worker_fetch(url){
