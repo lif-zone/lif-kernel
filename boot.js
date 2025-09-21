@@ -90,17 +90,17 @@ async function require_amd(m, imps){
   return _imps;
 }
 
-function require_cjs_cache(mod_self, module_id){
-  let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let mc = modules_cache_url[mod_id];
+function require_cjs_cache(mod_self, mod_id){
+  let url = lpm_2url(mod_self, mod_id, {cjs: 1});
+  let mc = modules_cache_url[url];
   if (mc)
     return mc.exports;
-  let mod_self_id = mod_self+' '+mod_id;
+  let mod_self_id = mod_self+' '+url;
   let m = modules[mod_self_id];
   if (!m)
-    throw Error('module '+mod_id+' not loaded beforehand');
+    throw Error('module '+url+' not loaded beforehand');
   if (!m.loaded)
-    throw Error('module '+mod_id+' not loaded completion');
+    throw Error('module '+url+' not loaded completion');
   return m.module.exports;
 }
 
@@ -186,33 +186,33 @@ function require_register_cb({npm_uri, url, parent_mod, log}){
   m.require_async = async(imp)=>await require_cjs(npm_uri, imp);
   return m;
 }
-async function require_cjs(mod_self, module_id){
-  let u = T_npm_url_base(module_id, mod_self);
+async function require_cjs(mod_self, mod_id){
+  let u = T_npm_url_base(mod_id, mod_self);
   let npm_uri;
   if (u.is.mod)
     npm_uri = npm_str(u.lmod);
-  let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let url = url_expand(mod_id);
+  let _mod_id = lpm_2url(mod_self, mod_id, {cjs: 1});
+  let url = url_expand(_mod_id);
   let mc;
-  if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[mod_id]){
-    assert(mc.loaded, 'not loaded '+mod_id);
+  if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[_mod_id]){
+    assert(mc.loaded, 'not loaded '+_mod_id);
     return mc.exports;
   }
-  let mod_self_id = mod_self+' '+mod_id;
+  let mod_self_id = mod_self+' '+_mod_id;
   let m;
   if (m = modules[mod_self_id])
     return await m.wait;
-  m = modules[mod_self_id] = {module_id: mod_id, npm_uri,
+  m = modules[mod_self_id] = {mod_id: _mod_id, npm_uri,
     imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
-  let opt = module_id.endsWith('.json') ? {with: {type: 'json'}} : {};
+  let opt = mod_id.endsWith('.json') ? {with: {type: 'json'}} : {};
   let slow;
   try {
-    slow = eslow(15000, 'require_cjs import('+module_id+') '+url);
+    slow = eslow(15000, 'require_cjs import('+mod_id+') '+url);
     m.mod = await /*keep*/ import(url, opt);
     slow.end();
   } catch(err){
-    console.error('import('+module_id+') failed. required from '+mod_self,
+    console.error('import('+mod_id+') failed. required from '+mod_self,
       err);
     slow.end();
     throw m.wait.throw(err);
