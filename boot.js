@@ -12,7 +12,6 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq,
 let json = JSON.stringify;
 
 let modules = {};
-let modules_self = {};
 let modules_cache = {};
 let modules_cache_url = {};
 let kernel_chan;
@@ -89,18 +88,6 @@ async function require_amd(m, imps){
     _imps[i] = v;
   }
   return _imps;
-}
-
-function require_cjs_silent(mod_self, module_id){
-  let mod_id = lpm_2url(mod_self, module_id, {cjs: 1});
-  let mc = modules_cache_url[mod_id];
-  if (mc)
-    return mc.exports;
-  let mod_self_id = mod_self+' '+mod_id;
-  let m = modules[mod_self_id];
-  if (!m)
-    return;
-  return m.module.exports;
 }
 
 function require_cjs_cache(mod_self, module_id){
