@@ -22,8 +22,8 @@ let npm_map = {};
 let process = globalThis.process ||= {env: {}};
 let is_worker = typeof window=='undefined';
 
-function define_amd(mod_self, args, module){
-  let module_id /* ignored */, imps, factory;
+async function define_amd(mod_id, args, m){
+  let _mod_id /* ignored */, imps, factory;
   let imps_default = ['require', 'exports', 'module'];
   let exports_val; /* not supported */
   if (args.length==1){
@@ -34,7 +34,7 @@ function define_amd(mod_self, args, module){
   } else if (args.length==2){
     if (typeof args[0]=='string'){
       // define('my_mod', function(require, exports, module){...});
-      module_id = args[0];
+      _mod_id = args[0];
       imps = imps_default;
     } else {
       // define(['imp1', 'imp2'], function(imp1, imp2){...});
@@ -43,7 +43,7 @@ function define_amd(mod_self, args, module){
     factory = args[1];
   } else if (args.length==3)
     // define('my_mod', ['imp1', 'imp2'], function(imp1, imp2){...});
-    [module_id, imps, factory] = args;
+    [_mod_id, imps, factory] = args;
   else
     throw Error('define() invalid num args');
   if (typeof factory!='function'){
@@ -51,45 +51,44 @@ function define_amd(mod_self, args, module){
     exports_val = factory;
     factory = undefined;
   }
-  return _define_amd(mod_self, imps, factory, module);
+  return await _define_amd(mod_id, imps, factory, m);
 }
-function _define_amd(mod_self, imps, factory, module){
-  if (modules[mod_self])
-    throw Error('define('+mod_self+') already defined');
-  let wait = ewait();
-  let m = modules[mod_self] = {mod_self, imps, factory, loaded: false,
-    wait, module: module||{exports: {}}};
-  require_amd(mod_self, imps, function(...imps){
-    let exports = m.factory.apply(m.module.exports, imps);
-    if (exports)
-      m.module.exports = exports;
-    m.loaded = true;
-    wait.return(m.module.exports);
-  });
-  return wait;
+async function _define_amd(mod_id, imps, factory, m){
+  if (!m){
+    if (modules[mod_id])
+      throw Error('define('+mod_id+') already defined');
+    m = modules[mod_id] = {mod_id, imps, factory, loaded: false,
+      wait: ewait(), exports: {}};
+  }
+  let _imps = await require_amd(m, imps);
+  let exports = factory(..._imps);
+  if (exports)
+    m.exports = exports;
+  m.loaded = true;
+  return m.wait.return(m.exports);
 }
 
 // AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
-function require_amd(mod_self, imps, cb){
+async function require_amd(m, imps){
   let _imps = [];
-  let m = modules[mod_self] || {module: {exports: {}}};
-  return (async()=>{
-    for (let i=0; i<imps.length; i++){
-      let imp = imps[i], v;
-      switch (imp){
-      case 'require':
-        v = (imps, cb)=>require_amd(mod_self, imps, cb);
-        break;
-      case 'exports': v = m.module.exports; break;
-      case 'module': v = m.module; break;
-      default:
-        // TOOO validate npm module or relative file
-        v = await require_cjs(mod_self, imp);
-      }
-      _imps[i] = v;
+  for (let i=0; i<imps.length; i++){
+    let imp = imps[i], v;
+    switch (imp){
+    case 'require': // implementation of AMD require(imps, cb)
+      v = async(imps, cb)=>{
+        let _imps = await require_amd(m, imps);
+        cb(..._imps);
+      };
+      break;
+    case 'exports': v = m.exports; break;
+    case 'module': v = m; break;
+    default:
+      // TOOO validate npm module or relative file
+      v = await require_cjs(m.mod_self, imp);
     }
-    cb(..._imps);
-  })();
+    _imps[i] = v;
+  }
+  return _imps;
 }
 
 function require_cjs_silent(mod_self, module_id){
@@ -248,11 +247,11 @@ let fetch_opt = url=>
 let import_modules = {};
 let import_module_script = async({mod_self, imp, url, opt})=>{
   let m;
-  if (m = import_modules[imp]){
+  if (m = modules[imp]){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
     return await m.wait;
   }
-  m = import_modules[imp] = {id: imp, url, wait: ewait(), parent: mod_self,
+  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self,
     exports: {}, loaded: false};
   try {
     let response = await fetch(url, fetch_opt(url));
@@ -265,14 +264,21 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
   }
   let js = `//# sourceURL=${url}\n`;
   if (opt.amd){
-    m.define = function(id, imps, factory){
-      return define_amd(imp, arguments, m); };
+    // implementation of AMD define()
+    m.define = async function(id, imps, factory){
+      return await define_amd(imp, arguments, m);
+    };
     m.define.amd = {};
     js += `let define = lif.boot.import_modules_get(${json(imp)}).define;`;
   }
   js += m.script;
   try {
-    eval.call(null, js); // script return value is ignored
+    eval?.(js); // script return value is ignored
+    await m.wait;
+    if (opt.amd)
+      assert(m.loaded, 'module not loaded: '+imp);
+    else
+      m.loaded = true;
     return m.wait.return(m.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
@@ -281,7 +287,7 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
 };
 
 function import_modules_get(imp){
-  let m = import_modules[imp];
+  let m = modules[imp];
   assert(m, 'module not found: '+imp);
   return m;
 }
