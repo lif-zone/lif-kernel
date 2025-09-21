@@ -223,10 +223,7 @@ async function require_cjs(mod_self, mod_id){
   return m.wait.return(m.module.exports);
 }
 
-function require_register_cb_end({npm_uri, url, parent_mod, log}){
-  let m;
-  if (!(m = modules_cache_url[url]))
-    assert(0, 'require_end no start', url);
+function require_register_cb_end(m){
   m.loaded = 1;
 }
 // web worker importScripts()/require() implementation
@@ -257,6 +254,7 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
       return await define_amd(imp, arguments, m);
     };
     m.define.amd = {};
+    m.define.module = m;
     js += `let define = lif.boot.import_modules_get(${json(imp)}).define;`;
   }
   js += m.script;
