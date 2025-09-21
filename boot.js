@@ -150,11 +150,11 @@ async function require_amd(m, imps){
 
 function require_cjs_cache(mod_self, mod_id){
   let url = lpm_2url(mod_self, mod_id, {cjs: 1});
-  let mc = modules_cache_url[url];
-  if (mc)
-    return mc.exports;
+  let m = modules_cache_url[url];
+  if (m)
+    return m.exports;
   let mod_self_id = mod_self+' '+url;
-  let m = modules[mod_self_id];
+  m = modules[mod_self_id];
   if (!m)
     throw Error('module '+url+' not loaded beforehand');
   if (!m.loaded)
@@ -194,13 +194,12 @@ async function require_cjs(mod_self, mod_id){
   let _mod_id = lpm_2uri(mod_self, mod_id);
   let _url = lpm_2url(mod_self, mod_id, {cjs: 1});
   let url = url_expand(_url);
-  let mc;
-  if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[_url]){
-    assert(mc.loaded, 'not loaded '+_url);
-    return mc.exports;
+  let m;
+  if (m = npm_uri&&modules_cache[npm_uri] || modules_cache_url[_url]){
+    assert(m.loaded, 'not loaded '+_url);
+    return m.exports;
   }
   let mod_self_id = mod_self+' '+_url;
-  let m;
   if (m = modules[mod_self_id])
     return await m.wait;
   m = modules[mod_self_id] = {mod_id: _url, npm_uri,
