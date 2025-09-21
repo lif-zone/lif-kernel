@@ -51,23 +51,26 @@ function define_amd(mod_self, args, module){
     exports_val = factory;
     factory = undefined;
   }
+  return _define_amd(mod_self, imps, factory, module);
+}
+function _define_amd(mod_self, imps, factory, module){
   if (modules[mod_self])
     throw Error('define('+mod_self+') already defined');
   let wait = ewait();
   let m = modules[mod_self] = {mod_self, imps, factory, loaded: false,
     wait, module: module||{exports: {}}};
-  require_amd(mod_self, [imps, function(...imps){
+  require_amd(mod_self, imps, function(...imps){
     let exports = m.factory.apply(m.module.exports, imps);
     if (exports)
       m.module.exports = exports;
     m.loaded = true;
     wait.return(m.module.exports);
-  }]);
+  });
   return wait;
 }
 
 // AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
-function require_amd(mod_self, [imps, cb]){
+function require_amd(mod_self, imps, cb){
   let _imps = [];
   let m = modules[mod_self] || {module: {exports: {}}};
   return (async()=>{
@@ -75,7 +78,7 @@ function require_amd(mod_self, [imps, cb]){
       let imp = imps[i], v;
       switch (imp){
       case 'require':
-        v = (imps, cb)=>require_amd(mod_self, [imps, cb]);
+        v = (imps, cb)=>require_amd(mod_self, imps, cb);
         break;
       case 'exports': v = m.module.exports; break;
       case 'module': v = m.module; break;
