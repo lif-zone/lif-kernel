@@ -21,6 +21,64 @@ let npm_map = {};
 let process = globalThis.process ||= {env: {}};
 let is_worker = typeof window=='undefined';
 
+const lpm_2url = (mod_self, url, opt)=>{
+  let u = T_npm_url_base(url, mod_self);
+  if (u.is.url)
+    return url;
+  let q = {};
+  if (opt?.raw)
+    q.raw = 1;
+  if (u.is.uri)
+    return qs_append(url, q);
+  let _url = '/.lif/'+T_npm_to_lpm(u.path);
+  if (opt?.cjs && u.is.rel)
+    q.cjs = 1;
+  if (opt?.worker)
+    q.worker = 1;
+  if (opt?.type=='module')
+    q.mjs = 1;
+  if (0 && opt?.worker)
+    q.cjs_es5 = 1;
+  if (0 && opt?.es5)
+    q.cjs_es5 = 1;
+  if (1 || lpm_ver_missing(u.lmod) && !npm_map[u.lmod.name])
+    q.mod_self = mod_self;
+  return qs_append(_url, q);
+};
+
+const lpm_2uri = (mod_self, url)=>{
+  let u = T_npm_url_base(url, mod_self);
+  if (u.is.url)
+    return url;
+  if (u.is.uri)
+    return url;
+  return '/.lif/'+T_npm_to_lpm(u.path);
+};
+
+function test(){
+  let t;
+  t = (mod_self, url, v)=>assert_eq(v, lpm_2uri(mod_self, url));
+  t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
+  t('.local/other.js', './a/file.js', '/.lif/local/a/file.js');
+  t('.local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
+  t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
+  t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
+  t = (mod_self, url, opt, v)=>assert_eq(v, lpm_2url(mod_self, url, opt));
+  t('mod@1.2.3', './a/file.js', {cjs: 1},
+    '/.lif/npm/mod@1.2.3/a/file.js?cjs=1&mod_self=mod@1.2.3');
+  t('.local/other.js', './a/file.js', {cjs: 1},
+    '/.lif/local/a/file.js?cjs=1&mod_self=.local/other.js');
+  t('.local/mod/', './a/file.js', {cjs: 1},
+    '/.lif/local/mod//a/file.js?cjs=1&mod_self=.local/mod/');
+  t('react@1.2.3', 'mod/file.js', {cjs: 1},
+    '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
+  t('react@1.2.3', 'mod@4.5.6/file.js', {cjs: 1},
+    '/.lif/npm/mod@4.5.6/file.js?mod_self=react@1.2.3');
+}
+test();
+
+let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
+
 async function define_amd(mod_id, args, m){
   let _mod_id /* ignored */, imps, factory;
   let imps_default = ['require', 'exports', 'module'];
@@ -103,64 +161,6 @@ function require_cjs_cache(mod_self, mod_id){
     throw Error('module '+url+' not loaded completion');
   return m.module.exports;
 }
-
-const lpm_2url = (mod_self, url, opt)=>{
-  let u = T_npm_url_base(url, mod_self);
-  if (u.is.url)
-    return url;
-  let q = {};
-  if (opt?.raw)
-    q.raw = 1;
-  if (u.is.uri)
-    return qs_append(url, q);
-  let _url = '/.lif/'+T_npm_to_lpm(u.path);
-  if (opt?.cjs && u.is.rel)
-    q.cjs = 1;
-  if (opt?.worker)
-    q.worker = 1;
-  if (opt?.type=='module')
-    q.mjs = 1;
-  if (0 && opt?.worker)
-    q.cjs_es5 = 1;
-  if (0 && opt?.es5)
-    q.cjs_es5 = 1;
-  if (1 || lpm_ver_missing(u.lmod) && !npm_map[u.lmod.name])
-    q.mod_self = mod_self;
-  return qs_append(_url, q);
-};
-
-const lpm_2uri = (mod_self, url)=>{
-  let u = T_npm_url_base(url, mod_self);
-  if (u.is.url)
-    return url;
-  if (u.is.uri)
-    return url;
-  return '/.lif/'+T_npm_to_lpm(u.path);
-};
-
-function test(){
-  let t;
-  t = (mod_self, url, v)=>assert_eq(v, lpm_2uri(mod_self, url));
-  t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
-  t('.local/other.js', './a/file.js', '/.lif/local/a/file.js');
-  t('.local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
-  t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
-  t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
-  t = (mod_self, url, opt, v)=>assert_eq(v, lpm_2url(mod_self, url, opt));
-  t('mod@1.2.3', './a/file.js', {cjs: 1},
-    '/.lif/npm/mod@1.2.3/a/file.js?cjs=1&mod_self=mod@1.2.3');
-  t('.local/other.js', './a/file.js', {cjs: 1},
-    '/.lif/local/a/file.js?cjs=1&mod_self=.local/other.js');
-  t('.local/mod/', './a/file.js', {cjs: 1},
-    '/.lif/local/mod//a/file.js?cjs=1&mod_self=.local/mod/');
-  t('react@1.2.3', 'mod/file.js', {cjs: 1},
-    '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
-  t('react@1.2.3', 'mod@4.5.6/file.js', {cjs: 1},
-    '/.lif/npm/mod@4.5.6/file.js?mod_self=react@1.2.3');
-}
-test();
-
-let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
 
 function require_register_cb({npm_uri, url, parent_mod, log}){
   let m;
