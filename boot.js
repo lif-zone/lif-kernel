@@ -191,18 +191,19 @@ async function require_cjs(mod_self, mod_id){
   let npm_uri;
   if (u.is.mod)
     npm_uri = npm_str(u.lmod);
-  let _mod_id = lpm_2url(mod_self, mod_id, {cjs: 1});
-  let url = url_expand(_mod_id);
+  let _mod_id = lpm_2uri(mod_self, mod_id);
+  let _url = lpm_2url(mod_self, mod_id, {cjs: 1});
+  let url = url_expand(_url);
   let mc;
-  if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[_mod_id]){
-    assert(mc.loaded, 'not loaded '+_mod_id);
+  if (mc = npm_uri&&modules_cache[npm_uri] || modules_cache_url[_url]){
+    assert(mc.loaded, 'not loaded '+_url);
     return mc.exports;
   }
-  let mod_self_id = mod_self+' '+_mod_id;
+  let mod_self_id = mod_self+' '+_url;
   let m;
   if (m = modules[mod_self_id])
     return await m.wait;
-  m = modules[mod_self_id] = {mod_id: _mod_id, npm_uri,
+  m = modules[mod_self_id] = {mod_id: _url, npm_uri,
     imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let opt = mod_id.endsWith('.json') ? {with: {type: 'json'}} : {};
