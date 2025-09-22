@@ -188,21 +188,18 @@ function require_register_cb({npm_uri, url, parent_mod, log}){
 }
 async function require_cjs(mod_self, mod_id){
   let u = T_npm_url_base(mod_id, mod_self);
-  let npm_uri;
-  if (u.is.mod)
-    npm_uri = npm_str(u.lmod);
   let _mod_id = lpm_2uri(mod_self, mod_id);
   let _url = lpm_2url(mod_self, mod_id, {cjs: 1});
   let url = url_expand(_url);
   let m;
-  if (m = npm_uri&&modules_cache[npm_uri] || modules_cache_url[_url]){
+  if (m = modules_cache[_mod_id] || modules_cache_url[_url]){
     assert(m.loaded, 'not loaded '+_url);
     return m.exports;
   }
   let mod_self_id = mod_self+' '+_url;
   if (m = modules[mod_self_id])
     return await m.wait;
-  m = modules[mod_self_id] = {mod_id: _url, npm_uri,
+  m = modules[mod_self_id] = {mod_id: _url,
     imps: [], wait: ewait(),
     loaded: false, module: {exports: {}}};
   let opt = mod_id.endsWith('.json') ? {with: {type: 'json'}} : {};
