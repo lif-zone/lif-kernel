@@ -1197,6 +1197,31 @@ function respond_tr_send({f, qs, lmod}){
   throw Error('invalid lpm file type '+type);
 }
 
+function respond_tr_send_loc({f, lmod}){
+  let ext = _path_ext(lmod);
+  if (f.redirect)
+    return {redirect: f.redirect};
+  if (ctype_binary(lmod))
+    return {type: 'binary'};
+  if (ext=='json')
+    return {type: 'json'};
+  if (ext=='css')
+    return {type: 'css'};
+  let ast = file_ast(f);
+  let type = ast.type;
+  if (type.includes('mjs', 'cjs', 'amd', ''))
+    return {type};
+  throw Error('invalid lpm file type '+type);
+}
+
+async function kernel_fetch_lpm_loc({log, imp, mod_self, qs}){
+  let f = await lpm_file_resolve({log, imp, mod_self});
+  if (f.not_exist)
+    return {not_exist: f.not_exist};
+  let loc = respond_tr_send_loc({f, lmod: imp});
+  return loc;
+}
+
 async function kernel_fetch_lpm({log, imp, mod_self, qs}){
   let f = await lpm_file_resolve({log, imp, mod_self});
   if (f.not_exist)
@@ -1246,6 +1271,10 @@ async function _kernel_fetch(event){
     let slow = eslow('app_init');
     await app_init_wait;
     slow.end();
+    if (q.get('loc')){
+      let loc = kernel_fetch_lpm_loc({log, mod_self, imp: lmod, qs});
+      return response_send({body: json(loc), ext: 'json'});
+    }
     return await kernel_fetch_lpm({log, mod_self, imp: lmod, qs});
   }
   // local requests
