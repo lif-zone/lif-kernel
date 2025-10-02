@@ -38,6 +38,7 @@ function to_sql(d){ return to_sql_ms(d).replace(/( 00:00:00)?....$/, ''); }
 const res_err = (res, code, msg)=>{
   res.writeHead(code, msg, {'cache-control': 'no-cache'}).end();
 };
+let coi_enable = true;
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = mime_db.ext2mime[ext]||'plain/text';
@@ -45,7 +46,14 @@ const res_send = (res, _path)=>{
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
   var stream = fs.createReadStream(_path);
-  res.writeHead(200, {'content-type': ctype, 'cache-control': 'no-cache'});
+  let h = {};
+  h['content-type'] = ctype;
+  h['cache-control'] = 'no-cache';
+  if (coi_enable){
+    h['cross-origin-embedder-policy'] = 'require-corp';
+    h['cross-origin-opener-policy'] = 'same-origin';
+  }
+  res.writeHead(200, h);
   stream.pipe(res);
 };
 

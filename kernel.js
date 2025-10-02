@@ -1072,13 +1072,13 @@ async function lpm_file_resolve({log, imp, mod_self}){
   return lpm_file;
 }
 
-let coi_enable = false;
-let coi_set_headers = headers=>{
+let coi_enable = true;
+let coi_set_headers = h=>{
   if (!coi_enable)
     return;
   // COI: Cross-Origin-Isolation
-  headers.set('cross-origin-embedder-policy', 'require-corp');
-  headers.set('cross-origin-opener-policy', 'same-origin');
+  h['cross-origin-embedder-policy'] = 'require-corp';
+  h['cross-origin-opener-policy'] = 'same-origin';
 };
 
 // fetch event.request.destination strings:
@@ -1290,8 +1290,9 @@ async function _kernel_fetch(event){
   }
   D && console.log('req default', url);
   let response = await fetch(request);
+  let h = Object.fromEntries(response.headers.entries());
+  coi_set_headers(h);
   let headers = new Headers(response.headers);
-  coi_set_headers(headers);
   return new Response(response.body,
     {headers, status: response.status, statusText: response.statusText});
 }
