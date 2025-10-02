@@ -41,11 +41,17 @@ const res_err = (res, code, msg)=>{
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = mime_db.ext2mime[ext]||'plain/text';
+  console.log(_path);
   let e = fs.statSync(_path, {throwIfNoEntry: false});
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
-  var stream = fs.createReadStream(_path);
-  res.writeHead(200, {'content-type': ctype, 'cache-control': 'no-cache'});
+  let h = {};
+  h['content-type'] = ctype;
+  h['cache-control'] = 'no-cache'; // for dev/debug
+  h['cross-origin-embedder-policy'] = 'require-corp';
+  h['cross-origin-opener-policy'] = 'same-origin';
+  let stream = fs.createReadStream(_path);
+  res.writeHead(200, h);
   stream.pipe(res);
 };
 
@@ -95,6 +101,7 @@ let map;
 let root;
 const http_listener = (req, res)=>{
   let uri = new URL('http://localhost'+req.url).pathname;
+  uri = decodeURI(uri);
   let opt = {map, root, strict_map: false};
   let path = map_uri({uri, opt});
   res.on('finish', ()=>console.log(

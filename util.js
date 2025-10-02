@@ -24,7 +24,7 @@ let esleep = exports.esleep = ms=>{
 };
 
 let eslow = exports.eslow = (ms, arg)=>{
-  let enable = 0;
+  let enable = 1;
   eslow.seq ||= 0;
   let seq = eslow.seq++;
   let done, timeout, at_end;
@@ -248,6 +248,8 @@ class postmessage_chan {
         return req.wait.throw(msg.err);
       return req.wait.return(msg.res);
     }
+    if (typeof msg.misc=='string')
+      return console.log(msg);
     throw Error('invalid msg', msg);
   }
   add_server_cmd(cmd, cb){
@@ -294,10 +296,30 @@ let buf_to_str = (buf, type)=>{
   throw Error('buf_to_str: invalid type');
 };
 
+function Atomics_wait(array, index, value, timeout){
+  if (is_worker)
+    return Atomics.wait(...arguments);
+  let start;
+  if (!timeout) // debug
+    timeout = 10000;
+  if (Atomics.load(array, index)!=value)
+    return 'not-equal'; // this is also 'ok' - since we want to wait for change
+  if (timeout)
+    start = Date.now();
+  while (Atomics.load(array, index)==value){
+    if (timeout && Date.now()-start>=timeout){
+      console.error('Atomics timed-out');
+      return 'timed-out';
+    }
+  }
+  return 'ok';
+}
+
 // implementation automatic service-worker/direct SharedArrayBuffer
 // https://github.com/alexmojaki/sync-message
 class ipc_sync {
   seq = 0;
+  err;
   constructor(ipc_buf){
     this.sab = ipc_buf || {
       data: new SharedArrayBuffer(8192),
@@ -306,103 +328,130 @@ class ipc_sync {
     this._data = this.sab.data;
     this.data = new Uint8Array(this.sab.data);
     let cmd = this.sab.cmd;
-    this.write_lock = new Int32Array(cmd, 0, 1);
-    this.read_lock = new Int32Array(cmd, 4, 1);
+    this.lock = new Int32Array(cmd, 4, 1);
     this.sz = new Int32Array(cmd, 8, 1);
     this.len = new Int32Array(cmd, 12, 1);
-    this.ofs = new Int32Array(cmd, 16, 1);
-    this.last = new Int32Array(cmd, 20, 1);
+    this.last = new Int32Array(cmd, 16, 1);
+    this._seq = new Int32Array(cmd, 20, 1);
   }
-  write_notify(){
-    Atomics.notify(this.write_lock, 0);
+  load_lock(){ return Atomics.load(this.lock, 0); }
+  load_sz(){ return Atomics.load(this.sz, 0); }
+  load_len(){ return Atomics.load(this.len, 0); }
+  load_last(){ return Atomics.load(this.last, 0); }
+  load_seq(){ return Atomics.load(this._seq, 0); }
+  store_lock(val){ return Atomics.store(this.lock, 0, val); }
+  store_sz(val){ return Atomics.store(this.sz, 0, val); }
+  store_len(val){ return Atomics.store(this.len, 0, val); }
+  store_last(val){ return Atomics.store(this.last, 0, val); }
+  store_seq(val){ return Atomics.store(this._seq, 0, val); }
+  notify_lock(){
+    Atomics.notify(this.lock, 0);
   }
-  read_notify(){
-    Atomics.notify(this.read_lock, 0);
+  wait_lock(old_val){
+    let res = Atomics_wait(this.lock, 0, old_val);
+    if (res!='ok' && res!='not-equal')
+      throw Error('failed Atomics.wait()');
   }
-  write_wait(old_val){
-    Atomics.wait(this.write_lock, 0, old_val);
-  }
-  read_wait(old_val){
-    Atomics.wait(this.read_lock, 0, old_val);
-  }
-  async Ewrite_wait(old_val){
-    await Atomics.wait(this.write_lock, 0, old_val).value;
-  }
-  async Eread_wait(old_val){
-    await Atomics.waitAsync(this.read_lock, 0, old_val).value;
+  async E_wait_lock(old_val){
+    // stupid Atomics.waitAsync() API - it is not an async function
+    let _res = Atomics.waitAsync(this.lock, 0, old_val);
+    let res = await _res.value; // its res.value is *sometimes* async...
+    if (res!='ok' && res!='not-equal')
+      throw Error('failed Atomics.wait()');
+    return res;
   }
   write(buf){
+    assert(!this.err, 'ipc_sync err state');
+    this.err = 'started';
     buf = str_to_buf(buf);
-    let sz = buf.byteLength, ofs = 0;
-    this.sz[0] = sz;
-    do {
+    let sz = buf.byteLength, ofs = 0, len, i;
+    this.store_sz(sz);
+    for (i=0; !i || ofs<sz; i++, ofs += len){
+      // validate ipc channel is free
+      assert(this.load_lock()==0, 'ipc_sync lock busy');
       let len = Math.min(sz-ofs, this._data.byteLength);
-      this.len[0] = len;
-      this.ofs[0] = ofs;
-      this.last[0] = ofs+len==sz;
+      this.store_len(len);
+      this.store_last(ofs+len==sz);
+      this.seq++;
+      this.store_seq(this.seq);
       this.data.set(new Uint8Array(buf, ofs, len), 0);
-      this.write_lock[0] = ++this.seq;
-      this.write_notify();
-      this.read_wait(this.seq-1);
-      ofs += len;
-    } while (ofs<sz);
+      this.store_lock(1);
+      this.notify_lock();
+      this.wait_lock(1);
+      assert(this.load_lock()==0, 'ipc_sync lock busy');
+    }
+    this.err = null;
   }
-  async Ewrite(buf){
+  async E_write(buf){
+    assert(!this.err, 'ipc_sync err state');
+    this.err = 'started';
     buf = str_to_buf(buf);
-    let sz = buf.byteLength, ofs = 0;
-    this.sz[0] = sz;
-    do {
+    let sz = buf.byteLength, ofs = 0, len, i;
+    this.store_sz(sz);
+    for (i=0; !i || ofs<sz; i++, ofs += len){
+      // validate ipc channel is free (==0)
+      assert(this.load_lock()==0, 'ipc_sync lock busy');
       let len = Math.min(sz-ofs, this._data.byteLength);
-      this.len[0] = len;
-      this.ofs[0] = ofs;
-      this.last[0] = ofs+len==sz;
+      this.store_len(len);
+      this.store_last(ofs+len==sz ? 1 : 0);
+      this.seq++;
+      this.store_seq(this.seq);
       this.data.set(new Uint8Array(buf, ofs, len), 0);
-      this.write_lock[0] = ++this.seq;
-      this.write_notify();
-      await this.Eread_wait(this.seq-1);
-      ofs += len;
-    } while (ofs<sz);
+      this.store_lock(1);
+      this.notify_lock();
+      await this.E_wait_lock(1);
+      assert(this.load_lock()==0, 'ipc_sync lock busy');
+    }
+    this.err = null;
   }
   read(type){
-    this.write_wait(this.seq);
-    let sz = this.sz[0];
-    let buf = new ArrayBuffer(sz);
-    let _buf = new Uint8Array(buf);
-    let ofs = 0;
-    let last;
-    while (ofs<sz){
-      let len = this.len[0];
+    assert(!this.err, 'ipc_sync err state');
+    this.err = 'started';
+    let sz, buf, _buf, i = 0, ofs = 0, len, seq, last;
+    for (i=0; !i || ofs<sz; i++, ofs += len){
+      this.wait_lock(0); // wait for ipc_channel to be busy (!=0)
+      if (!i){
+        sz = this.load_sz();
+        buf = new ArrayBuffer(sz);
+        _buf = new Uint8Array(buf);
+      }
+      len = this.load_len();
       _buf.set(new Uint8Array(this._data, 0, len), ofs);
-      let last = this.last[0];
-      this.read_lock[0] = ++this.seq;
-      this.read_notify();
-      ofs += len;
-      if (last)
-        break;
-      this.write_wait(this.seq);
+      last = this.load_last();
+      assert(last==(ofs+len==sz ? 1: 0), 'ipc_sync invalid last');
+      seq = this.load_seq();
+      this.seq++;
+      assert(seq==this.seq, 'ipc_sync invalid seq');
+      this.store_lock(0);
+      this.notify_lock();
     }
+    this.err = null;
     if (type)
       buf = buf_to_str(buf, type);
     return buf;
   }
-  async Eread(type){
-    await this.Ewrite_wait(this.seq);
-    let sz = this.sz[0];
-    let buf = new ArrayBuffer(sz);
-    let _buf = new Uint8Array(buf);
-    let ofs = 0;
-    let last;
-    while (ofs<sz){
-      let len = this.len[0];
+  async E_read(type){
+    assert(!this.err, 'ipc_sync err state');
+    this.err = 'started';
+    let sz, buf, _buf, i = 0, ofs = 0, len, seq, last;
+    for (i=0; !i || ofs<sz; i++, ofs += len){
+      await this.E_wait_lock(0); // wait for ipc_channel to be busy (!=0)
+      if (!i){
+        sz = this.load_sz();
+        buf = new ArrayBuffer(sz);
+        _buf = new Uint8Array(buf);
+      }
+      len = this.load_len();
       _buf.set(new Uint8Array(this._data, 0, len), ofs);
-      let last = this.last[0];
-      this.read_lock[0] = ++this.seq;
-      this.read_notify();
-      ofs += len;
-      if (last)
-        break;
-      await this.Ewrite_wait(this.seq);
+      last = this.load_last();
+      assert(last==(ofs+len==sz ? 1: 0), 'ipc_sync invalid last');
+      seq = this.load_seq();
+      this.seq++;
+      assert(seq==this.seq, 'ipc_sync invalid seq');
+      this.store_lock(0);
+      this.notify_lock();
     }
+    this.err = null;
     if (type)
       buf = buf_to_str(buf, type);
     return buf;
@@ -449,17 +498,17 @@ let match_glob_to_regex = exports.match_glob_to_regex =
   glob=>new RegExp(match_glob_to_regex_str(glob));
 let match_glob = exports.match_glob =
   (glob, value)=>match_glob_to_regex(glob).test(value);
-let qs_enc = exports.qs_enc = (q, qmark)=>{
+let qs_enc = exports.qs_enc = (q)=>{
   let _q = (''+new URLSearchParams(q))
   .replaceAll('%2F', '/').replaceAll('%40', '@').replaceAll('%3A', ':')
   .replaceAll('%2C', ',');
-  return _q ? (qmark ? '?' : '')+_q : '';
+  return _q ? '?'+_q : '';
 };
 let qs_append = exports.qs_append = (url, q)=>{
-  let _q = typeof q=='string' ? q : qs_enc(q, false);
+  let _q = typeof q=='string' ? q : qs_enc(q);
   if (!_q)
     return url;
-  return url+(url.includes('?') ? '&' : '?')+_q;
+  return url+(url.includes('?') ? '&' : '?')+_q.slice(1);
 };
 
 // URL.parse() only available on Chrome>=126
@@ -746,6 +795,8 @@ let npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
 let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
   let v;
+  if (npm[0]=='/' || !npm[0])
+    throw Error('invalid npm: '+npm);
   if (npm[0]!='.')
     return 'npm/'+npm;
   if (v=path_prefix(npm, '.npm'))
@@ -781,7 +832,7 @@ let lpm_to_sw_uri = exports.lpm_to_sw_uri = lpm=>{
 
 let url_uri_type = exports.url_uri_type = url_uri=>{
   if (!url_uri)
-    throw Error('invalid url_uri type');
+    throw Error('empty url_uri');
   if (URL_parse(url_uri))
     return 'url';
   if (url_uri[0]=='/')
@@ -849,7 +900,7 @@ let T_npm_url_base = exports.T_npm_url_base = (url_uri, base_uri)=>{
     return u;
   }
   is.mod = 1;
-  let base = base_uri ? T_npm_parse(base_uri) : undefined;
+  let base = tbase=='mod' ? T_npm_parse(base_uri) : undefined;
   if (t=='mod'){
     let lpm = T_npm_parse(url_uri);
     let uri = url_uri;
