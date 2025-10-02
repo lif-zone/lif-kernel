@@ -103,6 +103,7 @@ let map;
 let root;
 const http_listener = (req, res)=>{
   let uri = new URL('http://localhost'+req.url).pathname;
+  uri = decodeURI(uri);
   let opt = {map, root, strict_map: false};
   let path = map_uri({uri, opt});
   res.on('finish', ()=>console.log(
