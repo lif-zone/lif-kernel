@@ -408,12 +408,14 @@ function require_cjs_run(m, p){
   };
   m.require.module = m; // debug
   let js = `//# sourceURL=${m.url}\n`;
-  js += `
+  js += `'use strict';
     let module = globalThis.lif.boot.require_cjs_get_mod(${json(m.id)});
     let exports = module.exports;
     let require = module.require;
+    (function(){
+    ${m.script}
+    })();
     `;
-  js += m.script;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -460,6 +462,10 @@ function require_cjs_load_sync({run, mod_self, imp, p}){
     console.error('cannot load mjs sync '+m.id);
     return;
   }
+  if (m.meta.type=='amd'){
+    console.error('cannot load amd sync '+m.id);
+    return;
+  }
   require_cjs_load_requires_sync(m);
   if (run)
     require_cjs_run(m);
@@ -501,6 +507,12 @@ async function require_cjs_load({run, mod_self, imp, p}){
     return;
   if (m.meta.type=='mjs'){
     let e = await import(m.url+'?mjs=1');
+    m.exports = e.default || e;
+    m.run = 'done';
+    return m.exports;
+  }
+  if (m.meta.type=='amd'){
+    let e = await import(m.url+'?amd=2');
     m.exports = e.default || e;
     m.run = 'done';
     return m.exports;
@@ -549,7 +561,7 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
     m.define.module = m; // debug
     js += `let define = lif.boot.define_amd_get_mod(${json(imp)}).define;`;
   }
-  js += m.script;
+  js += `(function(){ ${m.script} }());`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -571,7 +583,7 @@ function define_amd_get_mod(imp){
 }
 
 async function import_amd(mod_self, [imp, opt]){
-  D && console.log('import_amd', imp, mod_self);
+  1 && console.log('import_amd', imp, mod_self);
   imp = npm_norm(mod_self, imp);
   let url = qs_append(npm_2url(imp), {raw: 1});
   return await import_module_script({mod_self, imp, url: url,
@@ -619,7 +631,7 @@ function importScripts_single(mod_self, [mod, opt]){
     throw Error('failed fetch '+url);
   let script = res.text;
   let exports = eval.call(globalThis,
-    `//# sourceURL=${url}\n;${script}`);
+    `//# sourceURL=${url}\n;(function(){ ${script} }())`);
 }
 
 function _importScripts(mod_self, mods){
