@@ -4,7 +4,7 @@ let lif_version = '1.2.0';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan, assert_eq,
+let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing,
@@ -12,8 +12,6 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq,
 let json = JSON.stringify;
 
 let modules = {};
-let modules_cache = {};
-let modules_cache_url = {};
 let kernel_chan;
 let npm_root;
 let npm_map = {};
@@ -21,7 +19,69 @@ let npm_map = {};
 let process = globalThis.process ||= {env: {}};
 let is_worker = typeof window=='undefined';
 
-const lpm_2url = (mod_self, url, opt)=>{
+function fetch_sync(url){
+  console.log('fetch_sync not supported: '+url);
+  return {status: 404};
+  let req = new XMLHttpRequest();
+  let v = {};
+  req.open('GET', url, false); // `false` makes the request synchronous
+  req.setRequestHeader('Cache-Control', 'no-cache');
+  req.send(); // blocking until request is sent
+  v.status = req.status;
+  v.text = req.responseText; // blocking until response data received
+  return v;
+}
+
+function sync_worker_fetch(url){
+  const request = new XMLHttpRequest();
+  request.open('GET', url, false);
+  request.send(null);
+  if (request.status!=200)
+    return {status: request.status};
+  return {status: 200, text: request.responseText};
+}
+
+let kernel_ipc_sync;
+let boot_worker;
+function kernel_fetch_sync(url, opt){
+  let ipc = kernel_ipc_sync;
+  ipc.write(json({url, opt}));
+  let buf = ipc.read('string');
+  let res = JSON.parse(buf);
+  if (!res.data)
+    return {status: 500};
+  let text = ipc.read('string');
+  return {status: 200, text};
+}
+
+async function kernel_sync_connect(){
+  let res;
+  let ipc = kernel_ipc_sync = new ipc_sync();
+  let controller = navigator.serviceWorker.controller;
+  boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
+    {type: 'module'});
+  boot_worker.addEventListener("message", event=>{
+    console.log('main got message', event.data, event);
+  });
+  console.log('master worker started');
+  boot_worker.postMessage({fetch_init: {sab: ipc.sab}});
+}
+// junk example of Worker from Blob. Possible also to do dynamic import().
+const senderWorker = 0 && new Worker(URL.createObjectURL(new Blob([`
+  self.onmessage = ({ data: { sharedArray } }) => {
+    const arr = new Int32Array(sharedArray);
+    let message = 42; // Example message to send
+    // Write message data
+    Atomics.store(arr, 1, message);
+    // Set flag atomically
+    Atomics.store(arr, 0, 1);
+    // Notify the receiver (wake up to 1 waiter)
+    Atomics.notify(arr, 0, 1);
+    console.log('Sender: Message sent');
+  };
+`], { type: 'application/javascript' })));
+
+const npm_2url_opt = (url, mod_self, opt)=>{
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
     return url;
@@ -46,24 +106,61 @@ const lpm_2url = (mod_self, url, opt)=>{
   return qs_append(_url, q);
 };
 
-const lpm_2uri = (mod_self, url)=>{
+const npm_2url = (url, mod_self)=>{
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
-    return url;
+    return u.origin+u.path;
   if (u.is.uri)
-    return url;
+    return u.path;
   return '/.lif/'+T_npm_to_lpm(u.path);
+};
+
+const npm_norm = (mod_self, url)=>{
+  let u = T_npm_url_base(url, mod_self);
+  let v;
+  if (u.is.url)
+    return u.origin+u.path;
+  if (u.is.uri){
+    if (v=str.starts(u.path, '/.lif/'))
+      return lpm_to_npm(v.rest);
+    return u.path;
+  }
+  return u.path;
 };
 
 function test(){
   let t;
-  t = (mod_self, url, v)=>assert_eq(v, lpm_2uri(mod_self, url));
+  t = (mod_self, url, v)=>assert_eq(v, npm_norm(mod_self, url));
+  t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
+  t('.local/other.js', './a/file.js', '.local/a/file.js');
+  t('.local/mod/', './a/file.js', '.local/mod//a/file.js');
+  t('react@1.2.3', 'mod/file.js', 'mod/file.js');
+  t('react@1.2.3', 'mod@4.5.6/file.js', 'mod@4.5.6/file.js');
+  t('http://a.b/c', 'b/file.js', 'b/file.js');
+  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
+  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
+  t('http://a.b/c/', '/b/file.js', '/b/file.js');
+  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
+  t('/a.b/c/', '/b/file.js', '/b/file.js');
+  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
+  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
+  t(null, '/.lif/npm/mod', 'mod');
+  t(null, '/.lif/local/mod/a', '.local/mod/a');
+  t = (mod_self, url, v)=>assert_eq(v, npm_2url(url, mod_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
   t('.local/other.js', './a/file.js', '/.lif/local/a/file.js');
   t('.local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
   t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
-  t = (mod_self, url, opt, v)=>assert_eq(v, lpm_2url(mod_self, url, opt));
+  t('http://a.b/c', 'b/file.js', '/.lif/npm/b/file.js');
+  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
+  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
+  t('http://a.b/c/', '/b/file.js', '/b/file.js');
+  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
+  t('/a.b/c/', '/b/file.js', '/b/file.js');
+  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
+  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
+  t = (mod_self, url, opt, v)=>assert_eq(v, npm_2url_opt(url, mod_self, opt));
   t('mod@1.2.3', './a/file.js', {cjs: 1},
     '/.lif/npm/mod@1.2.3/a/file.js?cjs=1&mod_self=mod@1.2.3');
   t('.local/other.js', './a/file.js', {cjs: 1},
@@ -111,10 +208,11 @@ async function define_amd(mod_id, args, m){
   return await _define_amd(mod_id, imps, factory, m);
 }
 async function _define_amd(mod_id, imps, factory, m){
+  let id = mod_id;
   if (!m){
-    if (modules[mod_id])
-      throw Error('define('+mod_id+') already defined');
-    m = modules[mod_id] = {mod_id, imps, factory, loaded: false,
+    if (modules[id])
+      throw Error('define('+id+') already defined');
+    m = modules[id] = {id, imps, factory, loaded: false,
       wait: ewait(), exports: {}};
   }
   let _imps = await require_amd(m, imps);
@@ -141,87 +239,297 @@ async function require_amd(m, imps){
     case 'module': v = m; break;
     default:
       // TOOO validate npm module or relative file
-      v = await require_cjs(m.mod_self, imp);
+      // TODO merge cjs and amd modules shared table, and assert on mixes
+      v = await require_cjs_load({run: 1, mod_self: m.id, imp});
     }
     _imps[i] = v;
   }
   return _imps;
 }
 
-function require_cjs_cache(mod_self, mod_id){
-  let url = lpm_2url(mod_self, mod_id, {cjs: 1});
-  let m = modules_cache_url[url];
-  if (m)
-    return m.exports;
-  let mod_self_id = mod_self+' '+url;
-  m = modules[mod_self_id];
-  if (!m)
-    throw Error('module '+url+' not loaded beforehand');
-  if (!m.loaded)
-    throw Error('module '+url+' not loaded completion');
-  return m.module.exports;
-}
-
-function require_register_cb({npm_uri, url, parent_mod, log}){
+function require_cjs_get_mod(url){
   let m;
-  if (m = modules_cache_url[url]){
-    console.error('module '+url+' loaded twice: 1st '+
-      m.parent_mod+' '+m.parent_url+
-      '\n2nd '+parent_mod+' '+log.mod+' '+log.imp);
-  }
-  if (m = modules_cache[npm_uri]){
-    console.error('module '+npm_uri+' loaded twice: 1st '+
-      m.parent_mod+' '+m.parent_url+
-      '\n2nd '+parent_mod+' '+log.mod+' '+log.imp);
-  }
-  m = modules_cache[npm_uri] = modules_cache_url[url] = {
-    exports: {},
-    parent_mod,
-    lmod: npm_uri,
-    npm_uri,
-    url,
-  };
-  m.log = {...log};
-  m.require = imp=>require_cjs_cache(npm_uri, imp);
-  m.require_async = async(imp)=>await require_cjs(npm_uri, imp);
+  assert(m = modules[url], 'module '+url+' not loaded');
   return m;
 }
-async function require_cjs(mod_self, mod_id){
-  let u = T_npm_url_base(mod_id, mod_self);
-  let _mod_id = lpm_2uri(mod_self, mod_id);
-  let _url = lpm_2url(mod_self, mod_id, {cjs: 1});
-  let url = url_expand(_url);
-  let m;
-  if (m = modules_cache[_mod_id] || modules_cache_url[_url]){
-    assert(m.loaded, 'not loaded '+_url);
-    return m.exports;
+function require_cjs_load_meta_sync(p){
+  let m = p.m;
+  function do_ret(res){ return p.res = res; }
+  if (p.res=='done' || p.res=='err')
+    return p.res;
+  p.res = 'loading';
+  if (!m.url.startsWith('/.lif/'))
+    return do_ret('done');
+  let url = m.url+qs_enc({meta: 1, follow: 1, mod_self: p.mod_self});
+  let req;
+  req = kernel_fetch_sync(url);
+  if (req.status!=200){
+    console.error('no mod meta: '+url);
+    return do_ret('err');
   }
-  let mod_self_id = mod_self+' '+_url;
-  if (m = modules[mod_self_id])
-    return await m.wait;
-  m = modules[mod_self_id] = {mod_id: _url,
-    imps: [], wait: ewait(),
-    loaded: false, module: {exports: {}}};
-  let opt = mod_id.endsWith('.json') ? {with: {type: 'json'}} : {};
-  let slow;
+  p.text = req.text;
   try {
-    slow = eslow(15000, 'require_cjs import('+mod_id+') '+url);
-    m.mod = await /*keep*/ import(url, opt);
-    slow.end();
+    p.meta = JSON.parse(p.text);
   } catch(err){
-    console.error('import('+mod_id+') failed. required from '+mod_self,
-      err);
-    slow.end();
-    throw m.wait.throw(err);
+    return do_ret('err');
   }
-  m.loaded = true;
-  m.module.exports = m.mod.default || m.mod;
-  return m.wait.return(m.module.exports);
+  return do_ret('done');
+}
+async function require_cjs_load_meta(p){
+  let m = p.m;
+  function do_ret(res){
+    p.res = res;
+    if (p.wait)
+      p.wait.return(res);
+    return p.res;
+  }
+  if (p.res=='done' || p.res=='err')
+    return p.res;
+  p.res = 'loading';
+  if (!m.url.startsWith('/.lif/'))
+    return do_ret('done');
+  let url = m.url+qs_enc({meta: 1, follow: 1, mod_self: p.mod_self});
+  let req;
+  if (p.wait)
+    return await p.wait;
+  p.wait = ewait();
+  req = await fetch(url);
+  if (req.status!=200){
+    console.error('no mod meta: '+url);
+    return do_ret('err');
+  }
+  p.text = await req.text();
+  try {
+    p.meta = JSON.parse(p.text);
+  } catch(err){
+    assert(0, 'invalid json meta '+url);
+    return do_ret('err');
+  }
+  return do_ret('done');
+}
+async function require_cjs_load_file_sync(m){
+  let p = m.file ||= {};
+  function do_ret(res){ return p.res = res; }
+  if (p.res=='done' || p.res=='err')
+    return p.res;
+  p.res = 'loading';
+  let url = m.url;
+  if (m.url.startsWith('/.lif/'))
+    url += '?raw=1';
+  let req;
+  req = kernel_fetch_sync(url);
+  if (req.status==200)
+    m.script = p.text = req.text;
+  if (req.status!=200){
+    console.error('no mod meta: '+url);
+    return do_ret('err');
+  }
+  try {
+    if (m.is_json)
+      m.json = p.json = JSON.parse(p.text);
+  } catch(err){
+    console.error('invalid json module: '+url);
+    return do_ret('err');
+  }
+  return do_ret('done');
 }
 
-function require_register_cb_end(m){
-  m.loaded = 1;
+async function require_cjs_load_file(m){
+  let p = m.file ||= {};
+  function do_ret(res){
+    return p.wait.return(p.res = res);
+  }
+  if (p.res=='done' || p.res=='err')
+    return p.res;
+  p.res = 'loading';
+  let url = m.url;
+  if (m.url.startsWith('/.lif/'))
+    url += '?raw=1';
+  let req;
+  if (p.wait)
+    return await p.wait;
+  p.wait = ewait();
+  req = await fetch(url);
+  if (req.status==200)
+    m.script = p.text = await req.text();
+  if (req.status!=200){
+    console.error('no mod meta: '+url);
+    return do_ret('err');
+  }
+  try {
+    if (m.is_json)
+      m.json = p.json = JSON.parse(p.text);
+  } catch(err){
+    return do_ret('err');
+  }
+  return do_ret('done');
 }
+
+function require_cjs_load_requires_sync(m){
+  if (m.load_requires)
+    return;
+  for (let req of m.meta.requires||[]){
+    if (req.type=='program')
+      require_cjs_load_sync({run: false, mod_self: m.id, imp: req.module});
+  }
+  m.load_requires = 1;
+}
+
+async function require_cjs_load_requires(m){
+  if (m.load_requires)
+    return;
+  for (let req of m.meta.requires||[]){
+    if (req.type=='program')
+      await require_cjs_load({run: false, mod_self: m.id, imp: req.module});
+  }
+  m.load_requires = 1;
+}
+function require_cjs_run(m, p){
+  if (m.run)
+    return m.run;
+  if (m.is_json){
+    m.exports = m.file.json;
+    return m.run = 'done';
+  }
+  m.require = function(imp){
+    imp = npm_norm(m.id, imp);
+    let _p = modules[imp]?.parent[m.id];
+    let exports;
+    if (_p)
+      exports = require_cjs_load_sync({run: 1, p: _p, mod_self: m.id, imp});
+    else {
+      console.warn('dynamic require('+imp+') in '+m.id);
+      exports = require_cjs_load_sync({run: 1, mod_self: m.id, imp});
+    }
+    return exports;
+  };
+  m.require.require_async = async function(imp){
+    return await require_cjs_load({run: 1, mod_self: m.id, imp});
+  };
+  m.require.module = m; // debug
+  let js = `//# sourceURL=${m.url}\n`;
+  js += `'use strict';
+    let module = globalThis.lif.boot.require_cjs_get_mod(${json(m.id)});
+    let exports = module.exports;
+    let require = module.require;
+    (function(){
+    ${m.script}
+    })();
+    `;
+  try {
+    eval?.(js); // script return value is ignored
+  } catch(err){
+    m.run = 'err';
+    console.error('require('+m.id+') failed eval', err);
+    return m.run;
+  }
+  m.loaded = true;
+  return m.run = 'done';
+}
+
+function require_cjs_load_sync({run, mod_self, imp, p}){
+  D && console.log('sync', run ? 'run' : 'load', mod_self, imp);
+  let m;
+  if (!p){
+    imp = npm_norm(mod_self, imp);
+    if (!(m=modules[imp])){
+      m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
+        is_json: imp.endsWith('.json'),
+        exports: {}};
+    }
+    mod_self ||= '';
+    if (!(p=m.parent[mod_self]))
+      p = m.parent[mod_self] = {m, mod_self};
+  } else {
+    m = p.m;
+    imp = m.id;
+    mod_self = p.mod_self;
+  }
+  if (m.run)
+    return m.exports;
+  require_cjs_load_meta_sync(p);
+  if (p.res!='done')
+    return;
+  if (p.meta.redirect)
+    return require_cjs_load_sync({run, mod_self: null, imp: p.meta.redirect});
+  if (mod_self)
+    return require_cjs_load_sync({run, mod_self: null, imp});
+  m.meta = p.meta;
+  require_cjs_load_file_sync(m);
+  if (m.file.res!='done')
+    return;
+  if (m.meta.type=='mjs'){
+    console.error('cannot load mjs sync '+m.id);
+    return;
+  }
+  if (m.meta.type=='amd'){
+    console.error('cannot load amd sync '+m.id);
+    return;
+  }
+  require_cjs_load_requires_sync(m);
+  if (run)
+    require_cjs_run(m);
+  return m.exports;
+}
+
+async function require_cjs_load({run, mod_self, imp, p}){
+  let slow = eslow(15000, 'require_cjs('+imp+')');
+  try {
+  D && console.log('async', run ? 'run' : 'load', mod_self, imp);
+  let m;
+  if (!p){
+    imp = npm_norm(mod_self, imp);
+    if (!(m=modules[imp])){
+      m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
+        is_json: imp.endsWith('.json'),
+        exports: {}};
+    }
+    mod_self ||= '';
+    if (!(p=m.parent[mod_self]))
+      p = m.parent[mod_self] = {m, mod_self};
+  } else {
+    m = p.m;
+    imp = m.id;
+    mod_self = p.mod_self;
+  }
+  if (m.run)
+    return m.exports;
+  await require_cjs_load_meta(p);
+  if (p.res!='done')
+    return;
+  if (p.meta.redirect)
+    return await require_cjs_load({run, mod_self: null, imp: p.meta.redirect});
+  if (mod_self)
+    return await require_cjs_load({run, mod_self: null, imp});
+  m.meta = p.meta;
+  await require_cjs_load_file(m);
+  if (m.file.res!='done')
+    return;
+  if (m.meta.type=='mjs'){
+    let e = await import(m.url+'?mjs=1');
+    m.exports = e.default || e;
+    m.run = 'done';
+    return m.exports;
+  }
+  if (m.meta.type=='amd'){
+    let e = await import(m.url+'?amd=2');
+    m.exports = e.default || e;
+    m.run = 'done';
+    return m.exports;
+  }
+  await require_cjs_load_requires(m);
+  if (run)
+    require_cjs_run(m);
+  return m.exports;
+  } finally {
+    slow.end();
+  }
+}
+
+async function require_cjs_async(mod_self, imp){
+  return await require_cjs_load({run: 1, mod_self, imp});
+}
+
 // web worker importScripts()/require() implementation
 let fetch_opt = url=>
   (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
@@ -250,87 +558,80 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
       return await define_amd(imp, arguments, m);
     };
     m.define.amd = {};
-    m.define.module = m;
-    js += `let define = lif.boot.import_modules_get(${json(imp)}).define;`;
+    m.define.module = m; // debug
+    js += `let define = lif.boot.define_amd_get_mod(${json(imp)}).define;`;
   }
-  js += m.script;
+  js += `(function(){ ${m.script} }());`;
   try {
     eval?.(js); // script return value is ignored
-    await m.wait;
-    if (opt.amd)
-      assert(m.loaded, 'module not loaded: '+imp);
-    else
-      m.loaded = true;
-    return m.wait.return(m.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
     throw m.wait.throw(err);
   }
+  await m.wait;
+  if (opt.amd)
+    assert(m.loaded, 'module not loaded: '+imp);
+  else
+    m.loaded = true;
+  return m.wait.return(m.exports);
 };
 
-function import_modules_get(imp){
+function define_amd_get_mod(imp){
   let m = modules[imp];
   assert(m, 'module not found: '+imp);
   return m;
 }
 
 async function import_amd(mod_self, [imp, opt]){
-  D && console.log('import_amd', imp, mod_self);
-  let _imp = lpm_2uri(mod_self, imp);
-  let uri = qs_append(_imp, {raw: 1});
-  return await import_module_script({mod_self, imp: _imp, url: uri,
+  1 && console.log('import_amd', imp, mod_self);
+  imp = npm_norm(mod_self, imp);
+  let url = qs_append(npm_2url(imp), {raw: 1});
+  return await import_module_script({mod_self, imp, url: url,
     opt: {amd: 1}});
 }
 
 // worker
 async function worker_import({mod_self, imp, opt}){
-  let url = lpm_2url(mod_self, imp, opt);
+  let url = npm_2url(imp, mod_self);
   let q;
   if (opt?.type=='script')
     q = {raw: 1};
   else
     assert(0, 'module import not yet supportedd');
   url = qs_append(url, q);
-  let _imp = lpm_2uri(mod_self, imp);
-  return await import_module_script({mod_self, imp: _imp, url, opt: {worker: 1}});
+  imp = npm_2url(imp, mod_self);
+  return await import_module_script({mod_self, imp, url, opt: {worker: 1}});
 }
 
 async function import_esm(mod_self, [imp, opt]){
-  let _url = lpm_2url(mod_self, imp, opt);
-  _url = url_expand(_url);
+  let url = npm_2url_opt(imp, mod_self, opt);
+  url = url_expand(url);
   let slow;
   try {
-    slow = eslow(15000, 'import_esm('+_url+')');
-    D && console.log('boot.js: import '+_url);
+    slow = eslow(15000, 'import_esm('+url+')');
+    D && console.log('boot.js: import '+url);
     let ret;
     if (is_worker)
       ret = await worker_import({mod_self, imp, opt});
     else
-      ret = await /*keep*/ import(_url, opt);
-    slow.end();
+      ret = await /*keep*/ import(url, opt);
     return ret;
   } catch(err){
-    console.error('import_esm('+_url+' '+mod_self+')', err);
-    slow.end();
+    console.error('import_esm('+url+' '+mod_self+')', err);
     throw err;
+  } finally {
+    slow.end();
   }
 }
-
-function sync_worker_fetch(url){
-  const request = new XMLHttpRequest();
-  request.open("GET", url, false); // `false` makes the request synchronous
-  request.send(null);
-  if (request.status!=200)
-    return;
-  return request.responseText;
-}
-
 // worker
 function importScripts_single(mod_self, [mod, opt]){
-  let url = lpm_2url(mod_self, mod, opt?.type=='script' ? {raw: 1} : {});
-  let script = sync_worker_fetch(url);
+  let url = npm_2url_opt(mod, mod_self, opt?.type=='script' ? {raw: 1} : {});
+  let res = sync_worker_fetch(url);
+  if (res.status!=200)
+    throw Error('failed fetch '+url);
+  let script = res.text;
   let exports = eval.call(globalThis,
-    `//# sourceURL=${url}\n;${script}`);
+    `//# sourceURL=${url}\n;(function(){ ${script} }())`);
 }
 
 function _importScripts(mod_self, mods){
@@ -380,13 +681,14 @@ let boot_kernel = async()=>{
       D && console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
+      let res = await kernel_sync_connect();
       D && console.log('conn_kernel chan end');
       slow.end();
       wait.return();
     };
     let slow = eslow('sw register');
     const registration = await navigator.serviceWorker.register(
-      '/lif_kernel_sw.js?'+qs_enc({lif_kernel_base}));
+      '/lif_kernel_sw.js'+qs_enc({lif_kernel_base}));
     const sw = await navigator.serviceWorker.ready;
     slow.end();
     // this boots the app if the SW has been installed before or
@@ -481,7 +783,8 @@ if (!is_worker){
   let get_url = (url, opt)=>{
     url = url.href || url;
     let _url = url, es5 = opt?.type!='module';
-    _url = lpm_2url(npm_root, _url, {worker: 1, type: opt?.type});
+    // TOOD use globalThis.location instead of npm_root for relative URLs base
+    _url = npm_2url_opt(_url, npm_root, {worker: 1, type: opt?.type});
     return _url;
   };
   class lif_Worker extends Worker {
@@ -509,17 +812,12 @@ lif.boot = {
   //miani:'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
   version: lif_version,
   process,
-  require_cjs,
-  require_register_cb,
-  require_register_cb_end,
+  require_cjs_get_mod,
+  require_cjs_async,
   import_esm,
   import_amd,
-  import_modules_get,
-  // debug
-  util,
-  modules,
-  modules_cache,
-  modules_cache_url,
+  define_amd_get_mod,
+  util, // debug
 };
 if (is_worker){
   OA(lif.boot, {_importScripts});

@@ -479,6 +479,7 @@ function require_non_toplevel(lpm_pkg){
   }
 }
 const file_tr_cjs = (f, opt)=>{
+  assert(0, 'unused file_tr_cjs');
   let uri_s = json(f.npm_uri);
   let mod_data = `{npm_uri: ${json(f.npm_uri)},
     url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
@@ -586,7 +587,7 @@ let tr_mjs_import = f=>{
       if (d.imported)
         q.imported = d.imported.join(',');
       q.mod_self = f.npm_uri;
-      v += qs_enc(q, true);
+      v += qs_enc(q);
       s.splice(d.start, d.end, json(v));
     } else
       console.warn('import('+f.lmod+') missing: '+imp);
@@ -631,10 +632,10 @@ const mjs_import_cjs = (path, q)=>{
   _q.delete('mod_self');
   _q.set('cjs', 1);
   _q.sort();
-  let _path = json(path+qs_enc(_q, '?'));
+  let _path = json(path+qs_enc(_q));
   let uri_s = json(path);
   let js = '';
-  js += `let exports = (await globalThis.lif.boot.require_cjs(${json(mod_self)}, ${_path}));\n`;
+  js += `let exports = (await globalThis.lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
@@ -662,7 +663,7 @@ const mjs_import_mjs = (export_default, path, q)=>{
   _q.delete('mod_self');
   _q.set('mjs', 1);
   _q.sort();
-  let _path = json(path+qs_enc(_q, true));
+  let _path = json(path+qs_enc(_q));
   let js = `export * from ${_path};\n`;
   if (export_default)
     js += `export {default} from ${_path};\n`;
@@ -949,6 +950,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   return lpm_pkg;
 }); }
 
+// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
 async function lpm_file_get({log, lmod, lpm_pkg}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   D && console.log('lpm_file_get', lmod);
@@ -1120,9 +1122,25 @@ let response_send = ({body, ext, uri})=>{
   }
   h['content-type'] = ctype.ctype;
   h['cache-control'] = 'no-cache';
+  coi_set_headers(h);
   opt.headers = new Headers(h);
-  coi_set_headers(opt.headers);
   return new Response(body, opt);
+};
+
+let _response_send = ({body, ext, uri})=>{
+  let v;
+  if (uri)
+    ext = _path_ext(uri);
+  let opt = {}, ctype = ctype_get(ext), h = {};
+  if (!ctype){
+    D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext+': '+uri));
+    ctype = ctype_get('text');
+  }
+  h['content-type'] = ctype.ctype;
+  h['cache-control'] = 'no-cache';
+  coi_set_headers(h);
+  opt.headers = new Headers(h);
+  return {body, ctype};
 };
 
 let ctype_binary = path=>{
@@ -1142,9 +1160,20 @@ function response_redirect({f, qs, lmod}){
     q.delete('mod_self');
   if (q.size==1 && q.get('cjs')==1)
     q.set('cjs', '2');
-  let redirect = '/.lif/'+f.redirect+qs_enc(q, true);
+  let redirect = '/.lif/'+f.redirect+qs_enc(q);
   D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return Response.redirect(redirect);
+}
+function _response_redirect({f, qs, lmod}){
+  let q = new URLSearchParams(qs);
+  let l = lpm_parse(f.redirect);
+  if (l && !lpm_ver_missing(l))
+    q.delete('mod_self');
+  if (q.size==1 && q.get('cjs')==1)
+    q.set('cjs', '2');
+  let redirect = '/.lif/'+f.redirect+qs_enc(q);
+  D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
+  return {redirect: redirect};
 }
 function respond_tr_send({f, qs, lmod}){
   let ext = _path_ext(lmod);
@@ -1159,20 +1188,10 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
-  if (q.get('cjs')==2)
-    return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
-  if (q.get('cjs')==1){
-    if (q.size>1)
-      return Response.redirect('/.lif/'+lmod+'?cjs=2');
-    return response_send({body: file_tr_cjs(f), ext: 'js'});
-  }
+  assert(!q.get('cjs'));
   if (q.get('amd')==2)
     return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
-  if (q.get('amd')==1){
-    if (q.size>1)
-      return Response.redirect('/.lif/'+lmod+'?amd=2');
-    return response_send({body: file_tr_amd(f), ext: 'js'});
-  }
+  assert(!q.get('amd'));
   if (q.get('mjs')==2){
     return response_send({
       body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
@@ -1182,22 +1201,52 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
-  if (type=='cjs'){
-    if (!q.get('imported'))
-      return Response.redirect('/.lif/'+lmod+'?cjs=2');
+  assert(!q.get('mjs'));
+  if (type=='cjs')
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
-  }
-  if (type=='amd' || type==''){
-    if (!q.get('imported'))
-      return Response.redirect('/.lif/'+lmod+'?amd=2');
+  if (type=='amd' || type=='')
     return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
-  }
+  if (type=='')
+    return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs')
     return Response.redirect('/.lif/'+lmod+'?mjs=2');
   throw Error('invalid lpm file type '+type);
 }
 
-function respond_tr_send_loc({f, lmod}){
+function _respond_tr_send({f, qs, lmod}){
+  let ext = _path_ext(lmod);
+  let q = new URLSearchParams(qs);
+  if (f.redirect)
+    return _response_redirect({f, qs, lmod});
+  if (q.has('raw') || ctype_binary(lmod))
+    return _response_send({body: f.blob, uri: lmod});
+  if (ext=='json')
+    return _response_send({body: f.blob, ext: 'json'});
+  if (ext=='css')
+    return _response_send({body: f.blob, ext: 'css'});
+  let ast = file_ast(f);
+  let type = ast.type;
+  assert(!q.get('cjs'));
+  assert(!q.get('amd'));
+  if (q.get('mjs')==2){
+    return _response_send({
+      body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
+      ext: 'js'});
+  }
+  if (q.get('mjs')==1 && (type=='mjs' || !type)){
+    return _response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
+      ext: 'js'});
+  }
+  if (type=='cjs')
+    return _response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
+  if (type=='amd' || type=='')
+    return _response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
+  if (type=='mjs')
+    return {redirect: '/.lif/'+lmod+'?mjs=2'};
+  return {err: 'invalid lpm file type '+type};
+}
+
+function respond_tr_send_meta({f, lmod}){
   let ext = _path_ext(lmod);
   if (f.redirect)
     return {redirect: f.redirect};
@@ -1209,17 +1258,42 @@ function respond_tr_send_loc({f, lmod}){
     return {type: 'css'};
   let ast = file_ast(f);
   let type = ast.type;
-  if (type.includes('mjs', 'cjs', 'amd', ''))
+  if (str.is(type, 'mjs', 'cjs', 'amd', ''))
     return {type};
   throw Error('invalid lpm file type '+type);
 }
 
-async function kernel_fetch_lpm_loc({log, imp, mod_self, qs}){
-  let f = await lpm_file_resolve({log, imp, mod_self});
-  if (f.not_exist)
-    return {not_exist: f.not_exist};
-  let loc = respond_tr_send_loc({f, lmod: imp});
-  return loc;
+async function kernel_fetch_lpm_meta({log, imp, mod_self, qs}){
+  let res = {}, follow = 1;
+  D && console.log('meta '+imp+' self '+mod_self+' '+qs);
+  for (let i=0; i<max_redirect; i++){
+    let f = await lpm_file_resolve({log, imp, mod_self});
+    if (f.not_exist){
+      res.not_exist = f.not_exist;
+      return res;
+    }
+    if (f.redirect){
+      let redirect = lpm_to_npm(f.redirect);
+      if (!follow){
+        res.redirect = lpm_to_npm(redirect);
+        return res;
+      }
+      res.redirects ||= [];
+      res.redirects.push(redirect);
+      mod_self = null;
+      imp = f.redirect;
+      continue;
+    }
+    if (res.redirects){
+      res.redirect = res.redirects.at(-1);
+      return res;
+    }
+    let meta = respond_tr_send_meta({f, lmod: imp});
+    if (f.ast.requires)
+      meta.requires = f.ast.requires;
+    OA(res, meta);
+    return meta;
+  }
 }
 
 async function kernel_fetch_lpm({log, imp, mod_self, qs}){
@@ -1227,6 +1301,13 @@ async function kernel_fetch_lpm({log, imp, mod_self, qs}){
   if (f.not_exist)
     return new Response('not found', {status: 404, statusText: 'not found'});
   return respond_tr_send({f, qs, lmod: imp});
+}
+
+async function _kernel_fetch_lpm({log, imp, mod_self, qs}){
+  let f = await lpm_file_resolve({log, imp, mod_self});
+  if (f.not_exist)
+    return {not_exist: true};
+  return _respond_tr_send({f, qs, lmod: imp});
 }
 
 async function fetch_pass(request, type){
@@ -1271,9 +1352,9 @@ async function _kernel_fetch(event){
     let slow = eslow('app_init');
     await app_init_wait;
     slow.end();
-    if (q.get('loc')){
-      let loc = kernel_fetch_lpm_loc({log, mod_self, imp: lmod, qs});
-      return response_send({body: json(loc), ext: 'json'});
+    if (q.get('meta')){
+      let meta = await kernel_fetch_lpm_meta({log, mod_self, imp: lmod, qs});
+      return response_send({body: json(meta), ext: 'json'});
     }
     return await kernel_fetch_lpm({log, mod_self, imp: lmod, qs});
   }
@@ -1292,7 +1373,7 @@ async function _kernel_fetch(event){
   let response = await fetch(request);
   let h = Object.fromEntries(response.headers.entries());
   coi_set_headers(h);
-  let headers = new Headers(response.headers);
+  let headers = new Headers(h);
   return new Response(response.body,
     {headers, status: response.status, statusText: response.statusText});
 }

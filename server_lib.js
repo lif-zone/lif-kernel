@@ -42,17 +42,18 @@ let coi_enable = true;
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = mime_db.ext2mime[ext]||'plain/text';
+  console.log(_path);
   let e = fs.statSync(_path, {throwIfNoEntry: false});
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
-  var stream = fs.createReadStream(_path);
   let h = {};
   h['content-type'] = ctype;
-  h['cache-control'] = 'no-cache';
+  h['cache-control'] = 'no-cache'; // for dev/debug
   if (coi_enable){
     h['cross-origin-embedder-policy'] = 'require-corp';
     h['cross-origin-opener-policy'] = 'same-origin';
   }
+  let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
   stream.pipe(res);
 };
