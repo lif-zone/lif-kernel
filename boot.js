@@ -58,7 +58,8 @@ async function kernel_sync_connect(){
   let res;
   let ipc = kernel_ipc_sync = new ipc_sync();
   let controller = navigator.serviceWorker.controller;
-  boot_worker = new Worker('/lif-kernel/boot_worker.js', {type: 'module'});
+  boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
+    {type: 'module'});
   boot_worker.addEventListener("message", event=>{
     console.log('main got message', event.data, event);
   });
