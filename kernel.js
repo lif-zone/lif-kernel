@@ -1189,6 +1189,8 @@ function respond_tr_send({f, qs, lmod}){
   let ast = file_ast(f);
   let type = ast.type;
   assert(!q.get('cjs'));
+  if (q.get('amd')==2)
+    return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
   assert(!q.get('amd'));
   if (q.get('mjs')==2){
     return response_send({
@@ -1199,10 +1201,13 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
+  assert(!q.get('mjs'));
   if (type=='cjs')
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='amd' || type=='')
     return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
+  if (type=='')
+    return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs')
     return Response.redirect('/.lif/'+lmod+'?mjs=2');
   throw Error('invalid lpm file type '+type);
