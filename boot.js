@@ -533,7 +533,16 @@ async function require_cjs_async(mod_self, imp){
 // web worker importScripts()/require() implementation
 let fetch_opt = url=>
   (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
-let import_module_script = async({mod_self, imp, url, opt})=>{
+function define_amd_get_mod(imp){
+  let m = modules[imp];
+  assert(m, 'module not found: '+imp);
+  return m;
+}
+
+async function import_amd(mod_self, [imp, opt]){
+  D && console.log('import_amd', imp, mod_self);
+  imp = npm_norm(mod_self, imp);
+  let url = qs_append(npm_2url(imp), {raw: 1});
   let m;
   if (m = modules[imp]){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
@@ -551,15 +560,13 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
     throw m.wait.throw(err);
   }
   let js = `//# sourceURL=${url}\n`;
-  if (opt.amd){
-    // implementation of AMD define()
-    m.define = async function(id, imps, factory){
-      return await define_amd(imp, arguments, m);
-    };
-    m.define.amd = {};
-    m.define.module = m; // debug
-    js += `let define = lif.boot.define_amd_get_mod(${json(imp)}).define;`;
-  }
+  // implementation of AMD define()
+  m.define = async function(id, imps, factory){
+    return await define_amd(imp, arguments, m);
+  };
+  m.define.amd = {};
+  m.define.module = m; // debug
+  js += `let define = lif.boot.define_amd_get_mod(${json(imp)}).define;`;
   js += `(function(){ ${m.script} }());`;
   try {
     eval?.(js); // script return value is ignored
@@ -568,28 +575,40 @@ let import_module_script = async({mod_self, imp, url, opt})=>{
     throw m.wait.throw(err);
   }
   await m.wait;
-  if (opt.amd)
-    assert(m.loaded, 'module not loaded: '+imp);
-  else
-    m.loaded = true;
+  assert(m.loaded, 'module not loaded: '+imp);
   return m.wait.return(m.exports);
-};
-
-function define_amd_get_mod(imp){
-  let m = modules[imp];
-  assert(m, 'module not found: '+imp);
-  return m;
-}
-
-async function import_amd(mod_self, [imp, opt]){
-  1 && console.log('import_amd', imp, mod_self);
-  imp = npm_norm(mod_self, imp);
-  let url = qs_append(npm_2url(imp), {raw: 1});
-  return await import_module_script({mod_self, imp, url: url,
-    opt: {amd: 1}});
 }
 
 // worker
+let import_module_script = async({mod_self, imp, url})=>{
+  let m;
+  if (m = modules[imp]){
+    assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
+    return await m.wait;
+  }
+  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self,
+    exports: {}, loaded: false};
+  try {
+    let response = await fetch(url, fetch_opt(url));
+    if (response.status!=200)
+      throw Error('sw import_module('+url+') failed fetch');
+    m.script = await response.text();
+  } catch(err){
+    console.error('import('+url+') failed', err);
+    throw m.wait.throw(err);
+  }
+  let js = `//# sourceURL=${url}\n(function(){ ${m.script} }());`;
+  try {
+    eval?.(js); // script return value is ignored
+  } catch(err){
+    console.error('import('+url+') failed eval', err, err?.stack);
+    throw m.wait.throw(err);
+  }
+  await m.wait;
+  m.loaded = true;
+  return m.wait.return(m.exports);
+};
+
 async function import_worker({mod_self, imp, opt}){
   let url = npm_2url(imp, mod_self);
   let q;
