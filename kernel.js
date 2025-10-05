@@ -547,7 +547,6 @@ const mjs_import_cjs = (path, q)=>{
   let mod_self = q.get('mod_self');
   _q.delete('imported');
   _q.delete('mod_self');
-  _q.set('cjs', 1);
   _q.sort();
   let _path = json(path+qs_enc(_q));
   let uri_s = json(path);
@@ -564,7 +563,6 @@ const mjs_import_amd = (path, q)=>{
   let mod_self = q.get('mod_self');
   _q.delete('imported');
   _q.delete('mod_self');
-  _q.set('amd', 1);
   _q.sort();
   let uri_s = json(path);
   let js = '';
@@ -1101,7 +1099,6 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
-  assert(!q.get('cjs'));
   assert(!q.get('amd'));
   if (q.get('mjs')==2){
     return response_send({
@@ -1136,7 +1133,6 @@ function _respond_tr_send({f, qs, lmod}){
     return _response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
-  assert(!q.get('cjs'));
   assert(!q.get('amd'));
   if (q.get('mjs')==2){
     return _response_send({
