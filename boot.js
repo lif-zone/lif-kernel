@@ -59,20 +59,6 @@ async function kernel_sync_connect(){
   console.log('master worker started');
   boot_worker.postMessage({fetch_init: {sab: ipc.sab}});
 }
-// junk example of Worker from Blob. Possible also to do dynamic import().
-const senderWorker = 0 && new Worker(URL.createObjectURL(new Blob([`
-  self.onmessage = ({ data: { sharedArray } }) => {
-    const arr = new Int32Array(sharedArray);
-    let message = 42; // Example message to send
-    // Write message data
-    Atomics.store(arr, 1, message);
-    // Set flag atomically
-    Atomics.store(arr, 0, 1);
-    // Notify the receiver (wake up to 1 waiter)
-    Atomics.notify(arr, 0, 1);
-    console.log('Sender: Message sent');
-  };
-`], { type: 'application/javascript' })));
 
 const npm_2url_opt = (url, mod_self, opt)=>{
   let u = T_npm_url_base(url, mod_self);
