@@ -590,7 +590,7 @@ async function import_amd(mod_self, [imp, opt]){
 }
 
 // worker
-async function worker_import({mod_self, imp, opt}){
+async function import_worker({mod_self, imp, opt}){
   let url = npm_2url(imp, mod_self);
   let q;
   if (opt?.type=='script')
@@ -611,7 +611,7 @@ async function import_esm(mod_self, [imp, opt]){
     D && console.log('boot.js: import '+url);
     let ret;
     if (is_worker)
-      ret = await worker_import({mod_self, imp, opt});
+      ret = await import_worker({mod_self, imp, opt});
     else
       ret = await /*keep*/ import(url, opt);
     return ret;
