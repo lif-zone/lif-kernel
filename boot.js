@@ -6,7 +6,7 @@ let D = 0; // Debug
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm, npm_str,
-  T_npm_url_base, uri_enc, qs_enc, qs_append,
+  T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing,
   _debugger} = util;
 let json = JSON.stringify;
@@ -28,10 +28,11 @@ function fetch_sync_worker(url){
   return {status: 200, text: request.responseText};
 }
 
-let kernel_ipc_sync;
+let boot_worker_ipc_sync;
 let boot_worker;
 function fetch_sync_main(url, opt){
-  let ipc = kernel_ipc_sync;
+  assert(boot_worker_ipc_sync, 'no ipc_sync setup');
+  let ipc = boot_worker_ipc_sync;
   ipc.write(json({url, opt}));
   let buf = ipc.read('string');
   let res = JSON.parse(buf);
@@ -47,11 +48,11 @@ function fetch_sync(url, opt){
   return fetch_sync_main(url, opt);
 }
 
-async function kernel_sync_connect(){
+async function boot_worker_sync_connect(){
   let res;
-  let ipc = kernel_ipc_sync = new ipc_sync();
+  let ipc = boot_worker_ipc_sync = new ipc_sync();
   let controller = navigator.serviceWorker.controller;
-  boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
+  boot_worker = new Worker(lif_kernel_base+'boot_worker.js',
     {type: 'module'});
   boot_worker.addEventListener("message", event=>{
     console.log('main got message', event.data, event);
@@ -63,18 +64,19 @@ async function kernel_sync_connect(){
 const npm_2url_opt = (url, mod_self, opt)=>{
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
-    return url;
+    return u.origin+u.path;
   let q = {};
   if (opt?.raw)
     q.raw = 1;
   if (u.is.uri)
-    return qs_append(url, q);
+    return qs_append(u.path, q);
+  // mod
   let _url = '/.lif/'+T_npm_to_lpm(u.path);
   if (opt?.worker)
     q.worker = 1;
   if (opt?.type=='module')
     q.mjs = 1;
-  if (1 || lpm_ver_missing(u.lmod) && !npm_map[u.lmod.name])
+  if (mod_self && url_uri_type(mod_self)=='mod')
     q.mod_self = mod_self;
   return qs_append(_url, q);
 };
@@ -136,6 +138,8 @@ function test(){
   t = (mod_self, url, opt, v)=>assert_eq(v, npm_2url_opt(url, mod_self, opt));
   t('mod@1.2.3', './a/file.js', {},
     '/.lif/npm/mod@1.2.3/a/file.js?mod_self=mod@1.2.3');
+  t('/dir/dir2/file', './a/file.js', {},
+    '/dir/dir2/a/file.js');
   t('.local/other.js', './a/file.js', {worker: 1},
     '/.lif/local/a/file.js?worker=1&mod_self=.local/other.js');
   t('.local/mod/', './a/file.js', {type: 'module'},
@@ -371,7 +375,7 @@ function require_cjs_run(m, p){
     if (_p)
       exports = require_cjs_load_sync({run: 1, p: _p, mod_self: m.id, imp});
     else {
-      console.warn('dynamic require('+imp+') in '+m.id);
+      console.log('dynamic sync require('+imp+') in '+m.id);
       exports = require_cjs_load_sync({run: 1, mod_self: m.id, imp});
     }
     return exports;
@@ -672,7 +676,7 @@ let boot_kernel = async()=>{
       D && console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
-      let res = await kernel_sync_connect();
+      let res = await boot_worker_sync_connect();
       D && console.log('conn_kernel chan end');
       slow.end();
       wait.return();
@@ -773,9 +777,7 @@ let boot_app = async(app_pkg)=>{
 if (!is_worker){
   let get_url = (url, opt)=>{
     url = url.href || url;
-    let _url = url;
-    // TOOD use globalThis.location instead of npm_root for relative URLs base
-    _url = npm_2url_opt(_url, npm_root, {worker: 1, type: opt?.type});
+    let _url = npm_2url_opt(url, npm_root, {worker: 1, type: opt?.type});
     return _url;
   };
   class lif_Worker extends Worker {
