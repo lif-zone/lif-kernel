@@ -533,7 +533,6 @@ async function require_cjs_async(mod_self, imp){
 // web worker importScripts()/require() implementation
 let fetch_opt = url=>
   (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
-let import_modules = {};
 let import_module_script = async({mod_self, imp, url, opt})=>{
   let m;
   if (m = modules[imp]){
