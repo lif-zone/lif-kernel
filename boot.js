@@ -19,20 +19,7 @@ let npm_map = {};
 let process = globalThis.process ||= {env: {}};
 let is_worker = typeof window=='undefined';
 
-function fetch_sync(url){
-  console.log('fetch_sync not supported: '+url);
-  return {status: 404};
-  let req = new XMLHttpRequest();
-  let v = {};
-  req.open('GET', url, false); // `false` makes the request synchronous
-  req.setRequestHeader('Cache-Control', 'no-cache');
-  req.send(); // blocking until request is sent
-  v.status = req.status;
-  v.text = req.responseText; // blocking until response data received
-  return v;
-}
-
-function sync_worker_fetch(url){
+function fetch_sync_worker(url){
   const request = new XMLHttpRequest();
   request.open('GET', url, false);
   request.send(null);
@@ -43,7 +30,7 @@ function sync_worker_fetch(url){
 
 let kernel_ipc_sync;
 let boot_worker;
-function kernel_fetch_sync(url, opt){
+function fetch_sync_main(url, opt){
   let ipc = kernel_ipc_sync;
   ipc.write(json({url, opt}));
   let buf = ipc.read('string');
@@ -52,6 +39,12 @@ function kernel_fetch_sync(url, opt){
     return {status: 500};
   let text = ipc.read('string');
   return {status: 200, text};
+}
+
+function fetch_sync(url, opt){
+  if (is_worker)
+    return fetch_sync_worker(url, opt);
+  return fetch_sync_main(url, opt);
 }
 
 async function kernel_sync_connect(){
@@ -262,7 +255,7 @@ function require_cjs_load_meta_sync(p){
     return do_ret('done');
   let url = m.url+qs_enc({meta: 1, follow: 1, mod_self: p.mod_self});
   let req;
-  req = kernel_fetch_sync(url);
+  req = fetch_sync(url);
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
@@ -317,7 +310,7 @@ async function require_cjs_load_file_sync(m){
   if (m.url.startsWith('/.lif/'))
     url += '?raw=1';
   let req;
-  req = kernel_fetch_sync(url);
+  req = fetch_sync(url);
   if (req.status==200)
     m.script = p.text = req.text;
   if (req.status!=200){
@@ -644,7 +637,7 @@ async function import_esm(mod_self, [imp, opt]){
 // worker
 function importScripts_single(mod_self, [mod, opt]){
   let url = npm_2url_opt(mod, mod_self, opt?.type=='script' ? {raw: 1} : {});
-  let res = sync_worker_fetch(url);
+  let res = fetch_sync(url);
   if (res.status!=200)
     throw Error('failed fetch '+url);
   let script = res.text;
