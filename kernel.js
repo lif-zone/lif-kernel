@@ -1118,8 +1118,9 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
       return res;
     }
     res = lpm_meta_type({f, lmod: imp});
-    if (f.ast.requires)
-      res.requires = f.ast.requires;
+    let ast = file_ast(f);
+    if (ast.requires)
+      res.requires = ast.requires;
     return res;
   }
 }
