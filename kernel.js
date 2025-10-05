@@ -273,9 +273,24 @@ let ast_get_scope_type = (path, opt)=>{
 
 let array_unique = a=>[...new Set(a)];
 
+let file_type = f=>{
+  if (f.type)
+    return f.type;
+  let ext = _path_ext(f.lmod);
+  if (ctype_binary(f.lmod))
+    return f.type = 'binary';
+  if (ext=='json')
+    return f.type = 'json';
+  if (ext=='css')
+    return f.type = 'css';
+  return f.type = 'js';
+};
+
 let file_ast = f=>{
   if (f.ast)
     return f.ast;
+  if (file_type(f)!='js')
+    return;
   let ast = f.ast = {}, lmod = f.lmod;
   let tr_jsx_ts = ()=>{
     let ext = _path_ext(lmod);
@@ -310,6 +325,8 @@ let file_ast = f=>{
       opt.plugins.push('jsx');
     opt.sourceType = 'module';
     try {
+      globalThis.parser = parser;
+      globalThis.parser_opt = opt;
       ast.ast = parser.parse(f.js, opt);
     } catch(err){
       throw Error('fail ast parse('+lmod+'):'+err);
@@ -1061,7 +1078,7 @@ function responce_tr_send({f, qs, lmod}){
   let ast = file_ast(f);
   let type = ast.type;
   if (q.get('mjs')==2){
-    return {body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
+    return {body: mjs_import_mjs(ast.has.export_default, '/.lif/'+lmod, q),
       ext: 'js'};
   }
   if (q.get('mjs')==1 && (type=='mjs' || !type))
@@ -1079,14 +1096,10 @@ function lpm_meta_type({f, lmod}){
   let ext = _path_ext(lmod);
   if (f.redirect)
     return {redirect: f.redirect};
-  if (ctype_binary(lmod))
-    return {type: 'binary'};
-  if (ext=='json')
-    return {type: 'json'};
-  if (ext=='css')
-    return {type: 'css'};
-  let ast = file_ast(f);
-  let type = ast.type;
+  let type = file_type(f);
+  if (type!='js')
+    return {type};
+  type = file_ast(f).type;
   if (str.is(type, 'mjs', 'cjs', 'amd', ''))
     return {type};
   assert(0, 'invalid lpm file type '+type);
@@ -1119,7 +1132,7 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
     }
     res = lpm_meta_type({f, lmod: imp});
     let ast = file_ast(f);
-    if (ast.requires)
+    if (ast?.requires)
       res.requires = ast.requires;
     return res;
   }
