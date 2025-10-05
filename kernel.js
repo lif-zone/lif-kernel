@@ -1085,7 +1085,6 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
-  assert(!q.get('amd'));
   if (q.get('mjs')==2){
     return response_send({
       body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
@@ -1095,12 +1094,10 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
-  if (type=='cjs')
+  if (type=='cjs' || type=='')
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='amd' || type=='')
     return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
-  if (type=='')
-    return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs')
     return Response.redirect('/.lif/'+lmod+'?mjs=2');
   throw Error('invalid lpm file type '+type);
@@ -1119,7 +1116,6 @@ function _respond_tr_send({f, qs, lmod}){
     return _response_send({body: f.blob, ext: 'css'});
   let ast = file_ast(f);
   let type = ast.type;
-  assert(!q.get('amd'));
   if (q.get('mjs')==2){
     return _response_send({
       body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
@@ -1129,12 +1125,10 @@ function _respond_tr_send({f, qs, lmod}){
     return _response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
-  if (type=='cjs')
+  if (type=='cjs' || type=='')
     return _response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='amd' || type=='')
     return _response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
-  if (type=='')
-    return _response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs')
     return {redirect: '/.lif/'+lmod+'?mjs=2'};
   return {err: 'invalid lpm file type '+type};
