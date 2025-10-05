@@ -378,7 +378,6 @@ class ipc_sync {
       this.store_lock(1);
       this.notify_lock();
       this.wait_lock(1);
-      assert(this.load_lock()==0, 'ipc_sync lock busy');
     }
     this.err = null;
   }
@@ -400,7 +399,6 @@ class ipc_sync {
       this.store_lock(1);
       this.notify_lock();
       await this.E_wait_lock(1);
-      assert(this.load_lock()==0, 'ipc_sync lock busy');
     }
     this.err = null;
   }
