@@ -453,89 +453,6 @@ let file_ast = f=>{
   return ast;
 };
 
-let tr_cjs_require = f=>{
-  let s = Scroll(f.js);
-  for (let d of f.ast.requires){
-    if (!(d.type=='sync' || d.type=='try'))
-      s.splice(d.start, d.end, '(await require_async('+json(d.module)+'))');
-  }
-  return s.out();
-};
-
-function require_non_toplevel(lpm_pkg){
-  let u = lpm_parse(lpm_pkg.lmod);
-  if (u.reg=='npm' && (u.name=='react' || u.name=='react-dom')){
-    // NPM react: require('react') in a function: self referencing
-    // react@18.3.1/cjs/react-jsx-runtime.development.js:25
-    // should be solved by making require('react') in react detect "self"
-    //
-    // NPM react-dom: require('react') in a function: parent import (peer dep)
-    // react-dom@18.3.1/cjs/react-dom.development.js:36
-    // need to put callbacks also in mjs modules so they register like cjs
-    // on load, and then in sync require() locate it from the table.
-    // this will also solve the self-referencing cases.
-    console.log('require_non_topmevel', lpm_pkg.lmod);
-    return true;
-  }
-}
-const file_tr_cjs = (f, opt)=>{
-  assert(0, 'unused file_tr_cjs');
-  let uri_s = json(f.npm_uri);
-  let mod_data = `{npm_uri: ${json(f.npm_uri)},
-    url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
-    log: ${json(f.log)}}`;
-  let tr = tr_cjs_require(f);
-  let slow = 0;
-  let pre = '', post = '';
-  let _require_non_toplevel = require_non_toplevel(f.lpm_pkg);
-  for (let r of f.ast.requires){
-    // LESSON good phylological wording soduku: 
-    // if (!require_toplevel_only && r.type=='sync')
-    if (_require_non_toplevel && r.type=='sync')
-      pre += `await require_async(${json(r.module)});\n`;
-  }
-  if (slow)
-    pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
-  if (slow)
-    post += `slow.end(); `;
-  let js = `
-    let module = globalThis.lif.boot.require_register_cb(${mod_data});
-    let exports = module.exports;
-    let require = module.require;
-    let require_async = module.require_async;
-    ${pre}
-    await (async()=>{
-    ${tr}
-    })(); ${post}
-  `;
-  js += `export default module.exports;\n`;
-  js += `globalThis.lif.boot.require_register_cb_end(module);\n`;
-  return js;
-};
-
-const file_tr_amd = (f, opt)=>{
-  let uri_s = json(f.npm_uri);
-  let mod_data = `{npm_uri: ${json(f.npm_uri)},
-    url: import.meta.url, parent_mod: ${json(f.lpm_pkg.parent_mod)},
-    log: ${json(f.log)}}`;
-  let slow = 0;
-  let pre = '', post = '';
-  if (slow)
-    pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
-  if (slow)
-    post += `slow.end(); `;
-  let js = `
-    let define = globalThis.lif.boot.require_register_cb(${mod_data}).define;
-    ${pre}
-    await (async()=>{
-    ${f.js}
-    })(); ${post}
-  `;
-  js += `export default module.exports;\n`;
-  js += `globalThis.lif.boot.require_register_cb_end(define.module);\n`;
-  return js;
-};
-
 let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let D = 0;
   let u;
@@ -1158,8 +1075,6 @@ function response_redirect({f, qs, lmod}){
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
     q.delete('mod_self');
-  if (q.size==1 && q.get('cjs')==1)
-    q.set('cjs', '2');
   let redirect = '/.lif/'+f.redirect+qs_enc(q);
   D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return Response.redirect(redirect);
@@ -1169,8 +1084,6 @@ function _response_redirect({f, qs, lmod}){
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
     q.delete('mod_self');
-  if (q.size==1 && q.get('cjs')==1)
-    q.set('cjs', '2');
   let redirect = '/.lif/'+f.redirect+qs_enc(q);
   D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return {redirect: redirect};
@@ -1201,7 +1114,6 @@ function respond_tr_send({f, qs, lmod}){
     return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
       ext: 'js'});
   }
-  assert(!q.get('mjs'));
   if (type=='cjs')
     return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='amd' || type=='')
@@ -1241,6 +1153,8 @@ function _respond_tr_send({f, qs, lmod}){
     return _response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='amd' || type=='')
     return _response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
+  if (type=='')
+    return _response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
   if (type=='mjs')
     return {redirect: '/.lif/'+lmod+'?mjs=2'};
   return {err: 'invalid lpm file type '+type};

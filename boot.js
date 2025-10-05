@@ -512,7 +512,7 @@ async function require_cjs_load({run, mod_self, imp, p}){
     return m.exports;
   }
   if (m.meta.type=='amd'){
-    let e = await import(m.url+'?amd=2');
+    let e = await import(m.url+'?amd=2'); // TODO import_amd
     m.exports = e.default || e;
     m.run = 'done';
     return m.exports;
