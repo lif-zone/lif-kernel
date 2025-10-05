@@ -1025,20 +1025,6 @@ let response_send = ({body, ext})=>{
   return new Response(body, opt);
 };
 
-let _response_send = ({body, ext})=>{
-  let v;
-  let opt = {}, ctype = ctype_get(ext), h = {};
-  if (!ctype){
-    D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext));
-    ctype = ctype_get('text');
-  }
-  h['content-type'] = ctype.ctype;
-  h['cache-control'] = 'no-cache';
-  coi_set_headers(h);
-  opt.headers = new Headers(h);
-  return {body, ctype};
-};
-
 let ctype_binary = path=>{
   let ext = _path_ext(path);
   let ctype = ctype_get(ext)?.ctype;
@@ -1056,55 +1042,16 @@ function response_redirect({f, qs, lmod}){
     q.delete('mod_self');
   let redirect = '/.lif/'+f.redirect+qs_enc(q);
   D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
-  return Response.redirect(redirect);
-}
-function _response_redirect({f, qs, lmod}){
-  let q = new URLSearchParams(qs);
-  let l = lpm_parse(f.redirect);
-  if (l && !lpm_ver_missing(l))
-    q.delete('mod_self');
-  let redirect = '/.lif/'+f.redirect+qs_enc(q);
-  D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return {redirect};
 }
-function respond_tr_send({f, qs, lmod}){
-  let ext = _path_ext(lmod);
-  let q = new URLSearchParams(qs);
-  if (f.redirect)
-    return response_redirect({f, qs, lmod});
-  if (q.has('raw') || ctype_binary(lmod))
-    return response_send({body: f.blob, ext});
-  if (ext=='json')
-    return response_send({body: f.blob, ext: 'json'});
-  if (ext=='css')
-    return response_send({body: f.blob, ext: 'css'});
-  let ast = file_ast(f);
-  let type = ast.type;
-  if (q.get('mjs')==2){
-    return response_send({
-      body: mjs_import_mjs(f.ast.has.export_default, '/.lif/'+lmod, q),
-      ext: 'js'});
-  }
-  if (q.get('mjs')==1 && (type=='mjs' || !type)){
-    return response_send({body: file_tr_mjs(f, {worker: q.get('worker')}),
-      ext: 'js'});
-  }
-  if (type=='cjs' || type=='')
-    return response_send({body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'});
-  if (type=='amd' || type=='')
-    return response_send({body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'});
-  if (type=='mjs')
-    return Response.redirect('/.lif/'+lmod+'?mjs=2');
-  throw Error('invalid lpm file type '+type);
-}
 
-function _respond_tr_send({f, qs, lmod}){
+function responce_tr_send({f, qs, lmod}){
   if (f.not_exist)
     return {not_exist: true};
   let ext = _path_ext(lmod);
   let q = new URLSearchParams(qs);
   if (f.redirect)
-    return _response_redirect({f, qs, lmod});
+    return response_redirect({f, qs, lmod});
   if (q.has('raw') || ctype_binary(lmod))
     return {body: f.blob, ext};
   if (ext=='json')
@@ -1128,7 +1075,7 @@ function _respond_tr_send({f, qs, lmod}){
   return {err: 'invalid lpm file type '+type};
 }
 
-function respond_tr_send_meta({f, lmod}){
+function responce_tr_send_meta({f, lmod}){
   let ext = _path_ext(lmod);
   if (f.redirect)
     return {redirect: f.redirect};
@@ -1170,7 +1117,7 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
       res.redirect = res.redirects.at(-1);
       return res;
     }
-    let meta = respond_tr_send_meta({f, lmod: imp});
+    let meta = responce_tr_send_meta({f, lmod: imp});
     if (f.ast.requires)
       meta.requires = f.ast.requires;
     OA(res, meta);
@@ -1178,8 +1125,8 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
   }
 }
 
-async function fetch_lpm_file_send(fetch_lpm_response){
-  let f = fetch_lpm_response;
+async function send_res(file_response){
+  let f = file_response;
   if (f.err)
     return new Response(''+f.err, {status: 500, statusText: ''+f.err});
   if (f.not_exist)
@@ -1193,7 +1140,7 @@ async function fetch_lpm_file_send(fetch_lpm_response){
 
 async function fetch_lpm_file({log, imp, mod_self, qs}){
   let f = await lpm_file_resolve({log, imp, mod_self});
-  return _respond_tr_send({f, qs, lmod: imp});
+  return responce_tr_send({f, qs, lmod: imp});
 }
 
 async function fetch_pass(request, type){
@@ -1240,10 +1187,10 @@ async function _kernel_fetch(event){
     slow.end();
     if (q.get('meta')){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod, qs});
-      return response_send({body: json(meta), ext: 'json'});
+      return send_res({body: json(meta), ext: 'json'});
     }
-    let fetch_res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
-    return await fetch_lpm_file_send(fetch_res);
+    let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
+    return send_res(res);
   }
   // local requests
   let _path;
