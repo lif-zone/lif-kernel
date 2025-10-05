@@ -42,7 +42,6 @@ let coi_enable = true;
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = mime_db.ext2mime[ext]||'plain/text';
-  console.log(_path);
   let e = fs.statSync(_path, {throwIfNoEntry: false});
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
