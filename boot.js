@@ -626,7 +626,7 @@ function importScripts_single(mod_self, [mod, opt]){
     throw Error('failed fetch '+url);
   let script = res.text;
   let exports = eval.call(globalThis,
-    `//# sourceURL=${url}\n;(function(){ ${script} }())`);
+    `//# sourceURL=${url}\n;${script}`);
 }
 
 function _importScripts(mod_self, mods){
