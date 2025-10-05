@@ -1035,13 +1035,13 @@ let ctype_binary = path=>{
   return false;
 };
 
-function response_redirect({f, qs, lmod}){
+function lpm_redirect({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
   if (l && !lpm_ver_missing(l))
     q.delete('mod_self');
   let redirect = '/.lif/'+f.redirect+qs_enc(q);
-  D && console.log('redirect f '+lmod+' -> '+f.redirect, qs+' -> '+q);
+  D && console.log('lpm_redirect '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return {redirect};
 }
 
@@ -1051,7 +1051,7 @@ function responce_tr_send({f, qs, lmod}){
   let ext = _path_ext(lmod);
   let q = new URLSearchParams(qs);
   if (f.redirect)
-    return response_redirect({f, qs, lmod});
+    return lpm_redirect({f, qs, lmod});
   if (q.has('raw') || ctype_binary(lmod))
     return {body: f.blob, ext};
   if (ext=='json')
@@ -1075,7 +1075,7 @@ function responce_tr_send({f, qs, lmod}){
   return {err: 'invalid lpm file type '+type};
 }
 
-function responce_tr_send_meta({f, lmod}){
+function lpm_meta_type({f, lmod}){
   let ext = _path_ext(lmod);
   if (f.redirect)
     return {redirect: f.redirect};
@@ -1089,7 +1089,7 @@ function responce_tr_send_meta({f, lmod}){
   let type = ast.type;
   if (str.is(type, 'mjs', 'cjs', 'amd', ''))
     return {type};
-  throw Error('invalid lpm file type '+type);
+  assert(0, 'invalid lpm file type '+type);
 }
 
 async function fetch_lpm_meta({log, imp, mod_self, qs}){
@@ -1117,11 +1117,10 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
       res.redirect = res.redirects.at(-1);
       return res;
     }
-    let meta = responce_tr_send_meta({f, lmod: imp});
+    res = lpm_meta_type({f, lmod: imp});
     if (f.ast.requires)
-      meta.requires = f.ast.requires;
-    OA(res, meta);
-    return meta;
+      res.requires = f.ast.requires;
+    return res;
   }
 }
 
