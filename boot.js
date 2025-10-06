@@ -352,12 +352,16 @@ function require_cjs_load_requires_sync(m){
   m.load_requires = 1;
 }
 
-async function require_cjs_load_requires(m){
+async function require_cjs_load_requires(m, loading){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
-    if (req.type=='program')
-      await require_cjs_load({run: false, mod_self: m.id, imp: req.module});
+    if (req.type=='program'){
+      let slow = eslow(15000, 'require_cjs_load_require('+m.id+' -> '
+        +req.module+')');
+      await require_cjs_load({run: false, mod_self: m.id, imp: req.module, loading});
+      slow.end();
+    }
   }
   m.load_requires = 1;
 }
@@ -381,6 +385,7 @@ function require_cjs_run(m, p){
     return exports;
   };
   m.require.require_async = async function(imp){
+    console.log('require_async', imp);
     return await require_cjs_load({run: 1, mod_self: m.id, imp});
   };
   m.require.module = m; // debug
@@ -449,7 +454,7 @@ function require_cjs_load_sync({run, mod_self, imp, p}){
   return m.exports;
 }
 
-async function require_cjs_load({run, mod_self, imp, p}){
+async function require_cjs_load({run, mod_self, imp, p, loading}){
   let slow = eslow(15000, 'require_cjs('+imp+')');
   try {
   D && console.log('async', run ? 'run' : 'load', mod_self, imp);
@@ -469,15 +474,19 @@ async function require_cjs_load({run, mod_self, imp, p}){
     imp = m.id;
     mod_self = p.mod_self;
   }
+  loading ||= [];
+  if (loading.includes(p))
+    return;
+  loading.push(p);
   if (m.run)
     return m.exports;
   await require_cjs_load_meta(p);
   if (p.res!='done')
     return;
   if (p.meta.redirect)
-    return await require_cjs_load({run, mod_self: null, imp: p.meta.redirect});
+    return await require_cjs_load({run, mod_self: null, imp: p.meta.redirect, loading});
   if (mod_self)
-    return await require_cjs_load({run, mod_self: null, imp});
+    return await require_cjs_load({run, mod_self: null, imp, loading});
   m.meta = p.meta;
   await require_cjs_load_file(m);
   if (m.file.res!='done')
@@ -494,13 +503,11 @@ async function require_cjs_load({run, mod_self, imp, p}){
     m.run = 'done';
     return m.exports;
   }
-  await require_cjs_load_requires(m);
+  await require_cjs_load_requires(m, loading);
   if (run)
     require_cjs_run(m);
   return m.exports;
-  } finally {
-    slow.end();
-  }
+  } finally { slow.end(); }
 }
 
 async function require_cjs_async(mod_self, imp){
