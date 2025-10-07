@@ -502,7 +502,6 @@ async function require_cjs_load({mod_self, imp, p, loading}){
 
 function require_cjs_sync(mod_self, imp){
   D && console.log('require_cjs_sync', imp);
-  if (!imp) debugger;
   imp = npm_norm(mod_self, imp);
   let _p = modules[imp]?.parent[mod_self];
   let m;
