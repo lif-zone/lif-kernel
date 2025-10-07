@@ -342,12 +342,12 @@ async function require_cjs_load_file(m){
   return do_ret('done');
 }
 
-function require_cjs_load_requires_sync(m){
+function require_cjs_load_requires_sync(m, loading){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
     if (req.type=='program')
-      require_cjs_load_sync({run: false, mod_self: m.id, imp: req.module});
+      require_cjs_load_sync({mod_self: m.id, imp: req.module, loading});
   }
   m.load_requires = 1;
 }
@@ -359,7 +359,7 @@ async function require_cjs_load_requires(m, loading){
     if (req.type=='program'){
       let slow = eslow(15000, 'require_cjs_load_require('+m.id+' -> '
         +req.module+')');
-      await require_cjs_load({run: false, mod_self: m.id, imp: req.module, loading});
+      await require_cjs_load({mod_self: m.id, imp: req.module, loading});
       slow.end();
     }
   }
@@ -373,20 +373,10 @@ function require_cjs_run(m, p){
     return m.run = 'done';
   }
   m.require = function(imp){
-    imp = npm_norm(m.id, imp);
-    let _p = modules[imp]?.parent[m.id];
-    let exports;
-    if (_p)
-      exports = require_cjs_load_sync({run: 1, p: _p, mod_self: m.id, imp});
-    else {
-      console.log('dynamic sync require('+imp+') in '+m.id);
-      exports = require_cjs_load_sync({run: 1, mod_self: m.id, imp});
-    }
-    return exports;
+    return require_cjs_sync(m.id, imp);
   };
   m.require.require_async = async function(imp){
-    console.log('require_async', imp);
-    return await require_cjs_load({run: 1, mod_self: m.id, imp});
+    return await require_cjs_async(m.id, imp);
   };
   m.require.module = m; // debug
   let js = `//# sourceURL=${m.url}\n`;
@@ -409,8 +399,8 @@ function require_cjs_run(m, p){
   return m.run = 'done';
 }
 
-function require_cjs_load_sync({run, mod_self, imp, p}){
-  D && console.log('sync', run ? 'run' : 'load', mod_self, imp);
+function require_cjs_load_sync({mod_self, imp, p, loading}){
+  D && console.log('sync load', mod_self, imp);
   let m;
   if (!p){
     imp = npm_norm(mod_self, imp);
@@ -427,37 +417,39 @@ function require_cjs_load_sync({run, mod_self, imp, p}){
     imp = m.id;
     mod_self = p.mod_self;
   }
-  if (m.run)
-    return m.exports;
+  if (m.run || m.load_requires)
+    return m;
+  loading = loading ? [...loading] : [];
+  if (loading.includes(p))
+    return m;
+  loading.push(p);
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
-    return;
+    return m;
   if (p.meta.redirect)
-    return require_cjs_load_sync({run, mod_self: null, imp: p.meta.redirect});
+    return require_cjs_load_sync({mod_self: null, imp: p.meta.redirect, loading});
   if (mod_self)
-    return require_cjs_load_sync({run, mod_self: null, imp});
+    return require_cjs_load_sync({mod_self: null, imp, loading});
   m.meta = p.meta;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
-    return;
+    return m;
   if (m.meta.type=='mjs'){
     console.error('cannot load mjs sync '+m.id);
-    return;
+    return m;
   }
   if (m.meta.type=='amd'){
     console.error('cannot load amd sync '+m.id);
-    return;
+    return m;
   }
   require_cjs_load_requires_sync(m);
-  if (run)
-    require_cjs_run(m);
-  return m.exports;
+  return m;
 }
 
-async function require_cjs_load({run, mod_self, imp, p, loading}){
-  let slow = eslow(15000, 'require_cjs('+imp+')');
+async function require_cjs_load({mod_self, imp, p, loading}){
+  let slow = eslow(15000, 'require_cjs_load('+imp+')');
   try {
-  D && console.log('async', run ? 'run' : 'load', mod_self, imp);
+  D && console.log('async load', mod_self, imp);
   let m;
   if (!p){
     imp = npm_norm(mod_self, imp);
@@ -474,44 +466,61 @@ async function require_cjs_load({run, mod_self, imp, p, loading}){
     imp = m.id;
     mod_self = p.mod_self;
   }
-  loading ||= [];
+  if (m.run || m.load_requires)
+    return m;
+  loading = loading ? [...loading] : [];
   if (loading.includes(p))
-    return;
+    return m;
   loading.push(p);
-  if (m.run)
-    return m.exports;
   await require_cjs_load_meta(p);
   if (p.res!='done')
-    return;
+    return m;
   if (p.meta.redirect)
-    return await require_cjs_load({run, mod_self: null, imp: p.meta.redirect, loading});
+    return await require_cjs_load({mod_self: null, imp: p.meta.redirect, loading});
   if (mod_self)
-    return await require_cjs_load({run, mod_self: null, imp, loading});
+    return await require_cjs_load({mod_self: null, imp, loading});
   m.meta = p.meta;
   await require_cjs_load_file(m);
   if (m.file.res!='done')
-    return;
+    return m;
   if (m.meta.type=='mjs'){
     let e = await import(m.url+'?mjs=1');
     m.exports = e.default || e;
     m.run = 'done';
-    return m.exports;
+    return m;
   }
   if (m.meta.type=='amd'){
     let e = await import_amd(null, [m.url]);
     m.exports = e.default || e;
     m.run = 'done';
-    return m.exports;
+    return m;
   }
   await require_cjs_load_requires(m, loading);
-  if (run)
-    require_cjs_run(m);
-  return m.exports;
+  return m;
   } finally { slow.end(); }
 }
 
+function require_cjs_sync(mod_self, imp){
+  D && console.log('require_cjs_sync', imp);
+  if (!imp) debugger;
+  imp = npm_norm(mod_self, imp);
+  let _p = modules[imp]?.parent[mod_self];
+  let m;
+  if (_p)
+    m = require_cjs_load_sync({p: _p, mod_self, imp});
+  else {
+    console.log('dynamic sync require('+imp+') in '+mod_self);
+    m = require_cjs_load_sync({mod_self, imp});
+  }
+  require_cjs_run(m);
+  return m.exports;
+}
+
 async function require_cjs_async(mod_self, imp){
-  return await require_cjs_load({run: 1, mod_self, imp});
+  D && console.log('require_cjs_async', imp);
+  let m = await require_cjs_load({mod_self, imp});
+  require_cjs_run(m);
+  return m.exports;
 }
 
 // web worker importScripts()/require() implementation
