@@ -286,6 +286,7 @@ let file_type = f=>{
   return f.type = 'js';
 };
 
+// http://localhost:3000/.lif/npm/lif-coin/browser/main.tsx?raw=1
 let file_ast = f=>{
   if (f.ast)
     return f.ast;
@@ -312,6 +313,8 @@ let file_ast = f=>{
         ({code: f.js} = Babel.transform(f.body, opt));
       } catch(err){
         console.error('babel('+lmod+') FAILED', err);
+        ast.err = 'tsx tr: '+err;
+        ast.type = 'err';
         throw err;
       }
     }
@@ -329,6 +332,8 @@ let file_ast = f=>{
       globalThis.parser_opt = opt;
       ast.ast = parser.parse(f.js, opt);
     } catch(err){
+      ast.err = 'ast: '+err;
+      ast.type = 'err';
       throw Error('fail ast parse('+lmod+'):'+err);
     }
   };
@@ -1077,6 +1082,8 @@ function responce_tr_send({f, qs, lmod}){
     return {body: f.blob, ext: 'css'};
   let ast = file_ast(f);
   let type = ast.type;
+  if (ast.err)
+    return {err: 'ast err: '+ast.err};
   if (q.get('mjs')==2){
     return {body: mjs_import_mjs(ast.has.export_default, '/.lif/'+lmod, q),
       ext: 'js'};
@@ -1100,7 +1107,7 @@ function lpm_meta_type({f, lmod}){
   if (type!='js')
     return {type};
   type = file_ast(f).type;
-  if (str.is(type, 'mjs', 'cjs', 'amd', ''))
+  if (str.is(type, 'err', 'mjs', 'cjs', 'amd', ''))
     return {type};
   assert(0, 'invalid lpm file type '+type);
 }
