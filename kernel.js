@@ -315,7 +315,7 @@ let file_ast = f=>{
         console.error('babel('+lmod+') FAILED', err);
         ast.err = 'tsx tr: '+err;
         ast.type = 'err';
-        throw err;
+        ast._err = err;
       }
     }
   };
@@ -334,7 +334,7 @@ let file_ast = f=>{
     } catch(err){
       ast.err = 'ast: '+err;
       ast.type = 'err';
-      throw Error('fail ast parse('+lmod+'):'+err);
+      ast._err = err;
     }
   };
 
@@ -470,7 +470,11 @@ let file_ast = f=>{
     ast.exports = array_unique(ast.exports).sort();
   };
   tr_jsx_ts();
+  if (ast.err)
+    return ast;
   parse_ast();
+  if (ast.err)
+    return ast;
   scan_ast();
   return ast;
 };
@@ -1080,20 +1084,21 @@ function responce_tr_send({f, qs, lmod}){
     return {body: f.blob, ext: 'json'};
   if (ext=='css')
     return {body: f.blob, ext: 'css'};
+  ext = 'js';
   let ast = file_ast(f);
   let type = ast.type;
   if (ast.err)
-    return {err: 'ast err: '+ast.err};
+    return {body: f.blob, ext, err: 'ast err: '+ast.err};
   if (q.get('mjs')==2){
     return {body: mjs_import_mjs(ast.has.export_default, '/.lif/'+lmod, q),
-      ext: 'js'};
+      ext};
   }
   if (q.get('mjs')==1 && (type=='mjs' || !type))
-    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext: 'js'};
+    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext};
   if (type=='cjs' || type=='')
-    return {body: mjs_import_cjs('/.lif/'+lmod, q), ext: 'js'};
+    return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
   if (type=='amd' || type=='')
-    return {body: mjs_import_amd('/.lif/'+lmod, q), ext: 'js'};
+    return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
   if (type=='mjs')
     return {redirect: '/.lif/'+lmod+'?mjs=2'};
   return {err: 'invalid lpm file type '+type};
