@@ -361,14 +361,16 @@ class ipc_sync {
     return res;
   }
   write(buf){
-    assert(!this.err, 'ipc_sync err state');
+    if (this.err)
+      throw Error('ipc_sync err state');
     this.err = 'started';
     buf = str_to_buf(buf);
     let sz = buf.byteLength, ofs = 0, len, i;
     this.store_sz(sz);
     for (i=0; !i || ofs<sz; i++, ofs += len){
       // validate ipc channel is free
-      assert(this.load_lock()==0, 'ipc_sync lock busy');
+      if (this.load_lock())
+        throw Error('ipc_sync lock busy');
       let len = Math.min(sz-ofs, this._data.byteLength);
       this.store_len(len);
       this.store_last(ofs+len==sz);
@@ -382,14 +384,16 @@ class ipc_sync {
     this.err = null;
   }
   async E_write(buf){
-    assert(!this.err, 'ipc_sync err state');
+    if (this.err)
+      throw Error('ipc_sync err state');
     this.err = 'started';
     buf = str_to_buf(buf);
     let sz = buf.byteLength, ofs = 0, len, i;
     this.store_sz(sz);
     for (i=0; !i || ofs<sz; i++, ofs += len){
       // validate ipc channel is free (==0)
-      assert(this.load_lock()==0, 'ipc_sync lock busy');
+      if (this.load_lock())
+        throw Error('ipc_sync lock busy');
       let len = Math.min(sz-ofs, this._data.byteLength);
       this.store_len(len);
       this.store_last(ofs+len==sz ? 1 : 0);
@@ -403,7 +407,8 @@ class ipc_sync {
     this.err = null;
   }
   read(type){
-    assert(!this.err, 'ipc_sync err state');
+    if (this.err)
+      throw Error('ipc_sync err state');
     this.err = 'started';
     let sz, buf, _buf, i = 0, ofs = 0, len, seq, last;
     for (i=0; !i || ofs<sz; i++, ofs += len){
@@ -429,7 +434,8 @@ class ipc_sync {
     return buf;
   }
   async E_read(type){
-    assert(!this.err, 'ipc_sync err state');
+    if (this.err)
+      throw Error('ipc_sync err state');
     this.err = 'started';
     let sz, buf, _buf, i = 0, ofs = 0, len, seq, last;
     for (i=0; !i || ofs<sz; i++, ofs += len){
