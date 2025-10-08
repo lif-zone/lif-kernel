@@ -658,10 +658,6 @@ async function reg_http_get({log, url}){
   let slow = eslow(5000, 'fetch '+url);
   try {
     D && console.log('fetch '+url+' for '+log.mod);
-    if (url=="https://cdn.jsdelivr.net/npm/browserify-aes@1.0.4/modes"){
-      console.log('fetch('+json(url)+','+json(fetch_opt(url))+')');
-      debugger;
-    }
     response = await fetch(url, fetch_opt(url));
   } catch(_err){
     slow.end();
