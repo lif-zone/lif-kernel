@@ -342,12 +342,12 @@ async function require_cjs_load_file(m){
   return do_ret('done');
 }
 
-function require_cjs_load_requires_sync(m, loading){
+function require_cjs_load_requires_sync(m){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
     if (req.type=='program')
-      require_cjs_load_sync({mod_self: m.id, imp: req.module, loading});
+      require_cjs_load_sync({mod_self: m.id, imp: req.module});
   }
   m.load_requires = 1;
 }
@@ -368,6 +368,7 @@ async function require_cjs_load_requires(m, loading){
 function require_cjs_run(m, p){
   if (m.run)
     return m.run;
+  m.run = 'running';
   if (m.is_json){
     m.exports = m.file.json;
     return m.run = 'done';
@@ -399,7 +400,7 @@ function require_cjs_run(m, p){
   return m.run = 'done';
 }
 
-function require_cjs_load_sync({mod_self, imp, p, loading}){
+function require_cjs_load_sync({mod_self, imp, p}){
   D && console.log('sync load', mod_self, imp);
   let m;
   if (!p){
@@ -417,19 +418,16 @@ function require_cjs_load_sync({mod_self, imp, p, loading}){
     imp = m.id;
     mod_self = p.mod_self;
   }
-  if (m.run || m.load_requires)
+  if (m.run || m.load_requires || p.loading)
     return m;
-  loading = loading ? [...loading] : [];
-  if (loading.includes(p))
-    return m;
-  loading.push(p);
+  p.loading = 1;
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
     return m;
   if (p.meta.redirect)
-    return require_cjs_load_sync({mod_self: null, imp: p.meta.redirect, loading});
+    return require_cjs_load_sync({mod_self: null, imp: p.meta.redirect});
   if (mod_self)
-    return require_cjs_load_sync({mod_self: null, imp, loading});
+    return require_cjs_load_sync({mod_self: null, imp});
   m.meta = p.meta;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
@@ -503,10 +501,10 @@ async function require_cjs_load({mod_self, imp, p, loading}){
 function require_cjs_sync(mod_self, imp){
   D && console.log('require_cjs_sync', imp);
   imp = npm_norm(mod_self, imp);
-  let _p = modules[imp]?.parent[mod_self];
+  let p = modules[imp]?.parent[mod_self];
   let m;
-  if (_p)
-    m = require_cjs_load_sync({p: _p, mod_self, imp});
+  if (p)
+    m = require_cjs_load_sync({p, mod_self, imp});
   else {
     console.log('dynamic sync require('+imp+') in '+mod_self);
     m = require_cjs_load_sync({mod_self, imp});
