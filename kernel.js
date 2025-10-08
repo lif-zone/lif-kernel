@@ -658,6 +658,10 @@ async function reg_http_get({log, url}){
   let slow = eslow(5000, 'fetch '+url);
   try {
     D && console.log('fetch '+url+' for '+log.mod);
+    if (url=="https://cdn.jsdelivr.net/npm/browserify-aes@1.0.4/modes"){
+      console.log('fetch('+json(url)+','+json(fetch_opt(url))+')');
+      debugger;
+    }
     response = await fetch(url, fetch_opt(url));
   } catch(_err){
     slow.end();
@@ -899,6 +903,7 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   }
   alt = pkg_alt_get(pkg, lmod);
   let reg = await reg_get_alt({log, lmod, alt});
+  lpm_file.reg = reg; // for logging
   if (reg.not_exist)
     return reg;
   if (reg.alt){
