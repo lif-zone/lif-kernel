@@ -418,16 +418,22 @@ function require_cjs_load_sync({mod_self, imp, p}){
     imp = m.id;
     mod_self = p.mod_self;
   }
+  if (p.redirect)
+    return p.redirect;
   if (m.run || m.load_requires || p.loading)
     return m;
   p.loading = 1;
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
     return m;
-  if (p.meta.redirect)
-    return require_cjs_load_sync({mod_self: null, imp: p.meta.redirect});
-  if (mod_self)
-    return require_cjs_load_sync({mod_self: null, imp});
+  if (p.meta.redirect){
+    p.redirect = require_cjs_load_sync({mod_self: null, imp: p.meta.redirect});
+    return p.redirect;
+  }
+  if (mod_self){
+    p.redirect = require_cjs_load_sync({mod_self: null, imp});
+    return p.redirect;
+  }
   m.meta = p.meta;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
@@ -464,6 +470,8 @@ async function require_cjs_load({mod_self, imp, p, loading}){
     imp = m.id;
     mod_self = p.mod_self;
   }
+  if (p.redirect)
+    return p.redirect;
   if (m.run || m.load_requires)
     return m;
   loading = loading ? [...loading] : [];
@@ -473,10 +481,14 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   await require_cjs_load_meta(p);
   if (p.res!='done')
     return m;
-  if (p.meta.redirect)
-    return await require_cjs_load({mod_self: null, imp: p.meta.redirect, loading});
-  if (mod_self)
-    return await require_cjs_load({mod_self: null, imp, loading});
+  if (p.meta.redirect){
+    p.redirect = await require_cjs_load({mod_self: null, imp: p.meta.redirect, loading});
+    return p.redirect;
+  }
+  if (mod_self){
+    p.redirect = await require_cjs_load({mod_self: null, imp, loading});
+    return p.redirect;
+  }
   m.meta = p.meta;
   await require_cjs_load_file(m);
   if (m.file.res!='done')
