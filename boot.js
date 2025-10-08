@@ -401,10 +401,10 @@ function require_cjs_run(m, p){
 }
 
 function require_cjs_load_sync({mod_self, imp, p}){
+  imp = npm_norm(mod_self, imp);
   D && console.log('sync load', mod_self, imp);
   let m;
   if (!p){
-    imp = npm_norm(mod_self, imp);
     if (!(m=modules[imp])){
       m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
         is_json: imp.endsWith('.json'),
@@ -445,12 +445,12 @@ function require_cjs_load_sync({mod_self, imp, p}){
 }
 
 async function require_cjs_load({mod_self, imp, p, loading}){
+  imp = npm_norm(mod_self, imp);
   let slow = eslow(15000, 'require_cjs_load('+imp+')');
   try {
   D && console.log('async load', mod_self, imp);
   let m;
   if (!p){
-    imp = npm_norm(mod_self, imp);
     if (!(m=modules[imp])){
       m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
         is_json: imp.endsWith('.json'),
@@ -499,8 +499,8 @@ async function require_cjs_load({mod_self, imp, p, loading}){
 }
 
 function require_cjs_sync(mod_self, imp){
-  D && console.log('require_cjs_sync', imp);
   imp = npm_norm(mod_self, imp);
+  D && console.log('require_cjs_sync', imp);
   let p = modules[imp]?.parent[mod_self];
   let m;
   if (p)
@@ -514,6 +514,7 @@ function require_cjs_sync(mod_self, imp){
 }
 
 async function require_cjs_async(mod_self, imp){
+  imp = npm_norm(mod_self, imp);
   D && console.log('require_cjs_async', imp);
   let m = await require_cjs_load({mod_self, imp});
   require_cjs_run(m);
