@@ -1084,7 +1084,7 @@ let pkg_export_lookup = exports.pkg_export_lookup = (pkg, path)=>{
 
   // start package.json lookup
   if (file=='package.json')
-    return file;
+    return '/'+file;
   let v;
   let f = parse_pkg();
   if (!f)
@@ -1479,6 +1479,7 @@ function test_util(){
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
   t({exports: {'.': './exp'}}, '/exp');
+  t({exports: {'.': './exp'}}, '/package.json', '/package.json');
   t({main: './Main', exports: {'.': './exp'}}, '', '/exp');
   t({main: 'Main'}, '', '/Main');
   t({main: 'Main'}, '/', '/Main');
