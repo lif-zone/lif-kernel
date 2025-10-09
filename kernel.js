@@ -669,6 +669,10 @@ async function reg_http_get({log, url}){
   // jsdelivr/gh jsdlivr/gl returns 403 for not-exist
   if (response.status==404 || response.status==403)
     return {status: response.status, not_exist: true};
+  if (response.forwarded){
+    console.error('reg_http_fetch('+url+') got 302 redirect');
+    return {status: response.status, not_exist: true};
+  }
   if (response.status!=200){
     err = Error('cdn failed fetch '+response.status+' '+url);
     console.log(err);
