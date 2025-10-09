@@ -209,7 +209,7 @@ async function _define_amd(mod_id, imps, factory, m){
   if (!m){
     if (modules[id])
       throw Error('define('+id+') already defined');
-    m = modules[id] = {id, imps, factory, loaded: false,
+    m = modules[id] = {id, imps, factory, loaded: false, parent: {},
       wait: ewait(), exports: {}};
   }
   let _imps = await require_amd(m, imps);
@@ -482,8 +482,10 @@ async function require_cjs_load({mod_self, imp, p, loading}){
         exports: {}};
     }
     mod_self ||= '';
+    try {
     if (!(p=m.parent[mod_self]))
       p = m.parent[mod_self] = {m, mod_self};
+    } catch(err){ debugger}
   } else {
     m = p.m;
     imp = m.id;
@@ -564,12 +566,13 @@ function define_amd_get_mod(imp){
 async function import_amd(mod_self, [imp, opt]){
   D && console.log('import_amd', imp, mod_self);
   imp = npm_norm(mod_self, imp);
-  let url = qs_append(npm_2url(imp), {raw: 1});
+  let url = npm_2url(imp);
   let m;
   if (m = modules[imp])
     return await m.wait;
-  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self,
+  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
+  url += '?raw=1';
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -606,7 +609,7 @@ let import_module_script = async({mod_self, imp, url})=>{
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
     return await m.wait;
   }
-  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self,
+  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
   try {
     let response = await fetch(url, fetch_opt(url));
