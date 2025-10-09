@@ -2,7 +2,7 @@
 let boot_worker_version = '1.3.0';
 import util from '/lif-kernel/util.js';
 let D = 0;
-console.log('boot_worker started');
+console.log('boot_worker started '+boot_worker_version);
 let {ipc_sync, eslow} = util;
 let json = JSON.stringify;
 globalThis.addEventListener("message", event=>{
@@ -43,7 +43,7 @@ async function ipc_fetch(){
 async function ipc_fetch_init(event){
   let {sab} = event.data.fetch_init;
   ipc = new ipc_sync(sab);
-  console.log('ipc_fetch_init');
+  D && console.log('ipc_fetch_init');
   while (1)
     await ipc_fetch();
 }
