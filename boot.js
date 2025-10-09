@@ -16,7 +16,10 @@ let kernel_chan;
 let npm_root;
 let npm_map = {};
 
-let process = globalThis.process ||= {env: {}};
+let process = globalThis.process ||= {
+  env: {},
+  browser: true,
+};
 let is_worker = typeof window=='undefined';
 
 function fetch_sync_worker(url){
@@ -33,12 +36,29 @@ let boot_worker;
 function fetch_sync_main(url, opt){
   assert(boot_worker_ipc_sync, 'no ipc_sync setup');
   let ipc = boot_worker_ipc_sync;
-  ipc.write(json({url, opt}));
-  let buf = ipc.read('string');
+  try {
+    ipc.write(json({url, opt}));
+  } catch(err){
+    console.error('fetch_sync_main('+url+') req err: '+err);
+    return {status: 500};
+  }
+  let buf;
+  try {
+    buf = ipc.read('string');
+  } catch(err){
+    console.error('fetch_sync_main('+url+') resp err: '+err);
+    return {status: 500};
+  }
   let res = JSON.parse(buf);
+  let text;
   if (!res.data)
     return {status: 500};
-  let text = ipc.read('string');
+  try {
+    text = ipc.read('string', url);
+  } catch(err){
+    console.error('fetch_sync_main('+url+') data err: '+err);
+    return {status: 500};
+  }
   return {status: 200, text};
 }
 
@@ -547,10 +567,8 @@ async function import_amd(mod_self, [imp, opt]){
   imp = npm_norm(mod_self, imp);
   let url = qs_append(npm_2url(imp), {raw: 1});
   let m;
-  if (m = modules[imp]){
-    assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
+  if (m = modules[imp])
     return await m.wait;
-  }
   m = modules[imp] = {id: imp, url, wait: ewait(), mod_self,
     exports: {}, loaded: false};
   try {
