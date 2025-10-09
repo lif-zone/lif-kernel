@@ -405,6 +405,8 @@ function require_cjs_run(m, p){
     let module = globalThis.lif.boot.require_cjs_get_mod(${json(m.id)});
     let exports = module.exports;
     let require = module.require;
+    let __dirname = ${json(path_dir(m.id))};
+    let __filename = ${json(path_file(m.id))};
     (function(){
     ${m.script}
     })();
@@ -521,7 +523,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   }
   if (m.meta.type=='amd'){
     let e = await import_amd(null, [m.url]);
-    m.exports = e.default || e;
+    m.exports = e;
     m.run = 'done';
     return m;
   }
