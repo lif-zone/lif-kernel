@@ -3,7 +3,7 @@ let boot_worker_version = '1.3.0';
 import util from '/lif-kernel/util.js';
 let D = 0;
 console.log('boot_worker started');
-let {ipc_sync} = util;
+let {ipc_sync, eslow} = util;
 let json = JSON.stringify;
 globalThis.addEventListener("message", event=>{
   D && console.log('worker got message', event.data, event);
@@ -20,9 +20,12 @@ async function ipc_fetch(){
   let response = await fetch(req.url, req.opt);
   D && console.log('ipc_fetch '+url, response);
   let res = {status: response.status};
+  let slow;
   if (response.status!=200){
-    console.log('main_on_fetch('+url+') failed fetch');
+    console.log('worker fetch('+url+') failed '+response.status);
+    slow = eslow(15000, 'ipc_fetch('+url+')');
     await ipc.E_write(json({status: response.status}));
+    slow.end();
     return;
   }
   let blob = await response.blob();
@@ -30,8 +33,12 @@ async function ipc_fetch(){
   res.length = blob.length;
   res.ctype = blob.type;
   res.data = 1;
+  slow = eslow(15000, 'ipc_fetch('+url+') resp headers');
   await ipc.E_write(json(res));
-  await ipc.E_write(data);
+  slow.end();
+  slow = eslow(15000, 'ipc_fetch('+url+') resp data');
+  await ipc.E_write(data, url);
+  slow.end();
 }
 async function ipc_fetch_init(event){
   let {sab} = event.data.fetch_init;
