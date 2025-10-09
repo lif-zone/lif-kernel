@@ -296,18 +296,31 @@ let buf_to_str = (buf, type)=>{
   throw Error('buf_to_str: invalid type');
 };
 
+let disable_timeout = 1;
 function Atomics_wait(array, index, value, timeout){
   if (is_worker)
     return Atomics.wait(...arguments);
+  let info = 1000, warn = 5000;
   let start;
-  if (!timeout) // debug
-    timeout = 10000;
+  if (timeout==undefined)
+    timeout = 15000;
+  if (disable_timeout)
+    timeout = 0;
   if (Atomics.load(array, index)!=value)
     return 'not-equal'; // this is also 'ok' - since we want to wait for change
   if (timeout)
     start = Date.now();
   while (Atomics.load(array, index)==value){
-    if (timeout && Date.now()-start>=timeout){
+    let t = Date.now()-start;
+    if (info && t>info){
+      console.info('Atomics slow');
+      info = 0;
+    }
+    if (warn && t>warn){
+      console.warn('Atomics slow');
+      warn = 0;
+    }
+    if (timeout && t>=timeout){
       console.error('Atomics timed-out');
       return 'timed-out';
     }
@@ -383,38 +396,56 @@ class ipc_sync {
     }
     this.err = null;
   }
-  async E_write(buf){
+  async E_write(buf, url){
+    let x = {};
     if (this.err)
       throw Error('ipc_sync err state');
     this.err = 'started';
     buf = str_to_buf(buf);
     let sz = buf.byteLength, ofs = 0, len, i;
     this.store_sz(sz);
+    let L = msg=>{ if (url && url.includes('/.lif/git/github/bcoin-org/bcrypto@semver:~5.5.0/lib/native/bn.js?raw=1'))
+      x.write = (x.write||'')+'write '+msg+'\n'; };
+      // console.log('write '+msg); };
     for (i=0; !i || ofs<sz; i++, ofs += len){
       // validate ipc channel is free (==0)
+      L('AA before lock i '+i+' ofs '+ofs+' sz '+sz+' len '+len);
       if (this.load_lock())
         throw Error('ipc_sync lock busy');
-      let len = Math.min(sz-ofs, this._data.byteLength);
+      L('B after lock');
+      len = Math.min(sz-ofs, this._data.byteLength);
       this.store_len(len);
       this.store_last(ofs+len==sz ? 1 : 0);
       this.seq++;
       this.store_seq(this.seq);
       this.data.set(new Uint8Array(buf, ofs, len), 0);
+      L('C before notify');
       this.store_lock(1);
       this.notify_lock();
+      L('D after notify - before end lock');
       await this.E_wait_lock(1);
+      L('EE after end lock');
     }
+    if (0 && x.write)
+      console.log(x.write);
     this.err = null;
   }
-  read(type){
+  read(type, url){
+    let x = {};
     if (this.err)
       throw Error('ipc_sync err state');
     this.err = 'started';
     let sz, buf, _buf, i = 0, ofs = 0, len, seq, last;
+    let L = msg=>{ if (url && url.includes('/.lif/git/github/bcoin-org/bcrypto@semver:~5.5.0/lib/native/bn.js?raw=1'))
+      x.read = (x.read||'')+'read '+msg+'\n'; };
+      // console.log('read '+msg); };
     for (i=0; !i || ofs<sz; i++, ofs += len){
+      L('AA before lock i '+i+' ofs '+ofs+' sz '+sz+' len '+len);
       this.wait_lock(0); // wait for ipc_channel to be busy (!=0)
+      L('B after lock');
       if (!i){
         sz = this.load_sz();
+        L('sz '+sz);
         buf = new ArrayBuffer(sz);
         _buf = new Uint8Array(buf);
       }
@@ -425,10 +456,14 @@ class ipc_sync {
       seq = this.load_seq();
       this.seq++;
       assert(seq==this.seq, 'ipc_sync invalid seq');
+      L('C before notify sez '+seq+' last '+last+' len '+len);
       this.store_lock(0);
       this.notify_lock();
+      L('DD after notify');
     }
     this.err = null;
+    if (0 && x.read)
+      console.log(x.read);
     if (type)
       buf = buf_to_str(buf, type);
     return buf;
