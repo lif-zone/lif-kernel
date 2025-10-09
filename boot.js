@@ -407,10 +407,7 @@ function require_cjs_run(m, p){
     let require = module.require;
     let __dirname = ${json(path_dir(m.id))};
     let __filename = ${json(path_file(m.id))};
-    (function(){
-    ${m.script}
-    })();
-    `;
+    (function(){\n${m.script}\n})();`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -590,7 +587,7 @@ async function import_amd(mod_self, [imp, opt]){
   m.define.amd = {};
   m.define.module = m; // debug
   js += `let define = lif.boot.define_amd_get_mod(${json(imp)}).define;`;
-  js += `(function(){ ${m.script} }());`;
+  js += `(function(){\n${m.script}\n}());`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -620,7 +617,7 @@ let import_module_script = async({mod_self, imp, url})=>{
     console.error('import('+url+') failed', err);
     throw m.wait.throw(err);
   }
-  let js = `//# sourceURL=${url}\n(function(){ ${m.script} }());`;
+  let js = `//# sourceURL=${url}\n(function(){\n${m.script}\n}());`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -672,7 +669,7 @@ function importScripts_single(mod_self, [mod, opt]){
     throw Error('failed fetch '+url);
   let script = res.text;
   let exports = eval.call(globalThis,
-    `//# sourceURL=${url}\n;${script}`);
+    `//# sourceURL=${url}\n${script}`);
 }
 
 function _importScripts(mod_self, mods){
