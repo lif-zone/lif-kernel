@@ -670,7 +670,7 @@ async function reg_http_get({log, url}){
   if (response.status==404 || response.status==403)
     return {status: response.status, not_exist: true};
   if (response.redirected){
-    console.error('reg_http_fetch('+url+') CDN bug: got 302 redirect');
+    console.warn('reg_http_fetch('+url+') CDN bug: got 302 redirect');
     return {status: response.status, not_exist: true};
   }
   if (response.status!=200){
