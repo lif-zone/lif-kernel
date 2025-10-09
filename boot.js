@@ -77,7 +77,7 @@ async function boot_worker_sync_connect(){
   boot_worker.addEventListener("message", event=>{
     console.log('main got message', event.data, event);
   });
-  console.log('master worker started');
+  D && console.log('master worker started');
   boot_worker.postMessage({fetch_init: {sab: ipc.sab}});
 }
 
