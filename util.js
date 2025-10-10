@@ -819,7 +819,6 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
   if (v=str.starts(d, ['http://', 'https://']))
     return v.start.replaceAll('://', '/')+v.rest;
   if (v=str.starts(d, 'npm:', '.npm/')){
-    console.log('NPM '+d, pkg_name);
     let _lmod = 'npm/'+v.rest+path;
     let u = lpm_parse(_lmod);
     if (u.name==pkg_name)
