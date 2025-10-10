@@ -1149,6 +1149,8 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
     }
     res = lpm_meta_type({f, lmod: imp});
     let ast = file_ast(f);
+    if (ast.err)
+      res.err = ast.err;
     if (ast?.requires)
       res.requires = ast.requires;
     return res;
@@ -1157,7 +1159,7 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
 
 async function send_res(file_response){
   let f = file_response;
-  if (f.err)
+  if (f.err && f.body==undefined)
     return new Response(''+f.err, {status: 500, statusText: ''+f.err});
   if (f.not_exist)
     return new Response('not found', {status: 404, statusText: 'not found'});
@@ -1217,9 +1219,13 @@ async function _kernel_fetch(event){
     slow.end();
     if (q.get('meta')){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod, qs});
+      if (meta.err)
+        console.error('parse '+url+': '+res.err);
       return send_res({body: json(meta), ext: 'json'});
     }
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
+    if (res.err)
+      console.error('parse '+url+': '+res.err);
     return send_res(res);
   }
   // local requests
