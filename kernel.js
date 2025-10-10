@@ -606,7 +606,7 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
     let d, v;
     if (!(d = deps?.[npm]))
       return;
-    if (v = npm_dep_parse({mod_self: lpm_pkg.lmod, imp, dep: d}))
+    if (v = npm_dep_parse({mod_self: lpm_pkg.lmod, imp, dep: d, pkg_name: pkg.name}))
       return v;
     if (is_peer)
       return d; // we dont currently use peer's version range
