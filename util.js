@@ -817,7 +817,7 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
     return 'git/'+site+'/'+user+'/'+repo+ver+_path;
   }
   if (v=str.starts(d, ['http://', 'https://']))
-    return v.start.replaceAll('://', '/')+v.rest;
+    return v.start.slice(0, -3)+'/'+v.rest+path;
   if (v=str.starts(d, 'npm:', '.npm/')){
     let _lmod = 'npm/'+v.rest+path;
     let u = lpm_parse(_lmod);
@@ -1405,6 +1405,9 @@ function test_util(){
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
     {pkg_name: 'self'});
+  t('http://localhost:3000/lif-kernel',
+    'http/localhost:3000/lif-kernel/util.js',
+    {imp: 'npm/lif-kernel/util.js'});
   t = (imp, dep, v)=>
     assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');

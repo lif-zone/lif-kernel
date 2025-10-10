@@ -519,12 +519,19 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
 };
 
 let tr_mjs_import = f=>{
-  let s = Scroll(f.js), v;
+  let s = Scroll(f.js), v, _v;
   for (let d of f.ast.imports){
     let imp = d.module;
-    if (url_uri_type(imp)=='rel')
+    if (url_uri_type(imp)=='rel'){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
-    else if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
+      continue;
+    }
+    if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
+      if (_v = str.starts(v, 'http/', 'https/')){
+        let url = _v.start.slice(0, -1)+'://'+_v.rest;
+        s.splice(d.start, d.end, json(url));
+        continue;
+      }
       v = '/.lif/'+v;
       let q = {};
       if (d.imported)
@@ -532,8 +539,9 @@ let tr_mjs_import = f=>{
       q.mod_self = f.npm_uri;
       v += qs_enc(q);
       s.splice(d.start, d.end, json(v));
-    } else
-      console.warn('import('+f.lmod+') missing: '+imp);
+      continue;
+    }
+    console.warn('import('+f.lmod+') missing: '+imp);
   }
   for (let d of f.ast.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
@@ -1440,7 +1448,7 @@ let do_app_pkg = async function(boot_pkg){
   // add lif-kernel package
   if (!boot_pkg.globDependencies?.['lif-kernel'] && !lif.globDependencies?.['lif-kernel'])
     lif.globDependencies ||= {};
-    lif.globDependencies['lif-kernel'] = lif_kernel_base;
+    lif.globDependencies['lif-kernel'] = lif_kernel_base.slice(0, -1);
   // init new app
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
     lpm_pkg.lmod = lmod_root;
