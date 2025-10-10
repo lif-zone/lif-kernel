@@ -1,5 +1,4 @@
 // LIF bootloader: Boot the kernel and then load the application
-let lif = globalThis.lif = {};
 let lif_version = '1.3.0';
 let D = 0; // Debug
 
@@ -11,6 +10,8 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   _debugger} = util;
 let json = JSON.stringify;
 
+assert(!globalThis.lif, 'lif already loaded');
+let lif = globalThis.lif = {};
 let modules = {};
 let kernel_chan;
 let npm_root;
@@ -257,7 +258,10 @@ function require_cjs_load_meta_sync(p){
   p.res = 'loading';
   if (!m.url.startsWith('/.lif/'))
     return do_ret('done');
-  let url = m.url+qs_enc({meta: 1, follow: 1, mod_self: p.mod_self});
+  let opt = {meta: 1, follow: 1};
+  if (p.mod_self)
+    opt.mod_self = p.mod_self;
+  let url = m.url+qs_enc(opt);
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -285,7 +289,10 @@ async function require_cjs_load_meta(p){
   p.res = 'loading';
   if (!m.url.startsWith('/.lif/'))
     return do_ret('done');
-  let url = m.url+qs_enc({meta: 1, follow: 1, mod_self: p.mod_self});
+  let opt = {meta: 1, follow: 1};
+  if (p.mod_self)
+    opt.mod_self = p.mod_self;
+  let url = m.url+qs_enc(opt);
   let req;
   if (p.wait)
     return await p.wait;
@@ -482,10 +489,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
         exports: {}};
     }
     mod_self ||= '';
-    try {
-    if (!(p=m.parent[mod_self]))
-      p = m.parent[mod_self] = {m, mod_self};
-    } catch(err){ debugger}
+    p = m.parent[mod_self] = {m, mod_self};
   } else {
     m = p.m;
     imp = m.id;
