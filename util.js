@@ -784,7 +784,8 @@ let T_lpm_lmod = exports.T_lpm_lmod = lpm=>{
 let lpm_lmod = exports.lpm_lmod = T(T_lpm_lmod);
 
 // parse-package-name: package.json:dependencies
-let T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
+let T_npm_dep_parse = exports.T_npm_dep_parse =
+({mod_self, imp, dep, npm_name})=>{
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
@@ -817,9 +818,14 @@ let T_npm_dep_parse = exports.T_npm_dep_parse = ({mod_self, imp, dep})=>{
   }
   if (v=str.starts(d, ['http://', 'https://']))
     return v.start.replaceAll('://', '/')+v.rest;
-  if (v=str.starts(d, 'npm:'))
-    return 'npm/'+v.rest+path;
-  if (v=str.starts(d, '.npm/', '.git/', '.local/'))
+  if (v=str.starts(d, 'npm:', '.npm/')){
+    let _lmod = 'npm/'+v.rest+path;
+    let u = lpm_parse(_lmod);
+    if (u.name==npm_name)
+      return mod_self+u.path;
+    return _lmod;
+  }
+  if (v=str.starts(d, '.git/', '.local/'))
     return v.start.slice(1)+v.rest+path;
   if (v=str.starts(dep, 'file:')){
     let file = v.rest;
@@ -1370,8 +1376,9 @@ function test_util(){
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
-  t = (dep, v)=>assert_eq(v,
-    npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep}));
+  t = (dep, v, opt)=>assert_eq(v,
+    npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep,
+    ...(opt||{})}));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
@@ -1395,6 +1402,9 @@ function test_util(){
   t('http://any.com:9000/dir', 'http/any.com:9000/dir');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  t('npm:self/dir/index.js', 'npm/self/dir/index.js');
+  t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
+    {npm_name: 'self'});
   t = (imp, dep, v)=>
     assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
