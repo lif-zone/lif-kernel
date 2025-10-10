@@ -159,21 +159,21 @@ str.diff_pos = (s1, s2)=>{
 };
 
 // assert.js
-let assert = exports.assert = (ok, exp, res)=>{
+let assert = exports.assert = (ok, ...msg)=>{
   if (ok)
     return;
-  console.error('test FAIL: exp', exp, 'res', res);
+  console.error('assert FAIL:', ...msg);
   debugger; // eslint-disable-line no-debugger
-  throw Error('test FAIL');
+  throw Error('assert FAIL');
 };
 let assert_eq = exports.assert_eq = assert.eq = (exp, res)=>{
-  assert(exp===res, exp, res);
+  assert(exp===res, 'exp', exp, 'got', res);
 };
 let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
   if (exp===res)
     return;
   if (typeof exp=='object'){
-    assert(typeof res=='object', exp, res);
+    assert(typeof res=='object', 'exp', exp, 'res', res);
     for (let i in exp)
       assert_obj(exp[i], res[i]);
     return;
