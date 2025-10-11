@@ -73,7 +73,7 @@ async function boot_worker_sync_connect(){
   let res;
   let ipc = boot_worker_ipc_sync = new ipc_sync();
   let controller = navigator.serviceWorker.controller;
-  boot_worker = new Worker(lif_kernel_base+'boot_worker.js',
+  boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
     {type: 'module'});
   boot_worker.addEventListener("message", event=>{
     console.log('main got message', event.data, event);
@@ -697,7 +697,7 @@ function init_worker(){
   globalThis.importScripts = new_importScripts;
 }
 
-let lif_kernel_base = import.meta.resolve('./x').slice(0, -1);
+let lif_kernel_base = import.meta.resolve('./x').slice(0, -2);
 let boot_kernel = async()=>{
   console.log('lif boot version: '+lif_version+' util '+util.version
     +' from '+lif_kernel_base);

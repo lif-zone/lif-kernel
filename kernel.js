@@ -117,12 +117,11 @@ let import_module = async(url)=>{
 
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
-let lif_kernel_base_u = new URL(lif_kernel_base);
 console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
-let util = await import_module(lif_kernel_base+'util.js');
-let mime_db = await import_module(lif_kernel_base+'mime_db.js');
+let util = await import_module(lif_kernel_base+'/util.js');
+let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache,
   _path_ext, path_dir, path_file,
@@ -1448,7 +1447,7 @@ let do_app_pkg = async function(boot_pkg){
   // add lif-kernel package
   if (!boot_pkg.globDependencies?.['lif-kernel'] && !lif.globDependencies?.['lif-kernel'])
     lif.globDependencies ||= {};
-    lif.globDependencies['lif-kernel'] = lif_kernel_base.slice(0, -1);
+    lif.globDependencies['lif-kernel'] = lif_kernel_base;
   // init new app
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
     lpm_pkg.lmod = lmod_root;
