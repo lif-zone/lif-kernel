@@ -489,7 +489,8 @@ async function require_cjs_load({mod_self, imp, p, loading}){
         exports: {}};
     }
     mod_self ||= '';
-    p = m.parent[mod_self] = {m, mod_self};
+    if (!(p = m.parent[mod_self]))
+      p = m.parent[mod_self] = {m, mod_self};
   } else {
     m = p.m;
     imp = m.id;
@@ -503,6 +504,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   if (loading.includes(p))
     return m;
   loading.push(p);
+  D && console.log('async load', mod_self, imp);
   await require_cjs_load_meta(p);
   if (p.res!='done')
     return m;

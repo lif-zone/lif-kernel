@@ -1131,7 +1131,7 @@ function lpm_meta_type({f, lmod}){
 
 async function fetch_lpm_meta({log, imp, mod_self, qs}){
   let res = {}, follow = 1;
-  D && console.log('meta '+imp+' self '+mod_self+' '+qs);
+  D && console.log('meta '+imp+' '+qs);
   for (let i=0; i<max_redirect; i++){
     let f = await lpm_file_resolve({log, imp, mod_self});
     if (f.not_exist){
@@ -1156,7 +1156,7 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
     }
     res = lpm_meta_type({f, lmod: imp});
     let ast = file_ast(f);
-    if (ast.err)
+    if (ast?.err)
       res.err = ast.err;
     if (ast?.requires)
       res.requires = ast.requires;
