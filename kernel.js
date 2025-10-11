@@ -79,7 +79,11 @@ console.log('pre_init');
 
 (async()=>{try {
 // service worker import() implementation
-let fetch_opt = url=>(url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
+let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
+function fetch_opt(url){
+  let no_cache = url.startsWith('/') ? !enable_cache : false;
+  return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
+}
 let import_modules = {};
 let import_module = async(url)=>{
   let imod;
@@ -1050,14 +1054,14 @@ function ctype_get(ext){
   t.ext = ext;
   return t;
 }
-let response_send = ({body, ext})=>{
+let response_send = ({body, ext, cache})=>{
   let v, opt = {}, ctype = ctype_get(ext), h = {};
   if (!ctype){
     D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext));
     ctype = ctype_get('text');
   }
   h['content-type'] = ctype.ctype;
-  h['cache-control'] = 'no-cache';
+  h['cache-control'] = cache ? 'public, max-age=31536000' : 'no-cache';
   coi_set_headers(h);
   opt.headers = new Headers(h);
   return new Response(body, opt);
@@ -1164,16 +1168,27 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
   }
 }
 
-async function send_res(file_response){
-  let f = file_response;
-  if (f.err && f.body==undefined)
-    return new Response(''+f.err, {status: 500, statusText: ''+f.err});
-  if (f.not_exist)
+function response_redirect({redirect, cache}){
+  return Response.redirect(redirect);
+  // TODO: is it possible to add caching?
+  // 'Cache-Control': 'public, max-age=31536000'
+}
+async function send_res({err, not_exist, redirect, body, ext, path}){
+  if (err && body==undefined){
+    console.error('parse '+path+': '+err);
+    return new Response(''+err, {status: 500, statusText: ''+err});
+  }
+  if (not_exist){
+    console.error('not found: '+path);
     return new Response('not found', {status: 404, statusText: 'not found'});
-  if (f.redirect)
-    return Response.redirect(f.redirect);
-  if (f.body)
-    return response_send({body: f.body, ext: f.ext});
+  }
+  let cache = path.startsWith('/.lif/local/') ? enable_cache>=2 :
+    path.startsWith('/.lif/') ? enable_cache>=1 :
+    path.startsWith('/') ? enable_cache>=2 : false;
+  if (redirect)
+    return response_redirect({redirect, cache});
+  if (body)
+    return response_send({body, ext, cache});
   throw Error('invalid fetch_lpm response');
 }
 
@@ -1228,12 +1243,10 @@ async function _kernel_fetch(event){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod, qs});
       if (meta.err)
         console.error('parse '+url+': '+res.err);
-      return send_res({body: json(meta), ext: 'json'});
+      return send_res({body: json(meta), ext: 'json', path});
     }
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
-    if (res.err)
-      console.error('parse '+url+': '+res.err);
-    return send_res(res);
+    return send_res({...res, path});
   }
   // local requests
   let _path;

@@ -561,8 +561,11 @@ async function require_cjs_async(mod_self, imp){
 }
 
 // web worker importScripts()/require() implementation
-let fetch_opt = url=>
-  (url[0]=='/' ? {headers: {'Cache-Control': 'no-cache'}} : {});
+let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
+function fetch_opt(url){
+  let no_cache = url.startsWith('/') ? !enable_cache : false;
+  return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
+}
 function define_amd_get_mod(imp){
   let m = modules[imp];
   assert(m, 'module not found: '+imp);
