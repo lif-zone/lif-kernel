@@ -832,7 +832,7 @@ let app_index = {
 };
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
-  let e = q.entries();
+  let e = [...q.entries()][0];
   let pkg = {}, v;
   if (e[0] && !e[1])
     pkg.webapp = e[0];
