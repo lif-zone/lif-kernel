@@ -804,7 +804,8 @@ let coi_reload = async()=>{
 
 async function run_html(webapp){
   console.log('run_html start '+webapp);
-  let html = await T_fetch_text(webapp);
+  let url = '/.lif/'+npm_to_lpm(webapp);
+  let html = await T_fetch_text(url);
   let parser = new DOMParser();
   let doc = parser.parseFromString(html, 'text/html');
   let s = doc.querySelector('head');
