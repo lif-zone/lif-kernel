@@ -4,10 +4,10 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
-  path_file, path_dir, OF, OA, assert, T, T_npm_to_lpm, npm_str,
+  path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing,
-  _debugger} = util;
+  html_elm, _debugger} = util;
 let json = JSON.stringify;
 
 assert(!globalThis.lif, 'lif already loaded');
@@ -22,6 +22,17 @@ let process = globalThis.process ||= {
   browser: true,
 };
 let is_worker = typeof window=='undefined';
+
+async function fetch_text(url){
+  let req = await fetch(url);
+  if (req.status!=200){
+    console.error('failed fetch: '+url);
+    return;
+  }
+  let text = await req.text();
+  return text;
+}
+let T_fetch_text = TU(fetch_text);
 
 function fetch_sync_worker(url){
   const request = new XMLHttpRequest();
@@ -779,10 +790,46 @@ let coi_reload = async()=>{
   window.location.reload();
 };
 
-// http://localhost:3000/?lif-basic@1.2.0/main.tsx
-// http://localhost:3000/?lif-os@1.2.0/lif-basic/main.tsx
-// http://localhost:3000/?webapp=lif-os@1.2.9/lif-basic/main.tsx
-// http://localhost:3000/?.git/github/xderry/lif-os@main/lif-basic/main.tsx
+async function run_html(webapp){
+  console.log('run_html start '+webapp);
+  let html = await T_fetch_text(webapp);
+  let parser = new DOMParser();
+  let doc = parser.parseFromString(html, 'text/html');
+  let s = doc.querySelector('head');
+  let d = document.querySelector('head');
+  while (s?.firstChild)
+    d.appendChild(s.firstChild);
+  s = doc.querySelector('body');
+  d = document.querySelector('body');
+  while (s?.firstChild)
+    d.appendChild(s.firstChild);
+  console.log('run_html complete');
+}
+
+function run_app_index(){
+  let d = document.querySelector('body');
+  for (let [k, v] of OF(app_index)){
+    let p = html_elm('p');
+    let e = html_elm('a', {href: v});
+    e.innerText = k;
+    p.appendChild(e);
+    document.appendChild(p);
+  }
+}
+let app_index = {
+  'index': ()=>run_app_index(),
+  'basic': '/?.git/github/xderry/lif-os@main/lif-basic//main.tsx',
+  'basic2': '/?lif-basic@1.3.0/main.tsx',
+  'basic3': '/?lif-os@1.3.0/lif-basic//main.tsx',
+  'basic4': '/?webapp=lif-os@1.2.9/lif-basic/main.tsx',
+  'play': '/?.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
+  'bplay.html': '/?lif-basic@1.3.0/play.html',
+  'bplay': '/?lif-basic@1.3.0/play.js',
+  'bplay2': '/?lif-basic@1.3.0/play2.tsx',
+  'os': '/?.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
+  'os2': '/?lif-os@1.3.0/lif-os-boot/main.tsx',
+  'lif-coin': '/?.git/github/xderry/lif-coin@main/lif-os-boot/main.tsx',
+};
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
   let e = q.entries();
@@ -792,7 +839,9 @@ let app_pkg_default = ()=>{
   if (v=q.get('webapp'))
     pkg.webapp = v;
   if (!pkg.webapp)
-    pkg.webapp = 'lif-basic@1.2.0/main.tsx';
+    pkg.webapp = 'index';
+  if (v=app_index[pkg.webapp])
+    pkg.webapp = v;
   if (v=q.get('src')){
     let u = lpm_parse(npm_to_lpm(pkg.webapp));
     u.path = '';
@@ -820,8 +869,13 @@ let boot_app = async(app_pkg)=>{
   if (coi_enable)
     await coi_reload();
   // load app
+  let ext = _path_ext(webapp);
   try {
-    return await import_esm(webapp, [webapp]);
+    if (ext=='html')
+      return await run_html(webapp);
+    if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
+      return await import_esm(webapp, [webapp]);
+    throw Error('no app type found: '+webapp);
   } catch(err){
     console.error('boot: app('+webapp+') failed');
     throw err;
@@ -865,6 +919,7 @@ lif.boot = {
   import_esm,
   import_amd,
   define_amd_get_mod,
+  app_index,
   util, // debug
 };
 if (is_worker){
