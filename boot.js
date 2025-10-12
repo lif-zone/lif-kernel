@@ -832,15 +832,14 @@ let app_index = {
   '': 'index', // special handling for built-in index
   'index': 'index', // special handling for built-in index
   'basic': '.git/github/xderry/lif-os@main/lif-basic//main.tsx',
-  'basic2': 'lif-basic@1.3.0/main.tsx',
-  'basic3': 'lif-os@1.3.0/lif-basic//main.tsx',
-  'basic4': 'lif-os@1.2.9/lif-basic/main.tsx',
-  'play': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
-  'bplay.html': 'lif-basic@1.3.0/play.html',
-  'bplay': 'lif-basic@1.3.0/play.js',
-  'bplay2': 'lif-basic@1.3.0/play2.tsx',
+  'basicB': 'lif-basic@1.3.0/main.tsx',
+  'play': '.git/github/xderry/lif-os@main/lif-basic//play.html',
+  'playB': 'lif-basic@1.3.0/play.html',
+  'play2': '.git/github/xderry/lif-os@main/lif-basic//play2.tsx',
+  'play2B': 'lif-basic@1.3.0/play2.tsx',
+  'play3': '.git/github/xderry/lif-os@main/lif-basic//play3.js',
+  'play4': '.git/github/xderry/lif-os@main/lif-basic//play4.html',
   'os': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
-  'os2': 'lif-os@1.3.0/lif-os-boot/main.tsx',
   'lif-coin': '.git/github/xderry/lif-coin@main/lif-os-boot/main.tsx',
 };
 let app_pkg_default = ()=>{
