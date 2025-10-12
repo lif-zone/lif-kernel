@@ -764,9 +764,9 @@ async function reg_get_alt({log, lmod, alt}){
     if (!f.err)
       return f;
     if (f.err)
-      throw Error('fetch failed '+lmod);
+      throw Error('fetch failed '+lmod+' '+f.url);
   }
-  D && console.log('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
+  console.error('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
     ') failed fetch not exist '+lmod);
   return first; // not_exist
 }
@@ -878,6 +878,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   let reg = await reg_get({log, lmod: pkg_json});
   if (reg.not_exist){
     lpm_pkg.not_exist = reg.not_exist;
+    console.error('lpm_pkg_get('+lmod+') not found: '+reg.url);
     return lpm_pkg;
   }
   lpm_pkg.blob = reg.blob;
