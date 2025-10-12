@@ -822,37 +822,36 @@ function run_app_index(){
   let body = document.querySelector('body');
   for (let [k, v] of OF(app_index)){
     let p = html_elm('p');
-    let e = html_elm('a', {href: v});
+    let e = html_elm('a', {href: '/?'+v});
     e.innerText = k;
     p.appendChild(e);
     body.appendChild(p);
   }
 }
 let app_index = {
-  'index': '/?index', // special handling for built-in index
-  'basic': '/?.git/github/xderry/lif-os@main/lif-basic//main.tsx',
-  'basic2': '/?lif-basic@1.3.0/main.tsx',
-  'basic3': '/?lif-os@1.3.0/lif-basic//main.tsx',
-  'basic4': '/?webapp=lif-os@1.2.9/lif-basic/main.tsx',
-  'play': '/?.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
-  'bplay.html': '/?lif-basic@1.3.0/play.html',
-  'bplay': '/?lif-basic@1.3.0/play.js',
-  'bplay2': '/?lif-basic@1.3.0/play2.tsx',
-  'os': '/?.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
-  'os2': '/?lif-os@1.3.0/lif-os-boot/main.tsx',
-  'lif-coin': '/?.git/github/xderry/lif-coin@main/lif-os-boot/main.tsx',
+  '': 'index', // special handling for built-in index
+  'index': 'index', // special handling for built-in index
+  'basic': '.git/github/xderry/lif-os@main/lif-basic//main.tsx',
+  'basic2': 'lif-basic@1.3.0/main.tsx',
+  'basic3': 'lif-os@1.3.0/lif-basic//main.tsx',
+  'basic4': 'lif-os@1.2.9/lif-basic/main.tsx',
+  'play': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
+  'bplay.html': 'lif-basic@1.3.0/play.html',
+  'bplay': 'lif-basic@1.3.0/play.js',
+  'bplay2': 'lif-basic@1.3.0/play2.tsx',
+  'os': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
+  'os2': 'lif-os@1.3.0/lif-os-boot/main.tsx',
+  'lif-coin': '.git/github/xderry/lif-coin@main/lif-os-boot/main.tsx',
 };
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
   let e = [...q.entries()][0];
   let pkg = {}, v;
-  if (e[0] && !e[1])
+  if (e && e[0] && !e[1])
     pkg.webapp = e[0];
   if (v=q.get('webapp'))
     pkg.webapp = v;
-  if (!pkg.webapp)
-    pkg.webapp = 'index';
-  if (v=app_index[pkg.webapp])
+  if (v=app_index[pkg.webapp||''])
     pkg.webapp = v;
   if (v=q.get('src')){
     let u = lpm_parse(npm_to_lpm(pkg.webapp));
@@ -867,7 +866,7 @@ let boot_app = async(app_pkg)=>{
   if (!app_pkg)
     app_pkg = app_pkg_default();
   let run;
-  if (app_pkg.lif?.webapp=='/?index'){
+  if (app_pkg.lif?.webapp=='index'){
     run = run_app_index;
     app_pkg.lif.webapp = 'lif-kernel';
   }
