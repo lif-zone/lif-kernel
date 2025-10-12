@@ -1209,26 +1209,20 @@ let ecache = exports.ecache = async function(table, id, fn){
 };
 ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
 
-exports.html_elm = (name, attr)=>{
+let html_elm = exports.html_elm = (name, attr)=>{
   let elm = document.createElement(name);
   for (let [k, v] of OF(attr))
     elm[k] = v;
   return elm;
 };
 exports.html_favicon_set = href=>{
-  let link = document.createElement('link');
-  link.rel = 'icon';
-  link.href = href;
-  document.head.appendChild(link);
+  document.head.appendChild(html_elm('link', {rel: 'icon', href}));
 };
 exports.html_stylesheet_add = href=>{
   // also possible with import
   //let style = (await import(href, {with: {type: 'css'}})).default;
   //document.adoptedStyleSheets = [style];
-  let link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = href;
-  document.head.appendChild(link);
+  document.head.appendChild(html_elm('link', {rel: 'stylesheet', href}));
 };
 
 function test_util(){
