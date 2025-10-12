@@ -935,6 +935,8 @@ let T_npm_url_base = exports.T_npm_url_base = (url_uri, base_uri)=>{
   if (t=='url' || t=='rel' && tbase=='url'){
     let u = url_parse(url_uri, t=='rel' ? base_uri : undefined);
     u.is = is;
+    if (u.protocol=='blob:')
+      u.is.blob = 1;
     is.url = 1;
     return u;
   }
