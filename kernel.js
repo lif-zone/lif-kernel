@@ -1233,7 +1233,6 @@ async function _kernel_fetch(event){
   if (path=='/' ||
     (path_prefix(url, lif_kernel_base) && !path.startsWith('/.lif/')))
   {
-    console.log(url, path, lif_kernel_base);
     return fetch(request);
   }
   // LIF+local GET requests
