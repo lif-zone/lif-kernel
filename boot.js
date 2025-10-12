@@ -96,7 +96,7 @@ async function boot_worker_sync_connect(){
 const npm_2url_opt = (url, mod_self, opt)=>{
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
-    return u.origin+u.path;
+    return (u.is.blob ? u.protocol : u.origin)+u.path;
   let q = {};
   if (opt?.raw)
     q.raw = 1;
@@ -116,7 +116,7 @@ const npm_2url_opt = (url, mod_self, opt)=>{
 const npm_2url = (url, mod_self)=>{
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
-    return u.origin+u.path;
+    return (u.is.blob ? u.protocol : u.origin)+u.path;
   if (u.is.uri)
     return u.path;
   return '/.lif/'+T_npm_to_lpm(u.path);
@@ -126,7 +126,7 @@ const npm_norm = (mod_self, url)=>{
   let u = T_npm_url_base(url, mod_self);
   let v;
   if (u.is.url)
-    return u.origin+u.path;
+    return (u.is.blob ? u.protocol : u.origin)+u.path;
   if (u.is.uri){
     if (v=str.starts(u.path, '/.lif/'))
       return lpm_to_npm(v.rest);
@@ -143,6 +143,10 @@ function test(){
   t('.local/mod/', './a/file.js', '.local/mod//a/file.js');
   t('react@1.2.3', 'mod/file.js', 'mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', 'mod@4.5.6/file.js');
+  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
   t('http://a.b/c', 'b/file.js', 'b/file.js');
   t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
   t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
@@ -159,6 +163,10 @@ function test(){
   t('.local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
   t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
+  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
   t('http://a.b/c', 'b/file.js', '/.lif/npm/b/file.js');
   t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
   t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
@@ -180,6 +188,10 @@ function test(){
     '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
   t('react@1.2.3', 'mod@4.5.6/file.js', {},
     '/.lif/npm/mod@4.5.6/file.js?mod_self=react@1.2.3');
+  t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
 }
 test();
 
