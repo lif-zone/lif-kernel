@@ -807,17 +807,17 @@ async function run_html(webapp){
 }
 
 function run_app_index(){
-  let d = document.querySelector('body');
+  let body = document.querySelector('body');
   for (let [k, v] of OF(app_index)){
     let p = html_elm('p');
     let e = html_elm('a', {href: v});
     e.innerText = k;
     p.appendChild(e);
-    document.appendChild(p);
+    body.appendChild(p);
   }
 }
 let app_index = {
-  'index': ()=>run_app_index(),
+  'index': '/?index', // special handling for built-in index
   'basic': '/?.git/github/xderry/lif-os@main/lif-basic//main.tsx',
   'basic2': '/?lif-basic@1.3.0/main.tsx',
   'basic3': '/?lif-os@1.3.0/lif-basic//main.tsx',
@@ -854,6 +854,11 @@ let app_pkg_default = ()=>{
 let boot_app = async(app_pkg)=>{
   if (!app_pkg)
     app_pkg = app_pkg_default();
+  let run;
+  if (app_pkg.lif?.webapp=='/?index'){
+    run = run_app_index;
+    app_pkg.lif.webapp = 'lif-kernel';
+  }
   app_pkg = JSON.parse(JSON.stringify(app_pkg));
   let lif = app_pkg.lif;
   let webapp = lif?.webapp;
@@ -871,6 +876,8 @@ let boot_app = async(app_pkg)=>{
   // load app
   let ext = _path_ext(webapp);
   try {
+    if (run)
+      return await run();
     if (ext=='html')
       return await run_html(webapp);
     if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
