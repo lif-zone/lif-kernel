@@ -1228,15 +1228,9 @@ async function _kernel_fetch(event){
     return fetch_pass(request, 'non-GET');
   if (external)
     return fetch_pass(request, 'external');
-  // lif-kernel passthrough for local dev
-  let v;
-  if (path=='/' ||
-    (path_prefix(url, lif_kernel_base) && !path.startsWith('/.lif/')))
-  {
-    return fetch(request);
-  }
   // LIF+local GET requests
   // LIF requests
+  let v;
   if (lpm_pkg_app && (v = str.starts(path, '/.lif/'))){
     let lmod = v.rest;
     let slow = eslow('app_init');
@@ -1251,6 +1245,9 @@ async function _kernel_fetch(event){
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
     return send_res({...res, path});
   }
+  // lif-kernel passthrough for local dev
+  if (path=='/' || path_prefix(url, lif_kernel_base))
+    return fetch(request);
   // local requests
   let _path;
   if (!lpm_pkg_app || !lpm_pkg_app.pkg)
@@ -1463,7 +1460,7 @@ let do_app_pkg = async function(boot_pkg){
   // add lif-kernel package
   if (!boot_pkg.globDependencies?.['lif-kernel'] && !lif.globDependencies?.['lif-kernel'])
     lif.globDependencies ||= {};
-    lif.globDependencies['lif-kernel'] = lif_kernel_base;
+    lif.globDependencies['lif-kernel'] = lif_kernel_base+'/';
   // init new app
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
     lpm_pkg.lmod = lmod_root;
