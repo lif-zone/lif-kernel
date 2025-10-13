@@ -841,7 +841,7 @@ let app_index = {
   'play3': '.git/github/xderry/lif-os@main/lif-basic//play3.js',
   'play4': '.git/github/xderry/lif-os@main/lif-basic//play4.html',
   'os': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
-  'lif-coin': '.git/github/xderry/lif-coin@main/lif-os-boot/main.tsx',
+  'lif-coin': '.git/github/xderry/lif-coin@latest/scripts/index.html',
 };
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
