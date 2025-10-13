@@ -11,7 +11,7 @@ import util from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
-let {esleep, assert_eq, path_prefix, path_join} = util;
+let {esleep, assert_eq, path_prefix, path_join, str} = util;
 
 const MS = {
   SEC: 1000,
@@ -57,45 +57,44 @@ const res_send = (res, _path)=>{
   stream.pipe(res);
 };
 
-const map_uri = ({uri, opt})=>{
+const map_uri = ({uri, opt: {map, root}})=>{
   let _uri, dir;
-  for (let f in opt.map){
-    let to = opt.map[f], v;
+  if (uri.endsWith('/'))
+    uri = uri+'index.html';
+  for (let f in map){
+    let to = map[f], v;
     if (v=path_prefix(uri, f)){
       dir = to;
       _uri = v.rest;
       break;
     }
   }
-  if (_uri==undefined){
-    if (opt.strict_map)
-      return;
-    dir = '.';
-    _uri = uri;
-  }
-  if (_uri.endsWith('/'))
-    _uri = _uri+'index.html';
-  let _dir = dir[0]=='/' ? dir : opt.root+'/'+dir;
-  return path.join(_dir+_uri);
+  if (_uri==undefined)
+    return;
+  if (str.starts(dir, '.', './', '../'))
+    dir = path.join(root, dir);
+  return path.join(dir+_uri);
 };
 function test_server(){
   let map = {
     '/os': '../',
-    '/kernel': '/root/os/kernel/',
+    '/kernel': '/root/os/kernel',
     '/sw.js': '/root/os/kernel/sw.js',
+    '/': './',
   };
   let root = '/root/os/boot';
   let t = (uri, path, opt)=>{
-    let _path = map_uri({uri, opt: {map, root, strict_map: opt?.strict_map}});
+    let _path = map_uri({uri, opt: {root, map}});
     assert_eq(path, _path);
   };
   t('/', '/root/os/boot/index.html');
-  t('/', undefined, {strict_map: 1});
   t('/util.js', '/root/os/boot/util.js');
-  t('/util.js', undefined, {strict_map: 1});
   t('/sw.js', '/root/os/kernel/sw.js');
   t('/kernel/kernel.js', '/root/os/kernel/kernel.js');
   t('/os/package.json', '/root/os/package.json');
+  delete map['/'];
+  t('/', undefined);
+  t('/util.js', undefined);
 }
 test_server();
 
@@ -104,7 +103,7 @@ let root;
 const http_listener = (req, res)=>{
   let uri = new URL('http://localhost'+req.url).pathname;
   uri = decodeURI(uri);
-  let opt = {map, root, strict_map: false};
+  let opt = {map, root};
   let path = map_uri({uri, opt});
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
@@ -309,10 +308,16 @@ async function run(opt){
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
-  if (!map['/lif-kernel'])
-    map['/lif-kernel'] = import.meta.dirname+'/';
-  if (!map['/lif_kernel_sw.js'])
-    map['/lif_kernel_sw.js'] = map['/lif-kernel']+'/lif_kernel_sw.js';
+  let lif_kernel;
+  if (!(lif_kernel = map['/lif-kernel']))
+    map['/lif-kernel'] = lif_kernel = import.meta.dirname;
+  if (!map['/.lif.kernel_sw.js'])
+    map['/.lif.kernel_sw.js'] = lif_kernel+'/lif_kernel_sw.js';
+  if (!map['/index.html'])
+    map['/index.html'] = lif_kernel+'/index.html';
+  if (!map['/favicon.ico'])
+    map['/favicon.ico'] = lif_kernel+'/favicon.ico';
+  console.log(map);
   server.listen(port, ()=>{
     console.log(`Serving ${root} on http://localhost:${port}`);
   });
