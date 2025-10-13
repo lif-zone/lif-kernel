@@ -761,7 +761,7 @@ let boot_kernel = async()=>{
     };
     let slow = eslow('sw register');
     const registration = await navigator.serviceWorker.register(
-      '/lif_kernel_sw.js'+qs_enc({lif_kernel_base}));
+      '/.lif.kernel_sw.js'+qs_enc({lif_kernel_base}));
     const sw = await navigator.serviceWorker.ready;
     slow.end();
     // this boots the app if the SW has been installed before or
