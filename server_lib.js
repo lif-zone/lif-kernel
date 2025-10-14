@@ -11,7 +11,8 @@ import util from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
-let {esleep, assert_eq, path_starts, path_join, str} = util;
+let {esleep, assert_eq, path_starts, path_join, path_file, path_is_dir,
+  str} = util;
 
 const MS = {
   SEC: 1000,
@@ -59,8 +60,8 @@ const res_send = (res, _path)=>{
 
 const map_uri = ({uri, opt: {map, root}})=>{
   let _uri, _to;
-  if (uri.endsWith('/'))
-    uri = uri+'index.html';
+  if (path_is_dir(uri))
+    uri = path.join(uri, 'index.html');
   for (let f in map){
     let to = map[f], v;
     if (v=path_starts(uri, f)){
@@ -73,23 +74,31 @@ const map_uri = ({uri, opt: {map, root}})=>{
     return;
   if (path_starts(_to, '.', '..'))
     _to = path.join(root, _to);
-  return path.join(_to+_uri);
+  _to = path.join(_to, _uri);
+  if (_to.endsWith('/'))
+    _to = path.join(_to, path_file(uri)||'index.html');
+  return _to;
 };
 function test_server(){
   let map = {
     '/os': '../',
     '/kernel': '/root/os/kernel',
+    '/this': '/that/mod',
     '/sw.js': '/root/os/kernel/sw.js',
     '/': './',
   };
-  let root = '/root/os/boot';
+  let root = '/ROOT/os';
   let t = (uri, path, opt)=>
     assert_eq(path, map_uri({uri, opt: {root, map}}));
-  t('/', '/root/os/boot/index.html');
-  t('/util.js', '/root/os/boot/util.js');
+  t('/', '/ROOT/os/index.html');
+  t('/util.js', '/ROOT/os/util.js');
   t('/sw.js', '/root/os/kernel/sw.js');
   t('/kernel/kernel.js', '/root/os/kernel/kernel.js');
-  t('/os/package.json', '/root/os/package.json');
+  t('/os/package.json', '/ROOT/package.json');
+  t('/index.html', '/ROOT/os/index.html');
+  t('/favicon.ico', '/ROOT/os/favicon.ico');
+  t('/kernel/mod/favicon.ico', '/root/os/kernel/mod/favicon.ico');
+  t('/this/mod/favicon.ico', '/that/mod/mod/favicon.ico');
   delete map['/'];
   t('/', undefined);
   t('/util.js', undefined);
