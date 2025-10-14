@@ -11,7 +11,7 @@ import util from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
-let {esleep, assert_eq, path_prefix, path_join, str} = util;
+let {esleep, assert_eq, path_starts, path_join, str} = util;
 
 const MS = {
   SEC: 1000,
@@ -63,7 +63,7 @@ const map_uri = ({uri, opt: {map, root}})=>{
     uri = uri+'index.html';
   for (let f in map){
     let to = map[f], v;
-    if (v=path_prefix(uri, f)){
+    if (v=path_starts(uri, f)){
       dir = to;
       _uri = v.rest;
       break;
@@ -71,7 +71,7 @@ const map_uri = ({uri, opt: {map, root}})=>{
   }
   if (_uri==undefined)
     return;
-  if (str.starts(dir, '.', './', '../'))
+  if (path_starts(dir, '.', '..'))
     dir = path.join(root, dir);
   return path.join(dir+_uri);
 };
@@ -98,13 +98,11 @@ function test_server(){
 }
 test_server();
 
-let map;
-let root;
+let options = {};
 const http_listener = (req, res)=>{
   let uri = new URL('http://localhost'+req.url).pathname;
   uri = decodeURI(uri);
-  let opt = {map, root};
-  let path = map_uri({uri, opt});
+  let path = map_uri({uri, opt: options});
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
   if (!path)
@@ -289,8 +287,8 @@ async function run(opt){
   let port = 3000;
   let [...argv] = [...process.argv];
   let a, ssl;
-  map = {...opt?.map||{}};
-  root = opt.root||process.cwd();
+  let map = options.map = {...opt?.map||{}};
+  options.root = opt.root||process.cwd();
   argv.shift();
   argv.shift();
   while ((a=argv[0])!=undefined){
@@ -319,7 +317,7 @@ async function run(opt){
     map['/favicon.ico'] = lif_kernel+'/favicon.ico';
   console.log(map);
   server.listen(port, ()=>{
-    console.log(`Serving ${root} on http://localhost:${port}`);
+    console.log(`Serving ${options.root} on http://localhost:${port}`);
   });
   if (ssl)
     do_ssl();
