@@ -83,10 +83,8 @@ function test_server(){
     '/': './',
   };
   let root = '/root/os/boot';
-  let t = (uri, path, opt)=>{
-    let _path = map_uri({uri, opt: {root, map}});
-    assert_eq(path, _path);
-  };
+  let t = (uri, path, opt)=>
+    assert_eq(path, map_uri({uri, opt: {root, map}}));
   t('/', '/root/os/boot/index.html');
   t('/util.js', '/root/os/boot/util.js');
   t('/sw.js', '/root/os/kernel/sw.js');
@@ -278,7 +276,7 @@ async function do_ssl(opt){
     'arik.center': {ssl: true, ip: '165.227.185.44', ns: ['ns1', 'ns2']}
   });
   sserver.listen(sport, ()=>{
-    console.log(`Serving SSL ${root} on https://localhost:${sport}`);
+    console.log(`Serving SSL ${options.root} on https://localhost:${sport}`);
   });
   acme_check_if_need_ssl(); // background: dont wait
 }
