@@ -129,7 +129,7 @@ let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache,
   _path_ext, path_dir, path_file,
-  path_prefix, qs_enc, lpm_ver_from_base, lpm_same_base,
+  path_starts, qs_enc, lpm_ver_from_base, lpm_same_base,
   T_url_parse, T_npm_url_base, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
@@ -1247,7 +1247,7 @@ async function _kernel_fetch(event){
     return send_res({...res, path});
   }
   // lif-kernel passthrough for local dev
-  if (path=='/' || path_prefix(url, lif_kernel_base))
+  if (path=='/' || path_starts(url, lif_kernel_base))
     return fetch(request);
   // local requests
   let _path;
