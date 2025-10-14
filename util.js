@@ -513,7 +513,8 @@ let path_file = exports.path_file =
   path=>path.match(/(^.*\/)?([^/]*)$/)?.[2]||'';
 let path_dir = exports.path_dir =
   path=>path.match(/(^.*\/)?([^/]*)$/)?.[1]||'';
-let path_is_dir = exports.path_is_dir = path=>path.endsWith('/');
+let path_is_dir = exports.path_is_dir =
+  path=>!!(path && str.ends('/'+path, '/', '/.', '/..'));
 let path_join = exports.path_join = (...path)=>{
   let p = path[0];
   for (let i=1; i<path.length; i++){
@@ -1308,6 +1309,14 @@ function test_util(){
   t(true, '/');
   t(true, 'dir/');
   t(false, '');
+  t(true, '.');
+  t(true, '..');
+  t(true, '/..');
+  t(true, '/.');
+  t(false, '/file..');
+  t(false, '/file.');
+  t(true, '/dir/..');
+  t(true, '/dir/.');
   t = (v, ...path)=>assert_eq(v, path_join(...path));
   t('a/b/c', 'a/b', 'c');
   t('a/b/c', 'a/b', '/c');
