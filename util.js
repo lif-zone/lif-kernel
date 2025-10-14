@@ -891,10 +891,14 @@ let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
 };
 let lpm_to_npm = exports.lpm_to_npm = T(T_lpm_to_npm);
 
-let lpm_to_sw_uri = exports.lpm_to_sw_uri = lpm=>{
-  let v;
-  if (v=str.starts(lpm, 'local/'))
-    return '/'+v.rest;
+let lpm_to_sw_url = exports.lpm_to_sw_url = lpm=>{
+  let l = lpm_parse(lpm);
+  switch (l.reg){
+  case 'local':
+    return l.submod.slice(0, -1)+l.path;
+  case 'https': case 'http':
+    return l.reg+'://'+l.site+l.submod.slice(0, -1)+l.path;
+  }
   return '/.lif/'+lpm;
 };
 
@@ -1480,8 +1484,10 @@ function test_util(){
   t('.local/file.js', 'local/file.js');
   t('/file.js', 'local/file.js');
   t('/mod//file.js', 'local/mod//file.js');
-  t = (lpm, v)=>assert_eq(v, lpm_to_sw_uri(lpm));
+  t = (lpm, v)=>assert_eq(v, lpm_to_sw_url(lpm));
   t('local/dir/file.js', '/dir/file.js');
+  t('local/dir//file.js', '/dir/file.js');
+  t('http/localhost:3000/dir//file.js', 'http://localhost:3000/dir/file.js');
   t('npm/mod/file.js', '/.lif/npm/mod/file.js');
   t = (lpm, v)=>assert_eq(v, lpm_to_npm(lpm));
   t('npm/mod', 'mod');
