@@ -808,14 +808,19 @@ async function run_html(webapp){
   let html = await T_fetch_text(url);
   let parser = new DOMParser();
   let doc = parser.parseFromString(html, 'text/html');
-  let s = doc.querySelector('head');
-  let d = document.querySelector('head');
-  while (s?.firstChild)
-    d.appendChild(s.firstChild);
-  s = doc.querySelector('body');
-  d = document.querySelector('body');
-  while (s?.firstChild)
-    d.appendChild(s.firstChild);
+  document.head.innerHTML = doc.head.innerHTML;
+  document.body.innerHTML = doc.body.innerHTML;
+  function script_execute(e){
+    let script = e.querySelectorAll('script');
+    for (let i=0; script[i]; i++){
+      let f = document.createRange().createContextualFragment(
+        script[i].outerHTML);
+      e.appendChild(f);
+      script[i].parentNode.removeChild(script[i]);
+    }
+  }
+  script_execute(document.head);
+  script_execute(document.body);
   console.log('run_html complete');
 }
 
