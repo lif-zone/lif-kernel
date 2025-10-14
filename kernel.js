@@ -1469,7 +1469,7 @@ let do_app_pkg = async function(boot_pkg){
     lpm_pkg.child = [];
     return lpm_pkg;
   });
-  let _lpm_app = T_lpm_lmod(T_npm_to_lpm(lif.webapp));
+  let _lpm_app = T_lpm_lmod(T_npm_to_lpm(lif.webapp, {expand: true}));
   let slow = eslow('app_pg lpm_get');
   let _lpm_pkg_app;
   try {
