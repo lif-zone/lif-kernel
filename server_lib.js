@@ -58,22 +58,22 @@ const res_send = (res, _path)=>{
 };
 
 const map_uri = ({uri, opt: {map, root}})=>{
-  let _uri, dir;
+  let _uri, _to;
   if (uri.endsWith('/'))
     uri = uri+'index.html';
   for (let f in map){
     let to = map[f], v;
     if (v=path_starts(uri, f)){
-      dir = to;
+      _to = to;
       _uri = v.rest;
       break;
     }
   }
   if (_uri==undefined)
     return;
-  if (path_starts(dir, '.', '..'))
-    dir = path.join(root, dir);
-  return path.join(dir+_uri);
+  if (path_starts(_to, '.', '..'))
+    _to = path.join(root, _to);
+  return path.join(_to+_uri);
 };
 function test_server(){
   let map = {
