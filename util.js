@@ -119,18 +119,25 @@ str.es6_str = args=>{
 };
 str.qw = function(s){
   return str.split_ws(!Array.isArray(s) ? s : str.es6_str(arguments)); };
-let arr_deep_find = exports.arr_deep_find = (a, find)=>{
+let arr_find = exports.arr_find = (a, find)=>{
   if (!Array.isArray(a))
     return find(a);
   let v;
-  if (Array.isArray(a)){
-    for (let i=0; i<a.length; i++){
-      if (v = arr_deep_find(a[i], find))
-        return v;
-    }
+  for (let i=0; i<a.length; i++){
+    if (v = find(a[i]))
+      return v;
   }
 };
-str.starts = (s, ..._start)=>arr_deep_find(_start, start=>{
+let arr_find_deep = exports.arr_find_deep = (a, find)=>{
+  if (!Array.isArray(a))
+    return find(a);
+  let v;
+  for (let i=0; i<a.length; i++){
+    if (v = arr_find_deep(a[i], find))
+      return v;
+  }
+};
+str.starts = (s, ..._start)=>arr_find_deep(_start, start=>{
   let v;
   if (typeof start=='string'){
     if (s.startsWith(start))
@@ -144,11 +151,11 @@ str.starts = (s, ..._start)=>arr_deep_find(_start, start=>{
   }
   throw Error('invalid str.starts type');
 });
-str.ends = (s, ..._end)=>arr_deep_find(_end, end=>{
+str.ends = (s, ..._end)=>arr_find_deep(_end, end=>{
   if (s.endsWith(end))
     return {end, rest: s.slice(0, s.length-end.length)};
 });
-str.is = (s, ..._is)=>arr_deep_find(_is, is=>s==is)||false;
+str.is = (s, ..._is)=>arr_find_deep(_is, is=>s==is)||false;
 str.splice = (s, at, len, add)=>s.slice(0, at)+add+s.slice(at+len);
 str.diff_pos = (s1, s2)=>{
   if (s1==s2)
@@ -513,13 +520,15 @@ let path_join = exports.path_join = (...path)=>{
   }
   return p;
 };
-let path_starts = exports.path_starts = (path, start)=>{
+let path_starts = exports.path_starts =
+  (path, ..._start)=>arr_find(_start, start=>
+{
   let v;
   if (!(v=str.starts(path, start)))
     return;
   if (!v.rest || v.rest[0]=='/' || start.endsWith('/'))
     return v;
-};
+});
 
 let uri_enc = exports.uri_enc = path=>encodeURIComponent(path)
   .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
@@ -1302,7 +1311,7 @@ function test_util(){
   t('a/b/c', 'a/b', '/c');
   t('a/b/c', 'a/b/', '/c');
   t('a/b//c', 'a/b//', '/c');
-  t = (v, path, start)=>assert_eq(v, path_starts(path, start)?.rest);
+  t = (v, path, ...start)=>assert_eq(v, path_starts(path, ...start)?.rest);
   t(undefined, 'aa/bb/cc', 'a');
   t(undefined, 'aa/bb/cc', 'aa/b');
   t('/bb/cc', 'aa/bb/cc', 'aa');
@@ -1310,12 +1319,14 @@ function test_util(){
   t('/cc', 'aa/bb/cc', 'aa/bb');
   t('cc', 'aa/bb/cc', 'aa/bb/');
   t('', 'aa/bb/cc', 'aa/bb/cc');
+  t('/bb/cc', 'aa/bb/cc', 'AA', 'aa');
   t('', 'http://site/dir', 'http://site/dir');
   t(undefined, 'http://site/dir.', 'http://site/dir');
   t(undefined, 'http://site/dir', 'http://site/dir.');
   t(undefined, 'http://site/dir', 'http://site/dir/');
   t('/', 'http://site/dir/', 'http://site/dir');
   t('/file', 'http://site/dir/file', 'http://site/dir');
+  t('/', '../', '.', '..');
   t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
