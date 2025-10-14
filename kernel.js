@@ -525,12 +525,14 @@ let tr_mjs_import = f=>{
   for (let d of f.ast.imports){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
+      if (imp.endsWith('/lif-kernel//util.js')) debugger;
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
       continue;
     }
     if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
       if (_v = str.starts(v, 'http/', 'https/')){
         let url = _v.start.slice(0, -1)+'://'+_v.rest;
+        if (url.endsWith('/lif-kernel//util.js')) debugger;
         s.splice(d.start, d.end, json(url));
         continue;
       }
@@ -1388,6 +1390,9 @@ function test_kernel(){
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/github/user/repo', 'git/github/user/repo@v1');
   t('git/github/user/repo@vX', 'git/github/user/repo@vX');
+  t = (pkg, imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg: {pkg}, imp}));
+  t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
+    'local/lif-kernel//util.js');
   t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
   t('a/file', undefined, ['.js']);
