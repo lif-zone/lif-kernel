@@ -813,6 +813,7 @@ async function run_html(webapp){
   function script_execute(e){
     let script = e.querySelectorAll('script');
     for (let i=0; script[i]; i++){
+      // required to bring <script> to life
       let f = document.createRange().createContextualFragment(
         script[i].outerHTML);
       e.appendChild(f);
