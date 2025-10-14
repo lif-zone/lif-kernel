@@ -7,8 +7,8 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
+  json, json_cp,
   html_elm, _debugger} = util;
-let json = JSON.stringify;
 
 assert(!globalThis.$lif, 'lif already loaded');
 let lif = globalThis.$lif = {};
@@ -874,29 +874,29 @@ let app_pkg_default = ()=>{
     pkg.dependencies ||= [];
     pkg.dependencies[lpm_to_npm(u)] = v;
   }
-  return {lif: pkg};
+  return pkg;
 };
 
-let boot_app = async(app_pkg)=>{
-  if (!app_pkg)
-    app_pkg = app_pkg_default();
+let boot_app = async(boot_pkg)=>{
+  let pkg = json_cp(boot_pkg);
+  if (!pkg)
+    pkg = app_pkg_default();
+  let lif = pkg.lif ||= {};
   let run;
-  if (app_pkg.lif?.webapp=='index'){
+  if (lif.webapp=='index'){
     run = run_app_index;
-    app_pkg.lif.webapp = 'lif-kernel';
+    lif.webapp = 'lif-kernel';
   }
-  app_pkg = JSON.parse(JSON.stringify(app_pkg));
-  let lif = app_pkg.lif;
-  let webapp = lif?.webapp;
+  let webapp = lif.webapp;
   if (webapp)
     webapp = npm_expand(webapp);
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+webapp);
-  npm_map = lif?.dependencies||{};
+  npm_map = lif.dependencies||{};
   npm_root = webapp;
   let slow = eslow('app_pkg');
-  await kernel_chan.cmd('app_pkg', app_pkg);
+  await kernel_chan.cmd('app_pkg', pkg);
   slow.end();
   // reload page for cross-origin-isolation
   if (coi_enable)
