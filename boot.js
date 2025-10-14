@@ -621,7 +621,7 @@ async function import_amd(mod_self, [imp, opt]){
   };
   m.define.amd = {};
   m.define.module = m; // debug
-  js += `let define = lif.boot.define_amd_get_mod(${json(imp)}).define;`;
+  js += `let define = globalThis.$lif.boot.define_amd_get_mod(${json(imp)}).define;`;
   js += `(function(){\n${m.script}\n}());`;
   try {
     eval?.(js); // script return value is ignored
