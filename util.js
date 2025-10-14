@@ -513,7 +513,7 @@ let path_join = exports.path_join = (...path)=>{
   }
   return p;
 };
-let path_prefix = exports.path_prefix = (path, start)=>{
+let path_starts = exports.path_starts = (path, start)=>{
   let v;
   if (!(v=str.starts(path, start)))
     return;
@@ -854,15 +854,15 @@ let T_npm_to_lpm = exports.T_npm_to_lpm = (npm, opt)=>{
   }
   if (npm[0]!='.')
     return 'npm/'+npm;
-  if (v=path_prefix(npm, '.npm'))
+  if (v=path_starts(npm, '.npm'))
     return 'npm'+v.rest;
-  if (v=path_prefix(npm, '.git'))
+  if (v=path_starts(npm, '.git'))
     return 'git'+v.rest;
-  if (v=path_prefix(npm, '.local'))
+  if (v=path_starts(npm, '.local'))
     return 'local'+v.rest;
-  if (v=path_prefix(npm, '.https'))
+  if (v=path_starts(npm, '.https'))
     return 'https'+v.rest;
-  if (v=path_prefix(npm, '.http'))
+  if (v=path_starts(npm, '.http'))
     return 'http'+v.rest;
   throw Error('invalid npm: '+npm);
 };
@@ -1302,7 +1302,7 @@ function test_util(){
   t('a/b/c', 'a/b', '/c');
   t('a/b/c', 'a/b/', '/c');
   t('a/b//c', 'a/b//', '/c');
-  t = (v, path, prefix)=>assert_eq(v, path_prefix(path, prefix)?.rest);
+  t = (v, path, start)=>assert_eq(v, path_starts(path, start)?.rest);
   t(undefined, 'aa/bb/cc', 'a');
   t(undefined, 'aa/bb/cc', 'aa/b');
   t('/bb/cc', 'aa/bb/cc', 'aa');
