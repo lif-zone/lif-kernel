@@ -129,7 +129,7 @@ let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache, json,
   _path_ext, path_dir, path_file,
-  path_starts, qs_enc, lpm_ver_from_base, lpm_same_base,
+  path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_url,
   T_url_parse, T_npm_url_base, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
@@ -525,23 +525,18 @@ let tr_mjs_import = f=>{
   for (let d of f.ast.imports){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
-      if (imp.endsWith('/lif-kernel//util.js')) debugger;
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
       continue;
     }
     if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
-      if (_v = str.starts(v, 'http/', 'https/')){
-        let url = _v.start.slice(0, -1)+'://'+_v.rest;
-        if (url.endsWith('/lif-kernel//util.js')) debugger;
-        s.splice(d.start, d.end, json(url));
-        continue;
+      v = lpm_to_sw_url(v);
+      if (v.startsWith('/.lif/')){
+        let q = {};
+        if (d.imported)
+          q.imported = d.imported.join(',');
+        q.mod_self = f.npm_uri;
+        v += qs_enc(q);
       }
-      v = '/.lif/'+v;
-      let q = {};
-      if (d.imported)
-        q.imported = d.imported.join(',');
-      q.mod_self = f.npm_uri;
-      v += qs_enc(q);
       s.splice(d.start, d.end, json(v));
       continue;
     }
