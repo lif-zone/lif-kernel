@@ -127,7 +127,7 @@ let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 console.log('kernel import end');
-let {postmessage_chan, str, OF, OA, assert, ecache,
+let {postmessage_chan, str, OF, OA, assert, ecache, json,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base,
   T_url_parse, T_npm_url_base, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
@@ -137,7 +137,6 @@ let {postmessage_chan, str, OF, OA, assert, ecache,
   pkg_export_lookup, export_path_match,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
-let json = JSON.stringify;
 let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
 
