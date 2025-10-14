@@ -6,7 +6,7 @@ import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
-  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing,
+  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
   html_elm, _debugger} = util;
 let json = JSON.stringify;
 
@@ -839,15 +839,24 @@ let app_index = {
   '': 'index', // special handling for built-in index
   'index': 'index', // special handling for built-in index
   'basic': '.git/github/xderry/lif-os@main/lif-basic//main.tsx',
-  'basicB': 'lif-basic@1.3.0/main.tsx',
+  'basic-npm': 'lif-basic@1.3.0/main.tsx',
+  'basic-local': '/lif-basic//main.tsx',
   'play': '.git/github/xderry/lif-os@main/lif-basic//play.html',
-  'playB': 'lif-basic@1.3.0/play.html',
+  'play-npm': 'lif-basic@1.3.0/play.html',
+  'play-local': '/lif-basic//play.html',
   'play2': '.git/github/xderry/lif-os@main/lif-basic//play2.tsx',
-  'play2B': 'lif-basic@1.3.0/play2.tsx',
+  'play2-npm': 'lif-basic@1.3.0/play2.tsx',
+  'play2-local': '/lif-basic//play2.tsx',
   'play3': '.git/github/xderry/lif-os@main/lif-basic//play3.js',
+  'play3-npm': 'lif-basic@1.3.0/play3.js',
+  'play3-local': '/lif-basic//play3.js',
   'play4': '.git/github/xderry/lif-os@main/lif-basic//play4.html',
+  'play4-npm': 'lif-basic@1.3.0/play4.html',
+  'play4-local': '/lif-basic//play4.html',
   'os': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
+  'os-local': '/lif-os//lif-os-boot/main.tsx',
   'lif-coin': '.git/github/xderry/lif-coin@latest/scripts/index.html',
+  'lif-coin-local': '/lif-coin//scripts/index.html',
 };
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
@@ -860,7 +869,7 @@ let app_pkg_default = ()=>{
   if (v=app_index[pkg.webapp||''])
     pkg.webapp = v;
   if (v=q.get('src')){
-    let u = lpm_parse(npm_to_lpm(pkg.webapp));
+    let u = lpm_parse(npm_to_lpm(pkg.webapp, {expand: true}));
     u.path = '';
     pkg.dependencies ||= [];
     pkg.dependencies[lpm_to_npm(u)] = v;
@@ -879,6 +888,8 @@ let boot_app = async(app_pkg)=>{
   app_pkg = JSON.parse(JSON.stringify(app_pkg));
   let lif = app_pkg.lif;
   let webapp = lif?.webapp;
+  if (webapp)
+    webapp = npm_expand(webapp);
   // init kernel
   await boot_kernel();
   console.log('boot: boot '+webapp);
