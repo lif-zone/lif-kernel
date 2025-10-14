@@ -10,8 +10,8 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   html_elm, _debugger} = util;
 let json = JSON.stringify;
 
-assert(!globalThis.lif, 'lif already loaded');
-let lif = globalThis.lif = {};
+assert(!globalThis.$lif, 'lif already loaded');
+let lif = globalThis.$lif = {};
 let modules = {};
 let kernel_chan;
 let npm_root;
@@ -432,7 +432,7 @@ function require_cjs_run(m, p){
   m.require.module = m; // debug
   let js = `//# sourceURL=${m.url}\n`;
   js += `'use strict';
-    let module = globalThis.lif.boot.require_cjs_get_mod(${json(m.id)});
+    let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.id)});
     let exports = module.exports;
     let require = module.require;
     let __dirname = ${json(path_dir(m.id))};

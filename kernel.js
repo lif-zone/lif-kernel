@@ -564,11 +564,11 @@ const file_tr_mjs = (f, opt)=>{
     pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
   }
   if (f.ast.imports_dyn.length)
-    pre += `let import_lif = function(){ return globalThis.lif.boot.import_esm(${uri_s}, arguments); }; `;
+    pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
   if (slow)
-    pre += `let slow = globalThis.lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
+    pre += `let slow = globalThis.$lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
   if (log) 
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
@@ -583,7 +583,7 @@ const mjs_import_cjs = (path, q)=>{
   let mod_self = q.get('mod_self');
   let uri_s = json(path);
   let js = '';
-  js += `let exports = (await globalThis.lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
+  js += `let exports = (await globalThis.$lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
@@ -594,7 +594,7 @@ const mjs_import_amd = (path, q)=>{
   let mod_self = q.get('mod_self');
   let uri_s = json(path);
   let js = '';
-  js += `let exports = await globalThis.lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;
+  js += `let exports = await globalThis.$lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
