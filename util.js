@@ -838,10 +838,20 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
 };
 let npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
-let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
+let npm_expand = exports.npm_expand = npm=>{
+  if (npm[0]=='/')
+    return '.local/'+npm;
+  return npm;
+};
+let T_npm_to_lpm = exports.T_npm_to_lpm = (npm, opt)=>{
   let v;
-  if (npm[0]=='/' || !npm[0])
+  if (!npm[0])
+    throw Error('invalid empty npm');
+  if (npm[0]=='/'){
+    if (opt?.expand) // expand /module -> .local/module (local dev modules)
+      return 'local'+npm;
     throw Error('invalid npm: '+npm);
+  }
   if (npm[0]!='.')
     return 'npm/'+npm;
   if (v=path_prefix(npm, '.npm'))
@@ -858,7 +868,8 @@ let T_npm_to_lpm = exports.T_npm_to_lpm = npm=>{
 };
 let npm_to_lpm = exports.npm_to_lpm = T(T_npm_to_lpm);
 
-let T_npm_parse = exports.T_npm_parse = npm=>T_lpm_parse(T_npm_to_lpm(npm));
+let T_npm_parse = exports.T_npm_parse =
+  (npm, opt)=>T_lpm_parse(T_npm_to_lpm(npm, opt));
 
 let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
   let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
