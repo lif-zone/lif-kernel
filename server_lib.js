@@ -11,8 +11,8 @@ import util from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
-let {esleep, assert_eq, path_starts, path_join, path_file, path_is_dir,
-  str} = util;
+let {esleep, assert_eq, path_starts, path_join, path_dots,
+  path_file, path_is_dir, str} = util;
 
 const MS = {
   SEC: 1000,
@@ -61,7 +61,7 @@ const res_send = (res, _path)=>{
 const map_uri = ({uri, opt: {map, root}})=>{
   let _uri, _to;
   if (path_is_dir(uri))
-    uri = path.join(uri, 'index.html');
+    uri = path_join(uri, 'index.html');
   for (let f in map){
     let to = map[f], v;
     if (v=path_starts(uri, f)){
@@ -73,10 +73,12 @@ const map_uri = ({uri, opt: {map, root}})=>{
   if (_uri==undefined)
     return;
   if (path_starts(_to, '.', '..'))
-    _to = path.join(root, _to);
-  _to = path.join(_to, _uri);
+    _to = path_join(root, _to);
+  if (_uri)
+    _to = path_join(_to, _uri);
+  _to = path_dots(_to);
   if (_to.endsWith('/'))
-    _to = path.join(_to, path_file(uri)||'index.html');
+    _to = path_join(_to, path_file(uri)||'index.html');
   return _to;
 };
 function test_server(){
