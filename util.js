@@ -178,7 +178,7 @@ let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
       assert_obj(exp[i], res[i]);
     return;
   }
-  assert(0, exp, res);
+  assert(0, 'exp', exp, 'res', res);
 };
 let assert_run = assert.run = run=>{
   try {
@@ -840,7 +840,7 @@ let npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
 
 let npm_expand = exports.npm_expand = npm=>{
   if (npm[0]=='/')
-    return '.local/'+npm;
+    return '.local'+npm;
   return npm;
 };
 let T_npm_to_lpm = exports.T_npm_to_lpm = (npm, opt)=>{
@@ -1346,6 +1346,11 @@ function test_util(){
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
   t({path: '.git/github/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
     ['./c/d', '.git/github/user/repo@1.2.3/a/b']);
+  t = (npm, v)=>assert_obj(v, npm_expand(npm));
+  t('mod', 'mod');
+  t('/', '.local/');
+  t('/dir/file', '.local/dir/file');
+  t('/mod//file', '.local/mod//file');
   t = (npm, v)=>assert_obj(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
@@ -1446,7 +1451,13 @@ function test_util(){
   t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
   t('.local', 'local');
   t('.local/file.js', 'local/file.js');
+  t('/file.js');
+  t('.local/mod//file.js', 'local/mod//file.js');
   t('.none/github/a_user/a_repo/dir/file');
+  t = (npm, v)=>assert_eq(v, npm_to_lpm(npm, {expand: true}));
+  t('.local/file.js', 'local/file.js');
+  t('/file.js', 'local/file.js');
+  t('/mod//file.js', 'local/mod//file.js');
   t = (lpm, v)=>assert_eq(v, lpm_to_sw_uri(lpm));
   t('local/dir/file.js', '/dir/file.js');
   t('npm/mod/file.js', '/.lif/npm/mod/file.js');
