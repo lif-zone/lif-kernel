@@ -1,5 +1,5 @@
 // LIF bootloader: Boot the kernel and then load the application
-let lif_version = '1.3.0';
+let lif_version = '1.3.1';
 let D = 0; // Debug
 
 import util from './util.js';
@@ -879,11 +879,9 @@ let app_pkg_default = ()=>{
 };
 
 let boot_app = async(boot_pkg)=>{
-  let pkg;
+  let pkg = boot_pkg && json_cp(boot_pkg);
   if (!pkg)
     pkg = app_pkg_default();
-  else
-    pkg = json_cp(boot_pkg);
   let lif = pkg.lif ||= {};
   let run;
   if (lif.webapp=='index'){
