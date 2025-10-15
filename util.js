@@ -526,21 +526,26 @@ let path_join = exports.path_join = (...path)=>{
 let path_dots = exports.path_dots = path=>{
   let _path = path.split('/');
   let r = [];
+  let is_root = _path[0]=='';
+  let is_dir = str.is(_path.at(-1)||'', '', '.', '..');
   for (let i=0; i<_path.length; i++){
     let p = _path[i];
-    if (p=='.')
+    if (p=='.' || p=='')
       continue;
     if (p=='..'){
       r.pop();
       continue;
     }
-    if (!p && i!=0 && i!=_path.length-1)
-      continue;
     r.push(p);
   }
-  if (!r.length)
-    return '.';
-  return r.join('/');
+  let to = r.join('/');
+  if (is_root)
+    to = '/'+to;
+  if (is_dir && to && !to.endsWith('/'))
+    to += '/';
+  if (!to)
+    return './';
+  return to;
 };
 let path_starts = exports.path_starts =
   (path, ..._start)=>arr_find(_start, start=>
@@ -1346,12 +1351,14 @@ function test_util(){
   t('a/b/c', 'a/b/', '/c');
   t('a/b//c', 'a/b//', '/c');
   t = (v, path)=>assert_eq(v, path_dots(path));
-  t('.', '.');
+  t('./', '.');
   t('abc', './abc');
   t('/abc', '/abc');
   t('/abc/', '/abc/');
   t('/abc/def/', '/./abc/././def/./');
   t('/abc/def/', '/./abc/xyz././../def/./');
+  t('/abc/def/', '/abc///./def/.//');
+  t('/abc/def/', '/abc/def/.');
   t = (v, path, ...start)=>assert_eq(v, path_starts(path, ...start)?.rest);
   t(undefined, 'aa/bb/cc', 'a');
   t(undefined, 'aa/bb/cc', 'aa/b');
