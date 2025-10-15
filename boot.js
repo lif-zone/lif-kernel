@@ -861,15 +861,16 @@ let app_index = {
 let app_pkg_default = ()=>{
   let q = new URLSearchParams(location.search);
   let e = [...q.entries()][0];
-  let pkg = {}, v;
+  let pkg = {lif: {}}, v;
+  let lif = pkg.lif;
   if (e && e[0] && !e[1])
-    pkg.webapp = e[0];
+    lif.webapp = e[0];
   if (v=q.get('webapp'))
-    pkg.webapp = v;
-  if (v=app_index[pkg.webapp||''])
-    pkg.webapp = v;
+    lif.webapp = v;
+  if (v=app_index[lif.webapp||''])
+    lif.webapp = v;
   if (v=q.get('src')){
-    let u = lpm_parse(npm_to_lpm(pkg.webapp, {expand: true}));
+    let u = lpm_parse(npm_to_lpm(lif.webapp, {expand: true}));
     u.path = '';
     pkg.dependencies ||= [];
     pkg.dependencies[lpm_to_npm(u)] = v;
@@ -878,9 +879,11 @@ let app_pkg_default = ()=>{
 };
 
 let boot_app = async(boot_pkg)=>{
-  let pkg = json_cp(boot_pkg);
+  let pkg;
   if (!pkg)
     pkg = app_pkg_default();
+  else
+    pkg = json_cp(boot_pkg);
   let lif = pkg.lif ||= {};
   let run;
   if (lif.webapp=='index'){
