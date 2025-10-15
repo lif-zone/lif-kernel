@@ -90,7 +90,8 @@ let Donce = exports.Donce = (once, fn)=>{
 let OF = exports.OF = o=>o ? Object.entries(o) : [];
 let OA = exports.OA = Object.assign;
 let json = exports.json = obj=>JSON.stringify(obj);
-let json_cp = exports.json_cp = obj=>JSON.parse(JSON.stringify(obj));
+let json_cp = exports.json_cp =
+  obj=>JSON.parse(JSON.stringify(obj===undefined ? null : obj));
 // throw Error -> undefined
 let T = exports.T = (fn, throw_val)=>(function(){
   try {
