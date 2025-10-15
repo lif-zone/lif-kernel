@@ -12,5 +12,21 @@
   "type": "module",
   "lif": {
     "raw": true
-  }
+  },
+  "files": [
+    "acme.js",
+    "boot.js",
+    "boot_worker.js",
+    "dnss.js",
+    "etask.js",
+    "favicon.ico",
+    "index.html",
+    "kernel.js",
+    "lif-kernel.service",
+    "lif_kernel_sw.js",
+    "mine_db.js",
+    "server.js",
+    "server_lib.js",
+    "util.js"
+  ]
 }
