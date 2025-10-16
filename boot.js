@@ -802,9 +802,10 @@ let coi_reload = async()=>{
   window.location.reload();
 };
 
-async function run_html(webapp){
-  console.log('run_html start '+webapp);
-  let url = '/.lif/'+npm_to_lpm(webapp);
+async function run_html(mod_self, webapp){
+  let _webapp = npm_norm(webapp, mod_self);
+  console.log('run_html start '+_webapp);
+  let url = '/.lif/'+npm_to_lpm(_webapp);
   let html = await T_fetch_text(url);
   let parser = new DOMParser();
   let doc = parser.parseFromString(html, 'text/html');
@@ -825,7 +826,7 @@ async function run_html(webapp){
   console.log('run_html complete');
 }
 
-function run_app_index(){
+function run_app_demo(){
   let body = document.querySelector('body');
   for (let [k, v] of OF(app_index)){
     let p = html_elm('p');
@@ -836,8 +837,7 @@ function run_app_index(){
   }
 }
 let app_index = {
-  '': 'index', // special handling for built-in index
-  'index': 'index', // special handling for built-in index
+  '': 'demo', // special handling for built-in demo
   'basic': '.git/github/xderry/lif-os@main/lif-basic//main.tsx',
   'basic-npm': 'lif-basic@1.3.0/main.tsx',
   'basic-local': '/lif-basic//main.tsx',
@@ -884,8 +884,8 @@ let boot_app = async(boot_pkg)=>{
     pkg = app_pkg_default();
   let lif = pkg.lif ||= {};
   let run;
-  if (lif.webapp=='index'){
-    run = run_app_index;
+  if (lif.webapp=='demo'){
+    run = run_app_demo;
     lif.webapp = 'lif-kernel';
   }
   let webapp = lif.webapp;
@@ -897,8 +897,11 @@ let boot_app = async(boot_pkg)=>{
   npm_map = lif.dependencies||{};
   npm_root = webapp;
   let slow = eslow('app_pkg');
-  await kernel_chan.cmd('app_pkg', pkg);
+  let res = await kernel_chan.cmd('app_pkg', pkg);
   slow.end();
+  let mod_self = webapp;
+  if (res.webapp)
+    webapp = res.webapp;
   // reload page for cross-origin-isolation
   if (coi_enable)
     await coi_reload();
@@ -908,9 +911,9 @@ let boot_app = async(boot_pkg)=>{
     if (run)
       return await run();
     if (ext=='html')
-      return await run_html(webapp);
+      return await run_html(mod_self, webapp);
     if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
-      return await import_esm(webapp, [webapp]);
+      return await import_esm(mod_self, [webapp]);
     throw Error('no app type found: '+webapp);
   } catch(err){
     console.error('boot: app('+webapp+') failed');
