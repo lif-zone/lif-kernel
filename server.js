@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import server from './server_lib.js';
 let cwd = import.meta.dirname;
-let map = {}
+let map = {};
 map['/lif-kernel'] = cwd;
 // local dev
 map['/lif-basic'] = cwd+'../lif-basic';
