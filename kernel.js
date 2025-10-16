@@ -1483,7 +1483,12 @@ let do_app_pkg = async function(boot_pkg){
   lpm_app = _lpm_app;
   lpm_pkg_app = _lpm_pkg_app;
   console.log('lpm_pkg_app inited: '+lpm_app);
+  let res = {ok: true};
+  let _webapp = lpm_pkg_app?.pkg?.lif?.web;
+  if (_webapp)
+    res.webapp = _webapp;
   app_init_wait.return();
+  return res;
 };
 
 let boot_chan;
