@@ -15,7 +15,6 @@ let lif = globalThis.$lif = {};
 let modules = {};
 let kernel_chan;
 let npm_root;
-let npm_map = {};
 
 let process = globalThis.process ||= {
   env: {},
@@ -686,8 +685,10 @@ async function import_esm(mod_self, [imp, opt]){
     let ret;
     if (is_worker)
       ret = await import_worker({mod_self, imp, opt});
-    else
+    else {
       ret = await /*keep*/ import(url, opt);
+      ret = ret.default;
+    }
     return ret;
   } catch(err){
     console.error('import_esm('+url+' '+mod_self+')', err);
@@ -817,6 +818,9 @@ async function run_html(mod_self, webapp){
       // required to bring <script> to life
       let f = document.createRange().createContextualFragment(
         script[i].outerHTML);
+      // TODO need to modify type=module scripts:
+      // src=mod --> src=/.lif/../mod?mjs=1
+      // inline scripts: need to parse their ast contents and update imports
       e.appendChild(f);
       script[i].parentNode.removeChild(script[i]);
     }
@@ -826,94 +830,41 @@ async function run_html(mod_self, webapp){
   console.log('run_html complete');
 }
 
-function run_app_demo(){
-  let body = document.querySelector('body');
-  for (let [k, v] of OF(app_index)){
-    let p = html_elm('p');
-    let e = html_elm('a', {href: '/?'+v});
-    e.innerText = k;
-    p.appendChild(e);
-    body.appendChild(p);
-  }
-}
-let app_index = {
-  '': 'demo', // special handling for built-in demo
-  'basic': '.git/github/xderry/lif-os@main/lif-basic//main.tsx',
-  'basic-npm': 'lif-basic@1.3.0/main.tsx',
-  'basic-local': '/lif-basic//main.tsx',
-  'play': '.git/github/xderry/lif-os@main/lif-basic//play.html',
-  'play-npm': 'lif-basic@1.3.0/play.html',
-  'play-local': '/lif-basic//play.html',
-  'play2': '.git/github/xderry/lif-os@main/lif-basic//play2.tsx',
-  'play2-npm': 'lif-basic@1.3.0/play2.tsx',
-  'play2-local': '/lif-basic//play2.tsx',
-  'play3': '.git/github/xderry/lif-os@main/lif-basic//play3.js',
-  'play3-npm': 'lif-basic@1.3.0/play3.js',
-  'play3-local': '/lif-basic//play3.js',
-  'play4': '.git/github/xderry/lif-os@main/lif-basic//play4.html',
-  'play4-npm': 'lif-basic@1.3.0/play4.html',
-  'play4-local': '/lif-basic//play4.html',
-  'os': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
-  'os-local': '/lif-os//lif-os-boot/main.tsx',
-  'lif-coin': '.git/github/xderry/lif-coin@latest/scripts/index.html',
-  'lif-coin-local': '/lif-coin//scripts/index.html',
-};
-let app_pkg_default = ()=>{
-  let q = new URLSearchParams(location.search);
-  let e = [...q.entries()][0];
-  let pkg = {lif: {}}, v;
-  let lif = pkg.lif;
-  if (e && e[0] && !e[1])
-    lif.webapp = e[0];
-  if (v=q.get('webapp'))
-    lif.webapp = v;
-  if (v=app_index[lif.webapp||''])
-    lif.webapp = v;
-  if (v=q.get('src')){
-    let u = lpm_parse(npm_to_lpm(lif.webapp, {expand: true}));
-    u.path = '';
-    pkg.dependencies ||= [];
-    pkg.dependencies[lpm_to_npm(u)] = v;
-  }
-  return pkg;
-};
-
 let boot_app = async(boot_pkg)=>{
-  let pkg = boot_pkg && json_cp(boot_pkg);
-  if (!pkg)
-    pkg = app_pkg_default();
-  let lif = pkg.lif ||= {};
-  let run;
-  if (lif.webapp=='demo'){
-    run = run_app_demo;
-    lif.webapp = 'lif-kernel';
-  }
-  let webapp = lif.webapp;
-  if (webapp)
-    webapp = npm_expand(webapp);
   // init kernel
   await boot_kernel();
-  console.log('boot: boot '+webapp);
-  npm_map = lif.dependencies||{};
+  // reload page for cross-origin-isolation
+  if (coi_enable)
+    await coi_reload();
+  if (!boot_pkg)
+    return;
+  let pkg = json_cp(boot_pkg);
+  let webapp = pkg.lif?.webapp||pkg.webapp;
+  if (webapp)
+    webapp = npm_expand(webapp);
+  console.log('boot: webapp '+webapp);
   npm_root = webapp;
   let slow = eslow('app_pkg');
   let res = await kernel_chan.cmd('app_pkg', pkg);
   slow.end();
+  if (!webapp)
+    return;
   let mod_self = webapp;
-  if (res.webapp)
+  if (res.webapp && res.webapp!=webapp){
+    console.log('resolved: '+webapp+' -> '+res.webapp);
     webapp = res.webapp;
-  // reload page for cross-origin-isolation
-  if (coi_enable)
-    await coi_reload();
+  }
   // load app
   let ext = _path_ext(webapp);
   try {
-    if (run)
-      return await run();
     if (ext=='html')
       return await run_html(mod_self, webapp);
-    if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
-      return await import_esm(mod_self, [webapp]);
+    if (str.is(ext, 'js', 'jsx', 'ts', 'tsx')){
+      let run = await import_esm(null, [webapp]);
+      if (typeof run=='function')
+        await run();
+      return;
+    }
     throw Error('no app type found: '+webapp);
   } catch(err){
     console.error('boot: app('+webapp+') failed');
@@ -959,7 +910,6 @@ lif.boot = {
   import_esm,
   import_amd,
   define_amd_get_mod,
-  app_index,
   util, // debug
 };
 if (is_worker){

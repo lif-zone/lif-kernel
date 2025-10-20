@@ -127,10 +127,10 @@ let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 console.log('kernel import end');
-let {postmessage_chan, str, OF, OA, assert, ecache, json,
+let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_url,
-  T_url_parse, T_npm_url_base, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
+  T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   uri_dec, match_glob_to_regex, semver_range_parse,
@@ -596,8 +596,8 @@ const mjs_import_amd = (path, q)=>{
   return js;
 };
 
-const mjs_import_mjs = (export_default, path, q)=>{
-  let _path = json(path+'?mjs=1');
+const mjs_import_mjs = (export_default, path)=>{
+  let _path = json(path);
   let js = `export * from ${_path};\n`;
   if (export_default)
     js += `export {default} from ${_path};\n`;
@@ -1084,6 +1084,24 @@ function lpm_redirect({f, qs, lmod}){
   return {redirect};
 }
 
+function passthrough_lmod({pkg, lmod}){
+  // quick hack for lif-kernel/boot.js lif-kernel/util.js to not use /.lif/
+  // URL to avoid them double loading:
+  // http://localhost:3000/lif-kernel/boot.js
+  // http://localhost:3000/.lif/http/localhost:3000/lif-kernel//boot.js
+  let u = lpm_parse(lmod);
+  let pass = pkg.lif?.passthrough;
+  if (!pass || !str.is(u.reg, 'local', 'http', 'https'))
+    return;
+  let file = u.path.slice(1);
+  let v;
+  for (let p of pass){
+    while (v=str.starts(p, './'))
+      p = v.rest;
+    if (p==file)
+      return lpm_to_sw_url(lmod);
+  }
+}
 function responce_tr_send({f, qs, lmod}){
   if (f.not_exist)
     return {not_exist: true};
@@ -1102,9 +1120,15 @@ function responce_tr_send({f, qs, lmod}){
   let type = ast.type;
   if (ast.err)
     return {body: f.blob, ext, err: 'ast err: '+ast.err};
+  let v;
+  if ((q.get('mjs')==2 || q.get('mjs')==1 || type=='mjs') &&
+    (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
+  {
+    return {body: mjs_import_mjs(ast.has.export_default, v), ext};
+  }
   if (q.get('mjs')==2){
-    return {body: mjs_import_mjs(ast.has.export_default, '/.lif/'+lmod, q),
-      ext};
+    return {body: mjs_import_mjs(ast.has.export_default,
+      '/.lif/'+lmod+'?mjs=1'), ext};
   }
   if (q.get('mjs')==1 && (type=='mjs' || !type))
     return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext};
@@ -1179,7 +1203,8 @@ async function send_res({err, not_exist, redirect, body, ext, path}){
     console.error('not found: '+path);
     return new Response('not found', {status: 404, statusText: 'not found'});
   }
-  let cache = path.startsWith('/.lif/local/') ? enable_cache>=2 :
+  let cache = str.starts(path, '/.lif/local/', '/.lif/http/', '/.lif/https/') ?
+    enable_cache>=2 :
     path.startsWith('/.lif/') ? enable_cache>=1 :
     path.startsWith('/') ? enable_cache>=2 : false;
   if (redirect)
@@ -1231,7 +1256,7 @@ async function _kernel_fetch(event){
   if (lpm_pkg_app && (v = str.starts(path, '/.lif/'))){
     let lmod = v.rest;
     let slow = eslow('app_init');
-    await app_init_wait;
+    await app_init_wait; // XXX - try to remove. favicon can be handled later!
     slow.end();
     if (q.get('meta')){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod, qs});
@@ -1439,54 +1464,75 @@ async function lpm_pkg_resolve_follow(opt){
   }
 }
 
+async function webapp_load({log, lmod_self, webapp}){
+  let lmod_webapp = T_npm_to_lpm(webapp, {expand: true});
+  let _lpm_app = T_lpm_lmod(lmod_webapp);
+  let _lpm_pkg_app;
+  let slow = eslow('app_pg lpm_get');
+  try {
+    ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve_follow({log,
+      imp: _lpm_app, mod_self: lmod_self}));
+  } catch(err){
+    console.error('webapp_load  '+webapp, err);
+    return {err};
+  } finally {
+    slow.end();
+  }
+  lpm_app = _lpm_app;
+  lpm_pkg_app = _lpm_pkg_app;
+  let pkg = lpm_pkg_app.pkg;
+  let webapp_f = pkg.lif?.webapp||pkg.webapp;
+  if (!webapp_f)
+    return {ok: true};
+  let v;
+  while (v=str.starts(webapp_f, './'))
+    webapp_f = v.rest;
+  let res = {ok: true, webapp: T_lpm_to_npm(_lpm_app+'/'+webapp_f)};
+  console.log('webapp_load complete: '+res.webapp);
+  return res;
+}
+
+async function webapp_run({log, lmod_self, webapp}){
+}
 // builtin nodejs APIs in browser: browserify:
 // versions of npm shims
 // https://github.com/browserify/browserify/blob/master/package.json
 // mappong nodejs npm->browser npm shim
 // https://github.com/browserify/browserify/blob/master/lib/builtins.js
 let do_app_pkg = async function(boot_pkg){
-  // XXX TODO: store boot_pkg in localStorage
+  boot_pkg = json_cp(boot_pkg);
   let lif = boot_pkg.lif ||= {};
   let lmod_root = 'local/.lif.boot/';
   let log = {lmod: lmod_root};
   // remove previous app setup
   lpm_app = undefined;
   lpm_pkg_app = undefined;
-  lpm_app_date = +new Date();
+  lpm_app_date = Date.now();
   lpm_pkg_root = undefined;
   lpm_pkg_t = {};
   lpm_pkg_ver_t = {};
   lpm_file_t = {};
   // add lif-kernel package
-  if (!boot_pkg.globDependencies?.['lif-kernel'] && !lif.globDependencies?.['lif-kernel'])
+  if (!boot_pkg.globDependencies?.['lif-kernel'] &&
+    !lif.globDependencies?.['lif-kernel'])
+  {
     lif.globDependencies ||= {};
     lif.globDependencies['lif-kernel'] = lif_kernel_base+'/';
-  // init new app
+  }
+  // init root pkg
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
     lpm_pkg.lmod = lmod_root;
     lpm_pkg.pkg = boot_pkg;
     lpm_pkg.child = [];
     return lpm_pkg;
   });
-  let _lpm_app = T_lpm_lmod(T_npm_to_lpm(lif.webapp, {expand: true}));
-  let slow = eslow('app_pg lpm_get');
-  let _lpm_pkg_app;
-  try {
-    ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve_follow({log,
-      imp: T_lpm_lmod(_lpm_app), mod_self: lmod_root}));
-  } catch(err){
-    console.error(err);
-    throw app_init_wait.throw(err);
-  } finally {
-    slow.end();
+  // load webapp
+  let webapp = lif.webapp;
+  if (!webapp){
+    app_init_wait.return();
+    return {ok: true};
   }
-  lpm_app = _lpm_app;
-  lpm_pkg_app = _lpm_pkg_app;
-  console.log('lpm_pkg_app inited: '+lpm_app);
-  let res = {ok: true};
-  let _webapp = lpm_pkg_app?.pkg?.lif?.web;
-  if (_webapp)
-    res.webapp = _webapp;
+  let res = await webapp_load({log, lmod_self: lmod_root, webapp});
   app_init_wait.return();
   return res;
 };

@@ -11,7 +11,8 @@
   "module": "boot.js",
   "type": "module",
   "lif": {
-    "raw": true
+    "passthrough": ["boot.js", "util.js"],
+    "webapp": "./hi.js"
   },
   "files": [
     "acme.js",
