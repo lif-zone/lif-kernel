@@ -663,6 +663,10 @@ let import_module_script = async({mod_self, imp, url})=>{
   return m.wait.return(m.exports);
 };
 
+function exports_to_esm(exports){
+   return {...exports, default: exports};
+}
+
 async function import_worker({mod_self, imp, opt}){
   let url = npm_2url(imp, mod_self);
   let q;
@@ -672,7 +676,9 @@ async function import_worker({mod_self, imp, opt}){
     assert(0, 'module import not yet supportedd');
   url = qs_append(url, q);
   imp = npm_2url(imp, mod_self);
-  return await import_module_script({mod_self, imp, url, opt: {worker: 1}});
+  let exports =  await import_module_script({mod_self, imp, url,
+    opt: {worker: 1}});
+  return exports_to_esm(exports);
 }
 
 async function import_esm(mod_self, [imp, opt]){
@@ -685,10 +691,8 @@ async function import_esm(mod_self, [imp, opt]){
     let ret;
     if (is_worker)
       ret = await import_worker({mod_self, imp, opt});
-    else {
+    else
       ret = await /*keep*/ import(url, opt);
-      ret = ret.default;
-    }
     return ret;
   } catch(err){
     console.error('import_esm('+url+' '+mod_self+')', err);
@@ -860,7 +864,7 @@ let boot_app = async(boot_pkg)=>{
     if (ext=='html')
       return await run_html(mod_self, webapp);
     if (str.is(ext, 'js', 'jsx', 'ts', 'tsx')){
-      let run = await import_esm(null, [webapp]);
+      let run = (await import_esm(null, [webapp])).default;
       if (typeof run=='function')
         await run();
       return;
