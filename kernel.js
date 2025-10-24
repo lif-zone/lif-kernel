@@ -520,6 +520,31 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   return ret_err('imp missing');
 };
 
+function tr_import_lpm1({imp, imported, npm_uri, pkg}){
+  let v = passthrough_lmod({pkg, lmod: imp});
+  if (v = str.starts(imp, 'http/', 'https/'))
+    return v.start.slice(0, -1)+'://'+v.rest;
+  v = '/.lif/'+imp;
+  let q = {};
+  if (imported)
+    q.imported = imported.join(',');
+  q.mod_self = npm_uri;
+  v += qs_enc(q);
+  return v;
+}
+
+function tr_import_lpm2({imp, imported, npm_uri}){
+  let v = lpm_to_sw_url(imp);
+  if (v.startsWith('/.lif/')){
+    let q = {};
+    if (imported)
+      q.imported = imported.join(',');
+    q.mod_self = npm_uri;
+    v += qs_enc(q);
+  }
+  return v;
+}
+
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v, _v;
   for (let d of f.ast.imports){
@@ -529,14 +554,14 @@ let tr_mjs_import = f=>{
       continue;
     }
     if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
-      v = lpm_to_sw_url(v);
-      if (v.startsWith('/.lif/')){
-        let q = {};
-        if (d.imported)
-          q.imported = d.imported.join(',');
-        q.mod_self = f.npm_uri;
-        v += qs_enc(q);
-      }
+      let opt =  {imp: v, imported: d.imported, npm_uri: f.npm_uri,
+        pkg: f.lpm_pkg.pkg};
+      let v1 = tr_import_lpm1(opt);
+      let v2 = tr_import_lpm2(opt);
+      if (v1!=v2)
+        0 && console.log('imp '+v+' '+v1+' -> '+v2);
+      0 && console.log('imp '+v+' -> '+v1);
+      v = v1;
       s.splice(d.start, d.end, json(v));
       continue;
     }
@@ -1089,9 +1114,11 @@ function passthrough_lmod({pkg, lmod}){
   // URL to avoid them double loading:
   // http://localhost:3000/lif-kernel/boot.js
   // http://localhost:3000/.lif/http/localhost:3000/lif-kernel//boot.js
-  let u = lpm_parse(lmod);
   let pass = pkg.lif?.passthrough;
-  if (!pass || !str.is(u.reg, 'local', 'http', 'https'))
+  if (!pass)
+    return;
+  let u = lpm_parse(lmod);
+  if (!str.is(u.reg, 'local', 'http', 'https'))
     return;
   let file = u.path.slice(1);
   let v;
@@ -1517,6 +1544,10 @@ let do_app_pkg = async function(boot_pkg){
     !lif.globDependencies?.['lif-kernel'])
   {
     lif.globDependencies ||= {};
+    // TODO remove origin if globalThis.location.origin==lif_kernel_base.origin
+    // its not a bug. it just makes it shorter and clearer for typical use-case
+    // http://localhost:3000/lif-kernel/ -> /lif-kernel/
+    // /.lif/http/localhost:3000/lif-kernel// ->  /.lif/local/lif-kernel//
     lif.globDependencies['lif-kernel'] = lif_kernel_base+'/';
   }
   // init root pkg
