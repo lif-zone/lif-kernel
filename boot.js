@@ -860,21 +860,20 @@ let boot_app = async(boot_pkg)=>{
   }
   // load app
   let ext = _path_ext(webapp);
+  let ret;
   try {
     if (ext=='html')
-      return await run_html(mod_self, webapp);
-    if (str.is(ext, 'js', 'jsx', 'ts', 'tsx')){
-      let run = (await import_esm(null, [webapp])).default;
-      if (typeof run=='function')
-        await run();
-      return;
-    }
-    throw Error('no app type found: '+webapp);
+      ret = await run_html(mod_self, webapp);
+    else if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
+      ret = await import_esm(null, [webapp]);
+    else
+      throw Error('no app type found: '+webapp);
   } catch(err){
-    console.error('boot: app('+webapp+') failed');
+    console.error('boot: app('+webapp+') failed: '+err);
     throw err;
   }
   console.log('boot: boot complete');
+  return ret;
 };
 
 if (!is_worker){

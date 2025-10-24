@@ -57,4 +57,6 @@ async function life(){
   return await lif.boot.boot_app({lif: {webapp}});
 }
 
+await life();
+
 export default life;
