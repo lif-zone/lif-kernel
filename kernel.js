@@ -522,9 +522,9 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
 
 function tr_import_lpm({imp, imported, npm_uri, pkg}){
   let v = passthrough_lmod({pkg, lmod: imp});
-  if (v = str.starts(imp, 'http/', 'https/'))
-    return v.start.slice(0, -1)+'://'+v.rest;
-  v = '/.lif/'+imp;
+  if (v)
+    return v;
+  v = lpm_to_sw_url(imp);
   let q = {};
   if (imported)
     q.imported = imported.join(',');
