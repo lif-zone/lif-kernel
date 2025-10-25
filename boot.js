@@ -903,8 +903,7 @@ if (!is_worker){
 }
 
 lif.boot = {
-  miani:  'ANkI YhVh ALOhYk:La YhYh Lk ALOhIM AHRIM EL PNY:La TsA AT SM YhVh ALOhk LSVA:ZkOR AT YOM hSBT LQDSO:KBD AT AVIk VAT AMk:LO TRxH:LO TNAF:LO TGNV:LO TENh BREk ED SQR:LO THMD BYT REk:',
-  //miani:'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
+  miani: 'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
   lif,
   version: lif_version,
   process,
