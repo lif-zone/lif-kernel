@@ -1,5 +1,5 @@
 // LIF bootloader: Boot the kernel and then load the application
-let lif_version = '1.3.1';
+let lif_version = '1.3.2';
 let D = 0; // Debug
 
 import util from './util.js';

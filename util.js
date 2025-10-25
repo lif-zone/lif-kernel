@@ -1,4 +1,4 @@
-let util_version = '1.3.0';
+let util_version = '1.3.2';
 let exports = {};
 exports.dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 exports.version = util_version;
