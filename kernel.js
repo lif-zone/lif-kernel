@@ -1532,11 +1532,13 @@ let do_app_pkg = async function(boot_pkg){
     !lif.globDependencies?.['lif-kernel'])
   {
     lif.globDependencies ||= {};
-    // TODO remove origin if globalThis.location.origin==lif_kernel_base.origin
-    // its not a bug. it just makes it shorter and clearer for typical use-case
-    // http://localhost:3000/lif-kernel/ -> /lif-kernel/
-    // /.lif/http/localhost:3000/lif-kernel// ->  /.lif/local/lif-kernel//
-    lif.globDependencies['lif-kernel'] = lif_kernel_base;
+    // shorten http/localhost:3000/lif-kernel -> local/lif-kernel,
+    // so its nicer visually in devtools
+    let u = T_url_parse(lif_kernel_base);
+    let base = lif_kernel_base;
+    if (u.origin==globalThis.location.origin)
+      base = u.path;
+    lif.globDependencies['lif-kernel'] = base;
   }
   // init root pkg
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
