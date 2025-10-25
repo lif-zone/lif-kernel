@@ -520,7 +520,7 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   return ret_err('imp missing');
 };
 
-function tr_import_lpm1({imp, imported, npm_uri, pkg}){
+function tr_import_lpm({imp, imported, npm_uri, pkg}){
   let v = passthrough_lmod({pkg, lmod: imp});
   if (v = str.starts(imp, 'http/', 'https/'))
     return v.start.slice(0, -1)+'://'+v.rest;
@@ -533,18 +533,6 @@ function tr_import_lpm1({imp, imported, npm_uri, pkg}){
   return v;
 }
 
-function tr_import_lpm2({imp, imported, npm_uri}){
-  let v = lpm_to_sw_url(imp);
-  if (v.startsWith('/.lif/')){
-    let q = {};
-    if (imported)
-      q.imported = imported.join(',');
-    q.mod_self = npm_uri;
-    v += qs_enc(q);
-  }
-  return v;
-}
-
 let tr_mjs_import = f=>{
   let s = Scroll(f.js), v, _v;
   for (let d of f.ast.imports){
@@ -554,14 +542,8 @@ let tr_mjs_import = f=>{
       continue;
     }
     if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
-      let opt =  {imp: v, imported: d.imported, npm_uri: f.npm_uri,
-        pkg: f.lpm_pkg.pkg};
-      let v1 = tr_import_lpm1(opt);
-      let v2 = tr_import_lpm2(opt);
-      if (v1!=v2)
-        0 && console.log('imp '+v+' '+v1+' -> '+v2);
-      0 && console.log('imp '+v+' -> '+v1);
-      v = v1;
+      v = tr_import_lpm({imp: v, imported: d.imported, npm_uri: f.npm_uri,
+        pkg: f.lpm_pkg.pkg});
       s.splice(d.start, d.end, json(v));
       continue;
     }
