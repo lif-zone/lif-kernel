@@ -836,11 +836,11 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
     d = 'git://gitlab.com/'+v.rest;
   if (v=str.starts(d, ['git:', 'git+https:'])){
     let u = new URL(d), site = u.host;
-    if (u.host=='github.com'){
+    if (u.host=='github.com')
       site = 'github';
-    } else if (site=='gitlab.com'){
+    else if (site=='gitlab.com')
       site = 'gitlab';
-    } else
+    else
       throw Error('invalid http registry '+site);
     let p = u.pathname.slice(1).split('/');
     let user = p.shift();
@@ -853,8 +853,11 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
     let ver = u.hash ? '@'+u.hash.slice(1) : '';
     return 'git/'+site+'/'+user+'/'+repo+ver+_path;
   }
-  if (v=str.starts(d, ['http://', 'https://']))
-    return v.start.slice(0, -3)+'/'+v.rest+path;
+  if (v=str.starts(d, 'http://', 'https://')){
+    let u = url_parse(d);
+    return T_lpm_str({reg: u.protocol.slice(0, -1), site: u.host,
+      submod: u.path=='/' ? '' : u.path.slice(1)+'/', path});
+  }
   if (v=str.starts(d, 'npm:', '.npm/')){
     let _lmod = 'npm/'+v.rest+path;
     let u = lpm_parse(_lmod);
@@ -862,7 +865,7 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
       return mod_self+u.path;
     return _lmod;
   }
-  if (v=str.starts(d, '.git/', '.local/'))
+  if (v=str.starts(d, '.git/', '.local/', '.http/', '.https/'))
     return v.start.slice(1)+v.rest+path;
   if (v=str.starts(dep, 'file:')){
     let file = v.rest;
@@ -1468,17 +1471,17 @@ function test_util(){
   t('https://github.com/npm/cli.git#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://github.com/npm/cli#v1.0.27', 'git/github/npm/cli@v1.0.27');
   t('https://gitlab.com/npm/cli#v1.0.27', 'git/gitlab/npm/cli@v1.0.27');
-  t('https://any.com/dir', 'https/any.com/dir');
-  t('http://any.com/dir', 'http/any.com/dir');
-  t('https://any.com:9000/dir', 'https/any.com:9000/dir');
-  t('http://any.com:9000/dir', 'http/any.com:9000/dir');
+  t('https://any.com/dir', 'https/any.com/dir/');
+  t('http://any.com/dir', 'http/any.com/dir/');
+  t('https://any.com:9000/dir', 'https/any.com:9000/dir/');
+  t('http://any.com:9000/dir', 'http/any.com:9000/dir/');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
     {pkg_name: 'self'});
   t('http://localhost:3000/lif-kernel',
-    'http/localhost:3000/lif-kernel/util.js',
+    'http/localhost:3000/lif-kernel//util.js',
     {imp: 'npm/lif-kernel/util.js'});
   t = (imp, dep, v)=>
     assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
@@ -1497,6 +1500,16 @@ function test_util(){
   t('npm/rmod', 'npm:react@18.3.1', 'npm/react@18.3.1');
   t('npm/os/dir/index.js', '.git/github/repo/mod',
     'git/github/repo/mod/dir/index.js');
+  t('npm/mod2/dir/main.tsx', '.local/MOD/',
+    'local/MOD//dir/main.tsx');
+  t('npm/http1/dir/main.tsx', 'http://localhost:3000/MOD',
+    'http/localhost:3000/MOD//dir/main.tsx');
+  t('npm/http2/dir/main.tsx', 'http://localhost:3000/MOD',
+    'http/localhost:3000/MOD//dir/main.tsx');
+  t('npm/https1/dir/main.tsx', 'https://localhost:3000/MOD',
+    'https/localhost:3000/MOD//dir/main.tsx');
+  t('npm/http2/dir/main.tsx', '.http/localhost:3000/MOD/',
+    'http/localhost:3000/MOD//dir/main.tsx');
   //t('npm/os/dir/index.js', 'git:user/github/repo/mod',
   //  'git/github/repo/mod/dir/index.js');
   t = (npm, v)=>assert_eq(v, npm_to_lpm(npm));

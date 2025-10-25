@@ -1368,6 +1368,9 @@ function test_kernel(){
   t('npm/overg', {glob: 'npm/overg@2.0.0'});
   lpm_pkg = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
     mod: '/MOD',
+    mod2: '.local/MOD/',
+    http1: 'http://localhost:3000/MOD',
+    http2: '.http/localhost:3000/MOD/',
     react: '18.3.1',
     reactok: 'npm:react@18.3.1',
     reactbad: 'react@18.3.1', // currently not supported in NPM
@@ -1404,6 +1407,9 @@ function test_kernel(){
     in_test = 0;
   };
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
+  t('npm/mod2/dir/main.tsx', 'local/MOD//dir/main.tsx');
+  t('npm/http1/dir/main.tsx', 'http/localhost:3000/MOD//dir/main.tsx');
+  t('npm/http2/dir/main.tsx', 'http/localhost:3000/MOD//dir/main.tsx');
   t('npm/react', 'npm/react@18.3.1');
   t('npm/react@16.3.1', 'npm/react@16.3.1');
   t('npm/react/file.js', 'npm/react@18.3.1/file.js');
@@ -1530,7 +1536,7 @@ let do_app_pkg = async function(boot_pkg){
     // its not a bug. it just makes it shorter and clearer for typical use-case
     // http://localhost:3000/lif-kernel/ -> /lif-kernel/
     // /.lif/http/localhost:3000/lif-kernel// ->  /.lif/local/lif-kernel//
-    lif.globDependencies['lif-kernel'] = lif_kernel_base+'/';
+    lif.globDependencies['lif-kernel'] = lif_kernel_base;
   }
   // init root pkg
   lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
