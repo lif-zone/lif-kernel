@@ -207,11 +207,11 @@ let lpm_cdn = {
   }]},
   https: {src: [{
     name: 'https',
-    url: u=>`https://${u.site}${submod_path(u)}`,
+    url: u=>`https://${u.host}${submod_path(u)}`,
   }]},
   http: {src: [{
     name: 'http',
-    url: u=>`http://${u.site}${submod_path(u)}`,
+    url: u=>`http://${u.host}${submod_path(u)}`,
   }]},
 };
 let lpm_get_cdn = u=>{
@@ -220,7 +220,7 @@ let lpm_get_cdn = u=>{
     u = T_lpm_parse(u);
   switch (u.reg){
   case 'npm': return cdn.npm;
-  case 'git': return cdn.git[u.site];
+  case 'git': return cdn.git[u.host];
   case 'ipfs': return cdn.ipfs;
   case 'local': return cdn.local;
   case 'https': return cdn.https;

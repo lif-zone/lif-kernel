@@ -727,7 +727,7 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
     l.lmod = l.reg+'/'+l.name+l.ver;
     break;
   case 'git': {
-    l.site = next('site');
+    l.host = next('host');
     l.user = next('user');
     repo = next('repo');
     v = ver_split(repo);
@@ -742,7 +742,7 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
         'name';
     } else
       l.ver_type = 'name';
-    l.lmod = l.reg+'/'+l.site+'/'+l.name+l.ver;
+    l.lmod = l.reg+'/'+l.host+'/'+l.name+l.ver;
     break; }
   case 'bittorent':
     l.infohash = next('InfoHash');
@@ -770,8 +770,8 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
     l.lmod = l.reg;
     break;
   case 'https': case 'http':
-    l.site = next('site');
-    l.lmod = l.reg+'/'+l.site;
+    l.host = next('host');
+    l.lmod = l.reg+'/'+l.host;
     break;
   default:
     throw Error('invalid registry: '+lpm);
@@ -788,7 +788,7 @@ let T_lpm_str = exports.T_lpm_str = l=>{
   case 'npm':
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
   case 'git':
-    return l.reg+'/'+l.site+'/'+l.name+l.ver+l.submod+l.path;
+    return l.reg+'/'+l.host+'/'+l.name+l.ver+l.submod+l.path;
   case 'bittorent':
     return l.reg+'/'+l.infohash+l.submod+l.path;
   case 'lifcoin':
@@ -805,7 +805,7 @@ let T_lpm_str = exports.T_lpm_str = l=>{
   case 'local':
     return l.reg+l.submod+l.path;
   case 'https': case 'http':
-    return l.reg+'/'+l.site+'/'+l.submod+l.path;
+    return l.reg+'/'+l.host+'/'+l.submod+l.path;
   default:
     throw Error('invalid registry: '+l.reg);
   }
@@ -836,13 +836,13 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
   if (v=str.starts(d, 'https://gitlab.com/'))
     d = 'git://gitlab.com/'+v.rest;
   if (v=str.starts(d, ['git:', 'git+https:'])){
-    let u = new URL(d), site = u.host;
+    let u = new URL(d), host = u.host;
     if (u.host=='github.com')
-      site = 'github';
-    else if (site=='gitlab.com')
-      site = 'gitlab';
+      host = 'github';
+    else if (host=='gitlab.com')
+      host = 'gitlab';
     else
-      throw Error('invalid http registry '+site);
+      throw Error('invalid http registry '+host);
     let p = u.pathname.slice(1).split('/');
     let user = p.shift();
     let repo = p.shift();
@@ -852,11 +852,11 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
       repo = v.rest;
     let _path = p.map(p=>'/'+p).join('');
     let ver = u.hash ? '@'+u.hash.slice(1) : '';
-    return 'git/'+site+'/'+user+'/'+repo+ver+_path;
+    return 'git/'+host+'/'+user+'/'+repo+ver+_path;
   }
   if (v=str.starts(d, 'http://', 'https://')){
     let u = url_parse(d);
-    return T_lpm_str({reg: u.protocol.slice(0, -1), site: u.host,
+    return T_lpm_str({reg: u.protocol.slice(0, -1), host: u.host,
       submod: u.path=='/' ? '' : u.path.slice(1)+'/', path});
   }
   if (v=str.starts(d, 'npm:', '.npm/')){
@@ -926,7 +926,7 @@ let lpm_to_sw_url = exports.lpm_to_sw_url = lpm=>{
   case 'local':
     return l.submod.slice(0, -1)+l.path;
   case 'https': case 'http':
-    return l.reg+'://'+l.site+l.submod.slice(0, -1)+l.path;
+    return l.reg+'://'+l.host+l.submod.slice(0, -1)+l.path;
   }
   return '/.lif/'+lpm;
 };
