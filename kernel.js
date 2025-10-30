@@ -1510,7 +1510,9 @@ async function webapp_load({log, lmod_self, webapp}){
   lpm_app = _lpm_app;
   lpm_pkg_app = _lpm_pkg_app;
   let pkg = lpm_pkg_app.pkg;
-  let webapp_f = pkg.lif?.webapp||pkg.webapp;
+  let webapp_f  = lpm_parse(lmod_webapp).path.slice(1);
+  if (!webapp_f)
+    webapp_f = pkg.lif?.webapp||pkg.webapp;
   if (!webapp_f)
     return {ok: true};
   let v;
