@@ -1276,6 +1276,20 @@ async function _kernel_fetch(event){
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
     return send_res({...res, path});
   }
+  if (path=='/cc'){
+    function cc(table){
+      for (let [k, v] of OF(table)){
+        if (str.starts(k, 'local/'))
+          delete table[k];
+      }
+    }
+    cc(lpm_pkg_t);
+    cc(lpm_pkg_ver_t);
+    cc(lpm_file_t);
+    cc(reg_file_t);
+    return send_res({body: json({ok: true, msg: 'cache cleared'}),
+      ext: 'json', path});
+  }
   // lif-kernel passthrough for local dev
   if (path=='/' || path_starts(url, lif_kernel_base))
     return fetch(request);
