@@ -1530,6 +1530,7 @@ async function webapp_run({log, lmod_self, webapp}){
 // https://github.com/browserify/browserify/blob/master/package.json
 // mappong nodejs npm->browser npm shim
 // https://github.com/browserify/browserify/blob/master/lib/builtins.js
+let refrash_clear_cache = false;
 let do_app_pkg = async function(boot_pkg){
   boot_pkg = json_cp(boot_pkg);
   let lif = boot_pkg.lif ||= {};
@@ -1540,9 +1541,11 @@ let do_app_pkg = async function(boot_pkg){
   lpm_pkg_app = undefined;
   lpm_app_date = Date.now();
   lpm_pkg_root = undefined;
-  lpm_pkg_t = {};
-  lpm_pkg_ver_t = {};
-  lpm_file_t = {};
+  if (refrash_clear_cache){
+    lpm_pkg_t = {};
+    lpm_pkg_ver_t = {};
+    lpm_file_t = {};
+  }
   // add lif-kernel package
   if (!boot_pkg.globDependencies?.['lif-kernel'] &&
     !lif.globDependencies?.['lif-kernel'])
