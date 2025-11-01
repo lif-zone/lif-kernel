@@ -1164,10 +1164,10 @@ function lpm_meta_type({f, lmod}){
 }
 
 async function fetch_lpm_meta({log, imp, mod_self, qs}){
-  let res = {}, follow = 1;
+  let res = {}, follow = 1, found, f;
   D && console.log('meta '+imp+' '+qs);
   for (let i=0; i<max_redirect; i++){
-    let f = await lpm_file_resolve({log, imp, mod_self});
+    f = await lpm_file_resolve({log, imp, mod_self});
     if (f.not_exist){
       res.not_exist = f.not_exist;
       return res;
@@ -1188,14 +1188,18 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
       res.redirect = res.redirects.at(-1);
       return res;
     }
-    res = lpm_meta_type({f, lmod: imp});
-    let ast = file_ast(f);
-    if (ast?.err)
-      res.err = ast.err;
-    if (ast?.requires)
-      res.requires = ast.requires;
-    return res;
+    found = true;
+    break;
   }
+  if (!found)
+    return;
+  res = lpm_meta_type({f, lmod: imp});
+  let ast = file_ast(f);
+  if (ast?.err)
+    res.err = ast.err;
+  if (ast?.requires)
+    res.requires = ast.requires;
+  return res;
 }
 
 function response_redirect({redirect, cache}){
