@@ -1217,8 +1217,6 @@ async function fetch_lpm_meta({log, imp, mod_self}){
 
 function response_redirect({redirect, cache}){
   return Response.redirect(redirect);
-  // TODO: is it possible to add caching?
-  // 'Cache-Control': 'public, max-age=31536000'
 }
 async function send_res({err, not_exist, redirect, body, ext, path}){
   if (err && body==undefined){
