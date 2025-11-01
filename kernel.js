@@ -275,25 +275,21 @@ let ast_get_scope_type = (path, opt)=>{
 
 let array_unique = a=>[...new Set(a)];
 
-let file_type = f=>{
-  if (f.type)
-    return f.type;
-  let ext = _path_ext(f.lmod);
-  if (ctype_binary(f.lmod))
-    return f.type = 'binary';
+let file_type = lmod=>{
+  let ext = _path_ext(lmod);
+  if (ctype_binary(lmod))
+    return 'binary';
   if (ext=='json')
-    return f.type = 'json';
+    return 'json';
   if (ext=='css')
-    return f.type = 'css';
-  return f.type = 'js';
+    return 'css';
+  return 'js';
 };
 
 // http://localhost:3000/.lif/npm/lif-coin/browser/main.tsx?raw=1
 let file_ast = f=>{
   if (f.ast)
     return f.ast;
-  if (file_type(f)!='js')
-    return;
   let ast = f.ast = {}, lmod = f.lmod;
   let tr_jsx_ts = ()=>{
     let ext = _path_ext(lmod);
@@ -533,9 +529,9 @@ function tr_import_lpm({imp, imported, npm_uri, pkg}){
   return v;
 }
 
-let tr_mjs_import = f=>{
+let tr_mjs_import = ({f, meta})=>{
   let s = Scroll(f.js), v, _v;
-  for (let d of f.ast.imports){
+  for (let d of meta.imports){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
@@ -549,24 +545,24 @@ let tr_mjs_import = f=>{
     }
     console.warn('import('+f.lmod+') missing: '+imp);
   }
-  for (let d of f.ast.imports_dyn)
+  for (let d of meta.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
   return s.out();
 };
 
-const file_tr_mjs = (f, opt)=>{
+const file_tr_mjs = (f, meta, opt)=>{
   let uri_s = json(f.npm_uri);
-  let tr = tr_mjs_import(f);
+  let tr = tr_mjs_import({f, meta});
   let slow = 0; // has problem with lif-kernel/util.js
   let log = 0, pre = '', post = '';
-  let _import = f.ast.imports.length;
+  let _import = meta.imports.length;
   if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
   if (opt?.worker){
     pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
     pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
   }
-  if (f.ast.imports_dyn.length)
+  if (meta.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
@@ -1111,6 +1107,36 @@ function passthrough_lmod({pkg, lmod}){
       return lpm_to_sw_url(lmod);
   }
 }
+
+/*
+function tr_core(d, conv){
+  if (conv=='jsx_to_js')
+    return tr_jsx_to_js(d);
+  if (conv=='tsx_to_js')
+    return tr_tsx_to_js(d);
+  if (conv=='js_to_meta')
+    return tr_js_to_meta(d);
+  assert(0, 'invalid conv '+conv);
+}
+*/
+
+function file_js_to_meta(f){
+  let ast = file_ast(f);
+  let res = {};
+  res.type = ast.type;
+  if (ast.err)
+    res.err = ast.err;
+  if (ast.requires)
+    res.requires = ast.requires;
+  if (ast.imports)
+    res.imports = ast.imports;
+  if (ast.imports_dyn)
+    res.imports_dyn = ast.imports_dyn;
+  if (ast.has.export_default)
+    res.export_default = ast.has.export_default;
+  return res;
+}
+
 function responce_tr_send({f, qs, lmod}){
   if (f.not_exist)
     return {not_exist: true};
@@ -1125,22 +1151,22 @@ function responce_tr_send({f, qs, lmod}){
   if (ext=='css')
     return {body: f.blob, ext: 'css'};
   ext = 'js';
-  let ast = file_ast(f);
-  let type = ast.type;
-  if (ast.err)
-    return {body: f.blob, ext, err: 'ast err: '+ast.err};
+  let meta = file_js_to_meta(f);
+  let type = meta.type;
+  if (meta.err)
+    return {body: f.blob, ext, err: 'meta err: '+meta.err};
   let v;
   if ((q.get('mjs')==2 || q.get('mjs')==1 || type=='mjs') &&
     (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
   {
-    return {body: mjs_import_mjs(ast.has.export_default, v), ext};
+    return {body: mjs_import_mjs(meta.export_default, v), ext};
   }
   if (q.get('mjs')==2){
-    return {body: mjs_import_mjs(ast.has.export_default,
+    return {body: mjs_import_mjs(meta.export_default,
       '/.lif/'+lmod+'?mjs=1'), ext};
   }
   if (q.get('mjs')==1 && (type=='mjs' || !type))
-    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext};
+    return {body: file_tr_mjs(f, meta, {worker: q.get('worker')}), ext};
   if (type=='cjs' || type=='')
     return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
   if (type=='amd' || type=='')
@@ -1148,19 +1174,6 @@ function responce_tr_send({f, qs, lmod}){
   if (type=='mjs')
     return {redirect: '/.lif/'+lmod+'?mjs=2'};
   return {err: 'invalid lpm file type '+type};
-}
-
-function lpm_meta_type({f, lmod}){
-  let ext = _path_ext(lmod);
-  if (f.redirect)
-    return {redirect: f.redirect};
-  let type = file_type(f);
-  if (type!='js')
-    return {type};
-  type = file_ast(f).type;
-  if (str.is(type, 'err', 'mjs', 'cjs', 'amd', ''))
-    return {type};
-  assert(0, 'invalid lpm file type '+type);
 }
 
 async function lpm_file_resolve_follow({log, imp, mod_self}){
@@ -1196,13 +1209,10 @@ async function fetch_lpm_meta({log, imp, mod_self}){
   let f = await lpm_file_resolve_follow({log, imp, mod_self});
   if (!f || f.redirect)
     return f;
-  let res = lpm_meta_type({f, lmod: imp});
-  let ast = file_ast(f);
-  if (ast?.err)
-    res.err = ast.err;
-  if (ast?.requires)
-    res.requires = ast.requires;
-  return res;
+  let type = file_type(f.lmod);
+  if (type!='js')
+    return {type};
+  return file_js_to_meta(f);
 }
 
 function response_redirect({redirect, cache}){
