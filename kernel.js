@@ -1163,11 +1163,11 @@ function lpm_meta_type({f, lmod}){
   assert(0, 'invalid lpm file type '+type);
 }
 
-async function fetch_lpm_meta({log, imp, mod_self, qs}){
-  let res = {}, follow = 1, found, f;
-  D && console.log('meta '+imp+' '+qs);
+async function lpm_file_resolve_follow({log, imp, mod_self}){
+  D && console.log('lpm_file_resolve_follow '+imp);
+  let res = {}, follow = 1;
   for (let i=0; i<max_redirect; i++){
-    f = await lpm_file_resolve({log, imp, mod_self});
+    let f = await lpm_file_resolve({log, imp, mod_self});
     if (f.not_exist){
       res.not_exist = f.not_exist;
       return res;
@@ -1188,12 +1188,15 @@ async function fetch_lpm_meta({log, imp, mod_self, qs}){
       res.redirect = res.redirects.at(-1);
       return res;
     }
-    found = true;
-    break;
+    return f;
   }
-  if (!found)
-    return;
-  res = lpm_meta_type({f, lmod: imp});
+}
+
+async function fetch_lpm_meta({log, imp, mod_self}){
+  let f = await lpm_file_resolve_follow({log, imp, mod_self});
+  if (!f || f.redirect)
+    return f;
+  let res = lpm_meta_type({f, lmod: imp});
   let ast = file_ast(f);
   if (ast?.err)
     res.err = ast.err;
@@ -1272,7 +1275,7 @@ async function _kernel_fetch(event){
     await app_init_wait; // XXX - try to remove. favicon can be handled later!
     slow.end();
     if (q.get('meta')){
-      let meta = await fetch_lpm_meta({log, mod_self, imp: lmod, qs});
+      let meta = await fetch_lpm_meta({log, mod_self, imp: lmod});
       if (meta.err)
         console.error('parse '+url+': '+res.err);
       return send_res({body: json(meta), ext: 'json', path});
