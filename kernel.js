@@ -286,49 +286,39 @@ let file_type = lmod=>{
   return 'js';
 };
 
-// http://localhost:3000/.lif/npm/lif-coin/browser/main.tsx?raw=1
-let file_ast = f=>{
-  if (f.ast)
-    return f.ast;
-  let ast = f.ast = {}, lmod = f.lmod;
-  let tr_jsx_ts = ()=>{
-    let ext = _path_ext(lmod);
-    ast.is_ts = ext=='ts' || ext=='tsx';
-    ast.is_jsx = ext=='jsx' || ext=='tsx';
-    f.js = f.body;
-    if (ast.is_ts || ast.is_jsx){
-      let opt = {presets: [], plugins: [],
-        generatorOpts: {importAttributesKeyword: 'with'}};
-      // XXX together with react, it strips unused module imports.
-      // {modules: false} did not solve it.
-      if (ast.is_ts){
-        opt.presets.push(['typescript', {modules: false}]);
-        opt.filename = path_file(lmod);
-      }
-      if (ast.is_jsx)
-        opt.presets.push(['react', {modules: false, useSpread: true}]);
-      try {
-        ({code: f.js} = Babel.transform(f.body, opt));
-      } catch(err){
-        console.error('babel('+lmod+') FAILED', err);
-        ast.err = 'tsx tr: '+err;
-        ast.type = 'err';
-        ast._err = err;
-      }
-    }
-  };
+function tr_jsx_ts_to_js({body, type}){
+  let js;
+  let is_ts = type=='ts' || type=='tsx';
+  let is_jsx = type=='jsx' || type=='tsx';
+  let opt = {presets: [], plugins: [],
+    generatorOpts: {importAttributesKeyword: 'with'}};
+  // XXX together with react, it strips unused module imports.
+  // {modules: false} did not solve it.
+  if (is_ts){
+    opt.presets.push(['typescript', {modules: false}]);
+    opt.filename = 'tr.'+type; // XXX was path_file(lmod)
+  }
+  if (is_jsx)
+    opt.presets.push(['react', {modules: false, useSpread: true}]);
+  try {
+    ({code: js} = Babel.transform(body, opt));
+  } catch(err){
+    console.error('babel FAILED', err);
+    return {err: 'tsx tr: '+err};
+  }
+  return js;
+}
 
+// http://localhost:3000/.lif/npm/lif-coin/browser/main.tsx?raw=1
+function tr_js_to_ast(js){
+  let ast = {};
   let parse_ast = ()=>{
     let opt = ast.opt = {presets: [], plugins: []};
-    if (0 && ast.is_ts)
-      opt.plugins.push('typescript');
-    if (0 && ast.is_jsx)
-      opt.plugins.push('jsx');
     opt.sourceType = 'module';
     try {
       globalThis.parser = parser;
       globalThis.parser_opt = opt;
-      ast.ast = parser.parse(f.js, opt);
+      ast.ast = parser.parse(js, opt);
     } catch(err){
       ast.err = 'ast: '+err;
       ast.type = 'err';
@@ -467,15 +457,12 @@ let file_ast = f=>{
       has.require||has.module||has.exports ? 'cjs' : '';
     ast.exports = array_unique(ast.exports).sort();
   };
-  tr_jsx_ts();
-  if (ast.err)
-    return ast;
   parse_ast();
   if (ast.err)
     return ast;
   scan_ast();
   return ast;
-};
+}
 
 let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   let D = 0;
@@ -529,9 +516,9 @@ function tr_import_lpm({imp, imported, npm_uri, pkg}){
   return v;
 }
 
-let tr_mjs_import = ({f, meta})=>{
+function tr_mjs_import(f){
   let s = Scroll(f.js), v, _v;
-  for (let d of meta.imports){
+  for (let d of f.meta.imports){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
@@ -545,24 +532,24 @@ let tr_mjs_import = ({f, meta})=>{
     }
     console.warn('import('+f.lmod+') missing: '+imp);
   }
-  for (let d of meta.imports_dyn)
+  for (let d of f.meta.imports_dyn)
     s.splice(d.start, d.end, 'import_lif');
   return s.out();
-};
+}
 
-const file_tr_mjs = (f, meta, opt)=>{
+function file_tr_mjs(f, opt){
   let uri_s = json(f.npm_uri);
-  let tr = tr_mjs_import({f, meta});
+  let tr = tr_mjs_import(f);
   let slow = 0; // has problem with lif-kernel/util.js
   let log = 0, pre = '', post = '';
-  let _import = meta.imports.length;
+  let _import = f.meta.imports.length;
   if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
   if (opt?.worker){
     pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
     pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
   }
-  if (meta.imports_dyn.length)
+  if (f.meta.imports_dyn.length)
     pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
@@ -575,9 +562,9 @@ const file_tr_mjs = (f, meta, opt)=>{
   if (pre && tr.startsWith('#!')) // #!/usr/bin/node shebang
     pre += '//';
   return pre+tr+post;
-};
+}
 
-const mjs_import_cjs = (path, q)=>{
+function mjs_import_cjs(path, q){
   let imported  = q.get('imported')?.split(',');
   let mod_self = q.get('mod_self');
   let uri_s = json(path);
@@ -586,9 +573,9 @@ const mjs_import_cjs = (path, q)=>{
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
-};
+}
 
-const mjs_import_amd = (path, q)=>{
+function mjs_import_amd(path, q){
   let imported  = q.get('imported')?.split(',');
   let mod_self = q.get('mod_self');
   let uri_s = json(path);
@@ -597,18 +584,18 @@ const mjs_import_amd = (path, q)=>{
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
-};
+}
 
-const mjs_import_mjs = (export_default, path)=>{
+function mjs_import_mjs(export_default, path){
   let _path = json(path);
   let js = `export * from ${_path};\n`;
   if (export_default)
     js += `export {default} from ${_path};\n`;
   return js;
-};
+}
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
+function lpm_imp_ver_lookup({lpm_pkg, imp}){
   let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
   let npm = T_lpm_to_npm(lmod);
@@ -634,7 +621,7 @@ let lpm_imp_ver_lookup = ({lpm_pkg, imp})=>{
   found.dev = get_imp(pkg.lif?.devDependencies);
   found.dev ||= get_imp(pkg.devDependencies);
   return found;
-};
+}
 
 function pkg_web_export_lookup(pkg, path){
   function lookup(exports){
@@ -1054,6 +1041,7 @@ function ctype_get(ext){
   t.ext = ext;
   return t;
 }
+
 let response_send = ({body, ext, cache})=>{
   let v, opt = {}, ctype = ctype_get(ext), h = {};
   if (!ctype){
@@ -1111,7 +1099,7 @@ function passthrough_lmod({pkg, lmod}){
 /*
 function tr_core(d, conv){
   if (conv=='jsx_to_js')
-    return tr_jsx_to_js(d);
+    return tr_jsx_ts_to_js(d);
   if (conv=='tsx_to_js')
     return tr_tsx_to_js(d);
   if (conv=='js_to_meta')
@@ -1120,21 +1108,36 @@ function tr_core(d, conv){
 }
 */
 
+function file_jsx_ts_to_js(f){
+  if (f.js)
+    return f.js;
+  let body = f.body;
+  let js = body;
+  let type = _path_ext(f.lmod);
+  if (str.is(type, 'jsx', 'ts', 'tsx'))
+    js = tr_jsx_ts_to_js({body, type});
+  return f.js = js;
+}
+
 function file_js_to_meta(f){
-  let ast = file_ast(f);
-  let res = {};
-  res.type = ast.type;
+  if (f.meta)
+    return f.meta;
+  if (f.js.err)
+    return f.meta = {err: f.js.err};
+  let ast = tr_js_to_ast(f.js);
   if (ast.err)
-    res.err = ast.err;
+    return f.meta = {err: ast};
+  let meta = {};
+  meta.type = ast.type;
   if (ast.requires)
-    res.requires = ast.requires;
+    meta.requires = ast.requires;
   if (ast.imports)
-    res.imports = ast.imports;
+    meta.imports = ast.imports;
   if (ast.imports_dyn)
-    res.imports_dyn = ast.imports_dyn;
+    meta.imports_dyn = ast.imports_dyn;
   if (ast.has.export_default)
-    res.export_default = ast.has.export_default;
-  return res;
+    meta.export_default = ast.has.export_default;
+  return f.meta = meta;
 }
 
 function responce_tr_send({f, qs, lmod}){
@@ -1151,10 +1154,11 @@ function responce_tr_send({f, qs, lmod}){
   if (ext=='css')
     return {body: f.blob, ext: 'css'};
   ext = 'js';
+  let js = file_jsx_ts_to_js(f);
   let meta = file_js_to_meta(f);
-  let type = meta.type;
   if (meta.err)
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
+  let type = meta.type;
   let v;
   if ((q.get('mjs')==2 || q.get('mjs')==1 || type=='mjs') &&
     (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
@@ -1166,7 +1170,7 @@ function responce_tr_send({f, qs, lmod}){
       '/.lif/'+lmod+'?mjs=1'), ext};
   }
   if (q.get('mjs')==1 && (type=='mjs' || !type))
-    return {body: file_tr_mjs(f, meta, {worker: q.get('worker')}), ext};
+    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext};
   if (type=='cjs' || type=='')
     return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
   if (type=='amd' || type=='')
@@ -1212,12 +1216,14 @@ async function fetch_lpm_meta({log, imp, mod_self}){
   let type = file_type(f.lmod);
   if (type!='js')
     return {type};
+  file_jsx_ts_to_js(f);
   return file_js_to_meta(f);
 }
 
 function response_redirect({redirect, cache}){
   return Response.redirect(redirect);
 }
+
 async function send_res({err, not_exist, redirect, body, ext, path}){
   if (err && body==undefined){
     console.error('parse '+path+': '+err);
@@ -1252,6 +1258,7 @@ async function fetch_pass(request, type){
     console.log('failed ext fetch_pass '+type+': '+url);
   }
 }
+
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = T_url_parse(url);
