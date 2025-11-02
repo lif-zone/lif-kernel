@@ -1119,14 +1119,10 @@ function file_jsx_ts_to_js(f){
   return f.js = js;
 }
 
-function file_js_to_meta(f){
-  if (f.meta)
-    return f.meta;
-  if (f.js.err)
-    return f.meta = {err: f.js.err};
-  let ast = tr_js_to_ast(f.js);
+function tr_js_to_meta(js){
+  let ast = tr_js_to_ast(js);
   if (ast.err)
-    return f.meta = {err: ast};
+    return {err: ast.err};
   let meta = {};
   meta.type = ast.type;
   if (ast.requires)
@@ -1137,7 +1133,15 @@ function file_js_to_meta(f){
     meta.imports_dyn = ast.imports_dyn;
   if (ast.has.export_default)
     meta.export_default = ast.has.export_default;
-  return f.meta = meta;
+  return meta;
+}
+
+function file_js_to_meta(f){
+  if (f.meta)
+    return f.meta;
+  if (f.js.err)
+    return f.meta = {err: f.js.err};
+  return f.meta = tr_js_to_meta(f.js);
 }
 
 function responce_tr_send({f, qs, lmod}){
