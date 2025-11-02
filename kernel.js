@@ -1096,18 +1096,6 @@ function passthrough_lmod({pkg, lmod}){
   }
 }
 
-/*
-function tr_core(d, conv){
-  if (conv=='jsx_to_js')
-    return tr_jsx_ts_to_js(d);
-  if (conv=='tsx_to_js')
-    return tr_tsx_to_js(d);
-  if (conv=='js_to_meta')
-    return tr_js_to_meta(d);
-  assert(0, 'invalid conv '+conv);
-}
-*/
-
 function file_jsx_ts_to_js(f){
   if (f.js)
     return f.js;
