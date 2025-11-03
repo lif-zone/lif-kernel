@@ -289,7 +289,7 @@ class postmessage_chan {
 exports.postmessage_chan = postmessage_chan;
 
 let utf8_enc = new TextEncoder('utf-8');
-let str_to_buf = buf=>{
+let str_to_buf = exports.str_to_buf = buf=>{
   if (buf instanceof ArrayBuffer)
     return buf;
   if (ArrayBuffer.isView(buf))
@@ -299,7 +299,7 @@ let str_to_buf = buf=>{
   throw Error('str_to_buf: invalid buf type');
 };
 let utf8_dec = new TextDecoder('utf-8');
-let buf_to_str = (buf, type)=>{
+let buf_to_str = exports.buf_to_str = (buf, type)=>{
   if (!type)
     return buf;
   if (type=='string')

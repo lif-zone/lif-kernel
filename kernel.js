@@ -126,6 +126,7 @@ let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
 let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
+let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
   _path_ext, path_dir, path_file,
@@ -134,7 +135,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   uri_dec, match_glob_to_regex, semver_range_parse,
-  pkg_export_lookup, export_path_match,
+  pkg_export_lookup, export_path_match, str_to_buf,
   esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
 let {qw} = str;
 let clog = console.log.bind(console);
@@ -518,7 +519,7 @@ function tr_import_lpm({imp, imported, npm_uri, pkg}){
 
 function tr_mjs_import(f){
   let s = Scroll(f.js), v, _v;
-  for (let d of f.meta.imports){
+  for (let d of f.meta.imports||[]){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
@@ -532,7 +533,7 @@ function tr_mjs_import(f){
     }
     console.warn('import('+f.lmod+') missing: '+imp);
   }
-  for (let d of f.meta.imports_dyn)
+  for (let d of f.meta.imports_dyn||[])
     s.splice(d.start, d.end, 'import_lif');
   return s.out();
 }
@@ -542,14 +543,14 @@ function file_tr_mjs(f, opt){
   let tr = tr_mjs_import(f);
   let slow = 0; // has problem with lif-kernel/util.js
   let log = 0, pre = '', post = '';
-  let _import = f.meta.imports.length;
+  let _import = f.meta.imports?.length;
   if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
   if (opt?.worker){
     pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
     pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
   }
-  if (f.meta.imports_dyn.length)
+  if (f.meta.imports_dyn?.length)
     pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
   if (log) 
     pre += `console.log(${uri_s}, 'start'); `;
@@ -1096,7 +1097,39 @@ function passthrough_lmod({pkg, lmod}){
   }
 }
 
-function file_jsx_ts_to_js(f){
+let cache_t = {};
+async function cache_open(cache_id){
+  if (cache_t[cache_id])
+    return cache_t[cache_id];
+  return cache_t[cache_id] = await caches.open('lif '+cache_id);
+}
+
+async function cache_get(cache_id, k, type){
+  let cache = await cache_open(cache_id);
+  let req = new Request(k);
+  let response = await cache.match(req);
+  if (!response)
+    return;
+  return await response.json();
+}
+
+// type: text, bin, json
+async function cache_set(cache_id, k, v, type){
+  let cache = await cache_open(cache_id);
+  let response = new Response(JSON.stringify(v), {
+    headers: {'Content-Type': 'application/json'}
+  });
+  // Use a fake URL as the key
+  const req = new Request(k); // e.g., '/cached/user-profile'
+  await cache.put(req, response);
+}
+
+function sha256_hex(v){
+  v = sha256.Buffer.toBuffer(new Uint8Array(str_to_buf(v)));
+  return sha256.digest(v).toHex();
+}
+
+async function file_jsx_ts_to_js(f){
   if (f.js)
     return f.js;
   let body = f.body;
@@ -1113,26 +1146,32 @@ function tr_js_to_meta(js){
     return {err: ast.err};
   let meta = {};
   meta.type = ast.type;
-  if (ast.requires)
+  if (ast.requires.length)
     meta.requires = ast.requires;
-  if (ast.imports)
+  if (ast.imports.length)
     meta.imports = ast.imports;
-  if (ast.imports_dyn)
+  if (ast.imports_dyn.length)
     meta.imports_dyn = ast.imports_dyn;
   if (ast.has.export_default)
     meta.export_default = ast.has.export_default;
   return meta;
 }
 
-function file_js_to_meta(f){
+async function file_js_to_meta(f){
   if (f.meta)
     return f.meta;
   if (f.js.err)
     return f.meta = {err: f.js.err};
-  return f.meta = tr_js_to_meta(f.js);
+  let k = '/sha256/'+sha256_hex(f.js);
+  let meta = await cache_get('js_to_meta 1', k);
+  if (meta)
+    return f.meta = meta;
+  f.meta = tr_js_to_meta(f.js);
+  await cache_set('js_to_meta 1', k, f.meta); // XXX bg - no need for await
+  return f.meta;
 }
 
-function responce_tr_send({f, qs, lmod}){
+async function responce_tr_send({f, qs, lmod}){
   if (f.not_exist)
     return {not_exist: true};
   let ext = _path_ext(lmod);
@@ -1146,8 +1185,10 @@ function responce_tr_send({f, qs, lmod}){
   if (ext=='css')
     return {body: f.blob, ext: 'css'};
   ext = 'js';
-  let js = file_jsx_ts_to_js(f);
-  let meta = file_js_to_meta(f);
+  if (f.lmod=='local/lif-coin//browser/main.tsx') debugger;
+  if (f.lmod=='local/lif-kernel//hi.js') debugger;
+  let js = await file_jsx_ts_to_js(f);
+  let meta = await file_js_to_meta(f);
   if (meta.err)
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
   let type = meta.type;
@@ -1208,8 +1249,8 @@ async function fetch_lpm_meta({log, imp, mod_self}){
   let type = file_type(f.lmod);
   if (type!='js')
     return {type};
-  file_jsx_ts_to_js(f);
-  return file_js_to_meta(f);
+  await file_jsx_ts_to_js(f);
+  return await file_js_to_meta(f);
 }
 
 function response_redirect({redirect, cache}){
@@ -1238,7 +1279,7 @@ async function send_res({err, not_exist, redirect, body, ext, path}){
 
 async function fetch_lpm_file({log, imp, mod_self, qs}){
   let f = await lpm_file_resolve({log, imp, mod_self});
-  return responce_tr_send({f, qs, lmod: imp});
+  return await responce_tr_send({f, qs, lmod: imp});
 }
 
 async function fetch_pass(request, type){
