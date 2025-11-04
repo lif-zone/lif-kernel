@@ -23,7 +23,7 @@ let assert = (ok, ...msg)=>{
 let Buffer = {};
 Buffer.toBuffer = function(buf){
   buf.copy = (dst, dst_off, src_off, src_end)=>{
-    dst.set(buf.subarray(src_off, src_end));
+    dst.set(buf.subarray(src_off, src_end), dst_off);
   };
   return buf;
 };
