@@ -1185,8 +1185,6 @@ async function responce_tr_send({f, qs, lmod}){
   if (ext=='css')
     return {body: f.blob, ext: 'css'};
   ext = 'js';
-  if (f.lmod=='local/lif-coin//browser/main.tsx') debugger;
-  if (f.lmod=='local/lif-kernel//hi.js') debugger;
   let js = await file_jsx_ts_to_js(f);
   let meta = await file_js_to_meta(f);
   if (meta.err)
