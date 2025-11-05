@@ -1,5 +1,5 @@
 // LIF bootloader worker: assistance for sync operations
-let boot_worker_version = '1.3.0';
+let boot_worker_version = '2.0.0';
 import util from '/lif-kernel/util.js';
 let D = 0;
 console.log('boot_worker started '+boot_worker_version);
