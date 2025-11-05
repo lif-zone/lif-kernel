@@ -1,13 +1,15 @@
 {
   "name": "lif-kernel",
-  "version": "1.3.3",
+  "version": "2.0.0",
   "description": "kernel hi דבר חי",
   "author": {
-    "name": "Jungo Publishing Labs",
+    "name": "Hi PC! kernel: A Human-Inteligence Public-Computer kernel",
+    "org": "hola",
+    "sig": "JPL Jungo Publishing Labs",
     "email": "lif@jungo.center",
     "url": "https://jungo.center"
   },
-  "license": "JPL DNA",
+  "license": "DASOFT JPL ZON DNA JEM",
   "module": "boot.js",
   "type": "module",
   "lif": {
@@ -15,19 +17,20 @@
     "webapp": "./hi.js"
   },
   "files": [
-    "acme.js",
+    "etask.js",
+    "util.js",
     "boot.js",
     "boot_worker.js",
-    "dnss.js",
-    "etask.js",
+    "sha256.js",
     "favicon.ico",
     "index.html",
     "kernel.js",
-    "lif-kernel.service",
     "lif_kernel_sw.js",
     "mine_db.js",
     "server.js",
     "server_lib.js",
-    "util.js"
+    "dnss.js",
+    "acme.js",
+    "lif-kernel.service"
   ]
 }
