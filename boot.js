@@ -19,6 +19,7 @@ let npm_root;
 let process = globalThis.process ||= {
   env: {},
   browser: true,
+  version: '25.1.0',
 };
 let is_worker = typeof window=='undefined';
 
