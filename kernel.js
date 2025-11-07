@@ -124,6 +124,7 @@ let lif_kernel_base = sw_q.get('lif_kernel_base');
 console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
+let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
 let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 let sha256 = await import_module(lif_kernel_base+'/sha256.js');
@@ -1097,31 +1098,28 @@ function passthrough_lmod({pkg, lmod}){
   }
 }
 
-let cache_t = {};
-async function cache_open(cache_id){
-  if (cache_t[cache_id])
-    return cache_t[cache_id];
-  return cache_t[cache_id] = await caches.open('lif '+cache_id);
+let db;
+async function db_open(){
+  if (!db){
+    db = await idb.openDB('lif-kerne;', 2, {
+      upgrade(db){
+        db.deleteObjectStore('js_to_meta');
+        db.createObjectStore('js_to_meta');
+      }
+    });
+  }
+  return db;
 }
 
-async function cache_get(cache_id, k, type){
-  let cache = await cache_open(cache_id);
-  let req = new Request(k);
-  let response = await cache.match(req);
-  if (!response)
-    return;
-  return await response.json();
+async function cache_get(table, k){
+  let db = await db_open();
+  return await db.get(table, k);
 }
 
 // type: text, bin, json
-async function cache_set(cache_id, k, v, type){
-  let cache = await cache_open(cache_id);
-  let response = new Response(JSON.stringify(v), {
-    headers: {'Content-Type': 'application/json'}
-  });
-  // Use a fake URL as the key
-  const req = new Request(k); // e.g., '/cached/user-profile'
-  await cache.put(req, response);
+async function cache_set(table, k, v){
+  let db = await db_open();
+  await db.put(table, v, k);
 }
 
 function sha256_hex(v){
@@ -1162,12 +1160,12 @@ async function file_js_to_meta(f){
     return f.meta;
   if (f.js.err)
     return f.meta = {err: f.js.err};
-  let k = '/sha256/'+sha256_hex(f.js);
-  let meta = await cache_get('js_to_meta 1', k);
+  let k = sha256_hex(f.js);
+  let meta = await cache_get('js_to_meta', k);
   if (meta)
     return f.meta = meta;
   f.meta = tr_js_to_meta(f.js);
-  await cache_set('js_to_meta 1', k, f.meta); // XXX bg - no need for await
+  await cache_set('js_to_meta', k, f.meta); // XXX bg - no need for await
   return f.meta;
 }
 
