@@ -43,7 +43,7 @@ let eslow = exports.eslow = (ms, arg)=>{
   })();
   eslow.set.add(p);
   p.now = Date.now();
-  p.stack = Error('stack'),
+  p.stack = 0 && Error('stack'),
   p.end = ()=>{
     if (at_end)
       return;
