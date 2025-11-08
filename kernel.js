@@ -143,16 +143,28 @@ let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
 
 let db;
+function db_upgrade(db, table, opt){
+  let exist = db.objectStoreNames.contains(table);
+  if (opt.del){
+    if (exist)
+      db.deleteObjectStore(table);
+  } else if (opt.del_create){
+    if (exist)
+      db.deleteObjectStore(table);
+    db.createObjectStore(table, opt);
+  } else {
+    if (!exist)
+      db.createObjectStore(table, opt);
+  }
+}
+
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kernel', 6, {
+    db = await idb.openDB('lif-kernel', 7, {
       upgrade(db){
-        if (db.objectStoreNames.contains('js_to_meta'))
-          db.deleteObjectStore('js_to_meta');
-        db.createObjectStore('js_to_meta', {keyPath: ['h_js']});
-        if (db.objectStoreNames.contains('tsx_to_js'))
-          db.deleteObjectStore('tsx_to_js');
-        db.createObjectStore('tsx_to_js', {keyPath: ['type', 'h_tsx']});
+        db_upgrade(db, 'js_to_meta', {keyPath: ['h_js']});
+        db_upgrade(db, 'tsx_to_js', {keyPath: ['type', 'h_tsx']});
+        db_upgrade(db, 'lpm_file', {keyPath: ['lmod']});
       }
     });
   }
@@ -755,7 +767,6 @@ return await ecache(reg_file_t, lmod, async function run(reg){
       break;
     if (ret.not_exist){
       reg.not_exist = true;
-      reg.err = 'lpm does not exist '+lmod;
       return reg;
     }
     assert(ret.fail_cdn);
@@ -874,20 +885,20 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   }
   // fetch pkg
   let pkg_json = lmod+'/package.json';
-  let reg = await reg_get({log, lmod: pkg_json});
-  if (reg.not_exist){
-    lpm_pkg.not_exist = reg.not_exist;
-    console.error('lpm_pkg_get('+lmod+') not found: '+reg.url);
+  let f = await lpm_file_get({log, lmod: pkg_json});
+  if (f.not_exist){
+    lpm_pkg.not_exist = f.not_exist;
+    console.error('lpm_pkg_get('+lmod+') not found: '+f.url);
     return lpm_pkg;
   }
-  lpm_pkg.blob = reg.blob;
-  lpm_pkg.body = reg.body;
+  lpm_pkg.blob = f.blob;
+  lpm_pkg.body = f.body;
   try {
     lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
   } catch(err){
     throw Error('lmod('+pkg_json+') invalid JSON: '+err);
     lpm_pkg.pkg = {};
-    console.log('failed package.json', reg.url);
+    console.log('failed parse package.json', pkg_json);
   }
   return lpm_pkg;
 }); }
@@ -896,17 +907,26 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
 async function lpm_file_get({log, lmod}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   D && console.log('lpm_file_get', lmod);
+  let f = await cache_get('lpm_file', [lmod]);
+  if (f)
+    return f;
   lpm_file.lmod = lmod;
   lpm_file.log = log;
   let reg = await reg_get({log, lmod});
   lpm_file.reg = reg; // for logging
   if (reg.err)
     return reg;
-  if (reg.not_exist)
-    return reg;
+  if (reg.not_exist){
+    f = {lmod, not_exist: true};
+    cache_set('lpm_file', f);
+    return f;
+  }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
   lpm_file.body = reg.body;
+  let h_body = sha256_hex(lpm_file.body);
+  cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
+    h_body});
   return lpm_file;
 }); }
 
