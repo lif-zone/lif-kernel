@@ -142,6 +142,38 @@ let {qw} = str;
 let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
 
+let db;
+async function db_open(){
+  if (!db){
+    db = await idb.openDB('lif-kernel', 6, {
+      upgrade(db){
+        if (db.objectStoreNames.contains('js_to_meta'))
+          db.deleteObjectStore('js_to_meta');
+        db.createObjectStore('js_to_meta', {keyPath: ['h_js']});
+        if (db.objectStoreNames.contains('tsx_to_js'))
+          db.deleteObjectStore('tsx_to_js');
+        db.createObjectStore('tsx_to_js', {keyPath: ['type', 'h_tsx']});
+      }
+    });
+  }
+  return db;
+}
+
+async function cache_get(table, k){
+  let db = await db_open();
+  return await db.get(table, k);
+}
+
+async function cache_set(table, v, k){
+  let db = await db_open();
+  await db.put(table, v, k);
+}
+
+function sha256_hex(v){
+  v = sha256.Buffer.toBuffer(new Uint8Array(str_to_buf(v)));
+  return sha256.digest(v).toHex();
+}
+
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
 // sw: /lif-os/pages/index.tsx
@@ -1096,38 +1128,6 @@ function passthrough_lmod({pkg, lmod}){
     if (p==file)
       return lpm_to_sw_url(lmod);
   }
-}
-
-let db;
-async function db_open(){
-  if (!db){
-    db = await idb.openDB('lif-kernel', 6, {
-      upgrade(db){
-        if (db.objectStoreNames.contains('js_to_meta'))
-          db.deleteObjectStore('js_to_meta');
-        db.createObjectStore('js_to_meta', {keyPath: ['h_js']});
-        if (db.objectStoreNames.contains('tsx_to_js'))
-          db.deleteObjectStore('tsx_to_js');
-        db.createObjectStore('tsx_to_js', {keyPath: ['type', 'h_tsx']});
-      }
-    });
-  }
-  return db;
-}
-
-async function cache_get(table, k){
-  let db = await db_open();
-  return await db.get(table, k);
-}
-
-async function cache_set(table, v, k){
-  let db = await db_open();
-  await db.put(table, v, k);
-}
-
-function sha256_hex(v){
-  v = sha256.Buffer.toBuffer(new Uint8Array(str_to_buf(v)));
-  return sha256.digest(v).toHex();
 }
 
 async function tr_tsx_to_js_cache({tsx, type, h_tsx}){
