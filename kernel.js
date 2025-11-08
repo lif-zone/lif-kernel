@@ -288,7 +288,7 @@ let file_type = lmod=>{
   return 'js';
 };
 
-function tr_tsx_to_js({body, type}){
+function tr_tsx_to_js({tsx, type}){
   let js;
   let is_ts = type=='ts' || type=='tsx';
   let is_jsx = type=='jsx' || type=='tsx';
@@ -303,7 +303,7 @@ function tr_tsx_to_js({body, type}){
   if (is_jsx)
     opt.presets.push(['react', {modules: false, useSpread: true}]);
   try {
-    ({code: js} = Babel.transform(body, opt));
+    ({code: js} = Babel.transform(tsx, opt));
   } catch(err){
     console.error('babel FAILED', err);
     return {err: 'tsx tr: '+err};
@@ -1101,13 +1101,14 @@ function passthrough_lmod({pkg, lmod}){
 let db;
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kernel', 4, {
+    db = await idb.openDB('lif-kernel', 6, {
       upgrade(db){
         if (db.objectStoreNames.contains('js_to_meta'))
           db.deleteObjectStore('js_to_meta');
-        db.createObjectStore('js_to_meta');
-        if (!db.objectStoreNames.contains('tsx_to_js'))
-          db.createObjectStore('tsx_to_js');
+        db.createObjectStore('js_to_meta', {keyPath: ['h_js']});
+        if (db.objectStoreNames.contains('tsx_to_js'))
+          db.deleteObjectStore('tsx_to_js');
+        db.createObjectStore('tsx_to_js', {keyPath: ['type', 'h_tsx']});
       }
     });
   }
@@ -1119,8 +1120,7 @@ async function cache_get(table, k){
   return await db.get(table, k);
 }
 
-// type: text, bin, json
-async function cache_set(table, k, v){
+async function cache_set(table, v, k){
   let db = await db_open();
   await db.put(table, v, k);
 }
@@ -1130,25 +1130,27 @@ function sha256_hex(v){
   return sha256.digest(v).toHex();
 }
 
-async function tr_tsx_to_js_cache({body, type}){
-  let k = type+'/'+sha256_hex(body);
-  let js = await cache_get('tsx_to_js', k);
+async function tr_tsx_to_js_cache({tsx, type, h_tsx}){
+  h_tsx ||= sha256_hex(tsx);
+  let js = await cache_get('tsx_to_js', [type, h_tsx]);
   if (js)
-    return js;
-  js = tr_tsx_to_js({body, type});
-  cache_set('tsx_to_js', k, js); // bg - no need to await
-  return js;
+    return {js: js.js, h_js: js.h_js};
+  js = tr_tsx_to_js({tsx, type});
+  let h_js = sha256_hex(js);
+  cache_set('tsx_to_js', {type, h_tsx, js, h_js}); // bg - no need to await
+  return {js, h_js};
 }
 
 async function file_tsx_to_js(f){
   if (f.js)
     return f.js;
-  let body = f.body;
-  let js = body;
+  let tsx = f.body;
   let type = _path_ext(f.lmod);
   if (str.is(type, 'jsx', 'ts', 'tsx'))
-    js = await tr_tsx_to_js_cache({body, type});
-  return f.js = js;
+    ({js: f.js, h_js: f.h_js} = await tr_tsx_to_js_cache({tsx, type}));
+  else
+    f.js = tsx;
+  return f.js;
 }
 
 function tr_js_to_meta(js){
@@ -1173,12 +1175,12 @@ async function file_js_to_meta(f){
     return f.meta;
   if (f.js.err)
     return f.meta = {err: f.js.err};
-  let k = sha256_hex(f.js);
-  let meta = await cache_get('js_to_meta', k);
+  let h_js = f.h_js || sha256_hex(f.js);
+  let meta = await cache_get('js_to_meta', [h_js]);
   if (meta)
     return f.meta = meta;
   f.meta = tr_js_to_meta(f.js);
-  cache_set('js_to_meta', k, f.meta); // bg - no need for await
+  cache_set('js_to_meta', {h_js, ...f.meta}); // bg - no need for await
   return f.meta;
 }
 
