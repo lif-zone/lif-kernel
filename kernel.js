@@ -893,14 +893,11 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
 }); }
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
-async function lpm_file_get({log, lmod, lpm_pkg}){
+async function lpm_file_get({log, lmod}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   D && console.log('lpm_file_get', lmod);
   lpm_file.lmod = lmod;
-  lpm_file.lpm_pkg = lpm_pkg;
   lpm_file.log = log;
-  lpm_pkg.log ||= log;
-  assert(!lpm_pkg.redirect);
   let reg = await reg_get({log, lmod});
   lpm_file.reg = reg; // for logging
   if (reg.err)
@@ -913,12 +910,12 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   return lpm_file;
 }); }
 
-async function lpm_file_get_alt({log, lmod, lpm_pkg, alt}){
+async function lpm_file_get_alt({log, lmod, alt}){
   // fetch the file
   let first;
   alt = ['', ...(alt||[])];
   for (let a of alt){
-    let f = await lpm_file_get({log, lmod: lmod+a, lpm_pkg});
+    let f = await lpm_file_get({log, lmod: lmod+a});
     first ||= f;
     f = {...f};
     f.alt = a;
@@ -952,7 +949,7 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
     return OA(f, {redirect: _uri});
   }
   alt = pkg_alt_get(pkg, lmod);
-  let f_get = await lpm_file_get_alt({log, lmod, alt, lpm_pkg});
+  let f_get = await lpm_file_get_alt({log, lmod, alt});
   f.f_get = f_get; // for logging
   if (f_get.not_exist)
     return f_get;
