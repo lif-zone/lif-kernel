@@ -770,27 +770,6 @@ return await ecache(reg_file_t, lmod, async function run(reg){
   return reg;
 }); }
 
-async function reg_get_alt({log, lmod, alt}){
-  // fetch the file
-  let first;
-  alt = ['', ...(alt||[])];
-  for (let a of alt){
-    let f = await reg_get({log, lmod: lmod+a});
-    first ||= f;
-    f = {...f};
-    f.alt = a;
-    if (f.not_exist)
-      continue;
-    if (!f.err)
-      return f;
-    if (f.err)
-      throw Error('fetch failed '+lmod+' '+f.url);
-  }
-  console.error('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
-    ') failed fetch not exist '+lmod);
-  return first; // not_exist
-}
-
 let max_redirect = 8;
 function assert_lmod(lmod){
   assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod); }
@@ -917,36 +896,74 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
 async function lpm_file_get({log, lmod, lpm_pkg}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   D && console.log('lpm_file_get', lmod);
-  let alt, pkg;
   lpm_file.lmod = lmod;
   lpm_file.lpm_pkg = lpm_pkg;
-  pkg = lpm_file.pkg = lpm_pkg.pkg;
-  lpm_file.npm_uri = lpm_to_npm(lmod);
   lpm_file.log = log;
   lpm_pkg.log ||= log;
-  if (lpm_pkg.redirect)
-    return OA(lpm_file, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
-  let path = T_lpm_parse(lmod).path;
-  let _path = pkg_export_lookup(pkg, path);
-  if (_path && _path!=path){
-    let _uri = T_lpm_lmod(lmod)+_path;
-    D && console.log('redirect export '+lmod+' -> '+_uri);
-    return OA(lpm_file, {redirect: _uri});
-  }
-  alt = pkg_alt_get(pkg, lmod);
-  let reg = await reg_get_alt({log, lmod, alt});
+  assert(!lpm_pkg.redirect);
+  let reg = await reg_get({log, lmod});
   lpm_file.reg = reg; // for logging
+  if (reg.err)
+    return reg;
   if (reg.not_exist)
     return reg;
-  if (reg.alt){
-    D && console.log('redirect alt '+lmod+' -> '+reg.alt);
-    return OA(lpm_file, {redirect: lmod+reg.alt});
-  }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
   lpm_file.body = reg.body;
   return lpm_file;
 }); }
+
+async function lpm_file_get_alt({log, lmod, lpm_pkg, alt}){
+  // fetch the file
+  let first;
+  alt = ['', ...(alt||[])];
+  for (let a of alt){
+    let f = await lpm_file_get({log, lmod: lmod+a, lpm_pkg});
+    first ||= f;
+    f = {...f};
+    f.alt = a;
+    if (f.not_exist)
+      continue;
+    if (!f.err)
+      return f;
+    if (f.err)
+      throw Error('fetch failed '+lmod+' '+f.url);
+  }
+  console.error('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
+    ') failed fetch not exist '+lmod);
+  return first; // not_exist
+}
+
+// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
+async function lpm_file_get_follow({log, lmod, lpm_pkg}){
+  D && console.log('lpm_file_get_follow', lmod);
+  let alt, pkg;
+  let f = {lmod, lpm_pkg, log};
+  pkg = f.pkg = lpm_pkg.pkg;
+  f.npm_uri = lpm_to_npm(lmod);
+  lpm_pkg.log ||= log;
+  if (lpm_pkg.redirect)
+    return OA(f, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
+  let path = T_lpm_parse(lmod).path;
+  let _path = pkg_export_lookup(pkg, path);
+  if (_path && _path!=path){
+    let _uri = T_lpm_lmod(lmod)+_path;
+    D && console.log('redirect export '+lmod+' -> '+_uri);
+    return OA(f, {redirect: _uri});
+  }
+  alt = pkg_alt_get(pkg, lmod);
+  let f_get = await lpm_file_get_alt({log, lmod, alt, lpm_pkg});
+  f.f_get = f_get; // for logging
+  if (f_get.not_exist)
+    return f_get;
+  if (f_get.alt){
+    D && console.log('redirect alt '+lmod+' -> '+f_get.alt);
+    return OA(f, {redirect: lmod+f_get.alt});
+  }
+  f.blob = f_get.blob;
+  f.body = f_get.body;
+  return f;
+}
 
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
@@ -1034,7 +1051,7 @@ async function lpm_file_resolve({log, imp, mod_self}){
     return {not_exist: true};
   let u = T_lpm_parse(imp);
   let lmod = lpm_pkg.lmod+(subdir||'')+u.path;
-  let lpm_file = await lpm_file_get({log, lmod, lpm_pkg});
+  let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg});
   return lpm_file;
 }
 
