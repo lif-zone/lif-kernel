@@ -288,7 +288,7 @@ let file_type = lmod=>{
   return 'js';
 };
 
-function tr_jsx_ts_to_js({body, type}){
+function tr_tsx_to_js({body, type}){
   let js;
   let is_ts = type=='ts' || type=='tsx';
   let is_jsx = type=='jsx' || type=='tsx';
@@ -1101,10 +1101,13 @@ function passthrough_lmod({pkg, lmod}){
 let db;
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kerne;', 2, {
+    db = await idb.openDB('lif-kernel', 4, {
       upgrade(db){
-        db.deleteObjectStore('js_to_meta');
+        if (db.objectStoreNames.contains('js_to_meta'))
+          db.deleteObjectStore('js_to_meta');
         db.createObjectStore('js_to_meta');
+        if (!db.objectStoreNames.contains('tsx_to_js'))
+          db.createObjectStore('tsx_to_js');
       }
     });
   }
@@ -1127,14 +1130,24 @@ function sha256_hex(v){
   return sha256.digest(v).toHex();
 }
 
-async function file_jsx_ts_to_js(f){
+async function tr_tsx_to_js_cache({body, type}){
+  let k = type+'/'+sha256_hex(body);
+  let js = await cache_get('tsx_to_js', k);
+  if (js)
+    return js;
+  js = tr_tsx_to_js({body, type});
+  cache_set('tsx_to_js', k, js); // bg - no need to await
+  return js;
+}
+
+async function file_tsx_to_js(f){
   if (f.js)
     return f.js;
   let body = f.body;
   let js = body;
   let type = _path_ext(f.lmod);
   if (str.is(type, 'jsx', 'ts', 'tsx'))
-    js = tr_jsx_ts_to_js({body, type});
+    js = await tr_tsx_to_js_cache({body, type});
   return f.js = js;
 }
 
@@ -1165,7 +1178,7 @@ async function file_js_to_meta(f){
   if (meta)
     return f.meta = meta;
   f.meta = tr_js_to_meta(f.js);
-  await cache_set('js_to_meta', k, f.meta); // XXX bg - no need for await
+  cache_set('js_to_meta', k, f.meta); // bg - no need for await
   return f.meta;
 }
 
@@ -1183,7 +1196,7 @@ async function responce_tr_send({f, qs, lmod}){
   if (ext=='css')
     return {body: f.blob, ext: 'css'};
   ext = 'js';
-  let js = await file_jsx_ts_to_js(f);
+  let js = await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
   if (meta.err)
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
@@ -1245,7 +1258,7 @@ async function fetch_lpm_meta({log, imp, mod_self}){
   let type = file_type(f.lmod);
   if (type!='js')
     return {type};
-  await file_jsx_ts_to_js(f);
+  await file_tsx_to_js(f);
   return await file_js_to_meta(f);
 }
 
