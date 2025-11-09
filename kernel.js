@@ -855,54 +855,6 @@ async function lpm_pkg_cache_follow(lmod){
   return lpm_pkg;
 }
 
-async function lpm_pkg_get({log, lmod, mod_self}){
-return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
-  D && console.log('lpm_pkg_get', lmod, mod_self);
-  lpm_pkg.lmod = lmod;
-  assert_lmod(lmod);
-  let lpm_self;
-  if (mod_self){
-    assert_lmod(mod_self);
-    lpm_self = lpm_pkg_t[mod_self];
-  }
-  if (!lpm_self)
-    lpm_self = lpm_pkg_app || lpm_pkg_root;
-  assert(lpm_self, 'module('+lmod+') req before app set');
-  // add to tree
-  lpm_pkg.parent = lpm_self;
-  lpm_self.child.push(lpm_pkg);
-  lpm_pkg.child = [];
-  lpm_pkg.log = log;
-  lpm_pkg.parent_mod = mod_self;
-  // resolve ver
-  if (lpm_ver_missing(lmod)){
-    console.error('module('+mod_self+') no version defined for import '+lmod);
-    let v = await _lpm_pkg_ver_get({log, lmod});
-    if (!v)
-      throw Error('no pkg versions defined for import '+lmod);
-    console.warn('redirect ver '+lmod+' -> '+v);
-    return OA(lpm_pkg, {redirect: v});
-  }
-  // fetch pkg
-  let pkg_json = lmod+'/package.json';
-  let f = await lpm_file_get({log, lmod: pkg_json});
-  if (f.not_exist){
-    lpm_pkg.not_exist = f.not_exist;
-    console.error('lpm_pkg_get('+lmod+') not found: '+f.url);
-    return lpm_pkg;
-  }
-  lpm_pkg.blob = f.blob;
-  lpm_pkg.body = f.body;
-  try {
-    lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
-  } catch(err){
-    throw Error('lmod('+pkg_json+') invalid JSON: '+err);
-    lpm_pkg.pkg = {};
-    console.log('failed parse package.json', pkg_json);
-  }
-  return lpm_pkg;
-}); }
-
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
 async function lpm_file_get({log, lmod}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
@@ -981,6 +933,54 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   f.body = f_get.body;
   return f;
 }
+
+async function lpm_pkg_get({log, lmod, mod_self}){
+return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
+  D && console.log('lpm_pkg_get', lmod, mod_self);
+  lpm_pkg.lmod = lmod;
+  assert_lmod(lmod);
+  let lpm_self;
+  if (mod_self){
+    assert_lmod(mod_self);
+    lpm_self = lpm_pkg_t[mod_self];
+  }
+  if (!lpm_self)
+    lpm_self = lpm_pkg_app || lpm_pkg_root;
+  assert(lpm_self, 'module('+lmod+') req before app set');
+  // add to tree
+  lpm_pkg.parent = lpm_self;
+  lpm_self.child.push(lpm_pkg);
+  lpm_pkg.child = [];
+  lpm_pkg.log = log;
+  lpm_pkg.parent_mod = mod_self;
+  // resolve ver
+  if (lpm_ver_missing(lmod)){
+    console.error('module('+mod_self+') no version defined for import '+lmod);
+    let v = await _lpm_pkg_ver_get({log, lmod});
+    if (!v)
+      throw Error('no pkg versions defined for import '+lmod);
+    console.warn('redirect ver '+lmod+' -> '+v);
+    return OA(lpm_pkg, {redirect: v});
+  }
+  // fetch pkg
+  let pkg_json = lmod+'/package.json';
+  let f = await lpm_file_get({log, lmod: pkg_json});
+  if (f.not_exist){
+    lpm_pkg.not_exist = f.not_exist;
+    console.error('lpm_pkg_get('+lmod+') not found: '+f.url);
+    return lpm_pkg;
+  }
+  lpm_pkg.blob = f.blob;
+  lpm_pkg.body = f.body;
+  try {
+    lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
+  } catch(err){
+    throw Error('lmod('+pkg_json+') invalid JSON: '+err);
+    lpm_pkg.pkg = {};
+    console.log('failed parse package.json', pkg_json);
+  }
+  return lpm_pkg;
+}); }
 
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
