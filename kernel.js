@@ -80,7 +80,7 @@ console.log('pre_init');
 (async()=>{try {
 // service worker import() implementation
 // 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
-let enable_cache = 3;
+let enable_cache = 2;
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
