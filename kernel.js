@@ -942,6 +942,7 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   }
   f.blob = f_get.blob;
   f.body = f_get.body;
+  f.h_body = f_get.h_body;
   return f;
 }
 
@@ -1189,12 +1190,14 @@ async function tr_tsx_to_js_cache({tsx, type, h_tsx}){
 async function file_tsx_to_js(f){
   if (f.js)
     return f.js;
-  let tsx = f.body;
   let type = _path_ext(f.lmod);
-  if (str.is(type, 'jsx', 'ts', 'tsx'))
-    ({js: f.js, h_js: f.h_js} = await tr_tsx_to_js_cache({tsx, type}));
-  else
-    f.js = tsx;
+  if (str.is(type, 'jsx', 'ts', 'tsx')){
+    ({js: f.js, h_js: f.h_js} = await tr_tsx_to_js_cache({
+      tsx: f.body, h_tsx: f.h_body, type}));
+  } else {
+    f.js = f.body;
+    f.h_js = f.h_body;
+  }
   return f.js;
 }
 
