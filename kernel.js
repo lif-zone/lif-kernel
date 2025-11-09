@@ -79,10 +79,20 @@ console.log('pre_init');
 
 (async()=>{try {
 // service worker import() implementation
-let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
+// 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
+let enable_cache = 3;
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
+}
+function cache_lmod(lmod){
+  if (!enable_cache)
+    return;
+  if (str.starts(lmod, 'http/', 'https/'))
+    return enable_cache>=2;
+  if (str.starts(lmod, 'local/'))
+    return enable_cache>=3;
+  return true;
 }
 let import_modules = {};
 let import_module = async(url)=>{
@@ -859,7 +869,8 @@ async function lpm_pkg_cache_follow(lmod){
 async function lpm_file_get({log, lmod}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   D && console.log('lpm_file_get', lmod);
-  let f = await cache_get('lpm_file', [lmod]);
+  let c = cache_lmod(lmod);
+  let f = c && await cache_get('lpm_file', [lmod]);
   if (f)
     return f;
   lpm_file.lmod = lmod;
@@ -870,14 +881,14 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
     return reg;
   if (reg.not_exist){
     f = {lmod, not_exist: true};
-    cache_set('lpm_file', f);
+    c && cache_set('lpm_file', f);
     return f;
   }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
   lpm_file.body = reg.body;
   let h_body = sha256_hex(lpm_file.body);
-  cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
+  c && cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
     h_body});
   return lpm_file;
 }); }
