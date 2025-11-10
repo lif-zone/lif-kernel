@@ -244,10 +244,22 @@ let lpm_cdn = {
     }, {
       name: 'statically.io',
       url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${submod_path(u)}`,
+    }, {
+      name: 'api.github.com',
+      get_ver: {
+        url: (o, r, b)=>`https://api.github.com/repos/${o}/${r}/branches/${b}`,
+        sha: data=>data.commit.sha,
+      },
     }]},
     gitlab: {src: [{
       name: 'statically.io',
       url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${submod_path(u)}`,
+    }, {
+      name: "gitlab.com",
+      get_ver: {
+        url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/branches/${b}`,
+        sha: data=>data.commit.id,
+      },
     }]},
   },
   ipfs: {src: [{
@@ -270,6 +282,7 @@ let lpm_cdn = {
     url: u=>`http://${u.host}${submod_path(u)}`,
   }]},
 };
+
 let lpm_get_cdn = u=>{
   let cdn = lpm_cdn;
   if (typeof u=='string')
