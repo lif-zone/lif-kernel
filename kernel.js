@@ -244,10 +244,13 @@ let lpm_cdn = {
     u: u=>`https://unpkg.com/${u.name}${u.ver}${submod_path(u)}`,
   }], src_ver: [{
     name: 'npmjs.org',
-    url: u=>`https://registry.npmjs.com/${u.name}${u.ver}`,
+    url: u=>`https://registry.npmjs.com/${u.name}`,
   }, {
     name: 'yarnpkg.com',
-    url: u=>`https://registry.yarnpkg.com/${u.name}${u.ver}`,
+    url: u=>`https://registry.yarnpkg.com/${u.name}`,
+  }, {
+    name: 'npmmirror.com',
+    url: u=>`https://registry.npmmirror.com/${u.name}`,
   }]},
   git: {
     github: {src: [{
