@@ -561,7 +561,7 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
     return imp;
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
   // collect parents info
-  let par = {}; // in npm: peer==parent, dep==child==import
+  let par = {}; // in npm: peer==parent.children, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
     let _l = lpm_imp_ver_lookup({lpm_pkg: p, imp});
     par.reg ||= _l.reg;
@@ -995,11 +995,10 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   lpm_pkg.parent_mod = mod_self;
   // resolve ver
   if (lpm_ver_missing(lmod)){
-    console.error('module('+mod_self+') no version defined for import '+lmod);
     let v = await _lpm_pkg_ver_get({log, lmod});
     if (!v)
       throw Error('no pkg versions defined for import '+lmod);
-    console.warn('redirect ver '+lmod+' -> '+v);
+    console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
     return OA(lpm_pkg, {redirect: v});
   }
   // fetch pkg
