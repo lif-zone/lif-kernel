@@ -208,9 +208,21 @@ function sha256_hex(v){
 // br:  /.lif/npm.cjs/react
 // sw:  https://unpkg.com/react
 
+// NPM metadata
 // https://registry.npmjs.com/lif-kernel
+// https://registry.npmjs.com/lif-kernel/1.0.6
+// https://registry.npmjs.com/lif-kernel/latest
+// https://registry.npmmirror.com/lif-kernel
+// https://registry.yarnpkg.com/lif-kernel
+// NPM content:
 // https://unpkg.com/lif-kernel@1.0.6/boot.js
+// https://unpkg.com/lif-kernel@latest/boot.js
 // https://cdn.jsdelivr.net/npm/lif-kernel@1.0.6/boot.js
+// GITHUB metadata
+// https://api.github.com/repos/xderry/lif-os/tags
+// https://api.github.com/repos/xderry/lif-os/commits/799b55788fabee94cdcf5bded757a6ca9be778df
+// GITHUB content
+// https://raw.githubusercontent.com/xderry/lif-os/799b55788fabee94cdcf5bded757a6ca9be778df/package.json
 
 let submod_path = u=>u.submod.replace(/\/$/, '')+u.path;
 let gh_ver = u=>{
