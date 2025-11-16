@@ -95,17 +95,22 @@ async function boot_worker_sync_connect(){
 
 const npm_2url_opt = (url, mod_self, opt)=>{
   let u = T_npm_url_base(url, mod_self);
-  if (u.is.url)
-    return (u.is.blob ? u.protocol : u.origin)+u.path;
   let q = {};
+  if (u.is.blob)
+    return url;
+  let is_lif = u.is.mod ||
+    ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
+    u.path.startsWith('/.lif/'));
+  if (opt?.worker && is_lif)
+    q.worker = 1;
+  if (u.is.url)
+    return qs_append(u.origin+u.path, q);
   if (opt?.raw)
     q.raw = 1;
   if (u.is.uri)
     return qs_append(u.path, q);
   // mod
   let _url = '/.lif/'+T_npm_to_lpm(u.path);
-  if (opt?.worker)
-    q.worker = 1;
   if (opt?.type=='module')
     q.mjs = 1;
   if (mod_self && url_uri_type(mod_self)=='mod')
