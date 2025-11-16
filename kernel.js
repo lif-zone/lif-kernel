@@ -651,6 +651,8 @@ function mjs_import_cjs(path, q){
   let mod_self = q.get('mod_self');
   let uri_s = json(path);
   let js = '';
+  if (q.get('worker'))
+    js += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
   js += `let exports = (await globalThis.$lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
