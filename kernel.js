@@ -400,8 +400,6 @@ function tr_js_to_ast(js){
     let opt = ast.opt = {presets: [], plugins: []};
     opt.sourceType = 'module';
     try {
-      globalThis.parser = parser;
-      globalThis.parser_opt = opt;
       ast.ast = parser.parse(js, opt);
     } catch(err){
       ast.err = 'ast: '+err;
