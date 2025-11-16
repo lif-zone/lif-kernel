@@ -830,6 +830,8 @@ return await ecache(lpm_pkg_ver_t, lmod, async function run(pv){
   pv.log = log;
   let ver_file = pv.lmod+'/--ver';
   let get = await reg_get({log, lmod: ver_file});
+  if (get.not_exist)
+    return get;
   if (get.err)
     throw get.err;
   try {
@@ -863,11 +865,10 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
 
 async function _lpm_pkg_ver_get({log, lmod}){
   let u = T_lpm_parse(lmod);
-  if (!lpm_ver_missing(u))
-    return;
+  assert(lpm_ver_missing(u));
   let pv = await lpm_pkg_ver_get({log, lmod: u.lmod});
-  if (!pv)
-    throw Error('no pkg_ver found: '+u.lmod); 
+  if (pv.not_exist)
+    return pv;
   u.ver = lpm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
   if (!u.ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
@@ -996,8 +997,8 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   // resolve ver
   if (lpm_ver_missing(lmod)){
     let v = await _lpm_pkg_ver_get({log, lmod});
-    if (!v)
-      throw Error('no pkg versions defined for import '+lmod);
+    if (v.not_exist)
+      throw Error('pkg does not exist: '+lmod);
     console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
     return OA(lpm_pkg, {redirect: v});
   }

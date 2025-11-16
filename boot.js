@@ -431,13 +431,16 @@ function require_cjs_run(m, p){
   };
   m.require.module = m; // debug
   let js = `//# sourceURL=${m.url}\n`;
+  let script = m.script;
+  if (script.startsWith('#!'))
+    script = '//'+script;
   js += `'use strict';
     let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.id)});
     let exports = module.exports;
     let require = module.require;
     let __dirname = ${json(path_dir(m.id))};
     let __filename = ${json(path_file(m.id))};
-    (function(){\n${m.script}\n})();`;
+    (function(){\n${script}\n})();`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
