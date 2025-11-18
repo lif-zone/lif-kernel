@@ -552,12 +552,16 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   if (m.file.res!='done')
     return m;
   if (m.meta.type=='mjs'){
+    // XXX TODO: should only import() at require_cjs_run()
+    // not trivial to implement, since import() internals are closed
     let e = await import(m.url+'?mjs=1');
     m.exports = e.default || e;
     m.run = 'done';
     return m;
   }
   if (m.meta.type=='amd'){
+    // XXX TODO: should only import_amd() at require_cjs_run()
+    // solve it using sync amd load.
     let e = await import_amd(null, [m.url]);
     m.exports = e;
     m.run = 'done';
