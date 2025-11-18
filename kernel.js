@@ -651,9 +651,16 @@ function mjs_import_cjs(path, q){
   let mod_self = q.get('mod_self');
   let uri_s = json(path);
   let js = '';
-  if (q.get('worker'))
-    js += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
+  if (q.get('worker')){
+    js += `let $lif_message = {q: [], fn: e=>$lif_message.q.push(e)}; `;
+    js += `globalThis.addEventListener('message', $lif_message.fn); `;
+    js += `let lif = (await import('/.lif/npm/lif-kernel/boot.js')).default; `;
+  }
   js += `let exports = (await globalThis.$lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
+  if (q.get('worker')){
+    js += `globalThis.removeEventListener('message', $lif_message.fn); `;
+    js += `$lif_message.q.forEach(e=>globalThis.dispatchEvent(e)); `;
+  }
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export default exports;\n`;
   return js;
