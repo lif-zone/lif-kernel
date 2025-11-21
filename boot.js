@@ -7,8 +7,9 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
-  json, json_cp,
+  json, json_cp, str_to_buf,
   html_elm, _debugger} = util;
+import sha256 from './sha256.js';
 
 assert(!globalThis.$lif, 'lif already loaded');
 let lif = globalThis.$lif = {};
@@ -304,6 +305,43 @@ function require_cjs_load_meta_sync(p){
   }
   return do_ret('done');
 }
+
+let db;
+async function e_db_req(req){
+  if (!req)
+    return req;
+  let wait = ewait();
+  req.onsuccess = res=>wait.return(res);
+  req.onerror = err=>{
+    console.error('e_db_req: '+err);
+    wait.return();
+  };
+  return await wait;
+}
+
+async function db_open(){
+  if (db!==undefined)
+    return db;
+  // version 0 = never create
+  let res = await e_db_req(indexedDB.open('lif-kernel', 0));
+  db = res?.target.result || null;
+  return db;
+}
+
+async function cache_get(table, k){
+  let db = await db_open();
+  if (!db)
+    return;
+  let res = await e_db_req(db.transaction(table, 'readonly')
+    .objectStore(table).get(k));
+  return res?.result;
+}
+
+function sha256_hex(v){
+  v = sha256.Buffer.toBuffer(new Uint8Array(str_to_buf(v)));
+  return sha256.digest(v).toHex();
+}
+
 async function require_cjs_load_meta(p){
   let m = p.m;
   function do_ret(res){
