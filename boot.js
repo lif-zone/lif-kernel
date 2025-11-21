@@ -595,6 +595,12 @@ async function require_cjs_async(mod_self, imp){
   return m.exports;
 }
 
+function createRequire(mod_self){
+  return function require_cjs_sync_mod(imp){
+    return require_cjs_sync(mod_self, imp);
+  }
+}
+
 // web worker importScripts()/require() implementation
 let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
 function fetch_opt(url){
@@ -922,6 +928,8 @@ lif.boot = {
   process,
   require_cjs_get_mod,
   require_cjs_async,
+  require_cjs_sync,
+  createRequire,
   import_esm,
   import_amd,
   define_amd_get_mod,
