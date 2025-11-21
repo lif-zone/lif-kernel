@@ -7,7 +7,7 @@ let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
-  json, json_cp, str_to_buf,
+  json, json_cp, str_to_buf, lpm_is_perm,
   html_elm, _debugger} = util;
 import sha256 from './sha256.js';
 
@@ -297,9 +297,9 @@ function require_cjs_load_meta_sync(p){
     console.error('no mod meta: '+url);
     return do_ret('err');
   }
-  p.text = req.text;
+  let text = req.text;
   try {
-    p.meta = JSON.parse(p.text);
+    p.meta = JSON.parse(text);
   } catch(err){
     return do_ret('err');
   }
@@ -311,7 +311,7 @@ async function e_db_req(req){
   if (!req)
     return req;
   let wait = ewait();
-  req.onsuccess = res=>wait.return(res);
+  req.onsuccess = res=>wait.return(res.target.result);
   req.onerror = err=>{
     console.error('e_db_req: '+err);
     wait.return();
@@ -323,18 +323,20 @@ async function db_open(){
   if (db!==undefined)
     return db;
   // version 0 = never create
-  let res = await e_db_req(indexedDB.open('lif-kernel', 0));
-  db = res?.target.result || null;
-  return db;
+  return db = (await e_db_req(indexedDB.open('lif-kernel')))||null;
 }
 
 async function cache_get(table, k){
   let db = await db_open();
   if (!db)
     return;
-  let res = await e_db_req(db.transaction(table, 'readonly')
+  try {
+  return await e_db_req(db.transaction(table, 'readonly')
     .objectStore(table).get(k));
-  return res?.result;
+  } catch(err){
+    console.error(err);
+    debugger;
+  }
 }
 
 function sha256_hex(v){
@@ -353,8 +355,10 @@ async function require_cjs_load_meta(p){
   if (p.res=='done' || p.res=='err')
     return p.res;
   p.res = 'loading';
-  if (!m.url.startsWith('/.lif/'))
+  let v;
+  if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
+  let lmod = v.rest;
   let opt = {meta: 1, follow: 1};
   if (p.mod_self)
     opt.mod_self = p.mod_self;
@@ -363,18 +367,38 @@ async function require_cjs_load_meta(p){
   if (p.wait)
     return await p.wait;
   p.wait = ewait();
+  let meta_c;
+  lookup: {
+    if (!lpm_meta_cache || !lpm_is_perm(lmod))
+      break lookup;
+    let f_raw = await cache_get('lpm_file', [lmod]);
+    if (!f_raw || f_raw.not_exist || f_raw.redirect)
+      break lookup;
+    let f_js = await cache_get('tsx_to_js', [f_raw.h_body]);
+    if (!f_js)
+      f_js = {h_js: f_raw.h_body}; // if plain js
+    meta_c = await cache_get('js_to_meta', [f_js.h_js]);
+    if (!meta_c)
+      break lookup;
+    if (lpm_meta_cache=='debug')
+      break lookup;
+    p.meta = meta_c;
+    return do_ret('done');
+  }
   req = await fetch(url);
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
   }
-  p.text = await req.text();
+  let text = await req.text();
   try {
-    p.meta = JSON.parse(p.text);
+    p.meta = JSON.parse(text);
   } catch(err){
     assert(0, 'invalid json meta '+url);
     return do_ret('err');
   }
+  if (lpm_meta_cache=='debug' && meta_c)
+    assert.obj(p.meta, meta_c);
   return do_ret('done');
 }
 async function require_cjs_load_file_sync(m){
@@ -641,6 +665,7 @@ function createRequire(mod_self){
 
 // web worker importScripts()/require() implementation
 let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
+let lpm_meta_cache = 1; // 0 - no cache, 1 - cache, 'debug' - dev debug
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};

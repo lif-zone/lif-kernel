@@ -942,6 +942,39 @@ let lpm_ver_missing = exports.lpm_ver_missing = u=>{
   u = _lpm_parse(u);
   return str.is(u.reg, 'npm', 'git') && !u.ver;
 };
+let lpm_is_perm = exports.lpm_is_perm = u=>{
+  // XXX needs a lot of refinements. only npm releases (not ^4.1.2,
+  // just =4.1.2, are perm. latest is also not perm. semver:~4.1.2 github is
+  // also not perm. also commit'ish (not full commit id) is no perm
+  let l = _lpm_parse(u);
+  switch (l.reg){
+  case 'npm':
+    // XXX need to validate ver string is final, not expr, not 'latest'
+    return !!l.ver;
+  case 'git':
+    // XXX need to validate ver string is final '4.2.1' not '^4.2.1',
+    // not expr semver:.., not 'latest'
+    return !!l.ver;
+  case 'bittorent':
+    return true;
+  case 'lifcoin':
+    return true;
+  case 'bitcoin':
+    return true;
+  case 'ethereum':
+    throw Error('unsupported etherum');
+  case 'ipfs':
+    return true;
+  case 'ipns':
+    return true;
+  case 'local':
+    return false;
+  case 'https': case 'http':
+    return false;
+  default:
+    throw Error('invalid registry: '+l.reg);
+  }
+};
 let _lpm_parse = exports._lpm_parse =
   lpm=>typeof lpm=='string' ? lpm_parse(lpm) : lpm;
 let lpm_same_base = exports.lpm_same_base = (lmod_a, lmod_b)=>{
@@ -1553,14 +1586,14 @@ function test_util(){
     'git/github/user/repo', '/dir/file.js');
   t('git/github/user/repo/mod//dir/file.js',
     'git/github/user/repo/mod/', '/dir/file.js');
-  t = (npm, base, v)=>assert_eq(v, npm_ver_from_base(npm, base));
-  t('mod/dir', 'mod@1.2.3/file', 'mod@1.2.3/dir');
-  t('mod/dir', 'mod/file');
-  t('mod/dir', 'mod/dir');
-  t('mod/dir', 'other@1.2.3/file');
-  t('.local/dir/file', '.local/dir@1.2.3/file');
-  t('.git/github/user/repo/dir', '.git/github/user/repo@1.2.3/file',
-    '.git/github/user/repo@1.2.3/dir');
+  t = (lpm, v)=>assert_eq(v, lpm_is_perm(lpm));
+  t('npm/mod@1.2.3/file', true);
+  t('npm/mod/dir', false);
+  t('npm/other@1.2.3/file', true);
+  t('local/dir/file', false);
+  t('local/dir@1.2.3/file', false); // probaby useless and invalid
+  t('git/github/user/repo/dir', false);
+  t('git/github/user/repo@1.2.3/file', true);
   t = (lpm, base, v)=>assert_eq(v, lpm_ver_from_base(lpm, base));
   t('npm/mod/dir', 'npm/mod@1.2.3/file', 'npm/mod@1.2.3/dir');
   t('npm/mod/dir', 'npm/mod/file');

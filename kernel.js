@@ -85,13 +85,13 @@ function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
 }
-function cache_lmod(lmod){
+function cache_lmod(lmod, perm){
   if (!enable_cache)
     return;
   if (str.starts(lmod, 'http/', 'https/'))
-    return enable_cache>=2;
+    return !perm && enable_cache>=2;
   if (str.starts(lmod, 'local/'))
-    return enable_cache>=3;
+    return !perm && enable_cache>=3;
   return true;
 }
 let import_modules = {};
@@ -170,10 +170,11 @@ function db_upgrade(db, table, opt){
 
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kernel', 7, {
-      upgrade(db){
+    db = await idb.openDB('lif-kernel', 13, {
+      upgrade(db, old_ver, new_ver){
         db_upgrade(db, 'js_to_meta', {keyPath: ['h_js']});
-        db_upgrade(db, 'tsx_to_js', {keyPath: ['type', 'h_tsx']});
+        db_upgrade(db, 'tsx_to_js',
+          {keyPath: ['h_tsx'], del_create: old_ver<13});
         db_upgrade(db, 'lpm_file', {keyPath: ['lmod']});
       }
     });
@@ -905,8 +906,8 @@ async function lpm_pkg_cache_follow(lmod){
 async function lpm_file_get({log, lmod}){
 return await ecache(lpm_file_t, lmod, async function run(lpm_file){
   D && console.log('lpm_file_get', lmod);
-  let c = cache_lmod(lmod);
-  let f = c && await cache_get('lpm_file', [lmod]);
+  let is_c = cache_lmod(lmod, true);
+  let f = is_c && await cache_get('lpm_file', [lmod]);
   if (f)
     return f;
   lpm_file.lmod = lmod;
@@ -917,14 +918,14 @@ return await ecache(lpm_file_t, lmod, async function run(lpm_file){
     return reg;
   if (reg.not_exist){
     f = {lmod, not_exist: true};
-    c && cache_set('lpm_file', f);
+    is_c && cache_set('lpm_file', f);
     return f;
   }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
   lpm_file.body = reg.body;
   let h_body = sha256_hex(lpm_file.body);
-  c && cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
+  is_c && cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
     h_body});
   return lpm_file;
 }); }
@@ -1213,12 +1214,14 @@ function passthrough_lmod({pkg, lmod}){
 
 async function tr_tsx_to_js_cache({tsx, type, h_tsx}){
   h_tsx ||= sha256_hex(tsx);
-  let js = await cache_get('tsx_to_js', [type, h_tsx]);
-  if (js)
-    return {js: js.js, h_js: js.h_js};
-  js = tr_tsx_to_js({tsx, type});
+  let c = await cache_get('tsx_to_js', [h_tsx]);
+  if (c && c?.type[type])
+    return {js: c.js, h_js: c.h_js};
+  let js = tr_tsx_to_js({tsx, type});
   let h_js = sha256_hex(js);
-  cache_set('tsx_to_js', {type, h_tsx, js, h_js}); // bg - no need to await
+  let _type = c?.type && c.js==js ? c.type : {};
+  _type[type] = true;
+  cache_set('tsx_to_js', {type: _type, h_tsx, js, h_js}); // bg - no need to await
   return {js, h_js};
 }
 
