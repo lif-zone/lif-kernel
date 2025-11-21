@@ -25,7 +25,7 @@ let esleep = exports.esleep = ms=>{
 };
 
 let eslow = exports.eslow = (ms, arg)=>{
-  let enable = 0;
+  let enable; // = 1 to enable, or = 0 just to trace active tasks, no print
   eslow.seq ||= 0;
   let seq = eslow.seq++;
   let done, timeout, at_end;
@@ -33,6 +33,8 @@ let eslow = exports.eslow = (ms, arg)=>{
     arg = ms;
     ms = 1000;
   }
+  if (enable===undefined)
+    return {end: ()=>{}};
   if (!Array.isArray(arg))
     arg = [arg];
   let p = (async()=>{

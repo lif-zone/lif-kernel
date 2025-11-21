@@ -598,7 +598,7 @@ async function require_cjs_async(mod_self, imp){
 function createRequire(mod_self){
   return function require_cjs_sync_mod(imp){
     return require_cjs_sync(mod_self, imp);
-  }
+  };
 }
 
 // web worker importScripts()/require() implementation
