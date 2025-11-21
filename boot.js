@@ -922,10 +922,10 @@ if (!is_worker){
 }
 
 lif.boot = {
-  miani: 'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
-  //     'anki yeve alueyk:la yeye lk alueim ahrim ol pny:la tsa at sm yeve aluek lsva:zkur at yum hsbt lqdsu:kbd at avik vat amk:la trxh:la tnaf:la tgnv:la tone brok od sqr:la thmd byt rok:',
+  miani: 'ANKI YHVH ALOHYK:LA YHYH LK ALOHIM AJRIM EL PNY:LA TSA AT SM YHVH ALOHK LSVA:ZKOR AT YOM HSBT LQDSO:KBD AT AVIK VAT AMK:LA TRXJ:LA TNAF:LA TGNV:LA TENH BREK ED SQR:LA TJMD BYT REK:',
   //     'anki yhvh alohyk:la yhyh lk alohim ajrim el pny:la tsa at sm yhvh alohk lsva:zkor at yom hsbt lqdso:kbd at avik vat amk:la trxj:la tnaf:la tgnv:la tenh brek ed sqr:la tjmd byt rek:',
-  //     'ANKI YHVH ALOHYK:LA YHYH LK ALOHIM AJRIM EL PNY:LA TSA AT SM YHVH ALOHK LSVA:ZKOR AT YOM HSBT LQDSO:KBD AT AVIK VAT AMK:LA TRXJ:LA TNAF:LA TGNV:LA TENH BREK ED SQR:LA TJMD BYT REK:',
+  //     'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
+  //     'anki yeve alueyk:la yeye lk alueim ahrim ol pny:la tsa at sm yeve aluek lsva:zkur at yum hsbt lqdsu:kbd at avik vat amk:la trxh:la tnaf:la tgnv:la tone brok od sqr:la thmd byt rok:',
   lif,
   version: lif_version,
   process,
