@@ -147,7 +147,8 @@ let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   uri_dec, match_glob_to_regex, semver_range_parse,
   pkg_export_lookup, export_path_match, str_to_buf,
-  esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, Donce} = util;
+  esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
+  Donce} = util;
 let {qw} = str;
 let clog = console.log.bind(console);
 let cerr = console.error.bind(console);
@@ -394,6 +395,11 @@ function tr_tsx_to_js({tsx, type}){
   return js;
 }
 
+// TODO: webpack.DefinePlugin() to change variable values in code
+// 'process.env.NODE_BACKEND': JSON.stringify(process.env.NODE_BACKEND || 'default'),
+// or commonly:
+// 'process.env.NODE_ENV': JSON.stringify('production'),
+
 // http://localhost:3000/.lif/npm/lif-coin/browser/main.tsx?raw=1
 function tr_js_to_ast(js){
   let ast = {};
@@ -457,6 +463,32 @@ function tr_js_to_ast(js){
         return true;
       }
     }
+    /*
+    // https://www.trickster.dev/post/javascript-ast-manipulation-with-babel-removing-unreachable-code/
+    traverse(ast, {
+      "ConditionalExpression|IfStatement": function(path) {
+        let isTruthy = path.get("test").evaluateTruthy();
+        let node = path.node;
+
+        if (isTruthy) {
+            if (types.isBlockStatement(node.consequent)) {
+                path.replaceWithMultiple(node.consequent.body);
+            } else {
+                path.replaceWith(node.consequent);
+            }
+        } else if (node.alternate != null) {
+            if (types.isBlockStatement(node.alternate)) {
+                path.replaceWithMultiple(node.alternate.body);
+            } else {
+                path.replaceWith(node.alternate);
+            }
+        } else {
+            path.remove();
+        }
+      }
+    });
+    */
+
     traverse(ast.ast, {
       AssignmentExpression: path=>{
         let n = path.node, l = n.left, r = n.right;
@@ -1594,7 +1626,7 @@ function test_kernel(){
   t = (pkg, imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg: {pkg}, imp}));
   t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
-  t = (file, alt, v)=>assert_obj(v, pkg_alt_get({lif: {alt}}, file));
+  t = (file, alt, v)=>assert_obj_f(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
   t('a/file', undefined, ['.js']);
   t('a/file.ts', undefined, undefined);
@@ -1627,6 +1659,32 @@ function test_kernel(){
   t(pkg, '/d1/d2/file', './other/file');
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
+  t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
+  t(`import "lif";`,
+    {type: 'mjs', imports: [
+      {imported: null, module: 'lif', start: 7, end: 12, type: "program"}]
+    });
+  t(`import {a, b} from "lif";`,
+    {type: 'mjs', imports: [
+      {imported: ['a', 'b'], module: 'lif', start: 19, end: 24,
+      type: "program"}]
+    });
+  t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
+  t(`export default 180;`, {type: 'mjs', export_default: true});
+  t(`let a = await import("a");`,
+    {type: 'mjs', imports_dyn: [{start: 14, end: 20}]});
+  t(`let a;
+    if (process.env.node_backend=="js")
+      a = require("a-js");
+    else
+      a = require("a");`,
+    {type: 'cjs', requires: [
+      {module: 'a-js', type: 'program', start: 57, end: 72},
+      {module: 'a', type: 'program', start: 93, end: 105}
+    ]});
+  t(`function load(){ let a = require("a-js"); }`,
+    {type: 'cjs', requires: [
+      {module: 'a-js', type: 'sync', start: 25, end: 40}]});
 }
 test_kernel();
 

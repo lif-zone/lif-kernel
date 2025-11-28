@@ -189,6 +189,19 @@ let assert_obj = exports.assert_obj = assert.obj = (exp, res)=>{
     assert(typeof res=='object', 'exp', exp, 'res', res);
     for (let i in exp)
       assert_obj(exp[i], res[i]);
+    for (let i in res)
+      assert_obj(exp[i], res[i]);
+    return;
+  }
+  assert(0, 'exp', exp, 'res', res);
+};
+let assert_obj_f = exports.assert_obj_f = assert.obj_f = (exp, res)=>{
+  if (exp===res)
+    return;
+  if (typeof exp=='object'){
+    assert(typeof res=='object', 'exp', exp, 'res', res);
+    for (let i in exp)
+      assert_obj_f(exp[i], res[i]);
     return;
   }
   assert(0, 'exp', exp, 'res', res);
@@ -573,6 +586,11 @@ let qs_append = exports.qs_append = (url, q)=>{
     return url;
   return url+(url.includes('?') ? '&' : '?')+_q.slice(1);
 };
+let qs_trim = exports.qs_trim = url=>{
+  let u = url.split('?');
+  return u[0];
+};
+
 
 // URL.parse() only available on Chrome>=126
 let URL_parse = (...args)=>{
@@ -1399,7 +1417,7 @@ function test_util(){
   t('/', 'http://site/dir/', 'http://site/dir');
   t('/file', 'http://site/dir/file', 'http://site/dir');
   t('/', '../', '.', '..');
-  t = (v, arg)=>assert_obj(v, T_npm_url_base(...arg));
+  t = (v, arg)=>assert_obj_f(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
@@ -1434,7 +1452,7 @@ function test_util(){
   t('/', '.local/');
   t('/dir/file', '.local/dir/file');
   t('/mod//file', '.local/mod//file');
-  t = (npm, v)=>assert_obj(v, T_npm_parse(npm));
+  t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
     ver: '@1.2.0',
@@ -1445,7 +1463,7 @@ function test_util(){
     lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
-    assert_obj(v, t=lpm_parse(lpm));
+    assert_obj_f(v, t=lpm_parse(lpm));
     if (v)
       assert_eq(lpm, T_lpm_str(t));
   };
@@ -1610,7 +1628,7 @@ function test_util(){
   t('1.2.3x-abc2-341.3');
   t('1.2.3-a_');
   t = (range, v, guess)=>{
-    assert_obj(v, semver_range_parse(range));
+    assert_obj_f(v, semver_range_parse(range));
     assert_obj(guess, semver_ver_guess(range));
   };
   t('1.2.3', [{ver: '1.2.3'}], '1.2.3');
