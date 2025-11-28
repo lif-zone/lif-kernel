@@ -339,6 +339,48 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
+function ast_expr_static(expr){
+  switch (expr.type){
+    case 'Literal':
+    case 'StringLiteral':
+      return true;
+    case 'Identifier':
+      // Only allow identifiers that will be replaced by --define:
+      // e.g. process.env.NODE_ENV → replaced with "production"
+      return expr.name.includes('process.env.') || expr.name === 'process';
+    case 'UnaryExpression':
+      return expr.operator=='!' && ast_expr_static(expr.argument);
+    case 'BinaryExpression':
+      return ['===', '!==', '==', '!=', '&&', '||'].includes(expr.operator) &&
+        ast_expr_static(expr.left) &&
+        ast_expr_static(expr.right);
+    case 'LogicalExpression':
+      return ['&&', '||'].includes(expr.operator) &&
+        ast_expr_static(expr.left) &&
+        ast_expr_static(expr.right);
+    case 'MemberExpression':
+      // Only allow: process.env.FOO
+      if (expr.object.type=='Identifier' &&
+        expr.object.name=='process' &&
+        expr.property.type=='Identifier' &&
+        expr.property.name=='env'
+      )
+        return true;
+      // Allow nested: process.env.NODE_ENV
+      if (expr.object.type=='MemberExpression' &&
+        expr.object.object.type=='Identifier' &&
+        expr.object.object.name=='process' &&
+        expr.object.property.type=='Identifier' &&
+        expr.object.property.name=='env' &&
+        expr.property.type=='Identifier'
+      )
+        return true;
+      return false;
+    default:
+      return false;
+  }
+}
+
 function ast_get_if_cond(path){
   let has_if = 0, cond, child;
   for (child=path; path; child=path, path=path.parentPath){
@@ -346,7 +388,7 @@ function ast_get_if_cond(path){
     if (path.type=='IfStatement'){
       let nc = child.node;
       has_if++;
-      cond = {is_else: n.consequent!=nc,
+      cond = {is_else: n.consequent!=nc, static: ast_expr_static(n.test),
         start: n.test.start, end: n.test.end};
     }
   }
@@ -1674,13 +1716,30 @@ function test_kernel(){
       a = require("a");`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'program', start: 57, end: 72,
-        cond: {is_else: false, start: 15, end: 45}},
+        cond: {is_else: false, static: true, start: 15, end: 45}},
       {module: 'a', type: 'program', start: 93, end: 105,
-        cond: {is_else: true, start: 15, end: 45}},
+        cond: {is_else: true, static: true, start: 15, end: 45}},
     ]});
   t(`function load(){ let a = require("a-js"); }`,
     {type: 'cjs', requires: [
-      {module: 'a-js', type: 'sync', start: 25, end: 40}]});
+      {module: 'a-js', type: 'sync', start: 25, end: 40}
+    ]});
+  t = (js, v)=>{
+    let node = parser.parseExpression(js, {sourceType: 'script'});
+    assert_obj(v, ast_expr_static(node));
+  };
+  t(`process.env.NODE_ENV === 'production'`, true);
+  t(`process.env.NODE_ENV !== 'development'`, true);
+  t(`!!process.env.FEATURE_FLAG`, true);
+  t(`process.env.API_URL && process.env.NODE_ENV === 'production'`, true);
+  t(`!process.env.DISABLE_LOGGING`, true);
+  t(`process.env.NODE_ENV == 'test' || process.env.CI`, true);
+  t(`process.env.NODE_ENV === getMode()`, false);
+  t(`process.config.NODE_ENV`, false);
+  t(`window.process?.env?.NODE_ENV`, false);
+  t(`process.env.NODE_ENV?.length > 0`, false);
+  t(`process.env['NODE_ENV']`, false);
+  t(`typeof process !== 'undefined'`, false);
 }
 test_kernel();
 
