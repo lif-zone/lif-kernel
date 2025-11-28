@@ -479,31 +479,6 @@ function tr_js_to_ast(js){
         return true;
       }
     }
-    /*
-    // https://www.trickster.dev/post/javascript-ast-manipulation-with-babel-removing-unreachable-code/
-    traverse(ast, {
-      "ConditionalExpression|IfStatement": function(path) {
-        let isTruthy = path.get("test").evaluateTruthy();
-        let node = path.node;
-
-        if (isTruthy) {
-            if (types.isBlockStatement(node.consequent)) {
-                path.replaceWithMultiple(node.consequent.body);
-            } else {
-                path.replaceWith(node.consequent);
-            }
-        } else if (node.alternate != null) {
-            if (types.isBlockStatement(node.alternate)) {
-                path.replaceWithMultiple(node.alternate.body);
-            } else {
-                path.replaceWith(node.alternate);
-            }
-        } else {
-            path.remove();
-        }
-      }
-    });
-    */
 
     traverse(ast.ast, {
       AssignmentExpression: path=>{
