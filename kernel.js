@@ -339,6 +339,22 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
+let ast_get_if_cond = (path, opt={})=>{
+  let has_if = 0, cond, child;
+  for (child=path; path; child=path, path=path.parentPath){
+    let n = path.node;
+    if (path.type=='IfStatement'){
+      let nc = child.node;
+      has_if++;
+      cond = {is_else: n.consequent!=nc,
+        start: n.test.start, end: n.test.end};
+    }
+  }
+  if (has_if>1)
+    return 'var';
+  if (has_if==1)
+    return cond;
+};
 let ast_get_scope_type = (path, opt={})=>{
   for (; path; path=path.parentPath){
     if (opt.try && path.type=='TryStatement')
@@ -354,22 +370,8 @@ let ast_get_scope_type = (path, opt={})=>{
     if (opt.try && b.type=='CatchClause')
       return {type: 'catch'};
     if (b.type=='Program'){
-      if (opt.if){
-        let has_if = 0, cond, child;
-        for (child=path; path; child=path, path=path.parentPath){
-          let n = path.node;
-          if (path.type=='IfStatement'){
-            let nc = child.node;
-            has_if++;
-            cond = {is_else: n.consequent!=nc,
-              start: n.test.start, end: n.test.end};
-          }
-        }
-        if (has_if>1)
-          return {type: 'program', cond: 'many'};
-        if (has_if==1)
-          return {type: 'program', cond};
-      }
+      if (opt.if)
+        return {type: 'program', cond: ast_get_if_cond(path)};
       return {type: 'program'};
     }
   }
