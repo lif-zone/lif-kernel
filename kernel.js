@@ -339,33 +339,38 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
-let ast_get_scope_type = (path, opt = {})=>{
+let ast_get_scope_type = (path, opt={})=>{
   for (; path; path=path.parentPath){
     if (opt.try && path.type=='TryStatement')
-      return 'try';
+      return {type: 'try'};
     let b = path.scope.block;
     if (b.type=='FunctionExpression' ||
       b.type=='ArrowFunctionExpression' ||
       b.type=='FunctionDeclaration' ||
       b.type=='ClassMethod')
     {
-      return b.async ? 'async' : 'sync';
+      return {type: b.async ? 'async' : 'sync'};
     }
     if (opt.try && b.type=='CatchClause')
-      return 'catch';
+      return {type: 'catch'};
     if (b.type=='Program'){
       if (opt.if){
-        let has_if = 0, condition;
-        for (; path; path=path.parentPath){
-          if (path.type=='IfStatement')
+        let has_if = 0, cond, child;
+        for (child=path; path; child=path, path=path.parentPath){
+          let n = path.node;
+          if (path.type=='IfStatement'){
+            let nc = child.node;
             has_if++;
+            cond = {is_else: n.consequent!=nc,
+              start: n.test.start, end: n.test.end};
+          }
         }
         if (has_if>1)
-          return {type: 'program', condition: 'many'}; // XXX should be 'conditional'
+          return {type: 'program', cond: 'many'};
         if (has_if==1)
-          return {type: 'program', condition: 'one'};
+          return {type: 'program', cond};
       }
-      return 'program';
+      return {type: 'program'};
     }
   }
 };
@@ -438,7 +443,7 @@ function tr_js_to_ast(js){
       if (n.source.type=='StringLiteral'){
         let s = n.source;
         let v = s.value;
-        let type = ast_get_scope_type(path, {try: 1});
+        let {type} = ast_get_scope_type(path, {try: 1});
         let imported = [];
         n.specifiers?.forEach(spec=>{
           if (spec.type=='ImportSpecifier')
@@ -542,8 +547,9 @@ function tr_js_to_ast(js){
           !path.scope.getBinding('require'))
         {
           v = n.arguments[0].value;
-          let type = ast_get_scope_type(path, {try: 1, if: 0});
-          ast.requires.push({module: v, start: n.start, end: n.end, type});
+          let {type, cond} = ast_get_scope_type(path, {try: 1, if: 1});
+          ast.requires.push({module: v, start: n.start, end: n.end, type,
+            cond});
           has.require = true;
         }
         if (n.callee.type=='Import' && !keep_comment(path))
@@ -573,7 +579,7 @@ function tr_js_to_ast(js){
       },
       ExportAllDeclaration: path=>handle_export_source(path),
       AwaitExpression: path=>{
-        let type = ast_get_scope_type(path);
+        let {type} = ast_get_scope_type(path);
         if (type=='program')
           has.await = true;
       },
@@ -1671,15 +1677,6 @@ function test_kernel(){
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
-  t(`let a;
-    if (process.env.node_backend=="js")
-      a = require("a-js");
-    else
-      a = require("a");`,
-    {type: 'cjs', requires: [
-      {module: 'a-js', type: 'program', start: 57, end: 72},
-      {module: 'a', type: 'program', start: 93, end: 105}
-    ]});
   t(`import "lif";`,
     {type: 'mjs', imports: [
       {type: 'program', imported: null, module: 'lif', start: 7, end: 12}]
@@ -1687,7 +1684,7 @@ function test_kernel(){
   t(`import {a, b} from "lif";`,
     {type: 'mjs', imports: [
       {imported: ['a', 'b'], module: 'lif', start: 19, end: 24,
-      type: "program"}]
+        type: "program"}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
   t(`export default 180;`, {type: 'mjs', export_default: true});
@@ -1699,8 +1696,10 @@ function test_kernel(){
     else
       a = require("a");`,
     {type: 'cjs', requires: [
-      {module: 'a-js', type: 'program', start: 57, end: 72},
-      {module: 'a', type: 'program', start: 93, end: 105}
+      {module: 'a-js', type: 'program', start: 57, end: 72,
+        cond: {is_else: false, start: 15, end: 45}},
+      {module: 'a', type: 'program', start: 93, end: 105,
+        cond: {is_else: true, start: 15, end: 45}},
     ]});
   t(`function load(){ let a = require("a-js"); }`,
     {type: 'cjs', requires: [
