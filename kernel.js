@@ -1662,7 +1662,7 @@ function test_kernel(){
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
   t(`import "lif";`,
     {type: 'mjs', imports: [
-      {imported: null, module: 'lif', start: 7, end: 12, type: "program"}]
+      {type: 'program', imported: null, module: 'lif', start: 7, end: 12}]
     });
   t(`import {a, b} from "lif";`,
     {type: 'mjs', imports: [
