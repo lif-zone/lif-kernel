@@ -339,10 +339,9 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
-let ast_get_scope_type = (path, opt)=>{
-  let _try = opt?.try;
+let ast_get_scope_type = (path, opt = {})=>{
   for (; path; path=path.parentPath){
-    if (_try && path.type=='TryStatement')
+    if (opt.try && path.type=='TryStatement')
       return 'try';
     let b = path.scope.block;
     if (b.type=='FunctionExpression' ||
@@ -352,10 +351,22 @@ let ast_get_scope_type = (path, opt)=>{
     {
       return b.async ? 'async' : 'sync';
     }
-    if (_try && b.type=='CatchClause')
+    if (opt.try && b.type=='CatchClause')
       return 'catch';
-    if (b.type=='Program')
+    if (b.type=='Program'){
+      if (opt.if){
+        let has_if = 0, condition;
+        for (; path; path=path.parentPath){
+          if (path.type=='IfStatement')
+            has_if++;
+        }
+        if (has_if>1)
+          return {type: 'program', condition: 'many'}; // XXX should be 'conditional'
+        if (has_if==1)
+          return {type: 'program', condition: 'one'};
+      }
       return 'program';
+    }
   }
 };
 
@@ -531,7 +542,7 @@ function tr_js_to_ast(js){
           !path.scope.getBinding('require'))
         {
           v = n.arguments[0].value;
-          let type = ast_get_scope_type(path, {try: 1});
+          let type = ast_get_scope_type(path, {try: 1, if: 0});
           ast.requires.push({module: v, start: n.start, end: n.end, type});
           has.require = true;
         }
@@ -1660,6 +1671,15 @@ function test_kernel(){
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
+  t(`let a;
+    if (process.env.node_backend=="js")
+      a = require("a-js");
+    else
+      a = require("a");`,
+    {type: 'cjs', requires: [
+      {module: 'a-js', type: 'program', start: 57, end: 72},
+      {module: 'a', type: 'program', start: 93, end: 105}
+    ]});
   t(`import "lif";`,
     {type: 'mjs', imports: [
       {type: 'program', imported: null, module: 'lif', start: 7, end: 12}]
