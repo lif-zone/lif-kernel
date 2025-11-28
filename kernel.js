@@ -339,7 +339,7 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
-let ast_get_if_cond = (path, opt={})=>{
+function ast_get_if_cond(path){
   let has_if = 0, cond, child;
   for (child=path; path; child=path, path=path.parentPath){
     let n = path.node;
@@ -354,8 +354,8 @@ let ast_get_if_cond = (path, opt={})=>{
     return 'var';
   if (has_if==1)
     return cond;
-};
-let ast_get_scope_type = (path, opt={})=>{
+}
+function ast_get_scope_type(path, opt={}){
   for (; path; path=path.parentPath){
     if (opt.try && path.type=='TryStatement')
       return {type: 'try'};
@@ -375,7 +375,7 @@ let ast_get_scope_type = (path, opt={})=>{
       return {type: 'program'};
     }
   }
-};
+}
 
 let array_unique = a=>[...new Set(a)];
 
