@@ -5,7 +5,7 @@ let D = 0; // Debug
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
-  T_npm_url_base, uri_enc, qs_enc, qs_append, url_uri_type,
+  T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
   json, json_cp, str_to_buf, lpm_is_perm,
   html_elm, _debugger} = util;
@@ -99,19 +99,25 @@ const npm_2url_opt = (url, mod_self, opt)=>{
   let q = {};
   if (u.is.blob)
     return url;
+  let _url;
+  if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
+    u.path.startsWith('/.lif/'))
+  {
+    _url = u.path;
+  } else if (u.is.mod)
+    _url = '/.lif/'+T_npm_to_lpm(u.path);
   let is_lif = u.is.mod ||
     ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
     u.path.startsWith('/.lif/'));
   if (opt?.worker && is_lif)
     q.worker = 1;
-  if (u.is.url)
+  if (u.is.url && !is_lif)
     return qs_append(u.origin+u.path, q);
   if (opt?.raw)
     q.raw = 1;
-  if (u.is.uri)
+  if (u.is.uri && !is_lif)
     return qs_append(u.path, q);
   // mod
-  let _url = '/.lif/'+T_npm_to_lpm(u.path);
   if (opt?.type=='module')
     q.mjs = 1;
   if (mod_self && url_uri_type(mod_self)=='mod')
@@ -131,13 +137,13 @@ const npm_2url = (url, mod_self)=>{
 const npm_norm = (mod_self, url)=>{
   let u = T_npm_url_base(url, mod_self);
   let v;
+  if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
+    (v=str.starts(u.path, '/.lif/')))
+  {
+    return lpm_to_npm(v.rest);
+  }
   if (u.is.url)
     return (u.is.blob ? u.protocol : u.origin)+u.path;
-  if (u.is.uri){
-    if (v=str.starts(u.path, '/.lif/'))
-      return lpm_to_npm(v.rest);
-    return u.path;
-  }
   return u.path;
 };
 
@@ -158,6 +164,9 @@ function test(){
   t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
   t('http://a.b/c/', '/b/file.js', '/b/file.js');
   t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
+  t(null, globalThis.origin+'/b/file.js', globalThis.origin+'/b/file.js');
+  t(null, globalThis.origin+'/.lif/npm/react', 'react');
+  t(null, globalThis.origin+'/.lif/local/dir', '.local/dir');
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
@@ -330,13 +339,8 @@ async function cache_get(table, k){
   let db = await db_open();
   if (!db)
     return;
-  try {
   return await e_db_req(db.transaction(table, 'readonly')
     .objectStore(table).get(k));
-  } catch(err){
-    console.error(err);
-    debugger;
-  }
 }
 
 function sha256_hex(v){
@@ -369,7 +373,7 @@ async function require_cjs_load_meta(p){
   p.wait = ewait();
   let meta_c;
   lookup: {
-    if (!lpm_meta_cache || !lpm_is_perm(lmod))
+    if (!enable_cache_idb || !lpm_is_perm(lmod))
       break lookup;
     let f_raw = await cache_get('lpm_file', [lmod]);
     if (!f_raw || f_raw.not_exist || f_raw.redirect)
@@ -380,7 +384,7 @@ async function require_cjs_load_meta(p){
     meta_c = await cache_get('js_to_meta', [f_js.h_js]);
     if (!meta_c)
       break lookup;
-    if (lpm_meta_cache=='debug')
+    if (enable_cache_idb=='debug')
       break lookup;
     p.meta = meta_c;
     return do_ret('done');
@@ -397,7 +401,7 @@ async function require_cjs_load_meta(p){
     assert(0, 'invalid json meta '+url);
     return do_ret('err');
   }
-  if (lpm_meta_cache=='debug' && meta_c)
+  if (enable_cache_idb=='debug' && meta_c)
     assert.obj(p.meta, meta_c);
   return do_ret('done');
 }
@@ -499,6 +503,7 @@ function require_cjs_run(m, p){
   m.require.module = m; // debug
   let js = `//# sourceURL=${m.url}\n`;
   let script = m.script;
+  assert(typeof script=='string', 'invalid script type');
   if (script.startsWith('#!'))
     script = '//'+script;
   js += `'use strict';
@@ -545,6 +550,7 @@ function require_cjs_load_sync({mod_self, imp, p}){
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
     return m;
+  if (!p.meta) debugger;
   if (p.meta.redirect){
     p.redirect = require_cjs_load_sync({mod_self: null, imp: p.meta.redirect});
     return p.redirect;
@@ -558,7 +564,9 @@ function require_cjs_load_sync({mod_self, imp, p}){
   if (m.file.res!='done')
     return m;
   if (m.meta.type=='mjs'){
-    console.error('cannot load mjs sync '+m.id);
+    debugger;
+    console.error('cannot load mjs sync '+
+      m.id+(mod_self?' from '+mod_self:''));
     return m;
   }
   if (m.meta.type=='amd'){
@@ -659,13 +667,15 @@ async function require_cjs_async(mod_self, imp){
 
 function createRequire(mod_self){
   return function require_cjs_sync_mod(imp){
+    mod_self = qs_trim(mod_self);
+    mod_self = npm_norm(mod_self, mod_self);
     return require_cjs_sync(mod_self, imp);
   };
 }
 
 // web worker importScripts()/require() implementation
 let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
-let lpm_meta_cache = 1; // 0 - no cache, 1 - cache, 'debug' - dev debug
+let enable_cache_idb = 0; // 0 - no cache, 1 - cache, 'debug' - dev debug
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
