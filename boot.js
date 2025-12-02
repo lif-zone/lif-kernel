@@ -261,7 +261,7 @@ async function _define_amd(mod_id, imps, factory, m){
 
 // AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
 async function require_amd(m, imps){
-  let _imps = [];
+  let _imps = [], _m;
   for (let i=0; i<imps.length; i++){
     let imp = imps[i], v;
     switch (imp){
@@ -276,7 +276,9 @@ async function require_amd(m, imps){
     default:
       // TOOO validate npm module or relative file
       // TODO merge cjs and amd modules shared table, and assert on mixes
-      v = await require_cjs_load({run: 1, mod_self: m.id, imp});
+      _m = await require_cjs_load({mod_self: m.id, imp});
+      require_cjs_run(_m);
+      v = _m.exports;
     }
     _imps[i] = v;
   }
@@ -550,7 +552,6 @@ function require_cjs_load_sync({mod_self, imp, p}){
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
     return m;
-  if (!p.meta) debugger;
   if (p.meta.redirect){
     p.redirect = require_cjs_load_sync({mod_self: null, imp: p.meta.redirect});
     return p.redirect;
@@ -563,14 +564,9 @@ function require_cjs_load_sync({mod_self, imp, p}){
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
     return m;
-  if (m.meta.type=='mjs'){
-    debugger;
-    console.error('cannot load mjs sync '+
+  if (str.is(m.meta.type, 'mjs', 'amd')){
+    console.warn('cannot load '+m.meta.type+' sync '+
       m.id+(mod_self?' from '+mod_self:''));
-    return m;
-  }
-  if (m.meta.type=='amd'){
-    console.error('cannot load amd sync '+m.id);
     return m;
   }
   require_cjs_load_requires_sync(m);
