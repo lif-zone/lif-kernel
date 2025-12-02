@@ -339,6 +339,9 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
+// https://webpack.js.org/plugins/define-plugin/
+// we only detect process.env (temp bug that also process.xxx detected)
+// that are not bound to a variable definition
 function ast_expr_static(expr){
   switch (expr.type){
     case 'Literal':
@@ -380,6 +383,55 @@ function ast_expr_static(expr){
       return false;
   }
 }
+function ast_is_process_env(path){
+  let node = path.node;
+  let t = Babel.types;
+  // Must be process.env
+  if (!t.isMemberExpression(node))
+    return false;
+  if (!t.isIdentifier(node.property, {name: 'env'}))
+    return false;
+  let objPath = path.get('object');
+  if (!objPath.isIdentifier({name: 'process'}))
+    return false;
+  // CRITICAL: check that "process" is NOT shadowed
+  let binding = objPath.scope.getBinding('process');
+  return binding===undefined; // ← no binding = global process
+}
+
+function ast_is_static(path){
+  let node = path.node;
+  let t = Babel.types;
+  // 1. Literals are always static
+  if (t.isLiteral(node))
+    return true;
+  // 2. Identifier: only "process" is allowed (checked later in MemberExpression)
+  if (t.isIdentifier(node))
+    return node.name==='process' && !path.scope.getBinding('process');
+  // 3. Unary !expr
+  if (t.isUnaryExpression(node, { operator: '!' }))
+    return ast_is_static(path.get('argument'));
+  // 4. Binary/Logical: === !== == != && ||
+  if (t.isBinaryExpression(node) || t.isLogicalExpression(node)){
+    let allowed = t.isBinaryExpression(node)
+      ? ['===', '!==', '==', '!=', '&&', '||']
+      : ['&&', '||'];
+    if (!allowed.includes(node.operator))
+      return false;
+    return ast_is_static(path.get('left')) &&
+      ast_is_static(path.get('right'));
+  }
+  // 5. MemberExpression: process.env.X or process.env['X']
+  if (t.isMemberExpression(node)){
+    // Check if this is process.env.X
+    if (ast_is_process_env(path)){
+      // The property (X in process.env.X) can be Identifier or StringLiteral
+      let propPath = path.get('property');
+      return propPath.isIdentifier() || propPath.isStringLiteral();
+    }
+  }
+  return false;
+}
 
 function ast_get_if_cond(path){
   let has_if = 0, cond, child;
@@ -388,7 +440,8 @@ function ast_get_if_cond(path){
     if (path.type=='IfStatement'){
       let nc = child.node;
       has_if++;
-      cond = {is_else: n.consequent!=nc, static: ast_expr_static(n.test),
+      let _static = ast_expr_static(n.test);
+      cond = {is_else: n.consequent!=nc, static: _static,
         start: n.test.start, end: n.test.end};
     }
   }
@@ -1695,6 +1748,23 @@ function test_kernel(){
   t(pkg, '/d1/d2/file', './other/file');
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
+  t = (js, v)=>{
+    let node = parser.parseExpression(js, {sourceType: 'script'});
+    //let path = new traverse.NodePath(node);
+    assert_obj(v, ast_expr_static(node));
+  };
+  t(`process.env.NODE_ENV === 'production'`, true);
+  t(`process.env.NODE_ENV !== 'development'`, true);
+  t(`!!process.env.FEATURE_FLAG`, true);
+  t(`process.env.API_URL && process.env.NODE_ENV === 'production'`, true);
+  t(`!process.env.DISABLE_LOGGING`, true);
+  t(`process.env.NODE_ENV == 'test' || process.env.CI`, true);
+  t(`process.env.NODE_ENV === getMode()`, false);
+  t(`process.config.NODE_ENV`, false);
+  t(`window.process?.env?.NODE_ENV`, false);
+  t(`process.env.NODE_ENV?.length > 0`, false);
+  t(`process.env['NODE_ENV']`, false);
+  t(`typeof process !== 'undefined'`, false);
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
   t(`import "lif";`,
     {type: 'mjs', imports: [
@@ -1720,26 +1790,23 @@ function test_kernel(){
       {module: 'a', type: 'program', start: 93, end: 105,
         cond: {is_else: true, static: true, start: 15, end: 45}},
     ]});
+  t(`let process;
+    if (process.env.node_backend=="js")
+      a = require("a-js");
+    else
+      a = require("a");`,
+    {type: 'cjs', requires: [
+      {module: 'a-js', type: 'program', start: 63, end: 78,
+        // XXX static: false
+        cond: {is_else: false, static: true, start: 21, end: 51}},
+      {module: 'a', type: 'program', start: 99, end: 111,
+        // XXX static: false
+        cond: {is_else: true, static: true, start: 21, end: 51}},
+    ]});
   t(`function load(){ let a = require("a-js"); }`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'sync', start: 25, end: 40}
     ]});
-  t = (js, v)=>{
-    let node = parser.parseExpression(js, {sourceType: 'script'});
-    assert_obj(v, ast_expr_static(node));
-  };
-  t(`process.env.NODE_ENV === 'production'`, true);
-  t(`process.env.NODE_ENV !== 'development'`, true);
-  t(`!!process.env.FEATURE_FLAG`, true);
-  t(`process.env.API_URL && process.env.NODE_ENV === 'production'`, true);
-  t(`!process.env.DISABLE_LOGGING`, true);
-  t(`process.env.NODE_ENV == 'test' || process.env.CI`, true);
-  t(`process.env.NODE_ENV === getMode()`, false);
-  t(`process.config.NODE_ENV`, false);
-  t(`window.process?.env?.NODE_ENV`, false);
-  t(`process.env.NODE_ENV?.length > 0`, false);
-  t(`process.env['NODE_ENV']`, false);
-  t(`typeof process !== 'undefined'`, false);
 }
 test_kernel();
 
