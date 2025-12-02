@@ -339,6 +339,21 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
+function ast_scan_with_path(rootNode, visitor){
+  // We use traverse ONLY once — to build real scopes
+  // Then we give you full Path objects inside your visitor
+  traverse(rootNode, {
+    // This matches every node type
+    enter(path){
+      // Call your custom visitor with the real Path (has .scope, .getBinding(), etc.)
+      const result = visitor(path);
+      if (result===false)
+        path.skip();  // skip children
+      if (result==='stop')
+        path.stop();  // stop entire traversal
+    }
+  });
+}
 // https://webpack.js.org/plugins/define-plugin/
 // we only detect process.env (temp bug that also process.xxx detected)
 // that are not bound to a variable definition
@@ -383,25 +398,10 @@ function ast_expr_static(expr){
       return false;
   }
 }
-function ast_is_process_env(path){
-  let node = path.node;
-  let t = Babel.types;
-  // Must be process.env
-  if (!t.isMemberExpression(node))
-    return false;
-  if (!t.isIdentifier(node.property, {name: 'env'}))
-    return false;
-  let objPath = path.get('object');
-  if (!objPath.isIdentifier({name: 'process'}))
-    return false;
-  // CRITICAL: check that "process" is NOT shadowed
-  let binding = objPath.scope.getBinding('process');
-  return binding===undefined; // ← no binding = global process
-}
 
 function ast_is_static(path){
   let node = path.node;
-  let t = Babel.types;
+  let t = Babel.packages.types;
   // 1. Literals are always static
   if (t.isLiteral(node))
     return true;
@@ -423,11 +423,17 @@ function ast_is_static(path){
   }
   // 5. MemberExpression: process.env.X or process.env['X']
   if (t.isMemberExpression(node)){
-    // Check if this is process.env.X
-    if (ast_is_process_env(path)){
-      // The property (X in process.env.X) can be Identifier or StringLiteral
-      let propPath = path.get('property');
-      return propPath.isIdentifier() || propPath.isStringLiteral();
+    let obj = path.get('object'), _obj, prop;
+    if (obj.isMemberExpression() &&
+      (prop = obj.get('property')) &&
+      prop.isIdentifier({name: 'env'}) &&
+      (_obj = obj.get('object')) &&
+      _obj.isIdentifier({name: 'process'}) &&
+      (prop = path.get('property')) &&
+      (prop.isIdentifier() || prop.isStringLiteral())
+    ){
+      let binding = path.scope.getBinding('process');
+      return binding===undefined; // ← no binding = global process
     }
   }
   return false;
@@ -1749,9 +1755,19 @@ function test_kernel(){
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
   t = (js, v)=>{
-    let node = parser.parseExpression(js, {sourceType: 'script'});
-    //let path = new traverse.NodePath(node);
-    assert_obj(v, ast_expr_static(node));
+    //let node = parser.parseExpression(js, {sourceType: 'script'});
+    // let node = parser.parseExpression(js, {sourceType: 'script'});
+    // assert_obj(v, ast_expr_static(node));
+    let node = parser.parse(js, {sourceType: 'script'});
+    let ret;
+    traverse(node, {enter(path){
+      if (path.node.body.length!=1)
+        return void path.stop();
+      let p = path.get('body.0.expression');
+      ret = ast_is_static(p);
+      return void path.stop();
+    }});
+    assert_obj(v, ret);
   };
   t(`process.env.NODE_ENV === 'production'`, true);
   t(`process.env.NODE_ENV !== 'development'`, true);
@@ -1763,7 +1779,7 @@ function test_kernel(){
   t(`process.config.NODE_ENV`, false);
   t(`window.process?.env?.NODE_ENV`, false);
   t(`process.env.NODE_ENV?.length > 0`, false);
-  t(`process.env['NODE_ENV']`, false);
+  t(`process.env['NODE_ENV']`, true);
   t(`typeof process !== 'undefined'`, false);
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
   t(`import "lif";`,
