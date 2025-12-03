@@ -339,79 +339,19 @@ let reg_file_t = {};
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 
-function ast_scan_with_path(rootNode, visitor){
-  // We use traverse ONLY once — to build real scopes
-  // Then we give you full Path objects inside your visitor
-  traverse(rootNode, {
-    // This matches every node type
-    enter(path){
-      // Call your custom visitor with the real Path (has .scope, .getBinding(), etc.)
-      const result = visitor(path);
-      if (result===false)
-        path.skip();  // skip children
-      if (result==='stop')
-        path.stop();  // stop entire traversal
-    }
-  });
-}
 // https://webpack.js.org/plugins/define-plugin/
-// we only detect process.env (temp bug that also process.xxx detected)
-// that are not bound to a variable definition
-function ast_expr_static(expr){
-  switch (expr.type){
-    case 'Literal':
-    case 'StringLiteral':
-      return true;
-    case 'Identifier':
-      // Only allow identifiers that will be replaced by --define:
-      // e.g. process.env.NODE_ENV → replaced with "production"
-      return expr.name.includes('process.env.') || expr.name === 'process';
-    case 'UnaryExpression':
-      return expr.operator=='!' && ast_expr_static(expr.argument);
-    case 'BinaryExpression':
-      return ['===', '!==', '==', '!=', '&&', '||'].includes(expr.operator) &&
-        ast_expr_static(expr.left) &&
-        ast_expr_static(expr.right);
-    case 'LogicalExpression':
-      return ['&&', '||'].includes(expr.operator) &&
-        ast_expr_static(expr.left) &&
-        ast_expr_static(expr.right);
-    case 'MemberExpression':
-      // Only allow: process.env.FOO
-      if (expr.object.type=='Identifier' &&
-        expr.object.name=='process' &&
-        expr.property.type=='Identifier' &&
-        expr.property.name=='env'
-      )
-        return true;
-      // Allow nested: process.env.NODE_ENV
-      if (expr.object.type=='MemberExpression' &&
-        expr.object.object.type=='Identifier' &&
-        expr.object.object.name=='process' &&
-        expr.object.property.type=='Identifier' &&
-        expr.object.property.name=='env' &&
-        expr.property.type=='Identifier'
-      )
-        return true;
-      return false;
-    default:
-      return false;
-  }
-}
-
 function ast_is_static(path){
   let node = path.node;
   let t = Babel.packages.types;
-  // 1. Literals are always static
   if (t.isLiteral(node))
     return true;
-  // 2. Identifier: only "process" is allowed (checked later in MemberExpression)
+  // Identifier: only "process" is allowed (checked later in MemberExpression)
   if (t.isIdentifier(node))
     return node.name==='process' && !path.scope.getBinding('process');
-  // 3. Unary !expr
+  // Unary !expr
   if (t.isUnaryExpression(node, { operator: '!' }))
     return ast_is_static(path.get('argument'));
-  // 4. Binary/Logical: === !== == != && ||
+  // Binary/Logical: === !== == != && ||
   if (t.isBinaryExpression(node) || t.isLogicalExpression(node)){
     let allowed = t.isBinaryExpression(node)
       ? ['===', '!==', '==', '!=', '&&', '||']
@@ -421,7 +361,7 @@ function ast_is_static(path){
     return ast_is_static(path.get('left')) &&
       ast_is_static(path.get('right'));
   }
-  // 5. MemberExpression: process.env.X or process.env['X']
+  // MemberExpression: process.env.X or process.env['X']
   if (t.isMemberExpression(node)){
     let obj = path.get('object'), _obj, prop;
     if (obj.isMemberExpression() &&
@@ -446,7 +386,11 @@ function ast_get_if_cond(path){
     if (path.type=='IfStatement'){
       let nc = child.node;
       has_if++;
-      let _static = ast_expr_static(n.test);
+      let _static;
+      traverse(n.test, {enter(path){
+        _static = ast_is_static(path);
+        path.stop();
+      }}, path.scope);
       cond = {is_else: n.consequent!=nc, static: _static,
         start: n.test.start, end: n.test.end};
     }
@@ -1755,17 +1699,12 @@ function test_kernel(){
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
   t = (js, v)=>{
-    //let node = parser.parseExpression(js, {sourceType: 'script'});
-    // let node = parser.parseExpression(js, {sourceType: 'script'});
-    // assert_obj(v, ast_expr_static(node));
     let node = parser.parse(js, {sourceType: 'script'});
     let ret;
     traverse(node, {enter(path){
-      if (path.node.body.length!=1)
-        return void path.stop();
       let p = path.get('body.0.expression');
       ret = ast_is_static(p);
-      return void path.stop();
+      path.stop();
     }});
     assert_obj(v, ret);
   };
@@ -1781,6 +1720,8 @@ function test_kernel(){
   t(`process.env.NODE_ENV?.length > 0`, false);
   t(`process.env['NODE_ENV']`, true);
   t(`typeof process !== 'undefined'`, false);
+  t(`process.env.NODE_ENV==='production'; var xxx;`, true);
+  t(`process.env.NODE_ENV==='production'; var process;`, false);
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
   t(`import "lif";`,
     {type: 'mjs', imports: [
@@ -1813,11 +1754,9 @@ function test_kernel(){
       a = require("a");`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'program', start: 63, end: 78,
-        // XXX static: false
-        cond: {is_else: false, static: true, start: 21, end: 51}},
+        cond: {is_else: false, static: false, start: 21, end: 51}},
       {module: 'a', type: 'program', start: 99, end: 111,
-        // XXX static: false
-        cond: {is_else: true, static: true, start: 21, end: 51}},
+        cond: {is_else: true, static: false, start: 21, end: 51}},
     ]});
   t(`function load(){ let a = require("a-js"); }`,
     {type: 'cjs', requires: [
