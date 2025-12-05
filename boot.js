@@ -469,7 +469,7 @@ function require_cjs_load_requires_sync(m){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
-    if (!require_cjs_cond_static(req, m.text))
+    if (!require_cjs_cond_static(req, m.script))
       continue;
     require_cjs_load_sync({mod_self: m.id, imp: req.module});
   }
@@ -481,8 +481,18 @@ function require_cjs_cond_static(req, text){
     return;
   if (!req.cond)
     return true;
+  if (!req.cond.static)
+    return false;
+  if (!text) debugger;
   let cond = text.slice(req.cond.start, req.cond.end);
-  return req.cond.static;
+  let _static = false;
+  try {
+    let f = new Function('return ('+cond+');');
+    _static = f();
+  } catch(err){
+    console.log('require cjs cond('+cond+'): '+err);
+  }
+  return _static;
 }
 
 async function require_cjs_load_requires(m, loading){
