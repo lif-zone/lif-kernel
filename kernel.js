@@ -380,17 +380,17 @@ function ast_is_static(path){
 }
 
 function ast_get_if_cond(path){
-  let has_if = 0, cond, child;
-  for (child=path; path; child=path, path=path.parentPath){
-    let n = path.node;
-    if (path.type=='IfStatement'){
+  let has_if = 0, cond, child, p = path;
+  for (child=p; p; child=p, p=p.parentPath){
+    let n = p.node;
+    if (p.type=='IfStatement'){
       let nc = child.node;
       has_if++;
       let _static;
-      traverse(n.test, {enter(path){
-        _static = ast_is_static(path);
-        path.stop();
-      }}, path.scope);
+      traverse(n.test, {enter(p){
+        _static = ast_is_static(p);
+        p.stop();
+      }}, p.scope);
       cond = {is_else: n.consequent!=nc, static: _static,
         start: n.test.start, end: n.test.end};
     }
@@ -401,10 +401,11 @@ function ast_get_if_cond(path){
     return cond;
 }
 function ast_get_scope_type(path, opt={}){
-  for (; path; path=path.parentPath){
-    if (opt.try && path.type=='TryStatement')
+  let p;
+  for (p=path; p; p=p.parentPath){
+    if (opt.try && p.type=='TryStatement')
       return {type: 'try'};
-    let b = path.scope.block;
+    let b = p.scope.block;
     if (b.type=='FunctionExpression' ||
       b.type=='ArrowFunctionExpression' ||
       b.type=='FunctionDeclaration' ||
@@ -1756,6 +1757,18 @@ function test_kernel(){
       {module: 'a-js', type: 'program', start: 63, end: 78,
         cond: {is_else: false, static: false, start: 21, end: 51}},
       {module: 'a', type: 'program', start: 99, end: 111,
+        cond: {is_else: true, static: false, start: 21, end: 51}},
+    ]});
+  t(`let process;
+    if (process.env.node_backend=="js"){
+      a = require("a-js");
+    } else {
+      a = require("a");
+    }`,
+    {type: 'cjs', requires: [
+      {module: 'a-js', type: 'program', start: 64, end: 79,
+        cond: {is_else: false, static: false, start: 21, end: 51}},
+      {module: 'a', type: 'program', start: 104, end: 116,
         cond: {is_else: true, static: false, start: 21, end: 51}},
     ]});
   t(`function load(){ let a = require("a-js"); }`,

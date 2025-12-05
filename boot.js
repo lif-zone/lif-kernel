@@ -469,22 +469,32 @@ function require_cjs_load_requires_sync(m){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
-    if (req.type=='program')
-      require_cjs_load_sync({mod_self: m.id, imp: req.module});
+    if (!require_cjs_cond_static(req, m.text))
+      continue;
+    require_cjs_load_sync({mod_self: m.id, imp: req.module});
   }
   m.load_requires = 1;
+}
+
+function require_cjs_cond_static(req, text){
+  if (req.type!='program')
+    return;
+  if (!req.cond)
+    return true;
+  let cond = text.slice(req.cond.start, req.cond.end);
+  return req.cond.static;
 }
 
 async function require_cjs_load_requires(m, loading){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
-    if (req.type=='program'){
-      let slow = eslow(15000, 'require_cjs_load_require('+m.id+' -> '
-        +req.module+')');
-      await require_cjs_load({mod_self: m.id, imp: req.module, loading});
-      slow.end();
-    }
+    if (!require_cjs_cond_static(req, m.script))
+      continue;
+    let slow = eslow(15000, 'require_cjs_load_require('+m.id+' -> '
+      +req.module+')');
+    await require_cjs_load({mod_self: m.id, imp: req.module, loading});
+    slow.end();
   }
   m.load_requires = 1;
 }
