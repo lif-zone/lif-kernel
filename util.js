@@ -924,7 +924,7 @@ let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
 };
 let lpm_to_npm = exports.lpm_to_npm = T(T_lpm_to_npm);
 
-let lpm_to_sw_url = exports.lpm_to_sw_url = lpm=>{
+let lpm_to_sw_passthrough = exports.lpm_to_sw_passthrough = lpm=>{
   let l = lpm_parse(lpm);
   switch (l.reg){
   case 'local':
@@ -1569,7 +1569,7 @@ function test_util(){
   t('.local/file.js', 'local/file.js');
   t('/file.js', 'local/file.js');
   t('/mod//file.js', 'local/mod//file.js');
-  t = (lpm, v)=>assert_eq(v, lpm_to_sw_url(lpm));
+  t = (lpm, v)=>assert_eq(v, lpm_to_sw_passthrough(lpm));
   t('local/dir/file.js', '/dir/file.js');
   t('local/dir//file.js', '/dir/file.js');
   t('http/localhost:3000/dir//file.js', 'http://localhost:3000/dir/file.js');

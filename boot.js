@@ -483,15 +483,18 @@ function require_cjs_cond_static(req, text){
     return true;
   if (!req.cond.static)
     return false;
-  if (!text) debugger;
   let cond = text.slice(req.cond.start, req.cond.end);
   let _static = false;
+  let _else = req.cond.else ? '!' : '';
+  let _f;
   try {
-    let f = new Function('return ('+cond+');');
+    let f = _f = new Function('return '+_else+'('+cond+');');
     _static = f();
   } catch(err){
-    console.log('require cjs cond('+cond+'): '+err);
+    console.error('require cjs cond'+_else+'('+cond+'): '+err);
+    return false;
   }
+  D && console.log('require cjs cond'+_else+'('+cond+'): '+_static);
   return _static;
 }
 
@@ -638,9 +641,9 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   if (m.file.res!='done')
     return m;
   if (m.meta.type=='mjs'){
-    // XXX TODO: should only import() at require_cjs_run()
-    // not trivial to implement, since import() internals are closed
-    let e = await import(m.url+'?mjs=1');
+    // hard-coded import()s should be imported and run just before
+    // require_cjs_run(). but might be also ok here already to import them
+    let e = await /*keep*/ import(m.url+'?mjs=1');
     m.exports = e.default || e;
     m.run = 'done';
     return m;
@@ -784,7 +787,7 @@ async function import_worker({mod_self, imp, opt}){
     assert(0, 'module import not yet supportedd');
   url = qs_append(url, q);
   imp = npm_2url(imp, mod_self);
-  let exports =  await import_module_script({mod_self, imp, url,
+  let exports = await import_module_script({mod_self, imp, url,
     opt: {worker: 1}});
   return exports_to_esm(exports);
 }
@@ -797,7 +800,7 @@ async function import_esm(mod_self, [imp, opt]){
     slow = eslow(15000, 'import_esm('+url+')');
     D && console.log('boot.js: import '+url);
     let ret;
-    if (is_worker)
+    if (is_worker && opt?.type=='script')
       ret = await import_worker({mod_self, imp, opt});
     else
       ret = await /*keep*/ import(url, opt);
@@ -816,8 +819,11 @@ function importScripts_single(mod_self, [mod, opt]){
   if (res.status!=200)
     throw Error('failed fetch '+url);
   let script = res.text;
+  // the ';' just before script is very important: it disables the "use strict"
+  // from preventing the top level functions and var of the import stript to
+  // be be "exported" (added) to the global context.
   let exports = eval.call(globalThis,
-    `//# sourceURL=${url}\n${script}`);
+    `//# sourceURL=${url}\n;${script}`);
 }
 
 function _importScripts(mod_self, mods){

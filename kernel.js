@@ -141,7 +141,7 @@ let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 console.log('kernel import end');
 let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
   _path_ext, path_dir, path_file,
-  path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_url,
+  path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
@@ -391,7 +391,7 @@ function ast_get_if_cond(path){
         _static = ast_is_static(p);
         p.stop();
       }}, p.scope);
-      cond = {is_else: n.consequent!=nc, static: _static,
+      cond = {else: n.consequent!=nc, static: _static,
         start: n.test.start, end: n.test.end};
     }
   }
@@ -662,7 +662,7 @@ function tr_import_lpm({imp, imported, npm_uri, pkg}){
   let v = passthrough_lmod({pkg, lmod: imp});
   if (v)
     return v;
-  v = lpm_to_sw_url(imp);
+  v = '/.lif/'+imp;
   let q = {};
   if (imported)
     q.imported = imported.join(',');
@@ -680,9 +680,9 @@ function tr_mjs_import(f){
       continue;
     }
     if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
-      v = tr_import_lpm({imp: v, imported: d.imported, npm_uri: f.npm_uri,
+      let _v = tr_import_lpm({imp: v, imported: d.imported, npm_uri: f.npm_uri,
         pkg: f.lpm_pkg.pkg});
-      s.splice(d.start, d.end, json(v));
+      s.splice(d.start, d.end, json(_v));
       continue;
     }
     console.warn('import('+f.lmod+') missing: '+imp);
@@ -690,6 +690,29 @@ function tr_mjs_import(f){
   for (let d of f.meta.imports_dyn||[])
     s.splice(d.start, d.end, 'import_lif');
   return s.out();
+}
+
+function file_tr_mjs_worker(f, opt){
+  let uri_s = json(f.npm_uri);
+  let js = `
+    let lif_worker = {
+      queue: [],
+      cb: e=>{
+        console.log('push worker message queue');
+        lif_worker.queue.push(e);
+      }
+    };
+    globalThis.addEventListener('message', lif_worker.cb);
+    import lif from '/.lif/npm/lif-kernel/boot.js';
+    let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods);
+    let import_lif = function(){
+      return globalThis.$lif.boot.import_esm(${uri_s}, arguments);
+    };
+    let mod = await import_lif(${uri_s});
+    globalThis.removeEventListener('message', lif_worker.cb);
+    lif_worker.queue.forEach(e=>globalThis.dispatchEvent(e));
+  `;
+  return js;
 }
 
 function file_tr_mjs(f, opt){
@@ -700,10 +723,8 @@ function file_tr_mjs(f, opt){
   let _import = f.meta.imports?.length;
   if (f.npm_uri.includes(' mod_name '))
     pre += `debugger; `;
-  if (opt?.worker){
-    pre += `import lif from '/.lif/npm/lif-kernel/boot.js'; `;
-    pre += `let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods); `;
-  }
+  if (opt?.worker)
+    return file_tr_mjs_worker(f, opt);
   if (f.meta.imports_dyn?.length)
     pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
   if (log) 
@@ -714,9 +735,10 @@ function file_tr_mjs(f, opt){
     post += `console.log(${uri_s}, 'end'); `;
   if (slow)
     post += `slow.end(); `;
-  if (pre && tr.startsWith('#!')) // #!/usr/bin/node shebang
-    pre += '//';
-  return pre+tr+post;
+  let _tr = tr;
+  if (tr.startsWith('#!')) // #!/usr/bin/node shebang
+    _tr = '//'+tr;
+  return pre+_tr+post;
 }
 
 function mjs_import_cjs(path, q){
@@ -1274,13 +1296,14 @@ function passthrough_lmod({pkg, lmod}){
   let u = lpm_parse(lmod);
   if (!str.is(u.reg, 'local', 'http', 'https'))
     return;
+  let pass_url = lpm_to_sw_passthrough(lmod);
   let file = u.path.slice(1);
   let v;
   for (let p of pass){
     while (v=str.starts(p, './'))
       p = v.rest;
     if (p==file)
-      return lpm_to_sw_url(lmod);
+      return pass_url;
   }
 }
 
@@ -1455,9 +1478,10 @@ async function fetch_pass(request, type){
   let url = request.url;
   try {
     D && console.log('fetch '+type+': '+url);
-    return await fetch(request);
+    return await fetch(request, type=='external' ? {mode: 'no-cors'} : {});
   } catch(err){
-    console.log('failed ext fetch_pass '+type+': '+url);
+    console.log('failed ext fetch_pass '+type+' '+url+': '+err);
+    return new Response(''+err, {status: 500, statusText: ''+err});
   }
 }
 
@@ -1479,10 +1503,10 @@ async function _kernel_fetch(event){
   };
   D && console.log('sw '+log.mod);
   // external and non GET requests
-  if (request.method!='GET' && request.method!='HEAD')
-    return fetch_pass(request, 'non-GET');
   if (external)
     return fetch_pass(request, 'external');
+  if (request.method!='GET' && request.method!='HEAD')
+    return fetch_pass(request, 'non-get');
   // LIF+local GET requests
   // LIF requests
   let v;
@@ -1744,9 +1768,9 @@ function test_kernel(){
       a = require("a");`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'program', start: 57, end: 72,
-        cond: {is_else: false, static: true, start: 15, end: 45}},
+        cond: {else: false, static: true, start: 15, end: 45}},
       {module: 'a', type: 'program', start: 93, end: 105,
-        cond: {is_else: true, static: true, start: 15, end: 45}},
+        cond: {else: true, static: true, start: 15, end: 45}},
     ]});
   t(`let process;
     if (process.env.node_backend=="js")
@@ -1755,9 +1779,9 @@ function test_kernel(){
       a = require("a");`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'program', start: 63, end: 78,
-        cond: {is_else: false, static: false, start: 21, end: 51}},
+        cond: {else: false, static: false, start: 21, end: 51}},
       {module: 'a', type: 'program', start: 99, end: 111,
-        cond: {is_else: true, static: false, start: 21, end: 51}},
+        cond: {else: true, static: false, start: 21, end: 51}},
     ]});
   t(`let process;
     if (process.env.node_backend=="js"){
@@ -1767,9 +1791,9 @@ function test_kernel(){
     }`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'program', start: 64, end: 79,
-        cond: {is_else: false, static: false, start: 21, end: 51}},
+        cond: {else: false, static: false, start: 21, end: 51}},
       {module: 'a', type: 'program', start: 104, end: 116,
-        cond: {is_else: true, static: false, start: 21, end: 51}},
+        cond: {else: true, static: false, start: 21, end: 51}},
     ]});
   t(`function load(){ let a = require("a-js"); }`,
     {type: 'cjs', requires: [
