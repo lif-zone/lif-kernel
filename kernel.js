@@ -619,7 +619,7 @@ function tr_js_to_ast(js){
   return ast;
 }
 
-let lpm_imp_lookup = ({lpm_pkg, imp})=>{
+function lpm_imp_lookup({lpm_pkg, imp}){
   let D = 0;
   let u;
   let ret_err = err=>{
@@ -651,12 +651,13 @@ let lpm_imp_lookup = ({lpm_pkg, imp})=>{
   if (l.peer){
     if (par.reg)
       return par.reg;
+    return l.peer;
   }
   // lookup devDependencies: current
   if (l.dev)
     return l.dev;
   return ret_err('imp missing');
-};
+}
 
 function tr_import_lpm({imp, imported, npm_uri, pkg}){
   let v = passthrough_lmod({pkg, lmod: imp});
@@ -1644,6 +1645,7 @@ function test_kernel(){
     peer: '>=1.0.0',
     gpeer: '99.9.9',
     gpeerdev: '96.9.9',
+    gpeer2: '14.0.1',
   }, devDependencies: {
     dev: '2.0.0',
     peer: '2.0.0',
@@ -1684,6 +1686,7 @@ function test_kernel(){
   t('npm/gparent', 'npm/gparent@22.0.0');
   t('npm/gparent2');
   t('npm/gpeer', 'npm/gpeer@13.0.1');
+  t('npm/gpeer2', 'npm/gpeer2@14.0.1');
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/github/user/repo', 'git/github/user/repo@v1');
   t('git/github/user/repo@vX', 'git/github/user/repo@vX');
