@@ -1525,7 +1525,7 @@ async function _kernel_fetch(event){
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
     return send_res({...res, path});
   }
-  if (path=='/cc'){
+  if (path=='/cc'){ // clear cache command
     function cc(table){
       for (let [k, v] of OF(table)){
         if (str.starts(k, 'local/'))
