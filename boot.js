@@ -775,7 +775,7 @@ let import_module_script = async({mod_self, imp, url})=>{
 };
 
 function exports_to_esm(exports){
-   return {...exports, default: exports};
+  return {...exports, default: exports};
 }
 
 async function import_worker({mod_self, imp, opt}){
