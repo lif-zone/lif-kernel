@@ -758,6 +758,7 @@ function mjs_import_cjs(path, q){
     js += `$lif_message.q.forEach(e=>globalThis.dispatchEvent(e)); `;
   }
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
+  js += `export const __esModule = false;\n`;
   js += `export default exports;\n`;
   return js;
 }
@@ -769,6 +770,7 @@ function mjs_import_amd(path, q){
   let js = '';
   js += `let exports = await globalThis.$lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
+  js += `export const __esModule = false;\n`;
   js += `export default exports;\n`;
   return js;
 }

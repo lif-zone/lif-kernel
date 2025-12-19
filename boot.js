@@ -792,6 +792,18 @@ async function import_worker({mod_self, imp, opt}){
   return exports_to_esm(exports);
 }
 
+function import_esm_cjs(mod){
+  if (mod.__esModule!==false)
+    return mod;
+  let ret = {default: mod.default};
+  for (let [k, v] of OF(mod.default)){
+    if (k=='default')
+      continue;
+    ret[k] = v;
+  }
+  return ret;
+}
+
 async function import_esm(mod_self, [imp, opt]){
   let url = npm_2url_opt(imp, mod_self, opt);
   url = url_expand(url);
@@ -802,8 +814,10 @@ async function import_esm(mod_self, [imp, opt]){
     let ret;
     if (is_worker && opt?.type=='script')
       ret = await import_worker({mod_self, imp, opt});
-    else
+    else {
       ret = await /*keep*/ import(url, opt);
+      ret = import_esm_cjs(ret);
+    }
     return ret;
   } catch(err){
     console.error('import_esm('+url+' '+mod_self+')', err);
