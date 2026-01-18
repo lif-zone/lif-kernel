@@ -1084,7 +1084,7 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   return f;
 }
 
-async function lpm_pkg_get({log, lmod, mod_self}){
+async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
 return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
   D && console.log('lpm_pkg_get', lmod, mod_self);
   lpm_pkg.lmod = lmod;
@@ -1108,7 +1108,7 @@ return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
     let v = await _lpm_pkg_ver_get({log, lmod});
     if (v.not_exist)
       throw Error('pkg does not exist: '+lmod);
-    console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
+    console.warn('module('+(_mod_self||mod_self)+') redirect ver '+lmod+' -> '+v);
     return OA(lpm_pkg, {redirect: v});
   }
   // fetch pkg
@@ -1198,7 +1198,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   let lmod = _imp || imp;
   // load the module, even if redirect later, so its loaded with mod_self
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
-    mod_self: lpm_self.lmod});
+    mod_self: lpm_self.lmod, _mod_self: mod_self});
   // located import, and it got changed
   if (_imp && _imp!=imp)
     return {lpm_pkg: {redirect: _imp}};
@@ -1512,6 +1512,7 @@ async function _kernel_fetch(event){
   // external and non GET requests
   if (external)
     return fetch_pass(request, 'external');
+  log.imp = path;
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-get');
   // LIF+local GET requests
@@ -1519,6 +1520,7 @@ async function _kernel_fetch(event){
   let v;
   if (lpm_pkg_app && (v = str.starts(path, '/.lif/'))){
     let lmod = v.rest;
+    log.imp = lmod;
     let slow = eslow('app_init');
     await app_init_wait; // XXX - try to remove. favicon can be handled later!
     slow.end();
