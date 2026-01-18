@@ -630,6 +630,10 @@ function lpm_imp_lookup({lpm_pkg, imp}){
   // no need to lookup final versioned imports and local imports
   if (!lpm_ver_missing(u))
     return imp;
+  // if same package, use self
+  let _imp = lpm_ver_from_base(imp, lpm_pkg.lmod);
+  if (_imp)
+    return _imp;
   let l = lpm_imp_ver_lookup({lpm_pkg, imp});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
@@ -1631,7 +1635,7 @@ function test_kernel(){
   t('npm/glb', {glob: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
   t('npm/overg', {glob: 'npm/overg@2.0.0'});
-  lpm_pkg = {lmod: 'npm/mod', pkg: {lif: {dependencies: {
+  lpm_pkg = {lmod: 'npm/self@1.2.3', pkg: {lif: {dependencies: {
     mod: '/MOD',
     mod2: '.local/MOD/',
     http1: 'http://localhost:3000/MOD',
@@ -1672,6 +1676,7 @@ function test_kernel(){
     assert_eq(v, lpm_imp_lookup({lpm_pkg, imp}));
     in_test = 0;
   };
+  t('npm/self/dir/main.tsx', 'npm/self@1.2.3/dir/main.tsx');
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/mod2/dir/main.tsx', 'local/MOD//dir/main.tsx');
   t('npm/http1/dir/main.tsx', 'http/localhost:3000/MOD//dir/main.tsx');
@@ -1682,7 +1687,7 @@ function test_kernel(){
   t('npm/reactok', 'npm/react@18.3.1');
   t('npm/reactbad');
   t('local/file', 'local/file');
-  t('npm/dir', 'npm/mod/DIR');
+  t('npm/dir', 'npm/self@1.2.3/DIR');
   t('npm/peer', 'npm/peer@1.1.1');
   t('npm/gmod', 'npm/gmod@21.0.0');
   t('npm/gparent', 'npm/gparent@22.0.0');
