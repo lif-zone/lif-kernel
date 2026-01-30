@@ -1243,7 +1243,7 @@ function ctype_get(ext){
     jsx: {tr: 'jsx', ctype: 'application/javascript'},
     json: {ctype: 'application/json'},
     css: {ctype: 'text/css'},
-    wasm: {ctype: 'appliaction/wasm'},
+    wasm: {ctype: 'application/wasm'},
     text: {ctype: 'plain/text'},
     bin: {ctype: 'application/octet-stream'},
     ico: {ctype: 'image/x-icon'},
@@ -1381,10 +1381,8 @@ async function responce_tr_send({f, qs, lmod}){
     return lpm_redirect({f, qs, lmod});
   if (q.has('raw') || ctype_binary(lmod))
     return {body: f.blob, ext};
-  if (ext=='json')
-    return {body: f.blob, ext: 'json'};
-  if (ext=='css')
-    return {body: f.blob, ext: 'css'};
+  if (str.is(ext, 'json', 'css', 'wasm'))
+    return {body: f.blob, ext};
   ext = 'js';
   let js = await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
