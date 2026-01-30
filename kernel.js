@@ -1547,7 +1547,7 @@ async function _kernel_fetch(event){
   }
   // lif-kernel passthrough for local dev
   if (path=='/' || path_starts(url, lif_kernel_base))
-    return fetch(request);
+    return await fetch(request);
   // local requests
   let _path;
   if (!lpm_pkg_app || !lpm_pkg_app.pkg)
