@@ -12,9 +12,9 @@ globalThis.addEventListener("message", event=>{
   console.error('invalid message', event.data);
 });
 
-let ipc;
+let ipc = {read: null, write: null};
 async function ipc_fetch(){
-  let b = await ipc.E_read('string');
+  let b = await ipc.read.E_read('string');
   let req = JSON.parse(b);
   let url = req.url;
   let response = await fetch(req.url, req.opt);
@@ -24,7 +24,7 @@ async function ipc_fetch(){
   if (response.status!=200){
     console.log('worker fetch('+url+') failed '+response.status);
     slow = eslow(15000, 'ipc_fetch('+url+')');
-    await ipc.E_write(json({status: response.status}));
+    await ipc.write.E_write(json({status: response.status}));
     slow.end();
     return;
   }
@@ -34,15 +34,16 @@ async function ipc_fetch(){
   res.ctype = blob.type;
   res.data = 1;
   slow = eslow(15000, 'ipc_fetch('+url+') resp headers');
-  await ipc.E_write(json(res));
+  await ipc.write.E_write(json(res), 'ipc_fetch resp headers '+url);
   slow.end();
   slow = eslow(15000, 'ipc_fetch('+url+') resp data');
-  await ipc.E_write(data, url);
+  await ipc.write.E_write(data, 'ipc_fetch resp data '+url);
   slow.end();
 }
 async function ipc_fetch_init(event){
   let {sab} = event.data.fetch_init;
-  ipc = new ipc_sync(sab);
+  ipc.read = new ipc_sync(sab.read);
+  ipc.write = new ipc_sync(sab.write);
   D && console.log('ipc_fetch_init');
   while (1)
     await ipc_fetch();
