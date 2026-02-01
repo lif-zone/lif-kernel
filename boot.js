@@ -44,20 +44,21 @@ function fetch_sync_worker(url){
   return {status: 200, text: request.responseText};
 }
 
-let boot_worker_ipc_sync;
+let boot_worker_ipc_sync = {read: null, write: null};
 let boot_worker;
 function fetch_sync_main(url, opt){
-  assert(boot_worker_ipc_sync, 'no ipc_sync setup');
   let ipc = boot_worker_ipc_sync;
+  assert(ipc.read, 'no ipc_sync setup');
+  assert(ipc.write, 'no ipc_sync setup');
   try {
-    ipc.write(json({url, opt}));
+    ipc.write.write(json({url, opt}));
   } catch(err){
     console.error('fetch_sync_main('+url+') req err: '+err);
     return {status: 500};
   }
   let buf;
   try {
-    buf = ipc.read('string');
+    buf = ipc.read.read('string');
   } catch(err){
     console.error('fetch_sync_main('+url+') resp err: '+err);
     return {status: 500};
@@ -67,7 +68,7 @@ function fetch_sync_main(url, opt){
   if (!res.data)
     return {status: 500};
   try {
-    text = ipc.read('string', url);
+    text = ipc.read.read('string', url);
   } catch(err){
     console.error('fetch_sync_main('+url+') data err: '+err);
     return {status: 500};
@@ -83,7 +84,9 @@ function fetch_sync(url, opt){
 
 async function boot_worker_sync_connect(){
   let res;
-  let ipc = boot_worker_ipc_sync = new ipc_sync();
+  let ipc = boot_worker_ipc_sync;
+  ipc.read = new ipc_sync();
+  ipc.write = new ipc_sync();
   let controller = navigator.serviceWorker.controller;
   boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
     {type: 'module'});
@@ -91,7 +94,9 @@ async function boot_worker_sync_connect(){
     console.log('main got message', event.data, event);
   });
   D && console.log('master worker started');
-  boot_worker.postMessage({fetch_init: {sab: ipc.sab}});
+  // read and write are reveresed
+  boot_worker.postMessage({fetch_init:
+    {sab: {write: ipc.read.sab, read: ipc.write.sab}}});
 }
 
 const npm_2url_opt = (url, mod_self, opt)=>{
