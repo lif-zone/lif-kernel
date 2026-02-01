@@ -361,7 +361,7 @@ class ipc_sync {
   err;
   constructor(ipc_buf){
     this.sab = ipc_buf || {
-      data: new SharedArrayBuffer(64*1024),
+      data: new SharedArrayBuffer(128*1024),
       cmd: new SharedArrayBuffer(24),
     };
     this._data = this.sab.data;
