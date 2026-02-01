@@ -25,7 +25,7 @@ let esleep = exports.esleep = ms=>{
 };
 
 let eslow = exports.eslow = (ms, arg)=>{
-  let enable; // = 1 to enable, or = 0 just to trace active tasks, no print
+  let enable = 0; // = 1 to enable, or = 0 just to trace active tasks, no print
   eslow.seq ||= 0;
   let seq = eslow.seq++;
   let done, timeout, at_end;
@@ -334,8 +334,7 @@ function Atomics_wait(array, index, value, timeout){
     timeout = 0;
   if (Atomics.load(array, index)!=value)
     return 'not-equal'; // this is also 'ok' - since we want to wait for change
-  if (timeout)
-    start = Date.now();
+  start = Date.now();
   while (Atomics.load(array, index)==value){
     let t = Date.now()-start;
     if (info && t>info){
@@ -357,11 +356,12 @@ function Atomics_wait(array, index, value, timeout){
 // implementation automatic service-worker/direct SharedArrayBuffer
 // https://github.com/alexmojaki/sync-message
 class ipc_sync {
+  D = 0;
   seq = 0;
   err;
   constructor(ipc_buf){
     this.sab = ipc_buf || {
-      data: new SharedArrayBuffer(8192),
+      data: new SharedArrayBuffer(64*1024),
       cmd: new SharedArrayBuffer(24),
     };
     this._data = this.sab.data;
@@ -394,7 +394,12 @@ class ipc_sync {
   async E_wait_lock(old_val){
     // stupid Atomics.waitAsync() API - it is not an async function
     let _res = Atomics.waitAsync(this.lock, 0, old_val);
-    let res = await _res.value; // its res.value is *sometimes* async...
+    let res = _res.value; // its res.value is *sometimes* async...
+    if (typeof res!='string'){
+      let slow = D && eslow('ipc E_wait_lock('+old_val+')');
+      res = await res;
+      D && slow.end();
+    }
     if (res!='ok' && res!='not-equal')
       throw Error('failed Atomics.wait()');
     return res;
@@ -422,7 +427,7 @@ class ipc_sync {
     }
     this.err = null;
   }
-  async E_write(buf, url){
+  async E_write(buf, log){
     let x = {};
     if (this.err)
       throw Error('ipc_sync err state');
@@ -442,13 +447,15 @@ class ipc_sync {
       this.data.set(new Uint8Array(buf, ofs, len), 0);
       this.store_lock(1);
       this.notify_lock();
+      let slow = eslow('E_write('+log+')');
       await this.E_wait_lock(1);
+      slow.end();
     }
     if (0 && x.write)
       console.log(x.write);
     this.err = null;
   }
-  read(type, url){
+  read(type, log){
     let x = {};
     if (this.err)
       throw Error('ipc_sync err state');
