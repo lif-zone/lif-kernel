@@ -441,7 +441,7 @@ function tr_tsx_to_js({tsx, type}){
   let is_ts = type=='ts' || type=='tsx';
   let is_jsx = type=='jsx' || type=='tsx';
   let opt = {presets: [], plugins: [],
-    generatorOpts: {importAttributesKeyword: 'with'}};
+    generatorOpts: {importAttributesKeyword: 'with', retainLines: true}};
   // XXX together with react, it strips unused module imports.
   // {modules: false} did not solve it.
   if (is_ts){
