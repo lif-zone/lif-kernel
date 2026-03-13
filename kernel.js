@@ -133,7 +133,7 @@ let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
 console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
-let Babel = await import_module(kernel_cdn+'@babel/standalone@7.26.4/babel.js');
+let Babel = await import_module(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
 let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
 let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
@@ -440,8 +440,12 @@ function tr_tsx_to_js({tsx, type}){
   let js;
   let is_ts = type=='ts' || type=='tsx';
   let is_jsx = type=='jsx' || type=='tsx';
+  // preserveFormat (and tokens createParenthesizedExpressions) do not yet
+  // work with current babel: it alters spacing and indentation
   let opt = {presets: [], plugins: [],
-    generatorOpts: {importAttributesKeyword: 'with', retainLines: true}};
+    parserOpts: {tokens: true, createParenthesizedExpressions: true},
+    generatorOpts: {importAttributesKeyword: 'with', retainLines: true,
+      preserveFormat: true}};
   // XXX together with react, it strips unused module imports.
   // {modules: false} did not solve it.
   if (is_ts){
