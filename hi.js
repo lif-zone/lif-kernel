@@ -44,7 +44,7 @@ async function lif_kv_get(key){
   let res = await fetch(url);
   if (res.status!=200)
     return;
-  let val = await res.text();
+  let val = await res.json();
   return val;
 }
 
