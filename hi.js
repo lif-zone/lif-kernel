@@ -1,6 +1,6 @@
 import util from './util.js';
 import lif from './boot.js';
-let {OF, html_elm} = util;
+let {OF, html_elm, str} = util;
 
 let webapp_index = {
   '': '*demo_index', // special handling for built-in demo_index
@@ -25,6 +25,8 @@ let webapp_index = {
   'lif-coin-local': '/lif-coin/',
 };
 
+let root_dns = ['localhost', 'pub.site', 'lif.zone'];
+
 function demo_index(){
   let body = document.querySelector('body');
   for (let [k, v] of OF(webapp_index)){
@@ -36,10 +38,24 @@ function demo_index(){
   }
 }
 
+let webapp_sub_dns = ()=>{
+  let host = location.hostname;
+  let v;
+  let r = root_dns.map(v=>'.'+v);
+  if (!(v = str.ends(host, r)))
+    return;
+  let sub = v.rest;
+  if (v = webapp_index[sub])
+    return v;
+};
+
 let webapp_default = ()=>{
+  let webapp;
+  if (webapp = webapp_sub_dns())
+    return webapp;
   let q = new URLSearchParams(location.search);
   let e = [...q.entries()][0];
-  let webapp, v;
+  let v;
   if (e && e[0] && !e[1])
     webapp = e[0];
   if (v=q.get('webapp'))
