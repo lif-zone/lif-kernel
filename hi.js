@@ -21,7 +21,7 @@ let webapp_index = {
   'play4-local': '/lif-basic//play4.html',
   'os': '.git/github/xderry/lif-os@main/lif-os-boot/main.tsx',
   'os-local': '/lif-os//lif-os-boot/main.tsx',
-  'lif-coin': '.git/github/xderry/lif-coin@latest/',
+  'lif-coin': '.git/github/xderry/lif-coin@latest',
   'lif-coin-local': '/lif-coin/',
 };
 
