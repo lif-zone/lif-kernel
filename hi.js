@@ -1,6 +1,6 @@
 import util from './util.js';
 import lif from './boot.js';
-let {OF, html_elm, str} = util;
+let {OF, html_elm, str, qs_append} = util;
 
 let webapp_index = {
   '': '*demo_index', // special handling for built-in demo_index
@@ -26,6 +26,7 @@ let webapp_index = {
 };
 
 let root_dns = ['localhost', 'pub.site', 'lif.zone'];
+let lifcoin_url = ['http://localhost:8432'];
 
 function demo_index(){
   let body = document.querySelector('body');
@@ -38,24 +39,28 @@ function demo_index(){
   }
 }
 
-let webapp_sub_dns = ()=>{
+async function lif_kv_get(key){
+  let url = qs_append(lifcoin_url[0]+'/lif_kv', {key});
+  let res = await fetch(url);
+  if (res.status!=200)
+    return;
+  let val = await res.text();
+  return val;
+}
+
+function sub_dns(){
   let host = location.hostname;
   let v;
   let r = root_dns.map(v=>'.'+v);
   if (!(v = str.ends(host, r)))
     return;
-  let sub = v.rest;
-  if (v = webapp_index[sub])
-    return v;
-};
+  return v.rest;
+}
 
-let webapp_default = ()=>{
-  let webapp;
-  if (webapp = webapp_sub_dns())
-    return webapp;
+function webapp_default(){
   let q = new URLSearchParams(location.search);
   let e = [...q.entries()][0];
-  let v;
+  let webapp, v;
   if (e && e[0] && !e[1])
     webapp = e[0];
   if (v=q.get('webapp'))
@@ -64,10 +69,23 @@ let webapp_default = ()=>{
     webapp = v;
   if (webapp)
     return webapp;
-};
+}
+
+async function webapp_resolve(){
+  let v, sub;
+  if (sub = sub_dns()){
+    let val = await lif_kv_get('dns/'+sub);
+    if (val && val.site)
+      return val.site;
+    if (v = webapp_index[sub])
+      return v;
+  }
+  if (v = webapp_default())
+    return v;
+}
 
 async function life(){
-  let webapp = webapp_default();
+  let webapp = await webapp_resolve();
   if (webapp=='*demo_index')
     return demo_index();
   return await lif.boot.boot_app({lif: {webapp}});

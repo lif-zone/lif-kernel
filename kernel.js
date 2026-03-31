@@ -1487,7 +1487,7 @@ async function fetch_pass(request, type){
   let url = request.url;
   try {
     D && console.log('fetch '+type+': '+url);
-    return await fetch(request, type=='external' ? {mode: 'no-cors'} : {});
+    return await fetch(request); // type=='external' ? {mode: 'no-cors'} : {}
   } catch(err){
     console.log('failed ext fetch_pass '+type+' '+url+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
