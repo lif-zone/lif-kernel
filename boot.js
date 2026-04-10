@@ -46,34 +46,39 @@ function fetch_sync_worker(url){
 
 let boot_worker_ipc_sync = {read: null, write: null};
 let boot_worker;
+let boot_worker_fail;
 function fetch_sync_main(url, opt){
   let ipc = boot_worker_ipc_sync;
   assert(ipc.read, 'no ipc_sync setup');
   assert(ipc.write, 'no ipc_sync setup');
+  if (boot_worker_fail){
+    console.error('fetch_sync ipc in fail state');
+    return {status: 500};
+  }
+  let header, body, state;
   try {
+    state = 'write';
     ipc.write.write(json({url, opt}));
+    state = 'read headers';
+    header = ipc.read.read('string');
+    state = 'read body';
+    body = ipc.read.read('string', url);
   } catch(err){
+    boot_worker_fail = state;
     console.error('fetch_sync_main('+url+') req err: '+err);
     return {status: 500};
   }
-  let buf;
+  let res;
   try {
-    buf = ipc.read.read('string');
+    res = JSON.parse(header);
   } catch(err){
-    console.error('fetch_sync_main('+url+') resp err: '+err);
+    boot_worker_fail = 'json';
+    console.error('ipc bad json');
     return {status: 500};
   }
-  let res = JSON.parse(buf);
-  let text;
-  if (!res.data)
+  if (!res.body)
     return {status: 500};
-  try {
-    text = ipc.read.read('string', url);
-  } catch(err){
-    console.error('fetch_sync_main('+url+') data err: '+err);
-    return {status: 500};
-  }
-  return {status: 200, text};
+  return {status: 200, text: body};
 }
 
 function fetch_sync(url, opt){
