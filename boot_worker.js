@@ -54,6 +54,7 @@ async function ipc_fetch(){
   slow.end();
   d('end');
 }
+
 async function ipc_fetch_init(event){
   let {sab} = event.data.fetch_init;
   ipc.read = new ipc_sync(sab.read);
