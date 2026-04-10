@@ -14,13 +14,15 @@ globalThis.addEventListener("message", event=>{
 
 let ipc = {read: null, write: null};
 async function ipc_fetch(){
+  let slow;
   let b = await ipc.read.E_read('string');
   let req = JSON.parse(b);
   let url = req.url;
+  slow = eslow(15000, 'ipc_fetch('+url+') fetch()');
   let response = await fetch(req.url, req.opt);
+  slow.end();
   D && console.log('ipc_fetch '+url, response);
   let res = {status: response.status};
-  let slow;
   if (response.status!=200){
     console.log('worker fetch('+url+') failed '+response.status);
     slow = eslow(15000, 'ipc_fetch('+url+')');
@@ -45,7 +47,12 @@ async function ipc_fetch_init(event){
   ipc.read = new ipc_sync(sab.read);
   ipc.write = new ipc_sync(sab.write);
   D && console.log('ipc_fetch_init');
-  while (1)
-    await ipc_fetch();
+  while (1){
+    try {
+      await ipc_fetch();
+    } catch(err){
+      console.error('ipc_fetch: ', err);
+    }
+  }
 }
 
