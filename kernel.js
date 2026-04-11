@@ -147,7 +147,7 @@ let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   uri_dec, match_glob_to_regex, semver_range_parse,
   pkg_export_lookup, export_path_match, str_to_buf,
-  esleep, eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
+  eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
   Donce} = util;
 let {qw} = str;
 let clog = console.log.bind(console);

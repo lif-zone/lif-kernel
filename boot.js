@@ -95,13 +95,19 @@ async function boot_worker_sync_connect(){
   let controller = navigator.serviceWorker.controller;
   boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
     {type: 'module'});
+  let wait = ewait();
   boot_worker.addEventListener("message", event=>{
-    console.log('main got message', event.data, event);
+    if (event.data.fetch_inited)
+      return wait.return();
+    console.error('boot_worker unknown message', event.data, event);
   });
   D && console.log('master worker started');
   // read and write are reveresed
   boot_worker.postMessage({fetch_init:
     {sab: {write: ipc.read.sab, read: ipc.write.sab}}});
+  let slow = eslow(1000, 'boot_worker connect');
+  await wait;
+  slow.end();
 }
 
 const npm_2url_opt = (url, mod_self, opt)=>{

@@ -1,5 +1,5 @@
 // LIF bootloader worker: assistance for sync operations
-let boot_worker_version = '25.11.4';
+let boot_worker_version = '26.4.9';
 import util from '/lif-kernel/util.js';
 let D = 0;
 console.log('boot_worker started '+boot_worker_version);
@@ -13,14 +13,17 @@ globalThis.addEventListener("message", event=>{
 });
 
 let ipc = {read: null, write: null};
+let d_a = globalThis.ipc_fetch_state = ['init'];
 function d(s){
-  // debug: remember trace last state before getting stuck
-  globalThis.ipc_fetch_state = s;
+  d_a.push(s);
+  d_a.shift();
+  return s;
 }
 async function ipc_fetch(){
   let slow;
-  d('start');
+  d('waiting req');
   let b = await ipc.read.E_read('string');
+  d('got req');
   let req = JSON.parse(b);
   let url = req.url;
   slow = eslow(15000, d('ipc_fetch('+url+') fetch()'));
@@ -56,15 +59,17 @@ async function ipc_fetch(){
 }
 
 async function ipc_fetch_init(event){
+  d('ipc_fetch_init');
   let {sab} = event.data.fetch_init;
   ipc.read = new ipc_sync(sab.read);
   ipc.write = new ipc_sync(sab.write);
+  self.postMessage({fetch_inited: true});
   D && console.log('ipc_fetch_init');
   while (1){
     try {
       await ipc_fetch();
     } catch(err){
-      console.error('ipc_fetch: ', err);
+      console.error(d('ipc_fetch err'), err);
     }
   }
 }
