@@ -139,7 +139,7 @@ let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 console.log('kernel import end');
-let {postmessage_chan, str, OF, OA, assert, ecache, json, json_cp,
+let {postmessage_chan, str, OE, OA, assert, ecache, json, json_cp,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
@@ -824,7 +824,7 @@ function pkg_web_export_lookup(pkg, path){
   function lookup(exports){
     if (!exports)
       return;
-    for (let [match, to] of OF(exports)){
+    for (let [match, to] of OE(exports)){
       let v;
       if (v=export_path_match(path, match, to))
         return v;
@@ -961,7 +961,7 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
   let created = +new Date(time.created);
   let modified = +new Date(time.modified);
   let max, found;
-  for (let [ver, tm] of OF(pkg_ver.time)){
+  for (let [ver, tm] of OE(pkg_ver.time)){
     if (str.is(ver, 'created', 'modified'))
       continue;
     tm = +new Date(tm);
@@ -1537,7 +1537,7 @@ async function _kernel_fetch(event){
   }
   if (path=='/cc'){ // clear cache command
     function cc(table){
-      for (let [k, v] of OF(table)){
+      for (let [k, v] of OE(table)){
         if (str.starts(k, 'local/'))
           delete table[k];
       }

@@ -90,7 +90,7 @@ let Donce = exports.Donce = (once, fn)=>{
 };
 
 // shortcuts
-let OF = exports.OF = o=>o ? Object.entries(o) : [];
+let OE = exports.OE = o=>o ? Object.entries(o) : [];
 let OA = exports.OA = Object.assign;
 let json = exports.json = obj=>JSON.stringify(obj);
 let json_cp = exports.json_cp =
@@ -1210,7 +1210,7 @@ let pkg_export_lookup = exports.pkg_export_lookup = (pkg, path)=>{
   }
   function parse_section(val){
     let res = [], tr;
-    for (let [match, v] of OF(val)){
+    for (let [match, v] of OE(val)){
       if (typeof v=='string'
         ? !(v = export_path_match(file, match, v))
         : !export_path_match(file, match))
@@ -1326,7 +1326,7 @@ ecache.get_sync = (table, id)=>table[id]?.wait_complete && table[id];
 
 let html_elm = exports.html_elm = (name, attr)=>{
   let elm = document.createElement(name);
-  for (let [k, v] of OF(attr))
+  for (let [k, v] of OE(attr))
     elm[k] = v;
   return elm;
 };

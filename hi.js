@@ -1,6 +1,6 @@
 import util from './util.js';
 import lif from './boot.js';
-let {OF, html_elm, str, qs_append} = util;
+let {OE, html_elm, str, qs_append} = util;
 
 let webapp_index = {
   '': '*demo_index', // special handling for built-in demo_index
@@ -30,7 +30,7 @@ let lifcoin_url = ['http://localhost:8432'];
 
 function demo_index(){
   let body = document.querySelector('body');
-  for (let [k, v] of OF(webapp_index)){
+  for (let [k, v] of OE(webapp_index)){
     let p = html_elm('p');
     let e = html_elm('a', {href: '/?'+v});
     e.innerText = k;

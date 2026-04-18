@@ -4,7 +4,7 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
-  path_file, path_dir, _path_ext, OF, OA, assert, Tf, TUf,
+  path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
@@ -813,7 +813,7 @@ function import_esm_cjs(mod){
   if (mod.__esModule!==false)
     return mod;
   let ret = {default: mod.default};
-  for (let [k, v] of OF(mod.default)){
+  for (let [k, v] of OE(mod.default)){
     if (k=='default')
       continue;
     ret[k] = v;
