@@ -96,18 +96,31 @@ let json = exports.json = obj=>JSON.stringify(obj);
 let json_cp = exports.json_cp =
   obj=>JSON.parse(JSON.stringify(obj===undefined ? null : obj));
 // throw Error -> undefined
-let T = exports.T = (fn, throw_val)=>(function(){
+let Tf = exports.Tf = (fn, throw_val)=>(function(){
   try {
     return fn(...arguments);
   } catch(err){ return throw_val; }
 });
+let T = exports.T = (fn, throw_val)=>{
+  try {
+    return fn();
+  } catch(err){ return throw_val; }
+};
+
 // undefined -> Throw error
-let TU = exports.TU = fn=>(function(){
+let TUf = exports.TUf = fn=>(function(){
   let v = fn(...arguments);
   if (v===undefined)
     throw Error('failed '+fn.name);
   return v;
 });
+let TU = exports.TU = fn=>{
+  let v = fn();
+  if (v===undefined)
+    throw Error('failed '+fn.name);
+  return v;
+};
+
 
 // str.js
 let str = exports.str = {};
@@ -214,8 +227,8 @@ let assert_run = assert.run = run=>{
   }
 };
 let assert_run_ab = exports.assert_run_ab = assert.run_ab = (a, b, test)=>{
-  let _a = T(a, {got_throw: 1})();
-  let _b = T(b, {got_throw: 1})();
+  let _a = T(a, {got_throw: 1});
+  let _b = T(b, {got_throw: 1});
   assert(!!_a.got_throw==!!_b.got_throw,
     _a.got_throw ? 'a throws, and b does not' : 'b throws, and a does not');
   let ok = assert_run(()=>test(_a, _b));
@@ -621,7 +634,7 @@ let T_url_parse = exports.T_url_parse = (url, base)=>{
   _u.dir = path_dir(_u.path);
   return _u;
 };
-let url_parse = exports.url_parse = T(T_url_parse);
+let url_parse = exports.url_parse = Tf(T_url_parse);
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -793,7 +806,7 @@ let T_lpm_parse = exports.T_lpm_parse = lpm=>{
   l.path = path_parts(_p);
   return l;
 };
-let lpm_parse = exports.lpm_parse = T(T_lpm_parse);
+let lpm_parse = exports.lpm_parse = Tf(T_lpm_parse);
 let T_lpm_str = exports.T_lpm_str = l=>{
   switch (l.reg){
   case 'npm':
@@ -821,7 +834,7 @@ let T_lpm_str = exports.T_lpm_str = l=>{
     throw Error('invalid registry: '+l.reg);
   }
 };
-let lpm_str = exports.lpm_str = T(T_lpm_str);
+let lpm_str = exports.lpm_str = Tf(T_lpm_str);
 let npm_str = exports.npm_str = u=>lpm_to_npm(lpm_str(u));
 
 let T_lpm_lmod = exports.T_lpm_lmod = lpm=>{
@@ -830,7 +843,7 @@ let T_lpm_lmod = exports.T_lpm_lmod = lpm=>{
     u = T_lpm_parse(lpm);
   return u.lmod;
 };
-let lpm_lmod = exports.lpm_lmod = T(T_lpm_lmod);
+let lpm_lmod = exports.lpm_lmod = Tf(T_lpm_lmod);
 
 // parse-package-name: package.json:dependencies
 let T_npm_dep_parse = exports.T_npm_dep_parse =
@@ -888,7 +901,7 @@ let T_npm_dep_parse = exports.T_npm_dep_parse =
   let ver = semver_ver_guess(d);
   return ver ? lmod+'@'+ver+path : undefined;
 };
-let npm_dep_parse = exports.npm_dep_parse = T(T_npm_dep_parse, '');
+let npm_dep_parse = exports.npm_dep_parse = Tf(T_npm_dep_parse, '');
 
 let npm_expand = exports.npm_expand = npm=>{
   if (npm[0]=='/')
@@ -918,7 +931,7 @@ let T_npm_to_lpm = exports.T_npm_to_lpm = (npm, opt)=>{
     return 'http'+v.rest;
   throw Error('invalid npm: '+npm);
 };
-let npm_to_lpm = exports.npm_to_lpm = T(T_npm_to_lpm);
+let npm_to_lpm = exports.npm_to_lpm = Tf(T_npm_to_lpm);
 
 let T_npm_parse = exports.T_npm_parse =
   (npm, opt)=>T_lpm_parse(T_npm_to_lpm(npm, opt));
@@ -929,7 +942,7 @@ let T_lpm_to_npm = exports.T_lpm_to_npm = lpm=>{
     return u.lmod.slice(4)+u.path;
   return '.'+u.lmod+u.path;
 };
-let lpm_to_npm = exports.lpm_to_npm = T(T_lpm_to_npm);
+let lpm_to_npm = exports.lpm_to_npm = Tf(T_lpm_to_npm);
 
 let lpm_to_sw_passthrough = exports.lpm_to_sw_passthrough = lpm=>{
   let l = lpm_parse(lpm);
@@ -1074,7 +1087,7 @@ let T_npm_url_base = exports.T_npm_url_base = (url_uri, base_uri)=>{
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
 };
-let npm_url_base = exports.npm_url_base = T(T_npm_url_base);
+let npm_url_base = exports.npm_url_base = Tf(T_npm_url_base);
 
 let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
@@ -1116,7 +1129,7 @@ let T_semver_range_parse = exports.T_semver_range_parse = semver_range=>{
     throw Error('empty semver range');
   return range;
 };
-let semver_range_parse = exports.semver_range_parse = T(T_semver_range_parse);
+let semver_range_parse = exports.semver_range_parse = Tf(T_semver_range_parse);
 
 let semver_ver_guess = exports.semver_ver_guess = semver_range=>{
   let range = semver_range_parse(semver_range);

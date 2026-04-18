@@ -4,7 +4,8 @@ let D = 0; // Debug
 
 import util from './util.js';
 let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
-  path_file, path_dir, _path_ext, OF, OA, assert, T, TU, T_npm_to_lpm, npm_str,
+  path_file, path_dir, _path_ext, OF, OA, assert, Tf, TUf,
+  T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
   json, json_cp, str_to_buf, lpm_is_perm,
@@ -33,7 +34,7 @@ async function fetch_text(url){
   let text = await req.text();
   return text;
 }
-let T_fetch_text = TU(fetch_text);
+let T_fetch_text = TUf(fetch_text);
 
 function fetch_sync_worker(url){
   const request = new XMLHttpRequest();
@@ -226,7 +227,7 @@ function test(){
 }
 test();
 
-let url_expand = T(url=>(new URL(url, globalThis.location)).href || url);
+let url_expand = Tf(url=>(new URL(url, globalThis.location)).href || url);
 
 async function define_amd(mod_id, args, m){
   let _mod_id /* ignored */, imps, factory;
