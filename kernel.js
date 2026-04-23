@@ -139,7 +139,7 @@ let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
 let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 console.log('kernel import end');
-let {postmessage_chan, str, OE, OA, assert, ecache, json, json_cp,
+let {ipc_postmessage, str, OE, OA, assert, ecache, json, json_cp,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
@@ -1917,7 +1917,7 @@ let do_app_pkg = async function(boot_pkg){
 
 let boot_chan;
 function sw_init_post(){
-  boot_chan = new util.postmessage_chan();
+  boot_chan = new ipc_postmessage();
   boot_chan.add_server_cmd('version', arg=>({version: lif_version}));
   boot_chan.add_server_cmd('app_pkg', async({arg})=>await do_app_pkg(arg));
   lif_kernel.on_message = event=>{

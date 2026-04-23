@@ -244,8 +244,7 @@ let assert_te = assert.te = fn=>{
   assert(0, 'didnt throw');
 };
 
-// chan.js
-class postmessage_chan {
+class ipc_postmessage {
   req = {};
   cmd_cb = {};
   ports;
@@ -314,7 +313,7 @@ class postmessage_chan {
     this.port.close();
   }
 }
-exports.postmessage_chan = postmessage_chan;
+exports.ipc_postmessage = ipc_postmessage;
 
 let utf8_enc = new TextEncoder('utf-8');
 let str_to_buf = exports.str_to_buf = buf=>{

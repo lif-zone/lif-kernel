@@ -3,7 +3,7 @@ let lif_version = '25.11.18';
 let D = 0; // Debug
 
 import util from './util.js';
-let {ewait, esleep, eslow, postmessage_chan, assert_eq, str, ipc_sync,
+let {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
@@ -897,7 +897,7 @@ let boot_kernel = async()=>{
         window.location.reload();
         return;
       }
-      kernel_chan = new postmessage_chan();
+      kernel_chan = new ipc_postmessage();
       kernel_chan.connect(controller);
       kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
       let slow = eslow('conn_kernel chan');
