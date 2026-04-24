@@ -94,6 +94,25 @@ function cache_lmod(lmod, perm){
     return !perm && enable_cache>=3;
   return true;
 }
+
+// quick-and-dirty kernel emulation of ESM:
+function esm_kernel_tr(src){
+  let re = /\nexport +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)\n/;
+  return src.replace(re, (match, type, name, rest)=>{
+    let s;
+    if (type=='let' || type=='const')
+      s = `${type} ${name} = exports.${name}`;
+    else if (type=='default')
+      s = `module.exports = ${name}`;
+    else if (type=='class' || type=='function' || type=='async function'
+      || type=='*function')
+    {
+      s = `exports.${name} = ${name}; ${type} ${name}`;
+    }
+    return `\n${s}${rest}\n`;
+  });
+}
+
 let import_modules = {};
 let import_module = async(url)=>{
   let imod;
@@ -1588,6 +1607,15 @@ async function kernel_fetch(event){
 
 function test_kernel(){
   let t, pkg;
+  t = (js, v)=>assert_eq(`\n${v}\n`, esm_kernel_tr(`\n${js}\n`));
+  t('export default func;', 'module.exports = func;');
+  t('export let V1 = 42;', 'let V1 = exports.V1 = 42;');
+  t('export const V1 = 42;', 'const V1 = exports.V1 = 42;');
+  t('export class Life {', 'exports.Life = Life; class Life {');
+  t('export function calc(', 'exports.calc = calc; function calc(');
+  t('export async function calc(',
+    'exports.calc = calc; async function calc(');
+  t('export *function calc(', 'exports.calc = calc; *function calc(');
   t = (lpm_ver, v)=>assert_eq(v, gh_ver(lpm_ver));
   t('', '');
   t('@', '@');
