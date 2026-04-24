@@ -92,6 +92,7 @@ export function Donce(once, fn){
 // shortcuts
 export function OE(o){ return o ? Object.entries(o) : []; }
 export const OA = Object.assign;
+export const OV = Object.values;
 export function json(obj){ return JSON.stringify(obj); }
 export function json_cp(obj){
   return JSON.parse(JSON.stringify(obj===undefined ? null : obj));
