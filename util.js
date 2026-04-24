@@ -67,7 +67,7 @@ eslow.print = ()=>{
     p.print();
 };
 if (D||1)
-  globalThis.esb = eslow;
+  globalThis.$eslow = eslow;
 
 let once_obj = {};
 let once_set = new Set();
