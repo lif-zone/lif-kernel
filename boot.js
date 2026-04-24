@@ -2,17 +2,15 @@
 let lif_version = '25.11.18';
 let D = 0; // Debug
 
-import util from './util.js';
-const {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
+import {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
   path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
   json, json_cp, str_to_buf, lpm_is_perm,
-  html_elm, _debugger, version,
-} = util;
+  html_elm, _debugger, version as util_version,
+} from './util.js';
 import sha256 from './sha256.js';
-const util_version = version;
 
 assert(!globalThis.$lif, 'lif already loaded');
 let lif = globalThis.$lif = {};

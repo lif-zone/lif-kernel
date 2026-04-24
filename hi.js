@@ -1,6 +1,6 @@
-import util from './util.js';
+// LICENSE_CODE JPL hi world!
+import {OE, html_elm, str, qs_append} from './util.js';
 import lif from './boot.js';
-let {OE, html_elm, str, qs_append} = util;
 
 let webapp_index = {
   '': '*demo_index', // special handling for built-in demo_index

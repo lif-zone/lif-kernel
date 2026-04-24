@@ -1,9 +1,13 @@
 // LIF bootloader worker: assistance for sync operations
 let boot_worker_version = '26.4.9';
+/*
 import util from '/lif-kernel/util.js';
+let {ipc_sync, eslow} = util;
+*/
+import {ipc_sync, eslow} from '/lif-kernel/util.js';
 let D = 0;
 console.log('boot_worker started '+boot_worker_version);
-let {ipc_sync, eslow} = util;
+//let {ipc_sync, eslow} = util;
 let json = JSON.stringify;
 globalThis.addEventListener("message", event=>{
   D && console.log('worker got message', event.data, event);
