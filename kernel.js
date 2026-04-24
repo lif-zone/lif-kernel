@@ -97,8 +97,8 @@ function cache_lmod(lmod, perm){
 
 // quick-and-dirty kernel emulation of ESM:
 function esm_kernel_tr(src){
-  let re = /\nexport +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)\n/g;
-  return src.replace(re, (match, type, name, rest)=>{
+  let re = /($|\n)export +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)/g;
+  return src.replace(re, (match, pre, type, name, rest)=>{
     let s;
     if (type=='let' || type=='const')
       s = `${type} ${name} = exports.${name}`;
@@ -107,9 +107,9 @@ function esm_kernel_tr(src){
     else if (type=='class' || type=='function' || type=='async function'
       || type=='*function')
     {
-      s = `exports.${name} = ${name}; ${type} ${name}`;
+      s = `const ${name} = exports.${name} = ${type} ${name}`;
     }
-    return `\n${s}${rest}\n`;
+    return `${pre}${s}${rest}`;
   });
 }
 
@@ -1608,13 +1608,16 @@ function test_kernel(){
   let t, pkg;
   t = (js, v)=>assert_eq(`\n${v}\n`, esm_kernel_tr(`\n${js}\n`));
   t('export default func;', 'module.exports = func;');
-  t('export let V1 = 42;', 'let V1 = exports.V1 = 42;');
-  t('export const V1 = 42;', 'const V1 = exports.V1 = 42;');
-  t('export class Life {', 'exports.Life = Life; class Life {');
-  t('export function calc(', 'exports.calc = calc; function calc(');
-  t('export async function calc(',
-    'exports.calc = calc; async function calc(');
-  t('export *function calc(', 'exports.calc = calc; *function calc(');
+  t('export let RICH = 10;', 'let RICH = exports.RICH = 10;');
+  t('export let mean = 42;\nexport let life = 18;',
+    'let mean = exports.mean = 42;\nlet life = exports.life = 18;');
+  t('export const name = 42;', 'const name = exports.name = 42;');
+  t('export class Life {', 'const Life = exports.Life = class Life {');
+  t('export function wc(s){', 'const wc = exports.wc = function wc(s){');
+  t('export async function strlen(',
+    'const strlen = exports.strlen = async function strlen(');
+  t('export *function split_words(',
+    'const split_words = exports.split_words = *function split_words(');
   t = (lpm_ver, v)=>assert_eq(v, gh_ver(lpm_ver));
   t('', '');
   t('@', '@');
