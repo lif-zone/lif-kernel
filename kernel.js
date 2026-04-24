@@ -97,7 +97,7 @@ function cache_lmod(lmod, perm){
 
 // quick-and-dirty kernel emulation of ESM:
 function esm_kernel_tr(src){
-  let re = /\nexport +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)\n/;
+  let re = /\nexport +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)\n/g;
   return src.replace(re, (match, type, name, rest)=>{
     let s;
     if (type=='let' || type=='const')
@@ -124,8 +124,7 @@ let import_module = async(url)=>{
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     let body = await response.text();
-    let tr = body.replace(/\nexport default ([^;]+);\n/,
-      (match, _export)=>'\n;module.exports = '+_export+';\n');
+    let tr = esm_kernel_tr(body);
     imod.script = `'use strict';
       let module = {exports: {}};
       let exports = module.exports;

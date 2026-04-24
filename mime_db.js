@@ -1,6 +1,5 @@
 // https://github.com/jshttp/mime-db/blob/master/src/nginx-types.json
-let exports = {};
-const mime2ext = exports.mime2ext = {
+export const mime2ext = {
   "application/atom+xml": ["atom"],
   "application/java-archive": ["jar","war","ear"],
   "application/javascript": ["js"],
@@ -84,10 +83,9 @@ const mime2ext = exports.mime2ext = {
   "video/x-ms-wmv": ["wmv"],
   "video/x-msvideo": ["avi"],
 };
-const ext2mime = exports.ext2mime = {};
+export const ext2mime = {};
 for (let t in mime2ext){
   let e = mime2ext[t];
   e.forEach(ext=>ext2mime[ext] = t);
 }
-export default exports;
 
