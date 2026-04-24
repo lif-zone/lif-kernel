@@ -1,3 +1,4 @@
+// LICENSE_CODE JPL util.js
 let util_version = '25.11.18';
 let exports = {};
 exports.dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
@@ -120,7 +121,6 @@ let TU = exports.TU = fn=>{
     throw Error('failed '+fn.name);
   return v;
 };
-
 
 // str.js
 let str = exports.str = {};
