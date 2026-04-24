@@ -1,5 +1,5 @@
 // LIF bootloader worker: assistance for sync operations
-let boot_worker_version = '26.4.9';
+let boot_worker_version = '26.4.23';
 /*
 import util from '/lif-kernel/util.js';
 let {ipc_sync, eslow} = util;
