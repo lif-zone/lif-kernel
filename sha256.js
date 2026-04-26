@@ -24,7 +24,6 @@ let Buffer = globalThis.Buffer || class Buffer extends Uint8Array {
   copy(dst, dst_off, src_off, src_end){
     dst.set(this.subarray(src_off, src_end), dst_off);
   }
-  static toBuffer(uint8array) { return new Buffer(uint8array); }
   static alloc(sz){ return new Buffer(sz); }
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
 }
