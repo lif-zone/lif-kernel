@@ -20,15 +20,14 @@ let assert = (ok, ...msg)=>{
   debugger; // eslint-disable-line no-debugger
   throw Error('assert FAIL');
 };
-let Buffer = {};
-Buffer.toBuffer = function(buf){
-  buf.copy = (dst, dst_off, src_off, src_end)=>{
-    dst.set(buf.subarray(src_off, src_end), dst_off);
-  };
-  return buf;
-};
-Buffer.alloc = sz=>Buffer.toBuffer(new Uint8Array(sz));
-Buffer.isBuffer = b=>b instanceof Uint8Array;
+let Buffer = class Buffer extends Uint8Array {
+  copy(dst, dst_off, src_off, src_end){
+    dst.set(this.subarray(src_off, src_end), dst_off);
+  }
+  static toBuffer(uint8array) { return new Buffer(uint8array); }
+  static alloc(sz){ return new Buffer(sz); }
+  static isBuffer(b){ return b instanceof Buffer; }
+}
 
 /*
  * Constants
