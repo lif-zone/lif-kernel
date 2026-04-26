@@ -212,7 +212,7 @@ async function cache_set(table, v, k){
 }
 
 function sha256_hex(v){
-  v = sha256.Buffer.toBuffer(new Uint8Array(str_to_buf(v)));
+  v = new sha256.Buffer(str_to_buf(v));
   return sha256.digest(v).toHex();
 }
 
