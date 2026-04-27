@@ -39,13 +39,58 @@ function demo_index(){
   }
 }
 
+function html_elm_frag(html){
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  return template.content.children; // returns HTMLCollection
+}
+
+function page_domain_not_found(){
+  let body = document.querySelector('body');
+  let domain = location.hostname;
+  const e = html_elm_frag(`
+    <h1>Domain <a >${domain}</a> 404 not found</h1>
+    <h2>
+      No one registered ${domain} domain yet.
+      You may register it with LIF for free.
+    </h2>
+    <h2>Click to make ${domain} your own in 5 minutes!</h2>
+    <a href=wallet.localhost:4000
+      style="display: inline-block; padding: 14px 28px; background-color: #0066ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;">
+      Make ${domain} your own
+    </a> - In 5 minute, for free!
+  `);
+  for (let c of e)
+    body.appendChild(c);
+}
+
+function page_not_found(){
+  let body = document.querySelector('body');
+  let uri = location.pathname+location.search;
+  const e = html_elm_frag(`
+    <h1>Page ${uri} 404 page not found</h1>
+    <a href=/
+      style="display: inline-block; padding: 14px 28px; background-color: #0066ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;">
+      Return home
+    </a>
+  `);
+  for (let c of e)
+    body.appendChild(c);
+}
+
 async function lif_kv_get(key){
   let url = qs_append(lifcoin_url[0]+'/lif_kv', {key});
   let res = await fetch(url);
   if (res.status!=200)
+    return void console.error('failed lif kv: '+res.status);
+  let kv = await res.json();
+  if (!kv)
+    return void console.error('failed invalid lif kv');
+  if (kv.not_found)
     return;
-  let val = await res.json();
-  return val;
+  if (!kv.val)
+    return void console.error('failed invalid lif kv');
+  return kv.val;
 }
 
 function sub_dns(){
@@ -76,19 +121,23 @@ async function webapp_resolve(){
   if (sub = sub_dns()){
     let val = await lif_kv_get('dns/'+sub);
     if (val && val.site)
-      return val.site;
+      return {site: val.site};
     if (v = webapp_index[sub])
-      return v;
+      return {site: v};
+    return {page: ()=>page_domain_not_found()};
   }
   if (v = webapp_default())
-    return v;
+    return {site: v};
+  return {page: ()=>page_not_found()};
 }
 
 async function life(){
-  let webapp = await webapp_resolve();
-  if (webapp=='*demo_index')
-    return demo_index();
-  return await lif.boot.boot_app({lif: {webapp}});
+  let w = await webapp_resolve();
+  if (w.site=='*demo_index')
+    w.page = ()=>demo_index();
+  if (w.page)
+    return await w.page();
+  return await lif.boot.boot_app({lif: {webapp: w.site}});
 }
 
 await life();
