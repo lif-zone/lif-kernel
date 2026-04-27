@@ -26,7 +26,7 @@ let Buffer = globalThis.Buffer || class Buffer extends Uint8Array {
   }
   static alloc(sz){ return new Buffer(sz); }
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
-}
+};
 
 /*
  * Constants
