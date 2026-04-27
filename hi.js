@@ -45,22 +45,27 @@ function html_elm_frag(html){
   return template.content.children; // returns HTMLCollection
 }
 
-function page_domain_not_found(){
+function page_domain_not_found(sub){
   let body = document.querySelector('body');
   let domain = location.hostname;
+  let domain_rest = domain.slice(sub.length);
+  let host_rest = location.host.slice(sub.length);
+  let pre = location.protocol+'//';
+  let wallet = pre+'wallet'+host_rest;
   const e = html_elm_frag(`
-    <h1>Domain <a >${domain}</a> 404 not found</h1>
+    <h1>Domain <a href="${location.host}"><b>${sub}</b>${domain_rest}</a> 404 not found</h1>
     <h2>
-      No one registered ${domain} domain yet.
+      No one registered <b>${sub}</b>${domain_rest} domain yet.
       You may register it with LIF for free.
     </h2>
-    <h2>Click to make ${domain} your own in 5 minutes!</h2>
-    <a href=wallet.localhost:4000
-      style="display: inline-block; padding: 14px 28px; background-color: #0066ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;">
-      Make ${domain} your own
-    </a> - In 5 minute, for free!
+    <div>
+      <a href="${wallet}"
+        style="display: inline-block; padding: 14px 28px; background-color: #0066ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;" >
+        Make <b>${sub}</b>${domain_rest} your own
+      </a> - In 5 minute, for free!
+    </div>
   `);
-  for (let c of e)
+  for (let c; c = e[0];)
     body.appendChild(c);
 }
 
@@ -94,10 +99,10 @@ async function lif_kv_get(key){
 }
 
 function sub_dns(){
-  let host = location.hostname;
+  let hostname = location.hostname;
   let v;
   let r = root_dns.map(v=>'.'+v);
-  if (!(v = str.ends(host, r)))
+  if (!(v = str.ends(hostname, r)))
     return;
   return v.rest;
 }
@@ -119,12 +124,13 @@ function webapp_default(){
 async function webapp_resolve(){
   let v, sub;
   if (sub = sub_dns()){
-    let val = await lif_kv_get('dns/'+sub);
+    let name = sub;
+    let val = await lif_kv_get('dns/'+name);
     if (val && val.site)
       return {site: val.site};
-    if (v = webapp_index[sub])
+    if (v = webapp_index[name])
       return {site: v};
-    return {page: ()=>page_domain_not_found()};
+    return {page: ()=>page_domain_not_found(sub)};
   }
   if (v = webapp_default())
     return {site: v};
