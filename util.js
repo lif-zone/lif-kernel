@@ -914,6 +914,8 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
       return mod_self+u.path;
     return _lmod;
   }
+  if (v=str.starts(d, 'lif:', '.lif/'))
+    return v.rest+path;
   if (v=str.starts(d, '.git/', '.local/', '.http/', '.https/'))
     return v.start.slice(1)+v.rest+path;
   if (v=str.starts(dep, 'file:')){
@@ -968,6 +970,20 @@ export function T_lpm_to_npm(lpm){
   return '.'+u.lmod+u.path;
 }
 export const lpm_to_npm = Tf(T_lpm_to_npm);
+
+export function T_webapp_to_lpm(webapp){
+  let v;
+  if (webapp[0]=='/')
+    return 'local'+webapp;
+  if (v=str.starts(webapp, 'lif:', 'lif/'))
+    return v.rest;
+  if (v=str.starts(webapp, 'http:', 'https:', 'git:', 'npm:'))
+    return npm_dep_parse(webapp);
+  if (lpm_parse(webapp))
+    return webapp;
+  throw Error('invalid webapp: '+webapp);
+}
+export const webapp_to_lpm = Tf(T_webapp_to_lpm);
 
 export function lpm_to_sw_passthrough(lpm){
   let l = lpm_parse(lpm);
@@ -1567,6 +1583,9 @@ function test_util(){
   t('http://localhost:3000/lif-kernel',
     'http/localhost:3000/lif-kernel//util.js',
     {imp: 'npm/lif-kernel/util.js'});
+  t('lif:npm/react', 'npm/react');
+  t('.lif/npm/react', 'npm/react');
+  t('lif:git/github/npm/cli@v1.0.27','git/github/npm/cli@v1.0.27');
   t = (imp, dep, v)=>
     assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
@@ -1615,6 +1634,15 @@ function test_util(){
   t('.local/file.js', 'local/file.js');
   t('/file.js', 'local/file.js');
   t('/mod//file.js', 'local/mod//file.js');
+  t = (webapp, v)=>assert_eq(v, webapp_to_lpm(webapp));
+  t('lif:local/file.js', 'local/file.js');
+  t('local/file.js', 'local/file.js');
+  t('/file.js', 'local/file.js');
+  t('lif:npm/react', 'npm/react');
+  t('npm/react', 'npm/react');
+  0 && t('https://any.com:9000/dir', 'https/any.com:9000/dir/');
+  0 && t('https/any.com:9000/dir/', 'https/any.com:9000/dir/');
+  t('lif/git/github/npm/cli@v1.0.27','git/github/npm/cli@v1.0.27');
   t = (lpm, v)=>assert_eq(v, lpm_to_sw_passthrough(lpm));
   t('local/dir/file.js', '/dir/file.js');
   t('local/dir//file.js', '/dir/file.js');
