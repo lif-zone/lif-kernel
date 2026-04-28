@@ -870,6 +870,27 @@ export function T_lpm_lmod(lpm){
 }
 export const lpm_lmod = Tf(T_lpm_lmod);
 
+function git_to_lpm(url){
+  let u = new URL(url), host = u.host;
+  let v;
+  if (u.host=='github.com')
+    host = 'github';
+  else if (host=='gitlab.com')
+    host = 'gitlab';
+  else
+    throw Error('invalid http registry '+host);
+  let p = u.pathname.slice(1).split('/');
+  let user = p.shift();
+  let repo = p.shift();
+  if (!user || !repo)
+    throw Error('invalid gith user/repo');
+  if (v=str.ends(repo, '.git'))
+    repo = v.rest;
+  let _path = p.map(p=>'/'+p).join('');
+  let ver = u.hash ? '@'+u.hash.slice(1) : '';
+  return 'git/'+host+'/'+user+'/'+repo+ver+_path;
+}
+
 // parse-package-name: package.json:dependencies
 export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
@@ -883,25 +904,8 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
     d = 'git://github.com/'+v.rest;
   if (v=str.starts(d, 'https://gitlab.com/'))
     d = 'git://gitlab.com/'+v.rest;
-  if (v=str.starts(d, ['git:', 'git+https:'])){
-    let u = new URL(d), host = u.host;
-    if (u.host=='github.com')
-      host = 'github';
-    else if (host=='gitlab.com')
-      host = 'gitlab';
-    else
-      throw Error('invalid http registry '+host);
-    let p = u.pathname.slice(1).split('/');
-    let user = p.shift();
-    let repo = p.shift();
-    if (!user || !repo)
-      throw Error('invalid gith user/repo');
-    if (v=str.ends(repo, '.git'))
-      repo = v.rest;
-    let _path = p.map(p=>'/'+p).join('');
-    let ver = u.hash ? '@'+u.hash.slice(1) : '';
-    return 'git/'+host+'/'+user+'/'+repo+ver+_path;
-  }
+  if (v=str.starts(d, ['git:', 'git+https:']))
+    return git_to_lpm(d);
   if (v=str.starts(d, 'http://', 'https://')){
     let u = url_parse(d);
     return T_lpm_str({reg: u.protocol.slice(0, -1), host: u.host,
@@ -977,8 +981,13 @@ export function T_webapp_to_lpm(webapp){
     return 'local'+webapp;
   if (v=str.starts(webapp, 'lif:', 'lif/'))
     return v.rest;
-  if (v=str.starts(webapp, 'http:', 'https:', 'git:', 'npm:'))
-    return npm_dep_parse(webapp);
+  if (v=str.starts(webapp, 'http:', 'https:')){
+    if (v.rest.slice(0, 2)!='//')
+      throw Error('invalid webapp '+webapp);
+    return v.start.slice(0, -1)+'/'+v.rest.slice(2);
+  }
+  if (v=str.starts(webapp, 'git:'))
+    return 'git/'+v.rest;
   if (lpm_parse(webapp))
     return webapp;
   throw Error('invalid webapp: '+webapp);
@@ -1640,9 +1649,10 @@ function test_util(){
   t('/file.js', 'local/file.js');
   t('lif:npm/react', 'npm/react');
   t('npm/react', 'npm/react');
-  0 && t('https://any.com:9000/dir', 'https/any.com:9000/dir/');
-  0 && t('https/any.com:9000/dir/', 'https/any.com:9000/dir/');
+  t('https://any.com:9000/dir', 'https/any.com:9000/dir');
+  t('https/any.com:9000/dir/', 'https/any.com:9000/dir/');
   t('lif/git/github/npm/cli@v1.0.27','git/github/npm/cli@v1.0.27');
+  t('git:github/npm/cli@v1.0.27','git/github/npm/cli@v1.0.27');
   t = (lpm, v)=>assert_eq(v, lpm_to_sw_passthrough(lpm));
   t('local/dir/file.js', '/dir/file.js');
   t('local/dir//file.js', '/dir/file.js');
