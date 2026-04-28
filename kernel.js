@@ -1891,8 +1891,6 @@ async function webapp_load({log, lmod_self, webapp}){
   return res;
 }
 
-async function webapp_run({log, lmod_self, webapp}){
-}
 // builtin nodejs APIs in browser: browserify:
 // versions of npm shims
 // https://github.com/browserify/browserify/blob/master/package.json
