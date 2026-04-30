@@ -241,10 +241,10 @@ function sha256_hex(v){
 // GITHUB metadata
 // https://api.github.com/repos/xderry/lif-os/tags
 // https://api.github.com/repos/xderry/lif-os/commits/799b55788fabee94cdcf5bded757a6ca9be778df
+// https://api.github.com/repos/xderry/lif-coin/git/ref/heads/master
 // GITHUB content
 // https://raw.githubusercontent.com/xderry/lif-os/799b55788fabee94cdcf5bded757a6ca9be778df/package.json
 
-let submod_path = u=>u.submod.replace(/\/$/, '')+u.path;
 let gh_ver = u=>{
   let ver = typeof u=='string' ? u : u.ver;
   if (!ver)
@@ -255,13 +255,20 @@ let gh_ver = u=>{
     return '@'+v.rest;
   return ver;
 };
+let _gh_ver = u=>{
+  let ver = gh_ver(u);
+  let _ver = ver.replace(/^@/, '');
+  if (!ver)
+    return 'latest';
+  return ver;
+};
 let lpm_cdn = {
   npm: {src: [{
     name: 'jsdeliver.net',
-    url: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${submod_path(u)}`,
+    url: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.submod_path}`,
   }, {
     name: 'unpkg.com',
-    u: u=>`https://unpkg.com/${u.name}${u.ver}${submod_path(u)}`,
+    u: u=>`https://unpkg.com/${u.name}${u.ver}${u.submod_path}`,
   }], src_ver: [{
     name: 'npmjs.org',
     url: u=>`https://registry.npmjs.com/${u.name}`,
@@ -275,46 +282,47 @@ let lpm_cdn = {
   git: {
     github: {src: [{
       name: 'jsdeliver.net',
-      url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${submod_path(u)}`
+      url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${u.submod_path}`
     }, {
       name: 'statically.io',
-      url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${submod_path(u)}`,
+      url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${u.submod_path}`,
     }, {
+      name: 'raw.githubusercontent.com',
+      url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
+    }], src_ver: [{
       name: 'api.github.com',
-      get_ver: {
-        url: (o, r, b)=>`https://api.github.com/repos/${o}/${r}/branches/${b}`,
-        sha: data=>data.commit.sha,
-      },
+      url: ({o, r, b})=>`https://api.github.com/repos/${o}/${r}/branches/${b}`,
+      get_data: data=>data.commit.sha,
+      _uri: ({o, r, b})=>`https://api.github.com/repos/${o}/${r}/git/ref/heads/${b}`,
+      _get_data: data=>data.object.sha,
     }]},
     gitlab: {src: [{
       name: 'statically.io',
-      url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${submod_path(u)}`,
-    }, {
+      url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
+    }], src_ver: [{
       name: "gitlab.com",
-      get_ver: {
-        url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/branches/${b}`,
-        sha: data=>data.commit.id,
-      },
+      url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/branches/${b}`,
+      get_data: data=>data.commit.id,
     }]},
   },
   ipfs: {src: [{
     name: 'ipfs.io',
-    url: u=>`https://ipfs.io/ipfs/${u.cid}${submod_path(u)}`,
+    url: u=>`https://ipfs.io/ipfs/${u.cid}${u.submod_path}`,
   }, {
     name: 'cloudflare-ipfs.com',
-    url: u=>`https://cloudflare-ipfs.com/ipfs/${u.cid}${submod_path(u)}`,
+    url: u=>`https://cloudflare-ipfs.com/ipfs/${u.cid}${u.submod_path}`,
   }]},
   local: {src: [{
     name: 'local',
-    url: u=>submod_path(u),
+    url: u=>u.submod_path,
   }]},
   https: {src: [{
     name: 'https',
-    url: u=>`https://${u.host}${submod_path(u)}`,
+    url: u=>`https://${u.host}${u.submod_path}`,
   }]},
   http: {src: [{
     name: 'http',
-    url: u=>`http://${u.host}${submod_path(u)}`,
+    url: u=>`http://${u.host}${u.submod_path}`,
   }]},
 };
 
@@ -907,6 +915,7 @@ return await ecache(reg_file_t, lmod, async function run(reg){
   reg.lmod = lmod;
   reg.log = log;
   u = reg.u = T_lpm_parse(reg.lmod);
+  u.submod_path = u.submod.replace(/\/$/, '')+u.path;
   // select cdn
   // npm/react@18.3.0/file.js
   //   http://unpkg.com/react@18.3.0/file.js
@@ -929,7 +938,10 @@ return await ecache(reg_file_t, lmod, async function run(reg){
   for (let _src of src){
     if (_src.fail)
       continue;
-    let url = _src.url(u);
+    let url_fn = _src.url;
+    if (!url_fn)
+      continue;
+    let url = url_fn(u);
     reg.url = url;
     ret = await reg_http_get({log, url});
     if (ret.blob)
