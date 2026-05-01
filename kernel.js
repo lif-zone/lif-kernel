@@ -291,9 +291,9 @@ let lpm_cdn = {
       url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
     }], src_ver: [{
       name: 'api.github.com',
-      url: ({o, r, b})=>`https://api.github.com/repos/${o}/${r}/branches/${b}`,
+      url: u=>`https://api.github.com/repos/${u.name}/branches/${b}`,
       get_data: data=>data.commit.sha,
-      _uri: ({o, r, b})=>`https://api.github.com/repos/${o}/${r}/git/ref/heads/${b}`,
+      _uri: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${b}`,
       _get_data: data=>data.object.sha,
     }]},
     gitlab: {src: [{
