@@ -1,0 +1,40 @@
+{
+  "name": "lif-basic",
+  "version": "25.11.4",
+  "description": "basic shalom world",
+  "author": {
+    "name": "Jungo Publishing Labs",
+    "email": "lif@jungo.center",
+    "url": "https://jungo.center"
+  },
+  "license": "JPL DNA",
+  "type": "module",
+  "scripts": {
+    "serve": "./server -p 3000"
+  },
+  "lif": {
+    "web_exports": {
+      "/style.css": "./style.css"
+    },
+    "webapp": "./main.tsx"
+  },
+  "dependencies": {
+    "lif-kernel": "^25.11.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "canvas-confetti": "^1.9.3"
+  },
+  "files": [
+    "index.html",
+    "app.tsx",
+    "main.tsx",
+    "style.css",
+    "play.html",
+    "play2.tsx",
+    "play3.js",
+    "play4.html",
+    "play4.js",
+    "term.html",
+    "server.js"
+  ]
+}

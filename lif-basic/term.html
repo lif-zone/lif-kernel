@@ -1,0 +1,40 @@
+<html>
+<head>
+  <link rel="stylesheet" href="/.lif/npm/xterm@5.3.0/css/xterm.css" />
+  <style>#t{height:400px}</style>
+</head>
+<body>
+  <div id="t"></div>
+  <script type="module">
+    import {WebContainer} from '/.lif/npm/@webcontainer/api@1.6.1';
+    import {Terminal} from '/.lif/npm/xterm@5.3.0?imported=Terminal';
+    const term = new Terminal();
+    term.open(document.getElementById('t'));
+    // Boot WebContainer (Node.js in WASM)
+    const wc = await WebContainer.boot();
+    // Write your files
+    await wc.fs.writeFile('package.json', `{
+      "name": "cli",
+      "scripts": { "start": "node index.js" }
+    }`);
+    await wc.fs.writeFile('index.js', `
+      process.stdout.write('Name: ');
+      process.stdin.on('data', (data) => {
+        const name = data.toString().trim();
+        process.stdout.write('Hello ' + name + '!\\n');
+        process.exit();
+      });
+    `);
+    // Install + Run
+    const install = await wc.spawn('npm', ['install']);
+    await install.exit;
+    const run = await wc.spawn('npm', ['start']);
+    // Connect TTY: stdin → WebContainer, stdout → xterm
+    run.output.pipeTo(new WritableStream({
+      write(chunk){ term.write(chunk); }
+    }));
+    const writer = run.input.getWriter();
+    term.onData(data =>writer.write(data));
+  </script>
+</body>
+</html>
