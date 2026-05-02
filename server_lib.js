@@ -6,13 +6,12 @@ import fs from 'fs';
 import os from 'os';
 import tls from 'tls';
 import path from 'path';
-import mime_db from './mime_db.js';
-import util from './util.js';
+import {ext2mime} from './mime_db.js';
+import {esleep, assert_eq, path_starts, path_join, path_dots,
+  path_file, path_is_dir, str} from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
-let {esleep, assert_eq, path_starts, path_join, path_dots,
-  path_file, path_is_dir, str} = util;
 
 const MS = {
   SEC: 1000,

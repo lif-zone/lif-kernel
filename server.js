@@ -5,7 +5,7 @@ let map = {};
 map['/lif-kernel'] = '.';
 // local dev
 map['/lif-basic'] = './lif-basic';
-map['/lif-os-boot'] = '../lif-os-boot';
+map['/lif-os-boot'] = '../lif-os/lif-os-boot';
 map['/lif-os'] = '../lif-os';
 map['/lif-coin'] = '../lif-coin';
 server({map, root});

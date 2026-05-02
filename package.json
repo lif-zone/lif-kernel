@@ -32,5 +32,11 @@
     "dnss.js",
     "acme.js",
     "lif-kernel.service"
-  ]
+  ],
+  "dependencies": {
+    "dns2": "2.0.1",
+    "acme-client": "5.0.0",
+    "@peculiar/x509": "1.9.3",
+    "@babel/standalone": "^7.29.1"
+  }
 }
