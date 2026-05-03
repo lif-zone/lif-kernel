@@ -1,5 +1,5 @@
 import Keyboard from 'simple-keyboard@3.8.53';
-function playground(){
+async function playground(){
   let play = 0;
   if (play){
     let {create} = await import('./play3.js');
