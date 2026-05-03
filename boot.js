@@ -904,6 +904,10 @@ let boot_kernel = async()=>{
       D && console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
         (await kernel_chan.cmd('version')).version);
+      if (0 && performance.getEntriesByType('navigation')[0].type=='reload'){
+        console.log('page reload - clear kernel cache');
+        await kernel_chan.cmd('reload');
+      }
       let res = await boot_worker_sync_connect();
       D && console.log('conn_kernel chan end');
       slow.end();
