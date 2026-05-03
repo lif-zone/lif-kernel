@@ -19,8 +19,8 @@ let webapp_index = {
   'play4': 'git://github/lif-zone/lif-kernel@main/lif-basic//play4.html',
   'play4-npm': 'npm:lif-basic@1.3.0/play4.html',
   'play4-local': '/lif-basic//play4.html',
-  'os': 'git://github/lif-zone/lif-os@main/lif-os-boot/main.tsx',
-  'os-local': '/lif-os//lif-os-boot/main.tsx',
+  'os': 'git://github/lif-zone/lif-os@main/pages/lif_main.tsx',
+  'os-local': '/lif-os//pages/lif_main.tsx',
   'lif-coin': 'git://github/lif-zone/lif-coin@latest',
   'lif-coin-local': '/lif-coin/',
 };
