@@ -870,12 +870,20 @@ export function T_lpm_lmod(lpm){
 }
 export const lpm_lmod = Tf(T_lpm_lmod);
 
+function http_https_to_lpm(url){
+  let v;
+  if (!(v=str.starts(url, 'http://', 'https://')))
+    throw Error('invalid http: https:');
+  let u = url_parse(url);
+  return T_lpm_str({reg: u.protocol.slice(0, -1), host: u.host,
+    submod: u.path=='/' ? '' : u.path.slice(1)+'/', path: ''});
+}
 function git_to_lpm(url){
   let u = new URL(url), host = u.host;
   let v;
   if (u.host=='github.com')
     host = 'github';
-  else if (host=='gitlab.com')
+  else if (u.host=='gitlab.com')
     host = 'gitlab';
   else
     throw Error('invalid http registry '+host);
@@ -905,12 +913,9 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
   if (v=str.starts(d, 'https://gitlab.com/'))
     d = 'git://gitlab.com/'+v.rest;
   if (v=str.starts(d, ['git:', 'git+https:']))
-    return git_to_lpm(d);
-  if (v=str.starts(d, 'http://', 'https://')){
-    let u = url_parse(d);
-    return T_lpm_str({reg: u.protocol.slice(0, -1), host: u.host,
-      submod: u.path=='/' ? '' : u.path.slice(1)+'/', path});
-  }
+    return git_to_lpm(d)+path;
+  if (v=str.starts(d, 'http://', 'https://'))
+    return http_https_to_lpm(d)+path;
   if (v=str.starts(d, 'npm:', '.npm/')){
     let _lmod = 'npm/'+v.rest+path;
     let u = lpm_parse(_lmod);
@@ -934,8 +939,16 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
 export const npm_dep_parse = Tf(T_npm_dep_parse, '');
 
 export function npm_expand(npm){
+  let v;
   if (npm[0]=='/')
     return '.local'+npm;
+  if (v=str.starts(npm, 'local:/'))
+    return '.local/'+v.rest;
+  if (v=str.starts(npm, 'git://'))
+    return '.git/'+v.rest;
+  if (v=str.starts(npm, 'npm:'))
+    return v.rest;
+  // TODO: add support for http: https:
   return npm;
 }
 export function T_npm_to_lpm(npm, opt){
@@ -947,18 +960,18 @@ export function T_npm_to_lpm(npm, opt){
       return 'local'+npm;
     throw Error('invalid npm: '+npm);
   }
+  if (v=str.starts(npm, '.npm/', 'npm:'))
+    return 'npm/'+v.rest;
+  if (v=str.starts(npm, '.git/', 'git://'))
+    return 'git/'+v.rest;
+  if (v=str.starts(npm, '.local/', 'local:/'))
+    return 'local/'+v.rest;
+  if (v=str.starts(npm, '.https/', 'https://'))
+    return 'https/'+v.rest;
+  if (v=str.starts(npm, '.http/', 'http://'))
+    return 'http/'+v.rest;
   if (npm[0]!='.')
     return 'npm/'+npm;
-  if (v=path_starts(npm, '.npm'))
-    return 'npm'+v.rest;
-  if (v=path_starts(npm, '.git'))
-    return 'git'+v.rest;
-  if (v=path_starts(npm, '.local'))
-    return 'local'+v.rest;
-  if (v=path_starts(npm, '.https'))
-    return 'https'+v.rest;
-  if (v=path_starts(npm, '.http'))
-    return 'http'+v.rest;
   throw Error('invalid npm: '+npm);
 }
 export const npm_to_lpm = Tf(T_npm_to_lpm);
@@ -1523,6 +1536,9 @@ function test_util(){
   t('/', '.local/');
   t('/dir/file', '.local/dir/file');
   t('/mod//file', '.local/mod//file');
+  t('local:/mod//file', '.local/mod//file');
+  t('git://github/user/repo@ver/submod//file',
+    '.git/github/user/repo@ver/submod//file');
   t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
@@ -1560,9 +1576,8 @@ function test_util(){
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
-  t = (dep, v, opt)=>assert_eq(v,
-    npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep,
-    ...(opt||{})}));
+  t = (dep, v, opt={})=>assert_eq(v,
+    npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
@@ -1589,9 +1604,12 @@ function test_util(){
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
     {pkg_name: 'self'});
-  t('http://localhost:3000/lif-kernel',
+  t('http://localhost:3000/lif-kernel', // XXX
     'http/localhost:3000/lif-kernel//util.js',
     {imp: 'npm/lif-kernel/util.js'});
+  t('git://github.com/mochajs/mocha',
+    'git/github/mochajs/mocha/mod.js',
+    {imp: 'npm/mochajs/mod.js'});
   t('lif:npm/react', 'npm/react');
   t('.lif/npm/react', 'npm/react');
   t('lif:git/github/npm/cli@v1.0.27','git/github/npm/cli@v1.0.27');
@@ -1631,14 +1649,18 @@ function test_util(){
   t('@mod/sub/', 'npm/@mod/sub/');
   t('@mod/sub/file', 'npm/@mod/sub/file');
   t('.npm/mod', 'npm/mod');
+  t('npm:mod', 'npm/mod');
   t('.npm/mod/dir/file', 'npm/mod/dir/file');
   t('.git/github/a_user/a_repo', 'git/github/a_user/a_repo');
+  t('git://github/a_user/a_repo', 'git/github/a_user/a_repo');
   t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
-  t('.local', 'local');
   t('.local/file.js', 'local/file.js');
+  t('local:/file.js', 'local/file.js');
   t('/file.js');
   t('.local/mod//file.js', 'local/mod//file.js');
   t('.none/github/a_user/a_repo/dir/file');
+  t('http://site/dir', 'http/site/dir');
+  t('https://site/dir', 'https/site/dir');
   t = (npm, v)=>assert_eq(v, npm_to_lpm(npm, {expand: true}));
   t('.local/file.js', 'local/file.js');
   t('/file.js', 'local/file.js');

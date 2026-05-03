@@ -4,24 +4,24 @@ import lif from './boot.js';
 
 let webapp_index = {
   '': '*demo_index', // special handling for built-in demo_index
-  'basic': 'git:github/lif-zone/lif-kernel@main/lif-basic//main.tsx',
+  'basic': 'git://github/lif-zone/lif-kernel@main/lif-basic//main.tsx',
   'basic-npm': 'npm:lif-basic@1.3.0/main.tsx',
   'basic-local': '/lif-basic//main.tsx',
-  'play': 'git:github/lif-zone/lif-kernel@main/lif-basic//play.html',
+  'play': 'git://github/lif-zone/lif-kernel@main/lif-basic//play.html',
   'play-npm': 'npm:lif-basic@1.3.0/play.html',
   'play-local': '/lif-basic//play.html',
-  'play2': 'git:github/lif-zone/lif-kernel@main/lif-basic//play2.tsx',
+  'play2': 'git://github/lif-zone/lif-kernel@main/lif-basic//play2.tsx',
   'play2-npm': 'npm:lif-basic@1.3.0/play2.tsx',
   'play2-local': '/lif-basic//play2.tsx',
-  'play3': 'git:github/lif-zone/lif-kernel@main/lif-basic//play3.js',
+  'play3': 'git://github/lif-zone/lif-kernel@main/lif-basic//play3.js',
   'play3-npm': 'npm:lif-basic@1.3.0/play3.js',
   'play3-local': '/lif-basic//play3.js',
-  'play4': 'git:github/lif-zone/lif-kernel@main/lif-basic//play4.html',
+  'play4': 'git://github/lif-zone/lif-kernel@main/lif-basic//play4.html',
   'play4-npm': 'npm:lif-basic@1.3.0/play4.html',
   'play4-local': '/lif-basic//play4.html',
-  'os': 'git:github/lif-zone/lif-os@main/lif-os-boot/main.tsx',
+  'os': 'git://github/lif-zone/lif-os@main/lif-os-boot/main.tsx',
   'os-local': '/lif-os//lif-os-boot/main.tsx',
-  'lif-coin': 'git:github/lif-zone/lif-coin@latest',
+  'lif-coin': 'git://github/lif-zone/lif-coin@latest',
   'lif-coin-local': '/lif-coin/',
 };
 

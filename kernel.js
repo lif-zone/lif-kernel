@@ -1741,7 +1741,7 @@ function test_kernel(){
   t('npm/gpeer', 'npm/gpeer@13.0.1');
   t('npm/gpeer2', 'npm/gpeer2@14.0.1');
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
-  t('npm/GIT/github/user/repo', 'git/github/user/repo@v1');
+  t('npm/GIT/dir/file', 'git/github/user/repo@v1/dir/file');
   t('git/github/user/repo@vX', 'git/github/user/repo@vX');
   t = (pkg, imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg: {pkg}, imp}));
   t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
