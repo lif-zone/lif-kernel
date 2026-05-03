@@ -241,7 +241,7 @@ const _acme_check_if_need_ssl = async()=>{
       catch(err){
         console.error('ssl: failed save cert %s %s', o.cert, err);
       } try {
-          await fs.promises.writeFile(o.key, acme_cert_key.toString());
+        await fs.promises.writeFile(o.key, acme_cert_key.toString());
       }
       catch(err){
         console.error('ssl: failed save key %s %s', o.key, err); }
