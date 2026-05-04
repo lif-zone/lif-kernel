@@ -297,7 +297,7 @@ async function do_ssl(opt){
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
   dnss.set_domains({
-    'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}
+    'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}
   });
   sserver.listen(sport, ()=>{
