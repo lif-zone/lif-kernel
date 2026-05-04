@@ -13,6 +13,20 @@ import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
 
+// DNS Setup
+// #web: godaddy setup:
+// https://dcc.godaddy.com/control/portfolio/arik.center/settings?tab=dns
+// on https://dcc.godaddy.com/control/portfolio/arik.center/settings?tab=dns&subtab=hostnames
+// verify two entries (ns1, ns2) that set to 50.7.176.34
+// on https://dcc.godaddy.com/control/portfolio/arik.center/settings?tab=dns&subtab=nameservers
+// verify two entries ns1.arik.center and ns2.arik.center
+//
+// DNS Testing
+// #web: https://dns.google/query?name=arik.center
+// $ dig @50.7.176.34 ns1.arik.center # verify dns is running properly on 50.7.176.34
+// $ dig @8.8.8.8 ns1.arik.center # verify dns is correct on google dns
+// $ dig ns1.arik.center # verify dns is correct on local dns
+
 const MS = {
   SEC: 1000,
   WEEK: 7*24*3600*1000,
@@ -283,7 +297,7 @@ async function do_ssl(opt){
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
   dnss.set_domains({
-    'arik.center': {ssl: true, ip: '165.227.185.44', ns: ['ns1', 'ns2']}
+    'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}
   });
   sserver.listen(sport, ()=>{
     console.log(`Serving SSL ${options.root} on https://localhost:${sport}`);
@@ -327,6 +341,7 @@ async function run(opt){
   server.listen(port, ()=>{
     console.log(`Serving ${options.root} on http://localhost:${port}`);
   });
+  console.log('SSL: %s', ssl ? 'auto '+ssl_dir : 'off (-s to enable auto cert generation)');
   if (ssl)
     do_ssl();
 }
