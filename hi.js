@@ -22,10 +22,10 @@ let webapp_index = {
   'os': 'git://github/lif-zone/lif-os@main/pages/lif_main.tsx',
   'os-local': '/lif-os//pages/lif_main.tsx',
   'lif-coin': 'git://github/lif-zone/lif-coin@latest',
+  'wallet': 'git://github/lif-zone/lif-coin@latest',
   'lif-coin-local': '/lif-coin/',
 };
 
-let root_dns = ['localhost', 'pub.site', 'lif.zone'];
 let lifcoin_url = ['http://localhost:8432'];
 
 function demo_index(){
@@ -101,10 +101,13 @@ async function lif_kv_get(key){
 function sub_dns(){
   let hostname = location.hostname;
   let v;
-  let r = root_dns.map(v=>'.'+v);
-  if (!(v = str.ends(hostname, r)))
-    return;
-  return v.rest;
+  let h = hostname.split('.').reverse();
+  let sub_idx;
+  if (h[0]=='localhost')
+    sub_idx = 1; // LIF-DOMAIN.localhost
+  else
+    sub_idx = 2; // LIF-DOMAIN.lif.zone
+  return h.slice(sub_idx).reverse().join('.');
 }
 
 function webapp_default(){
