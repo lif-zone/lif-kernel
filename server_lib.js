@@ -12,6 +12,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots,
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
+const efs = fs.promises;
 
 // DNS Setup
 // #web: godaddy setup:
@@ -140,7 +141,7 @@ function sni_cb(server_name, cb){
     console.error('server: %s', err);
     return cb(err, null);
   }
-  let ctx = ssl_cert[domain.name] && ssl_cert[domain.name].ctx;
+  let ctx = ssl_cert[domain.name]?.ctx;
   if (!ctx){
     let err = 'failed to get ssl ctx for '+server_name;
     console.error('server: %s', err);
@@ -160,8 +161,8 @@ function get_acme_cert_files(domain){
 
 const load_cert = async(domain, opt)=>{
   let file_cert = opt.cert, file_key = opt.key, cert, key;
-  cert = await fs.promises.readFile(file_cert);
-  key = await fs.promises.readFile(file_key);
+  cert = await efs.readFile(file_cert);
+  key = await efs.readFile(file_key);
   await set_cert(domain, file_cert, file_key, cert, key);
 };
 
@@ -180,15 +181,15 @@ function cert_valid_for(valid_from, valid_to){
 
 const get_key = async(opt)=>{
   let file = ssl_dir+'/'+opt.file, pem;
-  await fs.promises.mkdir(ssl_dir, {recursive: true});
+  await efs.mkdir(ssl_dir, {recursive: true});
   try {
-    pem = await fs.promises.readFile(file);
+    pem = await efs.readFile(file);
   } catch(err){ console.log('ssl: acme key not found at %s ', file); }
   if (pem)
     return new Buffer(pem);
   let key = await opt.func();
   console.log('ssl: save acme key at %s', file);
-  await fs.promises.writeFile(file, key.toString());
+  await efs.writeFile(file, key.toString());
   return key;
 };
 const get_acme_account_key = ()=>get_key({file: 'acme_account_key.pem',
@@ -229,8 +230,8 @@ const _acme_check_if_need_ssl = async()=>{
       if (dnss.domains[name].ssl)
         queue.push(name);
     }
-    for (let i=0; i<queue.length; i++){
-      let name = queue[i], cert;
+    for (let name of queue){
+      let cert;
       console.log('ssl: load_cert domain %s', name);
       try { await load_cert(name, get_acme_cert_files(name)); }
       catch(err){ console.log('ssl: failed load acme cert %s', err); }
@@ -251,11 +252,11 @@ const _acme_check_if_need_ssl = async()=>{
         continue;
       }
       let o = get_acme_cert_files(name);
-      try { await fs.promises.writeFile(o.cert, cert.toString()); }
+      try { await efs.writeFile(o.cert, cert.toString()); }
       catch(err){
         console.error('ssl: failed save cert %s %s', o.cert, err);
       } try {
-        await fs.promises.writeFile(o.key, acme_cert_key.toString());
+        await efs.writeFile(o.key, acme_cert_key.toString());
       }
       catch(err){
         console.error('ssl: failed save key %s %s', o.key, err); }
