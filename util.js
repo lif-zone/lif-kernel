@@ -596,7 +596,7 @@ export function path_starts(path, ..._start){
 
 export function uri_enc(path){
   return encodeURIComponent(path)
-  .replaceAll('%20', ' ').replaceAll('%2F', '/').replaceAll('%2B', '.');
+  .replaceAll('%20', ' ').replaceAll('%2F', '/');
 }
 export function uri_dec(uri){
   return decodeURIComponent(uri);
@@ -626,7 +626,9 @@ export function qs_append(url, q){
   let _q = typeof q=='string' ? q : qs_enc(q);
   if (!_q)
     return url;
-  return url+(url.includes('?') ? '&' : '?')+_q.slice(1);
+  if (_q[0]=='?')
+    _q = _q.slice(1);
+  return url+(!url.includes('?') ? '?' : !url.endsWith('?') ? '&' : '')+_q;
 }
 export function qs_trim(url){
   let u = url.split('?');
@@ -1438,6 +1440,27 @@ function test_util(){
   t('ab:cd', ['ab:', ':c', ':cd'], [':cd', 'ab']);
   t('ab:cd', ['ab:', ':', 'd'], ['d', 'ab:c']);
   t('ab:cd', ['ab']);
+  t = (v, q)=>assert_eq(v, uri_enc(q));
+  t('abc def %2B.%0A', 'abc def +.\n');
+  t('a%40%3A/.', 'a@:/.');
+  t = (v, q)=>assert_eq(v, qs_enc(q));
+  t('?abc+def+%0A=', {'abc def \n': ''});
+  t('?a=a@:/.%2B+', {a: 'a@:/.+ '});
+  t = (v, s)=>assert_eq(v, qs_trim(s));
+  t('http://site/dir', 'http://site/dir?q=21');
+  t('http://site/dir', 'http://site/dir?q=21?sdsd');
+  t('http://site/dir', 'http://site/dir');
+  t = (v, url, q)=>assert_eq(v, qs_append(url, q));
+  t('http://site/dir?a=1&b=2', 'http://site/dir?a=1', {b: 2});
+  t('http://site/dir?a=1&b=2', 'http://site/dir', {a: 1, b: 2});
+  t('http://site/dir?a=1&b=2', 'http://site/dir?', {a: 1, b: 2});
+  t('http://site/dir?a=1', 'http://site/dir?a=1', {});
+  t('http://site/dir', 'http://site/dir', {});
+  t('http://site/dir?a@:/+=1+', 'http://site/dir', {'a@:/ ': '1 '});
+  t('http://site/dir?a=1&a+=1+', 'http://site/dir?a=1', {'a ': '1 '});
+  t('http://site/dir?a=1&b=2', 'http://site/dir?a=1', 'b=2');
+  t('http://site/dir?b=2', 'http://site/dir', 'b=2');
+  t('http://site/dir', 'http://site/dir', '');
   t = (v, path)=>assert_eq(v, path_ext(path));
   t(undefined, 'dir.js/file');
   t('.js', 'dir.js/file.js');
