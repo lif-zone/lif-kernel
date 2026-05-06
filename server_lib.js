@@ -7,7 +7,7 @@ import os from 'os';
 import tls from 'tls';
 import path from 'path';
 import {ext2mime} from './mime_db.js';
-import {esleep, assert_eq, path_starts, path_join, path_dots,
+import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str} from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
@@ -122,12 +122,26 @@ function test_server(){
 test_server();
 
 let options = {};
+let lifcoin_node = 'http://localhost:8432';
+const lif_kv_handler = (req, res)=>{
+  let url = new URL(req.url, 'http://x');
+  let key = url.searchParams.get('key');
+  let lif_kv_url = lifcoin_node+'/lif_kv'+qs_enc({key});
+  http.get(lif_kv_url, proxy_res=>{
+    res.writeHead(proxy_res.statusCode, proxy_res.headers);
+    proxy_res.pipe(res);
+  }).on('error', err=>{
+    res_err(res, 502, 'proxy error: '+err.message);
+  });
+};
 const http_listener = (req, res)=>{
-  let uri = new URL('http://localhost'+req.url).pathname;
-  uri = decodeURI(uri);
-  let path = map_uri({uri, opt: options});
+  let url = new URL(req.url, 'http://x');
+  let uri = decodeURI(url.pathname);
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
+  if (uri=='/lif_kv')
+    return lif_kv_handler(req, res);
+  let path = map_uri({uri, opt: options});
   if (!path)
     return res_err(res, 404, 'no map found');
   return res_send(res, path);
