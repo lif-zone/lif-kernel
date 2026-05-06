@@ -27,6 +27,7 @@ let webapp_index = {
 };
 
 let lifcoin_url = ['http://localhost:8432'];
+//let lifcoin_url = [location.origin];
 
 function demo_index(){
   let body = document.querySelector('body');
