@@ -1459,6 +1459,7 @@ function test_util(){
   t('http://site/dir?a@:/+=1+', 'http://site/dir', {'a@:/ ': '1 '});
   t('http://site/dir?a=1&a+=1+', 'http://site/dir?a=1', {'a ': '1 '});
   t('http://site/dir?a=1&b=2', 'http://site/dir?a=1', 'b=2');
+  t('http://site/dir?a=1&b=2', 'http://site/dir?a=1', '?b=2');
   t('http://site/dir?b=2', 'http://site/dir', 'b=2');
   t('http://site/dir', 'http://site/dir', '');
   t = (v, path)=>assert_eq(v, path_ext(path));
