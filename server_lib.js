@@ -169,11 +169,26 @@ const server = http.createServer(http_listener);
 const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
 
 // WebSocket
+async function ws_json(req){
+}
+const ws_on_connect = ws=>{
+  ws.on('message', async data=>{
+    let req, res;
+    try {
+      req = JSON.parse(data);
+      res = await ws_json(req);
+    } catch(e){
+      res = {error: e.message};
+    }
+    ws.send(JSON.stringify(res));
+  });
+};
+
 const wss = new WebSocketServer({noServer: true});
 const ws_upgrade = (req, socket, head)=>{
   let url = new URL(req.url, 'http://x');
   if (url.pathname=='/lif_bridge')
-    return wss.handleUpgrade(req, socket, head, ws=>options.on_ws?.(ws));
+    return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect(ws));
   socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
   return socket.destroy();
 };
