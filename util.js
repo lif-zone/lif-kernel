@@ -351,13 +351,11 @@ export class ipc_websocket extends ipc_client_server {
   }
   async connect(url){
     this.url = url;
-    let wait = ewait();
     this.ws = new WebSocket(this.url);
     this.ws_open = ewait();
     this.ws.onopen = ()=>{
       assert(this.ws.readyState==WebSocket.OPEN);
       this.ws_open.return(true);
-      wait.return(true);
     };
     this.ws.onmessage = event=>{
       let msg;
@@ -370,15 +368,14 @@ export class ipc_websocket extends ipc_client_server {
     };
     this.ws.onerror = err=>{
       console.error('WebSocket error', err);
-      wait.throw(err);
       this.ws_open.throw(err);
       this.error = true;
     };
     this.ws.onclose = ()=>{
-      this.ws_open = null;
+      this.ws_open.throw('WebSocket closed');
       this.error = true;
     };
-    return await wait;
+    return await this.ws_open;
   }
   close(){
     this.ws?.close();
