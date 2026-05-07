@@ -256,6 +256,15 @@ export function assert_te(fn){
 }
 assert.te = assert_te;
 
+// micro Buffer implementation, for sha256.js/sha256lif.js
+export const micro_Buffer = class Buffer extends Uint8Array {
+  copy(dst, dst_off, src_off, src_end){
+    dst.set(this.subarray(src_off, src_end), dst_off);
+  }
+  static alloc(sz){ return new Buffer(sz); }
+  static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
+};
+
 export class ipc_client_server {
   req = {};
   cmd_cb = {};

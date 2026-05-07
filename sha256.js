@@ -13,20 +13,8 @@
  *   https://github.com/indutny/hash.js/blob/master/lib/hash/sha/256.js
  */
 'use strict';
-let assert = (ok, ...msg)=>{
-  if (ok)
-    return;
-  console.error('assert FAIL:', ...msg);
-  debugger; // eslint-disable-line no-debugger
-  throw Error('assert FAIL');
-};
-let Buffer = globalThis.Buffer || class Buffer extends Uint8Array {
-  copy(dst, dst_off, src_off, src_end){
-    dst.set(this.subarray(src_off, src_end), dst_off);
-  }
-  static alloc(sz){ return new Buffer(sz); }
-  static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
-};
+const assert = globalThis.assert || $lif.assert;
+const Buffer = globalThis.Buffer || $lif.Buffer;
 
 /*
  * Constants
@@ -251,12 +239,6 @@ SHA256.bits = 256;
 SHA256.blockSize = 64;
 SHA256.zero = Buffer.alloc(32, 0x00);
 SHA256.ctx = new SHA256();
-SHA256.config = function(opt){
-  if (opt.assert)
-    assert = opt.assert;
-  if (opt.Buffer)
-    Buffer = opt.Buffer;
-};
 SHA256.Buffer = Buffer;
 
 /*

@@ -155,6 +155,9 @@ let Babel = await import_module(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
 let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
 let util = await import_module(lif_kernel_base+'/util.js');
 let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
+let lif = globalThis.$lif = {};
+lif.assert = util.assert;
+lif.Buffer = util.micro_Buffer;
 let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 console.log('kernel import end');
 let {ipc_postmessage, str, OE, OA, assert, ecache, json, json_cp,
