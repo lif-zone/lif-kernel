@@ -268,7 +268,6 @@ export const micro_Buffer = class Buffer extends Uint8Array {
 export class ipc_client_server {
   req = {};
   cmd_cb = {};
-  port;
   id = 0;
   async cmd(cmd, arg){
     let id = ''+(this.id++);
