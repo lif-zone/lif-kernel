@@ -12,6 +12,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
+import {WebSocketServer} from 'ws';
 const efs = fs.promises;
 
 // DNS Setup
@@ -166,6 +167,18 @@ function sni_cb(server_name, cb){
 
 const server = http.createServer(http_listener);
 const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
+
+// WebSocket
+const wss = new WebSocketServer({noServer: true});
+const ws_upgrade = (req, socket, head)=>{
+  let url = new URL(req.url, 'http://x');
+  if (url.pathname=='/lif_bridge')
+    return wss.handleUpgrade(req, socket, head, ws=>options.on_ws?.(ws));
+  socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+  return socket.destroy();
+};
+server.on('upgrade', ws_upgrade);
+sserver.on('upgrade', ws_upgrade);
 
 function get_acme_cert_files(domain){
   domain = domain.replace(/\./g, '_');

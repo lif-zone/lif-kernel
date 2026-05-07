@@ -13,7 +13,10 @@
   "module": "boot.js",
   "type": "module",
   "lif": {
-    "passthrough": ["boot.js", "util.js"],
+    "passthrough": [
+      "boot.js",
+      "util.js"
+    ],
     "webapp": "./hi.js"
   },
   "files": [
@@ -34,9 +37,10 @@
     "lif-kernel.service"
   ],
   "dependencies": {
-    "dns2": "2.0.1",
-    "acme-client": "5.0.0",
+    "@babel/standalone": "^7.29.1",
     "@peculiar/x509": "1.9.3",
-    "@babel/standalone": "^7.29.1"
+    "acme-client": "5.0.0",
+    "dns2": "2.0.1",
+    "ws": "^8.20.0"
   }
 }
