@@ -332,6 +332,50 @@ export class ipc_postmessage extends ipc_client_server {
   }
 }
 
+export class ipc_websocket extends ipc_client_server {
+  ws;
+  ws_open;
+  async send(json){
+    if (!await this.ws_open)
+      throw new Error('WebSocket not open');
+    this.ws.send(JSON.stringify(json));
+  }
+  async connect(url){
+    this.url = url;
+    let wait = ewait();
+    this.ws = new WebSocket(this.url);
+    this.ws_open = ewait();
+    this.ws.onopen = ()=>{
+      assert(this.ws.readyState==WebSocket.OPEN);
+      this.ws_open.return(true);
+      wait.return(true);
+    };
+    this.ws.onmessage = event=>{
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch(e){
+        return console.error('invalid ipc json', event.data);
+      }
+      this.on_msg(msg);
+    };
+    this.ws.onerror = err=>{
+      console.error('WebSocket error', err);
+      wait.throw(err);
+      this.ws_open.throw(err);
+      this.error = true;
+    };
+    this.ws.onclose = ()=>{
+      this.ws_open = null;
+      this.error = true;
+    };
+    return await wait;
+  }
+  close(){
+    this.ws?.close();
+  }
+}
+
 const utf8_enc = new TextEncoder('utf-8');
 export function str_to_buf(buf){
   if (buf instanceof ArrayBuffer)
