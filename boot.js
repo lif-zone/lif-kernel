@@ -11,8 +11,9 @@ import {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
   html_elm, _debugger, version as util_version,
 } from './util.js';
 
-assert(!globalThis.$lif, 'lif already loaded');
-let lif = globalThis.$lif = {};
+let lif = globalThis.$lif ||= {};
+assert(!lif.lif_loaded, 'lif already loaded');
+lif.lif_loaded = true;
 lif.assert = assert;
 lif.Buffer = micro_Buffer;
 let sha256 = (await import('./sha256.js')).default;
