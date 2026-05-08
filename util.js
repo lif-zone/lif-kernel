@@ -265,14 +265,17 @@ export const micro_Buffer = class Buffer extends Uint8Array {
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
 };
 
-export class ipc_client_server {
+export class ipc_base {
   req = {};
   cmd_cb = {};
   id = 0;
+  open = ewait();
   async cmd(cmd, arg){
     let id = ''+(this.id++);
     let req = this.req[id] = {wait: ewait()};
     req.slow = eslow('post cmd '+cmd);
+    if (!await this.open)
+      throw new Error('ipc not open');
     await this.send({cmd, arg, id});
     return await req.wait;
   }
@@ -311,9 +314,15 @@ export class ipc_client_server {
   add_server_cmd(cmd, cb){
     this.cmd_cb[cmd] = cb;
   }
+  close(){
+    for (let [id, msg_wait] of OE(this.pending)){
+      delete this.pending[id];
+      msg_wait.throw('close');
+    }
+  }
 }
 
-export class ipc_postmessage extends ipc_client_server {
+export class ipc_postmessage extends ipc_base {
   ports;
   port;
   send(json){
@@ -326,35 +335,34 @@ export class ipc_postmessage extends ipc_client_server {
     this.port = this.ports.port1;
     this.port.addEventListener('message', event=>this.on_msg(event.data));
     this.port.start();
+    this.open.return(true);
   }
   listen(event){
-    if (event.data?.connect){
-      this.port = event.ports[0];
-      this.port.addEventListener('message', event=>this.on_msg(event.data));
-      this.port.start();
-      return true;
-    }
+    if (!event.data?.connect)
+      return;
+    this.port = event.ports[0];
+    this.port.addEventListener('message', event=>this.on_msg(event.data));
+    this.port.start();
+    this.open.return(true);
+    return true;
   }
   close(){
+    super.close();
     this.port.close();
   }
 }
 
-export class ipc_websocket extends ipc_client_server {
+export class ipc_websocket extends ipc_base {
   ws;
-  ws_open;
   async send(json){
-    if (!await this.ws_open)
-      throw new Error('WebSocket not open');
     this.ws.send(JSON.stringify(json));
   }
   async connect(url){
     this.url = url;
     this.ws = new WebSocket(this.url);
-    this.ws_open = ewait();
     this.ws.onopen = ()=>{
       assert(this.ws.readyState==WebSocket.OPEN);
-      this.ws_open.return(true);
+      this.open.return(true);
     };
     this.ws.onmessage = event=>{
       let msg;
@@ -367,16 +375,108 @@ export class ipc_websocket extends ipc_client_server {
     };
     this.ws.onerror = err=>{
       console.error('WebSocket error', err);
-      this.ws_open.throw(err);
+      this.open.throw(err);
       this.error = true;
     };
     this.ws.onclose = ()=>{
-      this.ws_open.throw('WebSocket closed');
+      this.open.throw('WebSocket closed');
       this.error = true;
     };
-    return await this.ws_open;
+    return await this.open;
   }
   close(){
+    super.close();
+    this.ws?.close();
+  }
+}
+
+// JSON-RPC Client over WebSocket
+export class jsonrpc_base {
+  id = 0;
+  pending = {}; // {id: await result}
+  open = ewait();
+  on_msg(msg){
+    if (!msg)
+      return console.error('invalid empty rpc msg');
+    if (msg.id!=null){
+      const msg_wait = this.pending[msg.id];
+      if (!msg_wait)
+        return console.error('unexpected rpc msg', msg);
+      delete this.pending[msg.id];
+      if (msg.error)
+        return msg_wait.throw(msg);
+      return msg_wait.return(msg.result);
+    }
+    if (msg.method)
+      return console.log('rpc server notification:', msg.method, msg.params);
+    console.error('unknowing rpc msg', msg);
+  }
+
+  async call(method, ...params){
+    let msg_wait = ewait();
+    if (!await this.open)
+      throw new Error('jsonrpc not open');
+    const id = ++this.id;
+    const request = {
+      jsonrpc: "2.0",
+      id,
+      method,
+      ...(params.length && {params}),
+    };
+    this.pending[id] = msg_wait;
+    await this.send(request);
+    let res;
+    try {
+      res = await msg_wait;
+    } catch(msg){
+      console.error('rpc('+method+') error', msg);
+      throw new Error(msg.error);
+    }
+    return res;
+  }
+  close(){
+    for (let [id, msg_wait] of OE(this.pending)){
+      delete this.pending[id];
+      msg_wait.throw('close');
+    }
+  }
+}
+
+export class jsonrpc_websocket extends jsonrpc_base {
+  ws;
+  async send(json){
+    this.ws.send(JSON.stringify(json));
+  }
+  async connect(url){
+    this.url = url;
+    this.ws = new WebSocket(this.url);
+    this.ws.onopen = ()=>{
+      assert(this.ws.readyState==WebSocket.OPEN);
+      this.open.return(true);
+    };
+    this.ws.onmessage = event=>{
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch(e){
+        return console.error('invalid rpc json', event.data);
+      }
+      this.on_msg(msg);
+    };
+    this.ws.onerror = err=>{
+      console.error('WebSocket error', err);
+      this.open.throw(err);
+      this.error = true;
+    };
+    this.ws.onclose = ()=>{
+      this.open.throw('WebSocket closed');
+      this.error = true;
+    };
+    return await this.open;
+  }
+
+  close(){
+    super.close();
     this.ws?.close();
   }
 }
