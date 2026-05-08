@@ -188,7 +188,7 @@ async function ws_on_connect(ws){
 const wss = new WebSocketServer({noServer: true});
 const ws_upgrade = (req, socket, head)=>{
   let url = new URL(req.url, 'http://x');
-  if (url.pathname=='/lif_bridge')
+  if (url.pathname=='/.lif.rg')
     return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect(ws));
   socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
   return socket.destroy();
