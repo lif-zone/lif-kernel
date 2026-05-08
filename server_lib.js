@@ -179,7 +179,7 @@ async function ws_on_connect(ws){
     console.log('got ping');
     return {pong: 1};
   });
-  rpc.connect(ws);
+  rpc.connect({ws});
   console.log('ws connected - send ping');
   let res = await rpc.call('ping');
   console.log('got ping res', res);
