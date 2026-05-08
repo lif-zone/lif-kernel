@@ -23,6 +23,7 @@ let webapp_index = {
   'os-local': '/lif-os//pages/lif_main.tsx',
   'lif-coin': 'git://github/lif-zone/lif-coin@latest',
   'wallet': 'git://github/lif-zone/lif-coin@latest',
+  'wallet-local': '/lif-coin/',
   'lif-coin-local': '/lif-coin/',
 };
 
