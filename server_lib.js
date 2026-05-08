@@ -8,7 +8,7 @@ import tls from 'tls';
 import path from 'path';
 import {ext2mime} from './mime_db.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
-  path_file, path_is_dir, str} from './util.js';
+  path_file, path_is_dir, str, rpc_websocket} from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
@@ -128,9 +128,9 @@ const lif_kv_handler = (req, res)=>{
   let url = new URL(req.url, 'http://x');
   let key = url.searchParams.get('key');
   let lif_kv_url = lifcoin_node+'/lif_kv'+qs_enc({key});
-  http.get(lif_kv_url, proxy_res=>{
-    res.writeHead(proxy_res.statusCode, proxy_res.headers);
-    proxy_res.pipe(res);
+  http.get(lif_kv_url, _res=>{
+    res.writeHead(_res.statusCode, _res.headers);
+    _res.pipe(res);
   }).on('error', err=>{
     res_err(res, 502, 'proxy error: '+err.message);
   });
@@ -171,17 +171,11 @@ const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
 // WebSocket
 async function ws_json(req){
 }
+
 const ws_on_connect = ws=>{
-  ws.on('message', async data=>{
-    let req, res;
-    try {
-      req = JSON.parse(data);
-      res = await ws_json(req);
-    } catch(e){
-      res = {error: e.message};
-    }
-    ws.send(JSON.stringify(res));
-  });
+  let rpc = new rpc_websocket;
+  rpc.method('ping', ()=>({pong: 1}));
+  rpc.connect(ws);
 };
 
 const wss = new WebSocketServer({noServer: true});
