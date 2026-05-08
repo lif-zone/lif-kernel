@@ -3,7 +3,7 @@ import events from 'events';
 let assert;
 var _process;
 let xerr;
-const is_node = typeof window==='undefined';
+const is_node = process?.versions?.node!==undefined;
 if (!is_node){
   _process = {nextTick: function(fn){ setTimeout(fn, 0); }, env: {}};
   xerr = function(){ console.log.apply(console, arguments); };
