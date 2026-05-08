@@ -1961,8 +1961,8 @@ let do_app_pkg = async function(boot_pkg){
 let boot_chan;
 function sw_init_post(){
   boot_chan = new ipc_postmessage();
-  boot_chan.add_method('version', arg=>({version: lif_version}));
-  boot_chan.add_method('app_pkg', async({arg})=>await do_app_pkg(arg));
+  boot_chan.add_method('version', ()=>({version: lif_version}));
+  boot_chan.add_method('app_pkg', async(arg)=>await do_app_pkg(arg));
   lif_kernel.on_message = event=>{
     if (boot_chan.listen(event))
       return;

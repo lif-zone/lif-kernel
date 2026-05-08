@@ -901,7 +901,7 @@ let boot_kernel = async()=>{
       }
       kernel_chan = new ipc_postmessage();
       kernel_chan.connect(controller);
-      kernel_chan.add_method('version', arg=>({version: lif_version}));
+      kernel_chan.add_method('version', ()=>({version: lif_version}));
       let slow = eslow('conn_kernel chan');
       D && console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
