@@ -8,7 +8,8 @@ import tls from 'tls';
 import path from 'path';
 import {ext2mime} from './mime_db.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
-  path_file, path_is_dir, str, rpc_websocket} from './util.js';
+  path_file, path_is_dir, str, rpc_websocket, version as util_version,
+} from './util.js';
 import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
@@ -169,15 +170,16 @@ const server = http.createServer(http_listener);
 const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
 
 // WebSocket
-async function ws_json(req){
-}
-
 async function ws_on_connect(ws){
   let rpc = new rpc_websocket;
   console.log('ws new conn');
   rpc.method('ping', ()=>{
     console.log('got ping');
     return {pong: 1};
+  });
+  rpc.method('version', ()=>{
+    console.log('got ping');
+    return {name: 'lif-kernel', version: util_version};
   });
   rpc.connect({ws});
   console.log('ws connected - send ping');
