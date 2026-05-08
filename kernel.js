@@ -741,7 +741,10 @@ function file_tr_mjs_worker(f, opt){
       }
     };
     globalThis.addEventListener('message', lif_worker.cb);
-    import lif from '/.lif/npm/lif-kernel/boot.js';
+    // Chrome 148 Worker bug: must use dynamic import() to force correct order
+    // see also lif-coin/browser/node_env.js
+    //import lif from '/.lif/npm/lif-kernel/boot.js';
+    let lif = (await import('/.lif/npm/lif-kernel/boot.js')).default;
     let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods);
     let import_lif = function(){
       return globalThis.$lif.boot.import_esm(${uri_s}, arguments);
