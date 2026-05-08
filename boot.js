@@ -901,14 +901,14 @@ let boot_kernel = async()=>{
       }
       kernel_chan = new ipc_postmessage();
       kernel_chan.connect(controller);
-      kernel_chan.add_server_cmd('version', arg=>({version: lif_version}));
+      kernel_chan.add_method('version', arg=>({version: lif_version}));
       let slow = eslow('conn_kernel chan');
       D && console.log('conn_kernel chan start');
       console.log('lif kernel sw version: '+
-        (await kernel_chan.cmd('version')).version);
+        (await kernel_chan.call('version')).version);
       if (0 && performance.getEntriesByType('navigation')[0].type=='reload'){
         console.log('page reload - clear kernel cache');
-        await kernel_chan.cmd('reload');
+        await kernel_chan.call('reload');
       }
       let res = await boot_worker_sync_connect();
       D && console.log('conn_kernel chan end');
@@ -1000,7 +1000,7 @@ let boot_app = async(boot_pkg)=>{
   console.log('boot: webapp '+webapp);
   npm_root = webapp;
   let slow = eslow('app_pkg');
-  let res = await kernel_chan.cmd('app_pkg', pkg);
+  let res = await kernel_chan.call('app_pkg', pkg);
   slow.end();
   if (!webapp)
     return;
