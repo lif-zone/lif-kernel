@@ -167,20 +167,29 @@ function sni_cb(server_name, cb){
   cb(null, ctx);
 }
 
-const server = http.createServer(http_listener);
-const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
-
-// WebSocket
-const wss = new WebSocketServer({noServer: true});
-const ws_upgrade = (req, socket, head)=>{
-  let url = new URL(req.url, 'http://x');
-  if (url.pathname=='/.lif.rg')
-    return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect(ws));
-  socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-  return socket.destroy();
-};
-server.on('upgrade', ws_upgrade);
-sserver.on('upgrade', ws_upgrade);
+let server;
+let sserver;
+function server_init({port, ssl}){
+  server = http.createServer(http_listener);
+  sserver = https.createServer({SNICallback: sni_cb}, http_listener);
+  // WebSocket
+  const wss = new WebSocketServer({noServer: true});
+  const ws_upgrade = (req, socket, head)=>{
+    let url = new URL(req.url, 'http://x');
+    if (url.pathname=='/.lif.rg')
+      return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect(ws));
+    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+    return socket.destroy();
+  };
+  server.on('upgrade', ws_upgrade);
+  sserver.on('upgrade', ws_upgrade);
+  server.listen(port, ()=>{
+    console.log(`Serving ${options.root} on http://localhost:${port}`);
+  });
+  console.log('SSL: %s', ssl ? 'auto '+ssl_dir : 'off (-s to enable auto cert generation)');
+  if (ssl)
+    do_ssl();
+}
 
 function get_acme_cert_files(domain){
   domain = domain.replace(/\./g, '_');
@@ -369,12 +378,7 @@ async function run(opt){
   if (!map['/favicon.ico'])
     map['/favicon.ico'] = lif_kernel+'/favicon.ico';
   console.log(map);
-  server.listen(port, ()=>{
-    console.log(`Serving ${options.root} on http://localhost:${port}`);
-  });
-  console.log('SSL: %s', ssl ? 'auto '+ssl_dir : 'off (-s to enable auto cert generation)');
-  if (ssl)
-    do_ssl();
+  server_init({port, ssl});
 }
 
 export default run;
