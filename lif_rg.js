@@ -37,7 +37,7 @@ export async function ws_on_connect(ws){
     delete rpc.topics[topic];
   });
   rpc.method('topic_get', ({topic})=>{
-    return Object.values(topics[topic]);
+    return Object.values(topics[topic]||{});
   });
   ws.on('close', ()=>{
     if (!rpc.rg_id)
