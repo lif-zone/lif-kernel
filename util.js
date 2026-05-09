@@ -318,23 +318,21 @@ export class rpc_base {
   }
   async on_call(msg){
     let method_fn = this.method_fn[msg.method];
-    if (!method_fn)
-      return console.error('rpc unsupported method '+msg.method);
     let result = {id: msg.id};
     if (this.jsonrpc)
       result.jsonrpc = this.jsonrpc;
     let res, res_msg;
     let slow = eslow('rpc on handler '+msg.method);
     try {
+      if (!method_fn)
+        throw 'rpc unsupported method '+msg.method;
       res = await method_fn(msg.params);
       res_msg = {...result, result: res};
     } catch(err){
       console.error('rpc failed handler', msg, err);
       res_msg = {...result, error: ''+err};
-      return;
-    } finally {
-      slow.end();
     }
+    slow.end();
     if (this.D)
       console.log('rpc< '+msg.method, msg.params, res_msg);
     await this.send(res_msg);
