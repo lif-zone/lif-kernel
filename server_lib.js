@@ -172,13 +172,10 @@ const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
 // WebSocket
 async function ws_on_connect(ws){
   let rpc = new rpc_websocket({D: 1});
-  console.log('ws new conn');
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
   rpc.connect({ws});
-  console.log('ws connected - send ping');
   let res = await rpc.call('ping');
-  console.log('got ping res', res);
 }
 
 const wss = new WebSocketServer({noServer: true});
