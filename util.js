@@ -271,6 +271,13 @@ export class rpc_base {
   req = {};
   open = ewait();
   jsonrpc;
+  D;
+  constructor(opt={}){
+    if (opt.D)
+      this.D = 1;
+    if (this.D)
+      console.log('rpc>>connect');
+  }
   async call(method, params){
     let id = this.id++;
     let req = this.req[id] = {wait: ewait(), method, params};
@@ -301,6 +308,10 @@ export class rpc_base {
     if (!(req = this.req[id]))
       return console.error('rpc: unexpected msg', msg);
     delete this.req[id];
+    if (this.D){
+      console.log('rpc> '+(msg.error ? 'err ':'')+' '+req.request.method,
+        req.request.params, msg.error||msg.result);
+    }
     if (msg.error)
       return req.wait.throw(msg.error);
     return req.wait.return(msg.result);
@@ -312,18 +323,21 @@ export class rpc_base {
     let result = {id: msg.id};
     if (this.jsonrpc)
       result.jsonrpc = this.jsonrpc;
-    let res;
+    let res, res_msg;
     let slow = eslow('rpc on handler '+msg.method);
     try {
       res = await method_fn(msg.params);
+      res_msg = {...result, result: res};
     } catch(err){
       console.error('rpc failed handler', msg, err);
-      await this.send({...result, error: ''+err});
+      res_msg = {...result, error: ''+err};
       return;
     } finally {
       slow.end();
     }
-    await this.send({...result, result: res});
+    if (this.D)
+      console.log('rpc< '+msg.method, msg.params, res_msg);
+    await this.send(res_msg);
   }
   async on_notify(msg){
     let method_fn = this.method_fn[msg.method];
@@ -357,6 +371,8 @@ export class rpc_base {
       delete this.req[id];
       req.wait.throw('close');
     }
+    if (this.D)
+      console.log('rpc>!close');
   }
 }
 
@@ -394,7 +410,7 @@ export class ipc_postmessage extends rpc_base {
 export class rpc_websocket extends rpc_base {
   ws;
   constructor(opt={}){
-    super();
+    super(opt);
     if (opt.jsonrpc)
       this.jsonrpc = opt.jsonrpc;
   }

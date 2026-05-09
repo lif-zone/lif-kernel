@@ -171,7 +171,7 @@ const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
 
 // WebSocket
 async function ws_on_connect(ws){
-  let rpc = new rpc_websocket;
+  let rpc = new rpc_websocket({D: 1});
   console.log('ws new conn');
   rpc.method('ping', ()=>{
     console.log('got ping');
