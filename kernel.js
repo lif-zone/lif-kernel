@@ -1967,7 +1967,7 @@ function sw_init_post(){
   boot_chan.method('version', ()=>({version: lif_version}));
   boot_chan.method('app_pkg', async(arg)=>await do_app_pkg(arg));
   lif_kernel.on_message = event=>{
-    if (boot_chan.listen(event))
+    if (boot_chan.accept(event))
       return;
   };
   lif_kernel.on_fetch = event=>kernel_fetch(event);

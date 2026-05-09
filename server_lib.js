@@ -174,7 +174,7 @@ async function ws_on_connect(ws){
   let rpc = new rpc_websocket({D: 1});
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
-  rpc.connect({ws});
+  rpc.accept({ws});
   let res = await rpc.call('ping');
 }
 

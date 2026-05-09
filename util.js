@@ -5,6 +5,7 @@ export const version = util_version;
 let D = 0; // Debug
 
 let is_worker = typeof window=='undefined';
+let is_node = globalThis.process?.versions?.node!==undefined;
 
 // Promise with return() and throw()
 export function ewait(){
@@ -389,7 +390,7 @@ export class ipc_postmessage extends rpc_base {
     this.port.start();
     this.open.return(true);
   }
-  listen(event){
+  accept(event){
     if (!event.data?.connect)
       return;
     this.port = event.ports[0];
@@ -415,23 +416,14 @@ export class rpc_websocket extends rpc_base {
   async send(json){
     this.ws.send(JSON.stringify(json));
   }
-  async connect(opt){
-    if (opt.url){
-      this.url = opt.url;
-      this.ws = new WebSocket(this.url);
-      this.ws.on = this.ws.addEventListener;
-    } else if (opt.ws){
-      this.ws = opt.ws;
-      this.is_node = true;
-    } else
-      throw new Error('missing connect opt');
+  set_events(){
     this.ws.on('open', ()=>{
-      if (!this.is_node)
+      if (!is_node)
         assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
     });
     this.ws.on('message', event=>{
-      let data = this.is_node ? event.toString('utf8') : event.data;
+      let data = is_node ? event.toString('utf8') : event.data;
       let msg;
       try {
         msg = JSON.parse(data);
@@ -449,7 +441,22 @@ export class rpc_websocket extends rpc_base {
       this.open.throw('WebSocket closed');
       this.error = true;
     });
+  }
+  async connect(opt){
+    if (opt.url){
+      this.url = opt.url;
+      this.ws = new WebSocket(this.url);
+      this.ws.on = this.ws.addEventListener;
+    } else
+      throw new Error('missing connect opt');
+    this.set_event();
     return await this.open;
+  }
+  accept(opt){
+    assert(is_node);
+    this.ws = opt.ws;
+    this.open.return(true);
+    this.set_events();
   }
   close(){
     super.close();
