@@ -14,6 +14,7 @@ import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
 import {WebSocketServer} from 'ws';
+import {ws_on_connect} from './lif_rg.js';
 const efs = fs.promises;
 
 // DNS Setup
@@ -170,14 +171,6 @@ const server = http.createServer(http_listener);
 const sserver = https.createServer({SNICallback: sni_cb}, http_listener);
 
 // WebSocket
-async function ws_on_connect(ws){
-  let rpc = new rpc_websocket({D: 1});
-  rpc.method('ping', ()=>({pong: 1}));
-  rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
-  rpc.accept({ws});
-  let res = await rpc.call('ping');
-}
-
 const wss = new WebSocketServer({noServer: true});
 const ws_upgrade = (req, socket, head)=>{
   let url = new URL(req.url, 'http://x');
