@@ -943,7 +943,7 @@ export function T_lpm_parse(lpm){
     l.lmod = l.reg+'/'+l.blockid;
     break;
   case 'ethereum':
-    throw Error('unsupported etherum '+lpm);
+    throw Error('unsupported ethereum '+lpm);
     break;
   case 'ipfs':
     l.cid = next('cid');
@@ -984,7 +984,7 @@ export function T_lpm_str(l){
     return l.reg+'/'+l.blockid+l.submod+l.path;
     break;
   case 'ethereum':
-    throw Error('unsupported etherum');
+    throw Error('unsupported ethereum');
   case 'ipfs':
     return l.reg+'/'+l.cid+l.submod+l.path;
   case 'ipns':
@@ -1203,7 +1203,7 @@ export function lpm_is_perm(u){
   case 'bitcoin':
     return true;
   case 'ethereum':
-    throw Error('unsupported etherum');
+    throw Error('unsupported ethereum');
   case 'ipfs':
     return true;
   case 'ipns':
