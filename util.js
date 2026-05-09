@@ -281,8 +281,8 @@ export class rpc_base {
   }
   async call(method, params){
     let id = this.id++;
-    let req = this.req[id] = {wait: ewait(), method, params};
-    const request = {id, method};
+    let req = this.req[id] = {wait: ewait()};
+    const request = req.request = {id, method};
     if (params)
       request.params = params;
     if (this.jsonrpc)
@@ -449,7 +449,7 @@ export class rpc_websocket extends rpc_base {
       this.ws.on = this.ws.addEventListener;
     } else
       throw new Error('missing connect opt');
-    this.set_event();
+    this.set_events();
     return await this.open;
   }
   accept(opt){
