@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version} from './util.js';
-// WebSocket
+
 const topics = {};
 const rg_conn = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
@@ -40,7 +40,7 @@ export async function ws_on_connect(ws){
     return {};
   });
   rpc.method('topic_get', ({topic})=>{
-    return Object.values(topics[topic]||{});
+    return Object.keys(topics[topic]||{});
   });
   rpc.method('_rcall', async({rg_id, method, params})=>{
     if (typeof rg_id!='string')
