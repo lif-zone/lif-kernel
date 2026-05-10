@@ -8,6 +8,7 @@ const rg_conn = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export async function ws_on_connect(ws){
   let rpc = new rpc_websocket({D: 1});
+  rpc.topics = {};
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
   rpc.method('rg_id', ({rg_id})=>{
@@ -26,6 +27,7 @@ export async function ws_on_connect(ws){
     t[rpc.rg_id] = rpc;
     rpc.topics ||= {};
     rpc.topics[topic] = true;
+    return {};
   });
   rpc.method('topic_unpub', ({topic})=>{
     if (!rpc.rg_id)
@@ -35,6 +37,7 @@ export async function ws_on_connect(ws){
     if (topics[topic]?.[rpc.rg_id])
       delete topics[topic][rpc.rg_id];
     delete rpc.topics[topic];
+    return {};
   });
   rpc.method('topic_get', ({topic})=>{
     return Object.values(topics[topic]||{});
