@@ -321,8 +321,12 @@ export class rpc_base {
       if (!await this.open)
         throw new Error('rpc not open');
       await this.send(request);
-      res = await req.wait;
-      if (res.error===undefined && res.result===undefined)
+      let ret = await req.wait;
+      if (ret.result!==undefined)
+        res = {result: ret.result};
+      else if (ret.error!==undefined)
+        res = {error: ret.result};
+      else
         res = {error: 'invalid msg: no result or error'};
     } catch(err){
       console.error('rpc failed call', err, request);
