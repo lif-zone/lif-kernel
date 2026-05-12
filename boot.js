@@ -3,7 +3,7 @@ let lif_version = '26.4.23';
 let D = 0; // Debug
 
 import {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
-  micro_Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
+  Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
@@ -15,7 +15,7 @@ let lif = globalThis.$lif ||= {};
 assert(!lif.lif_loaded, 'lif already loaded');
 lif.lif_loaded = true;
 lif.assert = assert;
-lif.Buffer = micro_Buffer;
+lif.Buffer = Buffer;
 let sha256 = (await import('./sha256.js')).default;
 let modules = {};
 let kernel_chan;

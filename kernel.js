@@ -2,6 +2,7 @@
 let lif_version = '26.4.23';
 let D = 0; // debug
 let in_test = 0;
+let $lif = globalThis.$lif = {};
 
 const ewait = ()=>{
   let _return, _throw;
@@ -97,6 +98,9 @@ function cache_lmod(lmod, perm){
 
 // quick-and-dirty kernel emulation of ESM:
 function esm_kernel_tr(src){
+  // hack for util.js
+  src = src.replace(/await import\(/g, 'await globalThis.$lif.import_module(');
+  // collect all exports
   let re = /($|\n)export +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)/g;
   return src.replace(re, (match, pre, type, name, rest)=>{
     let s;
@@ -128,7 +132,7 @@ let import_module = async(url)=>{
     imod.script = `'use strict';
       let module = {exports: {}};
       let exports = module.exports;
-      (()=>{
+      (async()=>{
       ${tr}
       })();
       module.exports;
@@ -138,6 +142,7 @@ let import_module = async(url)=>{
     throw imod.wait.throw(err);
   }
   try {
+
     imod.exports = await eval?.(
       `//# sourceURL=${url}\n'use strict';${imod.script}`);
     return imod.wait.return(imod.exports);
@@ -146,19 +151,19 @@ let import_module = async(url)=>{
     throw imod.wait.throw(err);
   }
 };
+$lif.import_module = import_module;
 
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
 console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
+let util = await import_module(lif_kernel_base+'/util.js');
+$lif.assert = util.assert;
+$lif.Buffer = util.Buffer;
+let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
+let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
 let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
-let util = await import_module(lif_kernel_base+'/util.js');
-let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
-let lif = globalThis.$lif = {};
-lif.assert = util.assert;
-lif.Buffer = util.micro_Buffer;
-let sha256 = await import_module(lif_kernel_base+'/sha256.js');
 console.log('kernel import end');
 let {ipc_postmessage, str, OE, OA, assert, ecache, json, json_cp,
   _path_ext, path_dir, path_file,
