@@ -60,7 +60,7 @@ export async function ws_on_connect(ws){
     let ret = await rg._call(method, params);
     return ret;
   });
-  ws.on('close', ()=>{
+  rpc.on('close', ()=>{
     if (!rpc.rg_id)
       return;
     delete rg_conn[rpc.rg_id];
