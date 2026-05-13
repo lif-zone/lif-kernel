@@ -283,8 +283,9 @@ class Buffer extends Uint8Array {
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
 };
 
-export const EventEmitter = is_node ? (await import('events')).default :
-class EventEmitter extends EventTarget {
+export const EventEmitter = is_node
+? globalThis.process.browser_env.EventEmitter
+: class EventEmitter extends EventTarget {
   on(eventName, listener){
     this.addEventListener(eventName, listener);
     return this;

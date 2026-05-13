@@ -7,6 +7,7 @@ import os from 'os';
 import tls from 'tls';
 import path from 'path';
 import {ext2mime} from './mime_db.js';
+import './browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str, rpc_websocket, version as util_version,
 } from './util.js';
