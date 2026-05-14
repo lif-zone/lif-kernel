@@ -5,6 +5,8 @@ import {assert_eq, rpc_websocket, version as util_version} from './util.js';
 
 const topics = {};
 const rg_conn = {};
+let br_id = 0;
+const br_t = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export async function ws_on_connect(ws){
   let rpc = new rpc_websocket({D: 1});
@@ -51,7 +53,7 @@ export async function ws_on_connect(ws){
     let ret = await rg._call(method, params);
     return {remote: ret};
   });
-  rpc.__method('rcall', async({rg_id, method, params})=>{
+  rpc._method('rcall', async({rg_id, method, params})=>{
     if (typeof rg_id!='string')
       throw 'invalid id';
     let rg;
@@ -60,9 +62,41 @@ export async function ws_on_connect(ws){
     let ret = await rg._call(method, params);
     return ret;
   });
+  rpc._method('rconnect', async({rg_id})=>{
+    if (typeof rg_id!='string')
+      throw 'invalid id';
+    if (!(rg=rg_conn[rg_id]))
+      throw 'no connection to rg';
+    if (rg_id==rpc.rg_id)
+      throw 'cannot connect to loop';
+    if (rg_id==g_rg_id)
+      throw 'cannot connect to self';
+    let br_id = g_br_id++;
+    let br = {br_id, time: date_time()};
+    br.rpc_c = rpc;
+    br.rpc_s = rg;
+    let res = await br.rpc_c._call('rconnect.connect', {br_id});
+    if (res.error)
+      return res;
+    br_t[br_id] = br;
+    br.rpc_c.br_t[br_id] = br;
+    br.rpc_s.br_t[br_id] = br;
+    br.close = function(){
+      delete br.rpc_c.br_t[br_id];
+      delete br.rpc_s.br_t[br_id];
+      this.rpc_c.notify('rconnect.close', {br_id}, {no_fail: 1});
+      this.rpc_s.notify('rconnect.close', {br_id}, {no_fail: 1});
+    };
+    return {result: {br_id}};
+  });
+  rpc._method('rconnect.call', async({br_id, method, params})=>{
+    await 
+  });
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
       return;
+    for (let br in this.br_t)
+      br.close();
     delete rg_conn[rpc.rg_id];
     for (let t in topics)
       delete topics[t][rpc.rg_id];
@@ -70,5 +104,45 @@ export async function ws_on_connect(ws){
   rpc.accept({ws});
   let res = await rpc.call('ping');
 }
+
+export class rpc_rconnect extends rpc_base {
+  rpc;
+  constructor(opt={}){
+    super(opt);
+  }
+  async send(json){
+    this.rpc.call('', json);
+  }
+  _set_events(){
+    this.rpc.on('open', ()=>{
+      this.open.return(true);
+    });
+    this.rpc.method('rconnect.call', async({method, params, id})=>{
+      await this.rpc.
+      this.on_msg(msg);
+    });
+    this.rpc.on('error', err=>this.on_error(err));
+    this.rpc.on('close', ()=>this.on_close());
+  }
+  async connect({rpc, rg_id}){
+    this.rpc = rpc;
+    this._set_events();
+    return await this.open;
+    let ret = await this.rpc._call('rconnect', {rg_id});
+    if (ret.error)
+      return ret;
+    let {br_id} = ret.result;
+    return {br_id};
+  }
+  accept({rpc}){
+    this.rpc = rpc;
+    this.open.return(true);
+    this._set_events();
+  }
+  close(){
+    super.close();
+    this.rpc?.close();
+  }
+};
 
 
