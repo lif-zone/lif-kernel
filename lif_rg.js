@@ -1,11 +1,13 @@
 // LIF Residential Gateway: a Hypernet between residences.
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
-import {assert_eq, rpc_websocket, version as util_version} from './util.js';
+import {assert_eq, rpc_websocket, version as util_version, date_time,
+  rpc_base,
+} from './util.js';
 
 const topics = {};
 const rg_conn = {};
-let br_id = 0;
+let g_br_id = 0;
 const br_t = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export async function ws_on_connect(ws){
@@ -63,6 +65,7 @@ export async function ws_on_connect(ws){
     return ret;
   });
   rpc._method('rconnect', async({rg_id})=>{
+    let rg;
     if (typeof rg_id!='string')
       throw 'invalid id';
     if (!(rg=rg_conn[rg_id]))
@@ -89,8 +92,7 @@ export async function ws_on_connect(ws){
     };
     return {result: {br_id}};
   });
-  rpc._method('rconnect.call', async({br_id, method, params})=>{
-    await 
+  rpc._method('rconnect.call', async({br_id, id, method, params})=>{
   });
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
@@ -119,7 +121,7 @@ export class rpc_rconnect extends rpc_base {
     });
     this.rpc.method('rconnect.call', async({method, params, id})=>{
       await this.rpc.
-      this.on_msg(msg);
+      this.on_msg({method, params, id});
     });
     this.rpc.on('error', err=>this.on_error(err));
     this.rpc.on('close', ()=>this.on_close());
