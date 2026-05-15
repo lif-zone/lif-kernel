@@ -26,4 +26,6 @@ export class EventEmitter extends EventTarget {
   addListener = this.on;
   removeListener = this.off;
 }
+EventEmitter.EventEmitter = EventEmitter;
 
+export default EventEmitter;
