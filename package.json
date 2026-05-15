@@ -25,6 +25,7 @@
     "boot.js",
     "boot_worker.js",
     "sha256.js",
+    "sha256lif.js",
     "favicon.ico",
     "index.html",
     "kernel.js",
