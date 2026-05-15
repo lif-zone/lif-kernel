@@ -525,7 +525,7 @@ E.prototype.loop = function(promise){
 
 E.prototype._set_wait_timer = function(timeout){
   var _this = this;
-  this.wait_timer = setTimeout(function(){
+  this.wait_timer = E.setTimeout(function(){
     _this.wait_timer = undefined;
     _this._next_run({ret: undefined, err: 'timeout'});
   }, timeout);
@@ -686,7 +686,7 @@ E.prototype.alarm = function(ms, cb){
   }
   this.del_alarm();
   a = this._alarm = {ms: ms, cb: cb, start: Date.now()};
-  a.id = setTimeout(function(){
+  a.id = E.setTimeout(function(){
     _this._alarm = undefined;
     _this.emit('sig_alarm');
   }, a.ms);
@@ -1039,7 +1039,7 @@ E.sleep = function(ms){
   ms = ms||0;
   return etask({name: 'sleep', cancel: true}, [function(){
     this.info.ms = ms+'ms';
-    timer = setTimeout(this.continue_fn(), ms);
+    timer = E.setTimeout(this.continue_fn(), ms);
     return this.wait();
   }, function finally$(){ clearTimeout(timer); }]);
 };
@@ -1393,6 +1393,46 @@ E.shutdown = function(){
     prev = e;
     e.return();
   }
+};
+
+// fix a core JS bug in setTimeout above 2147483647 ms (~7 weeks).
+E.setTimeout_id = 0;
+E.setTimeout_max = 2147483647;
+class setTimeout_timer {
+  constructor(ms){
+    this.id = ++E.setTimeout_id;
+    this.ms = ms;
+  }
+}
+E.setTimeout = function etask_setTimeout(cb, ms){
+  if (!ms || ms <= E.setTimeout_max)
+    return setTimeout(cb, ms);
+  function timer_cb(){
+    let _ms = Math.min(timer.ms, E.setTimeout_max);
+    if (_ms){
+      timer.timer = setTimeout(timer_cb, _ms);
+      timer.ms -= _ms;
+      return;
+    }
+    cb.call(this);
+    delete E.setTimeout.timers[timer.id];
+  }
+  E.setTimeout.timers = E.setTimeout.timers||{};
+  let timer = new setTimeout_timer(ms);
+  timer.timer = setTimeout(timer_cb, E.setTimeout_max);
+  timer.ms -= E.setTimeout_max;
+  E.setTimeout.timers[timer.id] = timer;
+  return timer;
+};
+
+E.clearTimeout = function(timer){
+  if (!(timer instanceof setTimeout_timer))
+    return clearTimeout(timer);
+  timer = E.setTimeout.timers[timer.id];
+  if (!timer)
+    return;
+  clearTimeout(timer.timer);
+  delete E.setTimeout.timers[timer.id];
 };
 
 export default Etask;
