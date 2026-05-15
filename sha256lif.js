@@ -293,4 +293,4 @@ function writeU32(data, num, off) {
  * Expose
  */
 
-module.exports = SHA256LIF;
+export default SHA256LIF;
