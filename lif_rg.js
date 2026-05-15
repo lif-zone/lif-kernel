@@ -97,7 +97,7 @@ export async function ws_on_connect(ws){
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
       return;
-    for (let br in this.br_t)
+    if (0) for (let br in this.br_t)
       br.close();
     delete rg_conn[rpc.rg_id];
     for (let t in topics)
