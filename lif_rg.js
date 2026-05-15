@@ -104,10 +104,27 @@ export async function ws_on_connect(ws){
       delete topics[t][rpc.rg_id];
   });
   rpc.accept({ws});
+  //let rconnect = rpc_tun();
+  //rconnect.connect({rpc});
   let res = await rpc.call('ping');
 }
 
-export class rpc_rconnect extends rpc_base {
+export function rpc_tun_s(rpc){
+  if (rpc.tun_s)
+    return rpc;
+  rpc.tun_set_events = function(){
+    this.method('tun.connect', async({method, params, id})=>{
+      await this.rpc.
+      this.on_msg({method, params, id});
+    });
+    this.rpc.on('error', err=>this.on_error(err));
+    this.rpc.on('close', ()=>this.on_close());
+  };
+  let tun_s = rpc.tun_s = {};
+  return rpc;
+}
+
+export class rpc_tun extends rpc_base {
   rpc;
   constructor(opt={}){
     super(opt);
