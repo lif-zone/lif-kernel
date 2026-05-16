@@ -118,8 +118,9 @@ function esm_kernel_tr(src){
 }
 
 let import_modules = {};
-let import_module = async(url)=>{
+let import_module = async(url, self=lif_kernel_base+'/')=>{
   let imod;
+  url = (new URL(url, self)).href;
   if (imod = import_modules[url])
     return await imod.wait;
   imod = import_modules[url] = {url, wait: ewait()};
@@ -132,19 +133,22 @@ let import_module = async(url)=>{
     imod.script = `'use strict';
       let module = {exports: {}};
       let exports = module.exports;
-      (async()=>{
+      module.wait = (async()=>{
       ${tr}
       })();
-      module.exports;
+      module;
     `;
   } catch(err){
     console.error('import('+url+') failed', err);
     throw imod.wait.throw(err);
   }
   try {
-
-    imod.exports = await eval?.(
+    let module = eval?.(
       `//# sourceURL=${url}\n'use strict';${imod.script}`);
+    await module.wait;
+    imod.exports = module.exports;
+    if (imod.exports.default===undefined)
+      imod.exports.default = imod.exports;
     return imod.wait.return(imod.exports);
   } catch(err){
     console.error('import('+url+') failed eval', err, err?.stack);
@@ -157,11 +161,11 @@ let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
 console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
-let util = await import_module(lif_kernel_base+'/util.js');
+let util = await import_module('./util.js');
 $lif.assert = util.assert;
 $lif.Buffer = util.Buffer;
-let mime_db = await import_module(lif_kernel_base+'/mime_db.js');
-let sha256 = await import_module(lif_kernel_base+'/sha256.js');
+let mime_db = await import_module('./mime_db.js');
+let sha256 = await import_module('./sha256.js');
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
 let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
 console.log('kernel import end');

@@ -1,11 +1,33 @@
 // LIF bootloader worker: assistance for sync operations
 let boot_worker_version = '26.4.23';
-/*
-import util from '/lif-kernel/util.js';
-let {ipc_sync, eslow} = util;
-*/
-import {ipc_sync, eslow} from '/lif-kernel/util.js';
 let D = 0;
+
+// mem debug tracking of last 10 states, without slowing down with console.log
+let d_a = globalThis.ipc_fetch_state = ['init'];
+function d(s){
+  d_a.push(s);
+  if (d_a.length>10)
+    d_a.shift();
+  return s;
+}
+// must be before any import, since import that inside them call await will
+// loose messages.
+let lif_worker = {
+  queue: [],
+  cb: e=>{
+    console.log('push worker message queue');
+    lif_worker.queue.push(e);
+  }
+};
+globalThis.addEventListener('message', lif_worker.cb);
+
+// dynamic import() since util has await, which makes worker loose initial
+// postMessage
+let util = await import('./util.js');
+const {ipc_sync, eslow} = util;
+
+let ipc = {read: null, write: null};
+
 console.log('boot_worker started '+boot_worker_version);
 //let {ipc_sync, eslow} = util;
 let json = JSON.stringify;
@@ -15,14 +37,12 @@ globalThis.addEventListener("message", event=>{
     return ipc_fetch_init(event);
   console.error('invalid message', event.data);
 });
+globalThis.removeEventListener('message', lif_worker.cb);
+lif_worker.queue.forEach(e=>{
+  console.log('dispatch');
+  globalThis.dispatchEvent(e);
+});
 
-let ipc = {read: null, write: null};
-let d_a = globalThis.ipc_fetch_state = ['init'];
-function d(s){
-  d_a.push(s);
-  d_a.shift();
-  return s;
-}
 async function ipc_fetch(){
   let slow;
   d('waiting req');
@@ -77,4 +97,5 @@ async function ipc_fetch_init(event){
     }
   }
 }
+
 
