@@ -36,7 +36,7 @@ async function _on_fetch(event){
   let wait = ewait();
   let {request, request: {url}} = event;
   let u = new URL(url);
-  let external = u.origin!=self.location.origin;
+  let external = u.origin!=location.origin;
   let path = u.pathname;
   if (external || path=='/' || request.method!='GET'){
     console.log('passed req', url);
@@ -52,20 +52,20 @@ function on_fetch(event){
 }
 // service worker must register handlers on first run (not async)
 function sw_init_pre(){
-  self.addEventListener('install', event=>event.waitUntil((async()=>{
-    await self.skipWaiting(); // force sw reload - dont wait for pages to close
+  globalThis.addEventListener('install', event=>event.waitUntil((async()=>{
+    await globalThis.skipWaiting(); // force sw reload - dont wait for pages to close
     console.log('kernel install', lif_version);
   })()));
   // this is needed to activate the worker immediately without reload
   // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
-  self.addEventListener('activate', event=>event.waitUntil((async()=>{
+  globalThis.addEventListener('activate', event=>event.waitUntil((async()=>{
     console.log('kernel activate');
     await lif_kernel.wait_activate;
     console.log('kernel claim');
-    await self.clients.claim(); // move all pages immediatly to new sw
+    await globalThis.clients.claim(); // move all pages immediatly to new sw
     console.log('kernel activated', lif_version);
   })()));
-  self.addEventListener('message', event=>event.waitUntil((async()=>{
+  globalThis.addEventListener('message', event=>event.waitUntil((async()=>{
     if (!lif_kernel.on_message){
       console.warn('sw message event before inited', event);
       await lif_kernel.wait_activate;
@@ -73,7 +73,7 @@ function sw_init_pre(){
     }
     lif_kernel.on_message(event);
   })()));
-  self.addEventListener('fetch', on_fetch);
+  globalThis.addEventListener('fetch', on_fetch);
 }
 sw_init_pre();
 console.log('pre_init');
@@ -117,10 +117,13 @@ function esm_kernel_tr(src){
   });
 }
 
+const json = JSON.stringify;
+let sw_q = new URLSearchParams(location.search);
+let lif_kernel_base = sw_q.get('lif_kernel_base');
 let import_modules = {};
-let import_module = async(url, self=lif_kernel_base+'/')=>{
+let import_module = async(url, mod_self=lif_kernel_base+'/')=>{
   let imod;
-  url = (new URL(url, self)).href;
+  url = (new URL(url, mod_self)).href;
   if (imod = import_modules[url])
     return await imod.wait;
   imod = import_modules[url] = {url, wait: ewait()};
@@ -133,6 +136,7 @@ let import_module = async(url, self=lif_kernel_base+'/')=>{
     imod.script = `'use strict';
       let module = {exports: {}};
       let exports = module.exports;
+      let import_module = (mod, mod_self)=>globalThis.$lif.import_module(mod, mod_self||${json(url)});
       module.wait = (async()=>{
       ${tr}
       })();
@@ -157,8 +161,6 @@ let import_module = async(url, self=lif_kernel_base+'/')=>{
 };
 $lif.import_module = import_module;
 
-let sw_q = new URLSearchParams(location.search);
-let lif_kernel_base = sw_q.get('lif_kernel_base');
 console.log('kernel import');
 let kernel_cdn = 'https://unpkg.com/';
 let util = await import_module('./util.js');
@@ -169,7 +171,7 @@ let sha256 = await import_module('./sha256.js');
 let Babel = await import_module(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
 let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
 console.log('kernel import end');
-let {ipc_postmessage, str, OE, OA, assert, ecache, json, json_cp,
+let {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
@@ -1543,7 +1545,7 @@ async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = T_url_parse(url);
   let ref = request.headers.get('referer');
-  let external = u.origin!=self.location.origin;
+  let external = u.origin!=location.origin;
   let path = uri_dec(u.path);
   let qs = u.search;
   let q = u.searchParams;
@@ -1948,7 +1950,7 @@ let do_app_pkg = async function(boot_pkg){
     // so its nicer visually in devtools
     let u = T_url_parse(lif_kernel_base);
     let base = lif_kernel_base;
-    if (u.origin==globalThis.location.origin)
+    if (u.origin==location.origin)
       base = u.path;
     lif.globDependencies['lif-kernel'] = base;
   }
