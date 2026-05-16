@@ -5,8 +5,9 @@ export const version = util_version;
 const EventEmitter = (await import('./events.js')).default;
 let D = 0; // Debug
 
-let is_worker = !globalThis.window;
-let is_node = !globalThis.navigator;
+const is_worker = !globalThis.window;
+const is_node = globalThis.process?.versions?.node!==undefined;
+console.log('is node', is_node);
 
 // Promise with return() and throw()
 export function ewait(){
