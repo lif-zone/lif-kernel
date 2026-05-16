@@ -2,10 +2,11 @@
 let util_version = '26.5.7';
 export const dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 export const version = util_version;
+const EventEmitter = (await import('./events.js')).default;
 let D = 0; // Debug
 
-let is_worker = typeof window=='undefined';
-let is_node = globalThis.process?.versions?.node!==undefined;
+let is_worker = !globalThis.window;
+let is_node = !globalThis.navigator;
 
 // Promise with return() and throw()
 export function ewait(){
@@ -294,36 +295,6 @@ class Buffer extends Uint8Array {
   static isBuffer(b){ return b instanceof Buffer || b instanceof Uint8Array; }
 };
 
-export const EventEmitter = is_node
-? globalThis.process.browser_env.EventEmitter
-: class EventEmitter extends EventTarget {
-  on(eventName, listener){
-    this.addEventListener(eventName, listener);
-    return this;
-  }
-  once(eventName, listener){
-    const wrapper = event=>{
-      this.removeEventListener(eventName, wrapper);
-      listener(event);
-    };
-    this.addEventListener(eventName, wrapper);
-    return this;
-  }
-  off(eventName, listener){
-    this.removeEventListener(eventName, listener);
-    return this;
-  }
-  emit(eventName, ...args){
-    const event = new CustomEvent(eventName, {
-      detail: args.length==1 ? args[0] : args, // nice detail for single arg
-    });
-    return this.dispatchEvent(event);
-  }
-  // Optional: Node.js style alias
-  addListener = this.on;
-  removeListener = this.off;
-};
-
 export class rpc_base extends EventEmitter {
   method_fn = {};
   id = 0;
@@ -377,6 +348,8 @@ export class rpc_base extends EventEmitter {
       res = {error: ''+err};
     }
     slow.end();
+    this.D && console.log('rpc>< '+method, res);
+    assert(typeof method=='string', 'invalid method type');
     return res;
   }
   async notify(method, params, opt){
