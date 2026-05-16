@@ -16,9 +16,9 @@ export function EventEmitter(){ this._events = {}; }
  * @api public
  */
 EventEmitter.prototype.listeners = function listeners(name){
-  var events = this._events && this._events[name] || [];
-  var length = events.length, listeners = [];
-  for (var i = 0; i<length; events[++i])
+  let events = this._events && this._events[name] || [];
+  let listeners = [];
+  for (let i = 0; i<events.length; i++)
     listeners.push(events[i].fn);
   return listeners;
 };
@@ -30,35 +30,15 @@ EventEmitter.prototype.listeners = function listeners(name){
  * @returns {Boolean} Indication if we've emitted an event.
  * @api public
  */
-EventEmitter.prototype.emit = function emit(name, a1, a2, a3, a4, a5){
+EventEmitter.prototype.emit = function emit(name, ...args){
   if (!this._events || !this._events[name])
     return false;
-  var listeners = this._events[name], length = listeners.length;
-  var len = arguments.length, event = listeners[0], args, i;
-  if (length===1){
-    switch (len){
-    case 1: event.fn.call(event.context||this); break;
-    case 2: event.fn.call(event.context||this, a1); break;
-    case 3: event.fn.call(event.context||this, a1, a2); break;
-    case 4: event.fn.call(event.context||this, a1, a2, a3); break;
-    case 5: event.fn.call(event.context||this, a1, a2, a3, a4); break;
-    case 6: event.fn.call(event.context||this, a1, a2, a3, a4, a5); break;
-    default:
-      for (i = 1, args = new Array(len-1); i<len; i++)
-        args[i-1] = arguments[i];
-      event.fn.apply(event.context||this, args);
-    }
+  let listeners = this._events[name];
+  for (let i = 0; i<listeners.length; i++){
+    let event = listeners[i];
+    event.fn.apply(event.context||this, args);
     if (event.once)
       remove_listener.apply(this, [name, event]);
-  }
-  else {
-    for (i = 1, args = new Array(len-1); i<len; i++)
-      args[i-1] = arguments[i];
-    for (i = 0; i<length; event = listeners[++i]){
-      event.fn.apply(event.context||this, args);
-      if (event.once)
-        remove_listener.apply(this, [name, event]);
-    }
   }
   return true;
 };
@@ -69,7 +49,7 @@ function add_listener(name, fn, opt){
     this._events = {};
   if (!this._events[name])
     this._events[name] = [];
-  var event = {fn: fn};
+  let event = {fn: fn};
   if (opt.context)
     event.context = opt.context;
   if (opt.once)
@@ -84,20 +64,20 @@ function add_listener(name, fn, opt){
 function remove_listener(name, listener){
   if (!this._events || !this._events[name])
     return this;
-  var listeners = this._events[name], events = [];
-  var is_fn = typeof listener=='function';
-  for (var i = 0, length = listeners.length; i<length; i++){
-    if (!listener)
-      continue;
-    if (is_fn && listeners[i].fn!==listener ||
-      !is_fn && listeners[i]!==listener)
-    {
-      events.push(listeners[i]);
+  let listeners = this._events[name], events = [];
+  let is_fn = typeof listener=='function';
+  if (listener){
+    for (let i = 0; i<listeners.length; i++){
+      if (is_fn && listeners[i].fn!==listener ||
+        !is_fn && listeners[i]!==listener)
+      {
+        events.push(listeners[i]);
+      }
     }
   }
   // reset the array, or remove it completely if we have no more listeners
   if (events.length)
-    this._events[name] = events;
+    this._events[name] = events.length ? events : null;
   else
     this._events[name] = null;
   return this;
