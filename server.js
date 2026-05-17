@@ -7,4 +7,5 @@ map['/lif-kernel'] = '.';
 map['/lif-basic'] = './lif-basic';
 map['/lif-os'] = '../lif-os';
 map['/lif-coin'] = '../lif-coin';
+map['/lif-net'] = '../lif-net';
 server({map, root});
