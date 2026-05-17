@@ -83,7 +83,7 @@ function page_not_found(){
 }
 
 async function lif_kv_get(key){
-  let url = qs_append(location.origin+'/.lif/lif_kv', {key});
+  let url = qs_append(location.origin+'/.lif.net/lif_kv', {key});
   let res = await fetch(url);
   if (res.status!=200)
     return void console.error('failed lif kv: '+res.status);
