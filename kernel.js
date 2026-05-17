@@ -99,7 +99,7 @@ function cache_lmod(lmod, perm){
 // quick-and-dirty kernel emulation of ESM:
 function esm_kernel_tr(src){
   // hack for util.js
-  src = src.replace(/await import\(/g, 'await globalThis.$lif.import_module(');
+  src = src.replace(/await import\(/g, 'await import_module(');
   // collect all exports
   let re = /($|\n)export +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)/g;
   return src.replace(re, (match, pre, type, name, rest)=>{
