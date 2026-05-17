@@ -27,9 +27,6 @@ let webapp_index = {
   'lif-coin-local': '/lif-coin/',
 };
 
-//let lifcoin_url = ['http://localhost:8432'];
-let lifcoin_url = [location.origin];
-
 function demo_index(){
   let body = document.querySelector('body');
   for (let [k, v] of OE(webapp_index)){
@@ -86,7 +83,7 @@ function page_not_found(){
 }
 
 async function lif_kv_get(key){
-  let url = qs_append(lifcoin_url[0]+'/lif_kv', {key});
+  let url = qs_append(location.origin+'/.lif/lif_kv', {key});
   let res = await fetch(url);
   if (res.status!=200)
     return void console.error('failed lif kv: '+res.status);

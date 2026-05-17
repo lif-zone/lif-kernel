@@ -143,7 +143,7 @@ const http_listener = (req, res)=>{
   let uri = decodeURI(url.pathname);
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
-  if (uri=='/lif_kv')
+  if (uri=='/.lif/lif_kv')
     return lif_kv_handler(req, res);
   let path = map_uri({uri, opt: options});
   if (!path)
