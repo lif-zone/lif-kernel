@@ -302,12 +302,19 @@ export class rpc_base extends EventEmitter {
   open = ewait();
   jsonrpc;
   D = 0;
+  is_json = false;
   constructor(opt={}){
     super();
     if (opt.D)
       this.D = 1;
     if (this.D)
       console.log('rpc>>connect');
+    if (opt.is_json)
+      this.is_json = opt.is_json;
+  }
+  json_null(v){
+    // undefined -> null, since JSON.stringify({v: undefined})=='{}'
+    return v!==undefined || !this.is_json ? v : null;
   }
   async T_call(method, params){
     let res = await this._call(method, params);
@@ -400,9 +407,9 @@ export class rpc_base extends EventEmitter {
         throw 'rpc unsupported method '+method;
       let ret = await method_fn(params);
       if ('result' in ret)
-        res = {result: ret.result};
+        res = {result: this.json_null(ret.result)};
       else if ('error' in ret)
-        res = {error: ret.error};
+        res = {error: this.json_null(ret.error)};
       else
         throw 'rpc: method invalid res '+method;
     } catch(err){
@@ -517,7 +524,7 @@ export class ipc_postmessage extends rpc_base {
 export class rpc_websocket extends rpc_base {
   ws;
   constructor(opt={}){
-    super(opt);
+    super({...opt, is_json: true});
     if (opt.jsonrpc)
       this.jsonrpc = opt.jsonrpc;
   }
