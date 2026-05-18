@@ -1202,8 +1202,14 @@ async function lpm_pkg_get_follow({log, lmod}){
 
 let dev_local_redirect_t = {
   'git/github/lif-zone/lif-coin@latest': 'local/lif-coin/',
+  'git/github/lif-zone/lif-kernel@latest': 'local/lif-kernel/',
+  'git/github/lif-zone/lif-os@latest': 'local/lif-os/',
+  'git/github/lif-zone/lif-net@latest': 'local/lif-net/',
 };
+let dev_local_enable = 0;
 function lpm_dev_local_redirect(imp){
+  if (!dev_local_enable)
+    return;
   if (!imp)
     return;
   let v;
