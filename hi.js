@@ -52,7 +52,7 @@ function page_domain_not_found(sub){
   let pre = location.protocol+'//';
   let wallet = pre+'wallet'+host_rest;
   const e = html_elm_frag(`
-    <h1>Domain <a href="${location.host}"><b>${sub}</b>${domain_rest}</a> 404 not found</h1>
+    <h1>Domain <a href="${location.host}"><b>${sub}</b>${domain_rest}</a> is available!</h1>
     <h2>
       No one registered <b>${sub}</b>${domain_rest} domain yet.
       You may register it with LIF for free.
