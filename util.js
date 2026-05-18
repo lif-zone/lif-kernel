@@ -450,12 +450,12 @@ export class rpc_base extends EventEmitter {
     return this.on_call(msg);
   }
   on_error(err){
-    console.error('rpc socket error', err);
-    this.open.throw(err);
+    console.error('rpc socket error');
+    this.open.throw('socket error');
     this.error = true;
   }
   on_close(){
-    console.error('rpc socket closed');
+    console.warn('rpc socket closed');
     this.emit('close');
     this.open.throw('close');
     this.error = true;
