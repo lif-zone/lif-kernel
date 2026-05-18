@@ -74,8 +74,9 @@ const res_send = (res, _path)=>{
   }
   let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
-  if (local_dev_enable && _path=='/lif-kernel/kernel.js')
-    stream.write('globalThis.local_dev_enable = 1;');
+  console.log('PATH', _path);
+  if (local_dev_enable && _path.endsWith('/lif-kernel/kernel.js'))
+    res.write('globalThis.local_dev_enable = 1;');
   stream.pipe(res);
 };
 
