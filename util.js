@@ -530,8 +530,10 @@ export class rpc_websocket extends rpc_base {
         assert(this.ws.readyState==WebSocket.OPEN);
       this.open.return(true);
     });
-    this.ws.on('message', event=>{
-      let data = is_node ? event.toString('utf8') : event.data;
+    this.ws.on('message', async(event)=>{
+      let data = is_node ? event.toString('utf8') :
+        typeof event.data=='string' ? event.data :
+        event.data instanceof Blob ? (await event.data.text()) : assert();
       let msg;
       try {
         msg = JSON.parse(data);
