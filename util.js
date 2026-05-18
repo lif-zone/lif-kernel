@@ -311,13 +311,13 @@ export class rpc_base extends EventEmitter {
   }
   async T_call(method, params){
     let res = await this._call(method, params);
-    if (res.error!==undefined)
+    if ('error' in res)
       throw res.error;
     return res.result;
   }
   async call(method, params){
     let res = await this._call(method, params);
-    if (res.error!==undefined)
+    if ('error' in res)
       return;
     return res.result;
   }
@@ -337,9 +337,9 @@ export class rpc_base extends EventEmitter {
         throw new Error('rpc not open');
       await this.send(request);
       let ret = await req.wait;
-      if (ret.result!==undefined)
+      if ('result' in ret)
         res = {result: ret.result};
-      else if (ret.error!==undefined)
+      else if ('error' in ret)
         res = {error: ret.error};
       else
         res = {error: 'invalid msg: no result or error'};
@@ -382,7 +382,7 @@ export class rpc_base extends EventEmitter {
     if (!(req = this.req[id]))
       return console.error('rpc: unexpected msg id', msg);
     delete this.req[id];
-    if (this.D || msg.error!==undefined){
+    if (this.D || 'error' in msg){
       console.log('rpc> '+(msg.error ? 'err ' : '')+req.request.method,
         req.request.params ?? '', msg.error||msg.result);
     }
@@ -399,9 +399,9 @@ export class rpc_base extends EventEmitter {
       if (!method_fn)
         throw 'rpc unsupported method '+method;
       let ret = await method_fn(params);
-      if (ret.result!==undefined)
+      if ('result' in ret)
         res = {result: ret.result};
-      else if (ret.error!==undefined)
+      else if ('error' in ret)
         res = {error: ret.error};
       else
         throw 'rpc: method invalid res '+method;
@@ -411,7 +411,7 @@ export class rpc_base extends EventEmitter {
     }
     slow.end();
     res = {id, ...res};
-    if (this.D || res.error!==undefined){
+    if (this.D || 'error' in res){
       console.log('rpc< '+(res.error ? 'err ' : '')+method, params,
         res.error||res.result);
     }
@@ -462,7 +462,7 @@ export class rpc_base extends EventEmitter {
   e_method(method, fn){
     this.method_fn[method] = async(params)=>{
       let res = await fn(params);
-      if (res.error!==undefined)
+      if ('error' in res)
         return res;
       return {result: res};
     };
