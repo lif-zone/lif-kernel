@@ -58,7 +58,7 @@ function page_domain_not_found(sub){
       You may register it with LIF for free.
     </h2>
     <div>
-      <a href="${wallet}${qs_enc({get_doamin: sub})}"
+      <a href="${wallet}${qs_enc({get_doamin: domain})}"
         style="display: inline-block; padding: 14px 28px; background-color: #0066ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;" >
         Make <b>${sub}</b>${domain_rest} your own
       </a> - In 5 minute, for free!
