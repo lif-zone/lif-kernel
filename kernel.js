@@ -1200,6 +1200,22 @@ async function lpm_pkg_get_follow({log, lmod}){
   return lpm_pkg;
 }
 
+let dev_local_redirect_t = {
+  'git/github/lif-zone/lif-coin@latest': 'local/lif-coin/',
+};
+function lpm_dev_local_redirect(imp){
+  if (!imp)
+    return;
+  let v;
+  for (let [from, to] in OE(dev_local_redirect_t)){
+    if (v = path_starts(imp, from)){
+      let _imp = to+v.rest;
+      console.log('dev local redirect', imp, '->', _imp);
+      return _imp;
+    }
+  }
+}
+
 // npm/lif-os/basic.js:
 // import 'npm/components/file.js'
 // lpm_pkg_resolve:
@@ -1250,6 +1266,8 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   // load the module, even if redirect later, so its loaded with mod_self
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
     mod_self: lpm_self.lmod, _mod_self: mod_self});
+  // local dev: allow to force modules to load from local
+  _imp = lpm_dev_local_redirect(_imp) || _imp;
   // located import, and it got changed
   if (_imp && _imp!=imp)
     return {lpm_pkg: {redirect: _imp}};
