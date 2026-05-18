@@ -1,4 +1,3 @@
-/* eslint-env node */
 import http from 'http';
 import https from 'https';
 import process from 'process';
