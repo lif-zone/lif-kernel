@@ -79,7 +79,7 @@ export async function ws_on_connect(ws){
     br.rpc_c = rpc;
     br.rpc_s = rg;
     let res = await br.rpc_c._call('rconnect.connect', {br_id});
-    if (res.error)
+    if ('error' in res)
       return res;
     br_t[br_id] = br;
     br.rpc_c.br_t[br_id] = br;
@@ -148,7 +148,7 @@ export class rpc_tun extends rpc_base {
     this._set_events();
     return await this.open;
     let ret = await this.rpc._call('rconnect', {rg_id});
-    if (ret.error)
+    if ('error' in ret)
       return ret;
     let {br_id} = ret.result;
     return {br_id};
