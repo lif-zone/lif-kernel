@@ -10,7 +10,7 @@ const rg_conn = {};
 let g_br_id = 0;
 const br_t = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export async function ws_on_connect(ws){
+export async function ws_on_connect_rg(ws){
   let rpc = new rpc_websocket({D: 1});
   rpc.topics = {};
   rpc.method('ping', ()=>({pong: 1}));
@@ -164,4 +164,18 @@ export class rpc_tun extends rpc_base {
   }
 };
 
+const electrum_ws_url = 'ws://localhost:8432/';
+export async function ws_on_connect_electrum(ws){
+  let upstream = new WebSocket(electrum_ws_url);
+  upstream.on('open', ()=>{
+    ws.on('message', data=>upstream.send(data));
+    upstream.on('message', data=>ws.send(data));
+    ws.on('close', ()=>upstream.close());
+    upstream.on('close', ()=>ws.close());
+  });
+  upstream.on('error', err=>{
+    console.error('electrum ws proxy error: %s', err.message);
+    ws.close();
+  });
+}
 

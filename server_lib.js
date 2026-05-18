@@ -14,7 +14,7 @@ import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
 import {WebSocketServer, WebSocket} from 'ws';
-import {ws_on_connect} from './lif_rg.js';
+import {ws_on_connect_rg, ws_on_connect_electrum} from './lif_rg.js';
 const efs = fs.promises;
 
 // DNS Setup
@@ -174,32 +174,17 @@ function sni_cb(server_name, cb){
 
 let server;
 let sserver;
-const electrum_ws_url = 'ws://localhost:8432/';
 function server_init({port, ssl}){
   server = http.createServer(http_listener);
   sserver = https.createServer({SNICallback: sni_cb}, http_listener);
   // WebSocket
   const wss = new WebSocketServer({noServer: true});
-  const wss_electrum = new WebSocketServer({noServer: true});
   const ws_upgrade = (req, socket, head)=>{
-    let url = new URL(req.url, 'http://x');
-    if (url.pathname=='/.lif.rg')
-      return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect(ws));
-    if (url.pathname=='/.lif.net/electrum'){
-      return wss_electrum.handleUpgrade(req, socket, head, ws=>{
-        let upstream = new WebSocket(electrum_ws_url);
-        upstream.on('open', ()=>{
-          ws.on('message', data=>upstream.send(data));
-          upstream.on('message', data=>ws.send(data));
-          ws.on('close', ()=>upstream.close());
-          upstream.on('close', ()=>ws.close());
-        });
-        upstream.on('error', err=>{
-          console.error('electrum ws proxy error: %s', err.message);
-          ws.close();
-        });
-      });
-    }
+    let uri = (new URL(req.url, 'http://x')).pathname;
+    if (uri=='/.lif.rg')
+      return wss.handleUpgrade(req, socket, head, ws_on_connect_rg);
+    if (uri=='/.lif.net/electrum')
+      return wss.handleUpgrade(req, socket, head, ws_on_connect_electrum);
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
     return socket.destroy();
   };
