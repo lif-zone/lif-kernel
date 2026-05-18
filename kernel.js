@@ -1215,7 +1215,7 @@ function lpm_local_dev_redirect(imp){
   for (let [from, to] of OE(local_dev_redirect_t)){
     if (v = path_starts(imp, from)){
       let _imp = to+v.rest;
-      console.log('dev local redirect', imp, '->', _imp);
+      console.log('local dev redirect', imp, '->', _imp);
       return _imp;
     }
   }
