@@ -1200,26 +1200,26 @@ async function lpm_pkg_get_follow({log, lmod}){
   return lpm_pkg;
 }
 
-let dev_local_redirect_t = {
+let local_dev_redirect_t = {
   'git/github/lif-zone/lif-coin@latest': 'local/lif-coin/',
   'git/github/lif-zone/lif-kernel@latest': 'local/lif-kernel/',
   'git/github/lif-zone/lif-os@latest': 'local/lif-os/',
   'git/github/lif-zone/lif-net@latest': 'local/lif-net/',
 };
-let dev_local_enable = 0;
-function lpm_dev_local_redirect(imp){
-  if (!dev_local_enable)
-    return;
-  if (!imp)
-    return;
+// server.js --local-dev will insert globalThis.local_dev_enable = 1;
+let local_dev_enable = globalThis.local_dev_enable;
+function lpm_local_dev_redirect(imp){
+  if (!local_dev_enable || !imp)
+    return imp;
   let v;
-  for (let [from, to] of OE(dev_local_redirect_t)){
+  for (let [from, to] of OE(local_dev_redirect_t)){
     if (v = path_starts(imp, from)){
       let _imp = to+v.rest;
       console.log('dev local redirect', imp, '->', _imp);
       return _imp;
     }
   }
+  return imp;
 }
 
 // npm/lif-os/basic.js:
@@ -1273,7 +1273,8 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
     mod_self: lpm_self.lmod, _mod_self: mod_self});
   // local dev: allow to force modules to load from local
-  _imp = lpm_dev_local_redirect(_imp) || _imp;
+  if (local_dev_enable)
+    _imp = lpm_local_dev_redirect(_imp);
   // located import, and it got changed
   if (_imp && _imp!=imp)
     return {lpm_pkg: {redirect: _imp}};

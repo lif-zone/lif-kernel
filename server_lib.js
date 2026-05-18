@@ -57,6 +57,8 @@ const res_err = (res, code, msg)=>{
   res.writeHead(code, msg, {'cache-control': 'no-cache'}).end();
 };
 let coi_enable = true;
+let local_dev_enable;
+
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = ext2mime[ext]||'plain/text';
@@ -72,6 +74,8 @@ const res_send = (res, _path)=>{
   }
   let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
+  if (local_dev_enable && _path=='/lif-kernel/kernel.js')
+    stream.write('globalThis.local_dev_enable = 1;');
   stream.pipe(res);
 };
 
@@ -381,6 +385,9 @@ async function run(opt){
     } else if (a=='-s' || a=='--ssl'){
       argv.shift();
       ssl = 1;
+    } else if (a=='-l' || a=='--local'){
+      argv.shift();
+      local_dev_enable = 1;
     }
   }
   if (argv[0]!=undefined)
