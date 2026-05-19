@@ -4,6 +4,7 @@ let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time,
   rpc_base,
 } from './util.js';
+import {WebSocket} from 'ws';
 
 const topics = {};
 const rg_conn = {};
