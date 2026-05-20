@@ -48,6 +48,8 @@ const inherits = (ctor, superCtor)=>{
 var E = Etask;
 var etask = Etask;
 var env = _process.env, assign = Object.assign;
+if (globalThis.$lif)
+  globalThis.$lif.etask = etask; // for debug etask.ps()
 E.use_bt = +env.ETASK_BT;
 E.root = [];
 E.assert_extra = +env.ETASK_ASSERT_EXTRA; // to debug internal etask bugs
