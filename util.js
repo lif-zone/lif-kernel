@@ -68,8 +68,8 @@ eslow.print = ()=>{
   for (let p of eslow.set)
     p.print();
 };
-if (D||1)
-  globalThis.$eslow = eslow;
+if (globalThis.$lif)
+  globalThis.$lif.eslow = eslow;
 
 let once_obj = {};
 let once_set = new Set();
