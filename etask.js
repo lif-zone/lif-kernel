@@ -6,7 +6,7 @@ let xerr;
 const is_node = process?.versions?.node!==undefined;
 if (!is_node){
   _process = {nextTick: function(fn){ setTimeout(fn, 0); }, env: {}};
-  xerr = function(){ console.log.apply(console, arguments); };
+  xerr = function(){ console.log(...arguments); };
   xerr.debug = function(){};
   xerr.is = function(){ return false; };
   xerr.L = {DEBUG: 0};
@@ -18,8 +18,8 @@ if (!is_node){
   };
 } else {
   _process = process; /*global process*/
-  assert = await import('assert');
-  xerr = await import('./xerr.js');
+  assert = (await import('assert')).default;
+  xerr = (await import('./xerr.js')).default;
 }
 
 // util.js
@@ -1387,7 +1387,7 @@ E.shutdown = function(){
     if (e==prev)
     {
       assert(e.tm_completed);
-      xerr.xexit('etask root not removed after return - '+
+      assert(0, 'etask root not removed after return - '+
         'fix non-cancelable child etask');
     }
     prev = e;
@@ -1417,14 +1417,13 @@ E.setTimeout = function etask_setTimeout(cb, ms){
     cb.call(this);
     delete E.setTimeout.timers[timer.id];
   }
-  E.setTimeout.timers = E.setTimeout.timers||{};
+  E.setTimeout.timers ||= {};
   let timer = new setTimeout_timer(ms);
   timer.timer = setTimeout(timer_cb, E.setTimeout_max);
   timer.ms -= E.setTimeout_max;
   E.setTimeout.timers[timer.id] = timer;
   return timer;
 };
-
 E.clearTimeout = function(timer){
   if (!(timer instanceof setTimeout_timer))
     return clearTimeout(timer);
