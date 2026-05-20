@@ -9,11 +9,14 @@ let D = 0; // Debug
 const EventEmitter = (await import(is_node ? 'events' : './events.js')).default;
 
 // Promise with return() and throw()
-export function ewait(){
+export function ewait(ms, arg){
+  let slow;
+  if (ms)
+    slow = eslow(ms, arg);
   let _return, _throw;
   let promise = new Promise((resolve, reject)=>{
-    _return = ret=>{ resolve(ret); return ret; };
-    _throw = err=>{ reject(err); return err; };
+    _return = ret=>{ slow?.end(); resolve(ret); return ret; };
+    _throw = err=>{ slow?.end(); reject(err); return err; };
   });
   promise.return = _return;
   promise.throw = _throw;
