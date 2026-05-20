@@ -74,7 +74,7 @@ const res_send = (res, _path)=>{
   }
   let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
-  console.log('PATH', _path);
+  // XXX ugly hack for local dev. should move it to /lif-kernel/conf.js
   if (local_dev_enable && _path.endsWith('/lif-kernel/kernel.js'))
     res.write('globalThis.local_dev_enable = 1;');
   stream.pipe(res);
