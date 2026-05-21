@@ -5,7 +5,7 @@ xerr.debug = function(){};
 xerr.is = function(){ return false; };
 xerr.L = {DEBUG: 0};
 
-export const is_node = process?.versions?.node!==undefined; /*global process*/
+export const is_node = globalThis.process?.versions?.node!==undefined;
 
 export const node = {};
 if (is_node)
