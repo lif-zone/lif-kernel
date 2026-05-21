@@ -1,26 +1,8 @@
 // author: derry. coder: arik.
 import events from 'events';
-let assert;
-var _process;
-let xerr;
-const is_node = process?.versions?.node!==undefined;
-if (!is_node){
-  _process = {nextTick: function(fn){ setTimeout(fn, 0); }, env: {}};
-  xerr = function(){ console.log(...arguments); };
-  xerr.debug = function(){};
-  xerr.is = function(){ return false; };
-  xerr.L = {DEBUG: 0};
-  assert = function(val, msg){
-    if (val)
-      return;
-    console.error(msg);
-    debugger; // eslint-disable-line no-debugger
-  };
-} else {
-  _process = process; /*global process*/
-  assert = (await import('assert')).default;
-  xerr = (await import('./xerr.js')).default;
-}
+const compat = await import('./compat.js');
+let {xerr, assert, is_node} = compat;
+let _process = is_node ? process : compat.process; /*global process*/
 
 // util.js
 const clamp = (lower_bound, val, upper_bound)=>
