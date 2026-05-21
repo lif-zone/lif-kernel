@@ -2,7 +2,7 @@
 import events from 'events';
 const compat = await import('./compat.js');
 let {xerr, assert, is_node} = compat;
-let _process = is_node ? process : compat.process; /*global process*/
+let process = is_node ? globalThis.process : compat.process;
 
 // util.js
 const clamp = (lower_bound, val, upper_bound)=>
@@ -29,13 +29,13 @@ const inherits = (ctor, superCtor)=>{
 
 var E = Etask;
 var etask = Etask;
-var env = _process.env, assign = Object.assign;
+var env = process.env, assign = Object.assign;
 if (globalThis.$lif)
   globalThis.$lif.etask = etask; // for debug etask.ps()
 E.use_bt = +env.ETASK_BT;
 E.root = [];
 E.assert_extra = +env.ETASK_ASSERT_EXTRA; // to debug internal etask bugs
-E.nextTick = _process.nextTick;
+E.nextTick = process.nextTick;
 // XXX: hack, rm set_xerr, get zerxerrusing require
 E.set_xerr = function(_xerr){ xerr = _xerr; };
 E.events = new events();
@@ -929,7 +929,7 @@ E.prototype.ps = function(flags){
   return this._ps('', '', flags);
 };
 E._longname_root = function(){
-  return (xerr.prefix ? xerr.prefix+'pid '+_process.pid+' ' : '')+'root'; };
+  return (xerr.prefix ? xerr.prefix+'pid '+process.pid+' ' : '')+'root'; };
 E.ps = function(flags){
   var i, s = '', task_trail;
   flags = assign({STACK: 1, RECURSIVE: 1, LIMIT: 10000000, TIME: 1,
