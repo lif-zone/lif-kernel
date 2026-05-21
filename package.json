@@ -23,6 +23,7 @@
     }
   },
   "files": [
+    "compat.js",
     "etask.js",
     "util.js",
     "boot.js",
