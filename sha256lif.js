@@ -13,7 +13,7 @@
  *   https://github.com/indutny/hash.js/blob/master/lib/hash/sha/256.js
  */
 'use strict';
-const assert = globalThis.assert || globalThis.$lif.assert;
+const assert = globalThis.assert || globalThis.$lif?.assert || (()=>{});
 const Buffer = globalThis.Buffer || globalThis.$lif.Buffer;
  
 /*
