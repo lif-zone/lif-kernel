@@ -177,7 +177,7 @@ let {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
-  uri_dec, match_glob_to_regex, semver_range_parse,
+  uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
   pkg_export_lookup, export_path_match, str_to_buf,
   eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
   Donce} = util;
@@ -1009,20 +1009,27 @@ function lpm_pkg_ver_lookup(pkg_ver, date){
   date = +new Date(date);
   let created = +new Date(time.created);
   let modified = +new Date(time.modified);
-  let max, found;
+  let found;
   for (let [ver, tm] of OE(pkg_ver.time)){
     if (str.is(ver, 'created', 'modified'))
       continue;
     tm = +new Date(tm);
-    if (!max || tm>=max?.tm)
-      max = {ver, tm};
-    if ((!found || tm>=found?.tm) && tm<=date)
-      found = {ver, tm};
+    let rel = semver_parse(ver).rel;
+    let cur = {ver, tm, rel};
+    if (!found || found.tm>date && tm<=date){
+      found = cur;
+      continue;
+    }
+    if (tm>date)
+      continue;
+    if (!found.rel && rel)
+      continue;
+    if (semver_cmp(found.ver, ver)>0)
+      continue;
+    found = cur;
   }
   if (found)
     return '@'+found.ver;
-  if (max)
-    return '@'+max.ver;
 }
 
 async function _lpm_pkg_ver_get({log, lmod}){
@@ -1681,7 +1688,7 @@ function test_kernel(){
   t('@', '@');
   t('@1.2.3', '@1.2.3');
   t('@semver:=1.2.3', '@=1.2.3');
-  t = (pkg_ver, date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
+  t = (date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
     modified: '2024-05-27T21:37:19.361Z',
@@ -1689,14 +1696,32 @@ function test_kernel(){
     '3.1.2': '2024-02-13T16:38:16.974Z',
     '3.1.4': '2024-02-13T17:36:12.881Z',
     '3.2.0': '2024-03-17T22:32:47.128Z',
+    '3.2.0-experimental': '2024-03-17T22:32:47.126Z',
+    '3.2.0-experimental-2': '2024-03-17T22:32:47.129Z',
+    '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
+    '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
   }};
-  t(pkg_ver, '2024-02-13T16:38:16.973Z', '@3.1.1');
-  t(pkg_ver, '2024-02-13T16:38:16.974Z', '@3.1.2');
-  t(pkg_ver, '2024-02-13T16:38:16.975Z', '@3.1.2');
-  t(pkg_ver, '2024-03-17T22:32:47.128Z', '@3.2.0');
-  t(pkg_ver, '2024-03-17T22:32:47.129Z', '@3.2.0');
-  t(pkg_ver, '2024-02-13T16:33:48.639Z', '@3.2.0');
-  t(pkg_ver, '2024-02-13T16:33:48.638Z', '@3.2.0');
+  t('2024-02-13T16:38:16.973Z', '@3.1.1');
+  t('2024-02-13T16:38:16.974Z', '@3.1.2');
+  t('2024-02-13T16:38:16.975Z', '@3.1.2');
+  t('2024-03-17T22:32:47.128Z', '@3.2.0');
+  t('2024-03-17T22:32:47.130Z', '@3.2.0');
+  t('2024-03-13T16:33:48.639Z', '@3.1.4');
+  t('2024-03-13T16:33:48.638Z', '@3.1.4');
+  t('2024-01-01T00:00:00.000Z', '@3.1.1');
+  t('2024-04-01700:00:00.000Z', '@3.2.0');
+  pkg_ver = {time: {
+    created: '2024-02-13T16:33:48.639Z',
+    modified: '2024-05-27T21:37:19.361Z',
+    '3.2.0-experimental': '2024-03-17T22:32:47.126Z',
+    '3.2.0-experimental-2': '2024-03-17T22:32:47.129Z',
+    '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
+    '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
+  }};
+  t('2024-01-01T00:00:00.000Z', '@3.2.0-experimental');
+  t('2024-03-13T16:33:48.639Z', '@3.2.0-experimental');
+  t('2024-03-13T16:33:48.638Z', '@3.2.0-experimental');
+  t('2024-04-01700:00:00.000Z', '@3.2.2-experimental-2');
   let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
     lif: {
       dependencies: {over: '2.0.0'},
