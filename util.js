@@ -1427,7 +1427,7 @@ export function semver_parse(semver, strict){
     if (!is_num(v[i]))
       return;
   }
-  return p
+  return p;
 }
 
 function semver_cmp_part(a, b){
