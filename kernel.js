@@ -735,6 +735,8 @@ function tr_mjs_import(f){
       continue;
     }
     console.warn('import('+f.lmod+') missing: '+imp);
+    s.splice(d.start, d.end, json('/.lif/npm/'+imp));
+    continue;
   }
   for (let d of f.meta.imports_dyn||[])
     s.splice(d.start, d.end, 'import_lif');
