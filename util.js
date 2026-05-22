@@ -1406,14 +1406,61 @@ export function T_npm_url_base(url_uri, base_uri){
 }
 export const npm_url_base = Tf(T_npm_url_base);
 
+function is_num(v){
+  let n = +v;
+  return ''+n==v && Number.isInteger(n) && n>=0;
+}
 let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^'+semver_re_part.source);
 let semver_re = new RegExp('^'+semver_re_part.source+'$');
-export function semver_parse(semver){
+export function semver_parse(semver, strict){
   let m = semver.match(semver_re);
   if (!m)
     return;
-  return {ver: m[1], rel: m[2]||''};
+  let p = {ver: m[1], rel: m[2]||''};
+  if (!strict)
+    return p;
+  let v = p.ver.split('.');
+  if (v.length!=3)
+    return;
+  for (let i=0; i<3; i++){
+    if (!is_num(v[i]))
+      return;
+  }
+  return p
+}
+
+function semver_cmp_part(a, b){
+  if (a==b)
+    return 0;
+  if (a==undefined || b==undefined)
+    return +(a!=undefined) - +(b!=undefined);
+  let an = is_num(a), bn = is_num(b);
+  if (an != bn)
+    return +is_num(a) - +is_num(b);
+  if (an)
+    return +a > +b ? 1 : -1;
+  return a>b ? 1: -1;
+}
+export function semver_cmp(a, b){
+  let _a = semver_parse(a, 1), _b = semver_parse(b, 1);
+  if (a==b)
+    return 0;
+  if (!_a || !_b)
+    return !!_a - !!_b; // parsing error
+  if (!_a.rel != !_b.rel)
+    return +!_a.rel - +!_b.rel;
+  let va = _a.ver.split('.'), vb = _b.ver.split('.');
+  for (let i=0; i<Math.max(va.length, vb.length); i++){
+    if (+va[i] != +vb[i])
+      return semver_cmp_part(va[i], vb[i]);
+  }
+  let ra = _a.rel.slice(1).split('.'), rb = _b.rel.slice(1).split('.');
+  for (let i=0; i<Math.max(ra.length, rb.length); i++){
+    if (ra[i] != rb[i])
+      return semver_cmp_part(ra[i], rb[i]);
+  }
+  assert();
 }
 
 const semver_op_re_start = /^(\^|=|~|>=|<=|\|\|)/;
@@ -2001,13 +2048,17 @@ function test_util(){
   t('local/dir/file', 'local/dir@1.2.3/file');
   t('git/github/user/repo/dir', 'git/github/user/repo@1.2.3/file',
     'git/github/user/repo@1.2.3/dir');
-  t = (semver, v)=>assert_obj(v, semver_parse(semver));
+  t = (semver, v, strict)=>assert_obj(v, semver_parse(semver, strict));
   t('1.2.3', {ver: '1.2.3', rel: ''});
   t('1.2.3-abc', {ver: '1.2.3', rel: '-abc'});
   t('1.2.3-abc2-341.3', {ver: '1.2.3', rel: '-abc2-341.3'});
   t('x1.2.3-abc2-341.3');
   t('1.2.3x-abc2-341.3');
   t('1.2.3-a_');
+  t('01.2.3', {ver: '01.2.3', rel: ''});
+  t('01.2.3', undefined, true);
+  t('1.2..3', {ver: '1.2..3', rel: ''});
+  t('1.2..3', undefined, true);
   t = (range, v, guess)=>{
     assert_obj_f(v, semver_range_parse(range));
     assert_obj(guess, semver_ver_guess(range));
@@ -2025,6 +2076,30 @@ function test_util(){
   t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
     {op: '^', ver: '4.5.6'}], '1.2.3');
   t('  ');
+  t = (a, b, v)=>assert_obj(v, semver_cmp_part(a, b));
+  t('0', '1', -1);
+  t('10', '0', 1);
+  t('0', '01', 1);
+  t('00', '01', -1);
+  t('aa', 'ab', -1);
+  t('aa', '1', -1);
+  t('1', 'aa', 1);
+  t('9', '80', -1);
+  t('100', '80', 1);
+  t = (a, b, v)=>assert_obj(v, semver_cmp(a, b));
+  t('1.0.0-alpha', '1.0.0-alpha.1', -1);
+  t('1.0.0-alpha.1', '1.0.0-alpha.2', -1);
+  t('1.0.0-beta', '1.0.0-alpha.999', 1);
+  t('1.0.0-rc.1', '1.0.0-rc.10', -1);
+  t('1.0.0-x.7', '1.0.0-x.11', -1);
+  t('1.0.0-9', '1.0.0-10', -1);
+  t('1.2.3', '1.11.1', -1);
+  t('1.2.3', '1.0,8', 1);
+  t('1.2.3', '2.0.0', -1);
+  t('1.2.3', '1.2.3-abc', 1);
+  t('1.2.3', '1.2.4-abc', 1);
+  t('1.2.3', '1.3.04', 1);
+  t('1.2.3', '1.3.x', 1);
   t = (path, match, tr, v)=>assert_obj(v, export_path_match(path, match, tr));
   t('file', 'file', null, true);
   t('file', 'file', {x: 1}, {x: 1});
