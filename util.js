@@ -1673,11 +1673,13 @@ Scroll.prototype.out = function(){
   return s;
 };
 
-export async function ecache(table, id, fn){
-  let t, ret;
-  if (t = table[id])
-    return await t.wait;
-  t = table[id] = {id, wait: ewait()};
+export async function ecache({table, id, opt}, fn){
+  let t, ret, refresh_tm = opt?.refresh_tm;
+  if (t = table[id]){
+    if (!(refresh_tm && t.tm<refresh_tm))
+      return await t.wait;
+  }
+  t = table[id] = {id, tm: Date.now(), wait: ewait()};
   try {
     ret = await fn(t);
     t.wait_complete = true;
