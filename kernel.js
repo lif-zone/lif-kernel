@@ -940,8 +940,8 @@ async function reg_http_get({log, url}){
 }
 async function reg_git_get({log, lmod}){ assert(0); }
 async function reg_bittorrent_get({log, lmod}){ assert(0); }
-async function reg_get({log, lmod}){
-  return await ecache({table: reg_file_t, id: lmod},
+async function reg_get({log, lmod, opt}){
+  return await ecache({table: reg_file_t, id: lmod, opt},
     async function run(reg)
 {
   let wait, u, get_ver;
@@ -1081,17 +1081,19 @@ async function lpm_pkg_cache_follow(lmod){
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
 async function lpm_file_get({log, lmod}){
-  return await ecache({table: lpm_file_t, id: lmod},
+  let is_c = cache_lmod(lmod);
+  let opt = is_c ? {} : cache_opt;
+  if (lmod.includes('main.jsx')) console.log('lpm_get_file', lmod, is_c, opt);
+  return await ecache({table: lpm_file_t, id: lmod, opt},
     async function run(lpm_file)
 {
   D && console.log('lpm_file_get', lmod);
-  let is_c = cache_lmod(lmod, true);
   let f = is_c && await cache_get('lpm_file', [lmod]);
   if (f)
     return f;
   lpm_file.lmod = lmod;
   lpm_file.log = log;
-  let reg = await reg_get({log, lmod});
+  let reg = await reg_get({log, lmod, opt});
   lpm_file.reg = reg; // for logging
   if (reg.err)
     return reg;
