@@ -215,14 +215,24 @@ async function db_open(){
   return db;
 }
 
-async function cache_get(table, k){
+async function cache_get(table, k, opt){
   let db = await db_open();
-  return await db.get(table, k);
+  let v = await db.get(table, k);
+  if (opt?.cache=='check'){
+    if (cache_opt.refresh_tm && v.cache_tm<cache_opt.refresh_tm)
+      return;
+  }
+  return v;
 }
 
 async function cache_set(table, v, k){
   let db = await db_open();
-  await db.put(table, v, k);
+  await db.put(table, {...v, cache_tm: Date.now()}, k);
+}
+
+let cache_opt = {refresh_tm: 0};
+function cache_refresh(){
+  cache_opt.refresh_tm = Date.now();
 }
 
 function sha256_hex(v){
@@ -929,7 +939,9 @@ async function reg_http_get({log, url}){
 async function reg_git_get({log, lmod}){ assert(0); }
 async function reg_bittorrent_get({log, lmod}){ assert(0); }
 async function reg_get({log, lmod}){
-return await ecache(reg_file_t, lmod, async function run(reg){
+  return await ecache({table: reg_file_t, id: lmod},
+    async function run(reg)
+{
   let wait, u, get_ver;
   reg.lmod = lmod;
   reg.log = log;
@@ -986,7 +998,9 @@ function assert_lmod(lmod){
   assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod); }
 
 async function lpm_pkg_ver_get({log, lmod}){
-return await ecache(lpm_pkg_ver_t, lmod, async function run(pv){
+  return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
+    async function run(pv)
+{
   D && console.log('lpm_pkg_ver_get '+lmod);
   pv.lmod = lmod;
   pv.log = log;
@@ -1065,7 +1079,9 @@ async function lpm_pkg_cache_follow(lmod){
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
 async function lpm_file_get({log, lmod}){
-return await ecache(lpm_file_t, lmod, async function run(lpm_file){
+  return await ecache({table: lpm_file_t, id: lmod},
+    async function run(lpm_file)
+{
   D && console.log('lpm_file_get', lmod);
   let is_c = cache_lmod(lmod, true);
   let f = is_c && await cache_get('lpm_file', [lmod]);
@@ -1145,7 +1161,9 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
 }
 
 async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
-return await ecache(lpm_pkg_t, lmod, async function run(lpm_pkg){
+  return await ecache({table: lpm_pkg_t, id: lmod},
+    async function run(lpm_pkg)
+{
   D && console.log('lpm_pkg_get', lmod, mod_self);
   lpm_pkg.lmod = lmod;
   assert_lmod(lmod);
@@ -1600,6 +1618,8 @@ async function _kernel_fetch(event){
   log.imp = path;
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-get');
+  if (request.cache=='no-cache')
+    cache_refresh();
   // LIF+local GET requests
   // LIF requests
   let v;
@@ -2009,7 +2029,9 @@ let do_app_pkg = async function(boot_pkg){
     lif.globDependencies['lif-kernel'] = base;
   }
   // init root pkg
-  lpm_pkg_root = await ecache(lpm_pkg_t, lmod_root, async function run(lpm_pkg){
+  lpm_pkg_root = await ecache({table: lpm_pkg_t, id: lmod_root},
+    async function run(lpm_pkg)
+  {
     lpm_pkg.lmod = lmod_root;
     lpm_pkg.pkg = boot_pkg;
     lpm_pkg.child = [];
