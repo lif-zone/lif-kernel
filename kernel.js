@@ -81,18 +81,20 @@ console.log('pre_init');
 (async()=>{try {
 // service worker import() implementation
 // 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
-let enable_cache = 2;
+let enable_cache = 1;
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
 }
-function cache_lmod(lmod, perm){
+function cache_lmod(lmod){
   if (!enable_cache)
     return;
+  if (str.starts(lmod, 'npm/', 'git/'))
+    return enable_cache>=1;
   if (str.starts(lmod, 'http/', 'https/'))
-    return !perm && enable_cache>=2;
+    return enable_cache>=2;
   if (str.starts(lmod, 'local/'))
-    return !perm && enable_cache>=3;
+    return enable_cache>=3;
   return true;
 }
 
@@ -1568,10 +1570,8 @@ async function send_res({err, not_exist, redirect, body, ext, path}){
     console.error('not found: '+path);
     return new Response('not found', {status: 404, statusText: 'not found'});
   }
-  let cache = str.starts(path, '/.lif/local/', '/.lif/http/', '/.lif/https/') ?
-    enable_cache>=2 :
-    path.startsWith('/.lif/') ? enable_cache>=1 :
-    path.startsWith('/') ? enable_cache>=2 : false;
+  let v;
+  let cache = (v=str.starts(path, '/.lif/')) && cache_lmod(v.rest);
   if (redirect)
     return response_redirect({redirect, cache});
   if (body)
