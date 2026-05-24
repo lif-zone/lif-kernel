@@ -1197,7 +1197,7 @@ export function npm_expand(npm){
     return '.local'+npm;
   if (v=str.starts(npm, 'local:/'))
     return '.local/'+v.rest;
-  if (v=str.starts(npm, 'git://'))
+  if (v=str.starts(npm, 'git://')) // XXX handle git: version #v2.1.4 #main
     return '.git/'+v.rest;
   if (v=str.starts(npm, 'github:'))
     return '.git/guthub/'+v.rest;
@@ -1217,7 +1217,7 @@ export function T_npm_to_lpm(npm, opt){
   }
   if (v=str.starts(npm, '.npm/', 'npm:'))
     return 'npm/'+v.rest;
-  if (v=str.starts(npm, '.git/', 'git://'))
+  if (v=str.starts(npm, '.git/', 'git://')) // XXX handle git: version #v2.1.4
     return 'git/'+v.rest;
   if (v=str.starts(npm, 'github:'))
     return 'git/github/'+v.rest;
