@@ -719,7 +719,7 @@ function lpm_imp_lookup({lpm_pkg, imp}){
   return ret_err('imp missing');
 }
 
-function tr_import_lpm({imp, imported, npm_uri, pkg}){
+function tr_import_lpm({imp, imported, npm_self, pkg}){
   let v = passthrough_lmod({pkg, lmod: imp});
   if (v)
     return v;
@@ -727,7 +727,7 @@ function tr_import_lpm({imp, imported, npm_uri, pkg}){
   let q = {};
   if (imported)
     q.imported = imported.join(',');
-  q.mod_self = npm_uri;
+  q.mod_self = npm_self;
   v += qs_enc(q);
   return v;
 }
@@ -740,14 +740,13 @@ function tr_mjs_import(f){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
       continue;
     }
-    if (v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)})){
-      let _v = tr_import_lpm({imp: v, imported: d.imported, npm_uri: f.npm_uri,
-        pkg: f.lpm_pkg.pkg});
-      s.splice(d.start, d.end, json(_v));
-      continue;
+    if (!(v=lpm_imp_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)}))){
+      console.warn('import('+f.lmod+') missing: '+imp);
+      v = npm_to_lpm(imp);
     }
-    console.warn('import('+f.lmod+') missing: '+imp);
-    s.splice(d.start, d.end, json('/.lif/npm/'+imp));
+    _v = tr_import_lpm({imp: v, imported: d.imported, npm_self: f.npm_uri,
+      pkg: f.lpm_pkg.pkg});
+    s.splice(d.start, d.end, json(_v));
     continue;
   }
   for (let d of f.meta.imports_dyn||[])
@@ -1083,7 +1082,6 @@ async function lpm_pkg_cache_follow(lmod){
 async function lpm_file_get({log, lmod}){
   let is_c = cache_lmod(lmod);
   let opt = is_c ? {} : cache_opt;
-  if (lmod.includes('main.jsx')) console.log('lpm_get_file', lmod, is_c, opt);
   return await ecache({table: lpm_file_t, id: lmod, opt},
     async function run(lpm_file)
 {
@@ -1095,6 +1093,7 @@ async function lpm_file_get({log, lmod}){
   lpm_file.log = log;
   let reg = await reg_get({log, lmod, opt});
   lpm_file.reg = reg; // for logging
+  lpm_file.url = reg.url; // for logging
   if (reg.err)
     return reg;
   if (reg.not_exist){
@@ -1107,7 +1106,7 @@ async function lpm_file_get({log, lmod}){
   lpm_file.body = reg.body;
   let h_body = sha256_hex(lpm_file.body);
   is_c && cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
-    h_body});
+    h_body, url: lpm_file.url});
   return lpm_file;
 }); }
 
@@ -1161,11 +1160,14 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   f.blob = f_get.blob;
   f.body = f_get.body;
   f.h_body = f_get.h_body;
+  f.url = f_get.url; // for logging
   return f;
 }
 
 async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
-  return await ecache({table: lpm_pkg_t, id: lmod},
+  let is_c = cache_lmod(lmod);
+  let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
+  return await ecache({table: lpm_pkg_t, id: lmod, opt},
     async function run(lpm_pkg)
 {
   D && console.log('lpm_pkg_get', lmod, mod_self);
@@ -1198,7 +1200,7 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   let f = await lpm_file_get({log, lmod: pkg_json});
   if (f.not_exist){
     lpm_pkg.not_exist = f.not_exist;
-    console.error('lpm_pkg_get('+lmod+') not found: '+f.url);
+    console.error('lpm_pkg_get('+pkg_json+') not found');
     return lpm_pkg;
   }
   lpm_pkg.blob = f.blob;
@@ -1222,6 +1224,8 @@ async function lpm_pkg_get_follow({log, lmod}){
     lmod = _lmod;
   }
   let lpm_pkg = await lpm_pkg_get({log, lmod});
+  if (lpm_pkg.not_exist)
+    return lpm_pkg;
   if (_lmod = lpm_pkg.redirect){
     console.log('redirect ver: '+lmod+' -> '+_lmod);
     lpm_pkg = lpm_pkg_get({log, lmod: _lmod});
@@ -1294,6 +1298,8 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
       return {lpm_pkg: {redirect: imp}};
     // different modules: load pkg, and lookup imports.
     lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
+    if (lpm_self.not_exist)
+      return {lpm_pkg: {not_exist: true}};
     // same package?
     if (lmod_self==imp)
       return {lpm_pkg: lpm_self};
@@ -1320,10 +1326,10 @@ async function lpm_file_resolve({log, imp, mod_self}){
   let path = T_lpm_parse(imp).path;
   let {lpm_pkg, subdir} = await lpm_pkg_resolve(
     {log, imp: T_lpm_lmod(imp), mod_self});
-  if (lpm_pkg.redirect)
-    return {redirect: lpm_pkg.redirect+path};
   if (lpm_pkg.not_exist)
     return {not_exist: true};
+  if (lpm_pkg.redirect)
+    return {redirect: lpm_pkg.redirect+path};
   let u = T_lpm_parse(imp);
   let lmod = lpm_pkg.lmod+(subdir||'')+u.path;
   let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg});
@@ -1956,7 +1962,10 @@ async function lpm_pkg_resolve_follow(opt){
     let imp, res;
     for (imp = opt.imp; imp;){
       let res = await lpm_pkg_resolve({...opt, imp});
-      if (!(imp = res?.lpm_pkg?.redirect))
+      let {lpm_pkg} = res;
+      if (lpm_pkg.not_exist)
+        return res;
+      if (!(imp = lpm_pkg.redirect))
         return res;
     }
     return res;
@@ -1979,6 +1988,10 @@ async function webapp_load({log, lmod_self, webapp}){
     return {err};
   } finally {
     slow.end();
+  }
+  if (_lpm_pkg_app.not_exist){
+    console.error('webapp_load not found: '+webapp);
+    return {err: 'app not found: '+_lpm_app+' ('+lmod_self+')'};
   }
   lpm_app = _lpm_app;
   lpm_pkg_app = _lpm_pkg_app;
