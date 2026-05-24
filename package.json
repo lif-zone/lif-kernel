@@ -45,7 +45,7 @@
     "@babel/standalone": "^7.29.1",
     "@peculiar/x509": "1.9.3",
     "acme-client": "5.0.0",
-    "dns2": "2.0.1",
+    "dns2": "github:lif-zone/dns2#v2.0.1-lif1",
     "ws": "^8.20.0"
   }
 }

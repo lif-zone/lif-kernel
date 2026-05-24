@@ -1199,6 +1199,8 @@ export function npm_expand(npm){
     return '.local/'+v.rest;
   if (v=str.starts(npm, 'git://'))
     return '.git/'+v.rest;
+  if (v=str.starts(npm, 'github:'))
+    return '.git/guthub/'+v.rest;
   if (v=str.starts(npm, 'npm:'))
     return v.rest;
   // TODO: add support for http: https:
@@ -1217,6 +1219,8 @@ export function T_npm_to_lpm(npm, opt){
     return 'npm/'+v.rest;
   if (v=str.starts(npm, '.git/', 'git://'))
     return 'git/'+v.rest;
+  if (v=str.starts(npm, 'github:'))
+    return 'git/github/'+v.rest;
   if (v=str.starts(npm, '.local/', 'local:/'))
     return 'local/'+v.rest;
   if (v=str.starts(npm, '.https/', 'https://'))
@@ -1863,6 +1867,8 @@ function test_util(){
   t('local:/mod//file', '.local/mod//file');
   t('git://github/user/repo@ver/submod//file',
     '.git/github/user/repo@ver/submod//file');
+  t('github:user/repo@ver/submod//file',
+    '.git/github/user/repo@ver/submod//file');
   t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
@@ -1978,6 +1984,7 @@ function test_util(){
   t('.npm/mod/dir/file', 'npm/mod/dir/file');
   t('.git/github/a_user/a_repo', 'git/github/a_user/a_repo');
   t('git://github/a_user/a_repo', 'git/github/a_user/a_repo');
+  t('github:a_user/a_repo', 'git/github/a_user/a_repo');
   t('.git/github/a_user/a_repo/dir/file', 'git/github/a_user/a_repo/dir/file');
   t('.local/file.js', 'local/file.js');
   t('local:/file.js', 'local/file.js');
