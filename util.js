@@ -1161,11 +1161,11 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
     return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
     return mod_self+(v.rest?'/'+v.rest:'')+path;
-  if (v=str.starts(d, 'https://github.com/'))
+  if (v=str.starts(d, 'https://github.com/', 'github:'))
     d = 'git://github.com/'+v.rest;
   if (v=str.starts(d, 'https://gitlab.com/'))
     d = 'git://gitlab.com/'+v.rest;
-  if (v=str.starts(d, ['git:', 'git+https:']))
+  if (v=str.starts(d, 'git:', 'git+https:'))
     return git_to_lpm(d)+path;
   if (v=str.starts(d, 'http://', 'https://'))
     return http_https_to_lpm(d)+path;
@@ -1907,6 +1907,7 @@ function test_util(){
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
   t('git://github.com/mochajs/mocha', 'git/github/mochajs/mocha');
   t('git+https://github.com/mochajs/mocha', 'git/github/mochajs/mocha');
+  t('github:mochajs/mocha', 'git/github/mochajs/mocha');
   t('git://github.com/mochajs/mocha.git#4727d357ea',
     'git/github/mochajs/mocha@4727d357ea');
   t('git://github.com/mochajs/mocha.git/index.js#4727d357ea',
