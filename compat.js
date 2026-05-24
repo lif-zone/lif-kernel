@@ -23,3 +23,30 @@ export const assert = function(val, msg){
   debugger; // eslint-disable-line no-debugger
 };
 
+let nextId = 1;
+let callbacks = {};
+export const setImmediate = is_node ? globalThis.setImmediate : function(fn, ...args){
+  if (typeof fn!='function')
+    throw new TypeError('setImmediate argument must be a function');
+  var id = nextId++;
+  callbacks[id] = true; // mark as active
+  setTimeout(function(){
+    if (!callbacks[id])
+      return;
+    delete callbacks[id];
+    fn(...args);
+  }, 0);
+  return id;
+};
+export const clearImmediate = is_node ? globalThis.clearImmediate : function(id){
+  if (id)
+    delete callbacks[id];
+};
+
+const exports = {
+  setImmediate,
+  clearImmediate,
+  assert,
+  process,
+}
+export default exports;
