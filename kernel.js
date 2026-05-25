@@ -1626,15 +1626,6 @@ async function _kernel_fetch(event){
   log.imp = path;
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-get');
-  // chrome linux gives no-cache for root document for F5 (and default for
-  // entering URL). chrome win win gives reload for both F5 and URL enter,
-  // and it gives it for all resources in the page.
-  // so limit refresh detection to root document
-  if ((request.cache=='no-cache' || request.cache=='reload') &&
-    (request.mode=='document' || request.mode=='iframe'))
-  {
-    cache_refresh();
-  }
   // chrome linux: F5 gives cache==no-cache for root document only.
   //   URL Enter: cache==default
   // chrome win: F5 and Enter give cache==reload, for all resources in page,
@@ -1643,7 +1634,7 @@ async function _kernel_fetch(event){
   // root document only.
   if (str.is(request.cache, 'no-cache', 'reload') &&
     (request.mode=='navigate' || 
-    str.is(request.destination('document', 'iframe')))
+    str.is(request.destination('document', 'iframe'))))
   { 
     console.log('cache_refresh', request.cache, request.mode, 
       request.destination, url);
