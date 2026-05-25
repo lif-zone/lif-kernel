@@ -4,7 +4,7 @@ import lif from './boot.js';
 
 let webapp_index = {
   '': '*demo_index', // special handling for built-in demo_index
-  'basic': 'git://github/lif-zone/lif-kernel@main/lif-basic//main.tsx',
+  'basic': 'git://github/lif-zone/lif-basic@main//main.tsx',
   'basic-npm': 'npm:lif-basic@1.3.0/main.tsx',
   'basic-local': '/lif-basic//main.tsx',
   'play': 'git://github/lif-zone/lif-kernel@main/lif-basic//play.html',
@@ -22,9 +22,9 @@ let webapp_index = {
   'os': 'git://github/lif-zone/lif-os@main/pages/lif_main.tsx',
   'os-local': '/lif-os//pages/lif_main.tsx',
   'lif-coin': 'git://github/lif-zone/lif-coin@latest',
-  'wallet': 'git://github/lif-zone/lif-coin@latest',
-  'wallet-local': '/lif-coin/',
   'lif-coin-local': '/lif-coin/',
+  'wallet': 'git://github/lif-zone/lif-wallet@latest',
+  'wallet-local': '/lif-wallet/',
 };
 
 function demo_index(){
