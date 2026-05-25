@@ -48,5 +48,5 @@ const exports = {
   clearImmediate,
   assert,
   process,
-}
+};
 export default exports;
