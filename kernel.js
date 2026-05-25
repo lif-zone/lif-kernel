@@ -232,7 +232,7 @@ async function cache_set(table, v, k){
   await db.put(table, {...v, cache_tm: Date.now()}, k);
 }
 
-let cache_opt = {refresh_tm: 0};
+let cache_opt = {refresh_tm: Date.now()};
 function cache_refresh(){
   cache_opt.refresh_tm = Date.now();
 }
