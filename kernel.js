@@ -1635,6 +1635,20 @@ async function _kernel_fetch(event){
   {
     cache_refresh();
   }
+  // chrome linux: F5 gives cache==no-cache for root document only.
+  //   URL Enter: cache==default
+  // chrome win: F5 and Enter give cache==reload, for all resources in page,
+  //   not just root document.
+  // so use mode==navigate and destination==document/iframe to limit refresh to
+  // root document only.
+  if (str.is(request.cache, 'no-cache', 'reload') &&
+    (request.mode=='navigate' || 
+    str.is(request.destination('document', 'iframe')))
+  { 
+    console.log('cache_refresh', request.cache, request.mode, 
+      request.destination, url);
+    cache_refresh();
+  }
   // LIF+local GET requests
   // LIF requests
   let v;
