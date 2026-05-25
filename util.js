@@ -1200,7 +1200,7 @@ export function npm_expand(npm){
   if (v=str.starts(npm, 'git://')) // XXX handle git: version #v2.1.4 #main
     return '.git/'+v.rest;
   if (v=str.starts(npm, 'github:'))
-    return '.git/guthub/'+v.rest;
+    return '.git/github/'+v.rest;
   if (v=str.starts(npm, 'npm:'))
     return v.rest;
   // TODO: add support for http: https:
@@ -1865,8 +1865,10 @@ function test_util(){
   t('/dir/file', '.local/dir/file');
   t('/mod//file', '.local/mod//file');
   t('local:/mod//file', '.local/mod//file');
+  // XXX: should be git://github/user/repo/submod//file#ver
   t('git://github/user/repo@ver/submod//file',
     '.git/github/user/repo@ver/submod//file');
+  // XXX: should be github://github/user/repo/submod//file#ver
   t('github:user/repo@ver/submod//file',
     '.git/github/user/repo@ver/submod//file');
   t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
