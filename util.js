@@ -1254,9 +1254,7 @@ export function npm_norm(npm){
     return '.'+p.reg+'/'+p.rest;
   return npm;
 }
-export function T_npm_to_lpm(npm, opt){
-  if (0 && npm[0]=='/' && !opt?.norm) // XXX remove obsolete
-    throw Error('invalid npm: '+npm);
+export function T_npm_to_lpm(npm){
   let p = _npm_parse(npm);
   if (p.err)
     throw Error(p.err);
@@ -1264,8 +1262,8 @@ export function T_npm_to_lpm(npm, opt){
 }
 export const npm_to_lpm = Tf(T_npm_to_lpm);
 
-export function T_npm_parse(npm, opt){
-  return T_lpm_parse(T_npm_to_lpm(npm, opt));
+export function T_npm_parse(npm){
+  return T_lpm_parse(T_npm_to_lpm(npm));
 }
 
 export function T_lpm_to_npm(lpm){
@@ -1998,15 +1996,13 @@ function test_util(){
     'git/github.com/a_user/a_repo/dir/file');
   t('.local/file.js', 'local/file.js');
   t('local:/file.js', 'local/file.js');
-  0 && t('/file.js'); // XXX should be local/file.js
+  t('/file.js', 'local/file.js');
+  t('/mod//file.js', 'local/mod//file.js');
+  t('.local/file.js', 'local/file.js');
   t('.local/mod//file.js', 'local/mod//file.js');
   t('.none/github.com/a_user/a_repo/dir/file');
   t('http://site/dir', 'http/site/dir');
   t('https://site/dir', 'https/site/dir');
-  t = (npm, v)=>assert_eq(v, npm_to_lpm(npm, {norm: true}));
-  t('.local/file.js', 'local/file.js');
-  t('/file.js', 'local/file.js');
-  t('/mod//file.js', 'local/mod//file.js');
   t = (v, arg)=>assert_obj_f(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);

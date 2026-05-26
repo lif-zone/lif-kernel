@@ -1988,7 +1988,7 @@ async function lpm_pkg_resolve_follow(opt){
 }
 
 async function webapp_load({log, lmod_self, webapp}){
-  let lmod_webapp = T_npm_to_lpm(webapp, {norm: true});
+  let lmod_webapp = T_npm_to_lpm(webapp);
   let _lpm_app = T_lpm_lmod(lmod_webapp);
   let _lpm_pkg_app;
   let slow = eslow('app_pg lpm_get');
