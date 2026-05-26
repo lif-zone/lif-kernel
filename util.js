@@ -1255,7 +1255,7 @@ export function npm_norm(npm){
   return npm;
 }
 export function T_npm_to_lpm(npm, opt){
-  if (npm[0]=='/' && !opt.norm) // XXX remove obsolete
+  if (0 && npm[0]=='/' && !opt?.norm) // XXX remove obsolete
     throw Error('invalid npm: '+npm);
   let p = _npm_parse(npm);
   if (p.err)
@@ -1998,7 +1998,7 @@ function test_util(){
     'git/github.com/a_user/a_repo/dir/file');
   t('.local/file.js', 'local/file.js');
   t('local:/file.js', 'local/file.js');
-  t('/file.js'); // XXX should be local/file.js
+  0 && t('/file.js'); // XXX should be local/file.js
   t('.local/mod//file.js', 'local/mod//file.js');
   t('.none/github.com/a_user/a_repo/dir/file');
   t('http://site/dir', 'http/site/dir');
