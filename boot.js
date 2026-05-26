@@ -6,7 +6,7 @@ import {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   T_npm_to_lpm, npm_str,
   T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
-  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_expand,
+  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_norm,
   json, json_cp, str_to_buf, lpm_is_perm,
   html_elm, _debugger, version as util_version,
 } from './util.js';
@@ -154,7 +154,7 @@ const npm_2url = (url, mod_self)=>{
   return '/.lif/'+T_npm_to_lpm(u.path);
 };
 
-const npm_norm = (mod_self, url)=>{
+const npm_base = (mod_self, url)=>{
   let u = T_npm_url_base(url, mod_self);
   let v;
   if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
@@ -169,7 +169,7 @@ const npm_norm = (mod_self, url)=>{
 
 function test(){
   let t;
-  t = (mod_self, url, v)=>assert_eq(v, npm_norm(mod_self, url));
+  t = (mod_self, url, v)=>assert_eq(v, npm_base(mod_self, url));
   t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
   t('.local/other.js', './a/file.js', '.local/a/file.js');
   t('.local/mod/', './a/file.js', '.local/mod//a/file.js');
@@ -570,7 +570,7 @@ function require_cjs_run(m, p){
 }
 
 function require_cjs_load_sync({mod_self, imp, p}){
-  imp = npm_norm(mod_self, imp);
+  imp = npm_base(mod_self, imp);
   D && console.log('sync load', mod_self, imp);
   let m;
   if (!p){
@@ -617,7 +617,7 @@ function require_cjs_load_sync({mod_self, imp, p}){
 }
 
 async function require_cjs_load({mod_self, imp, p, loading}){
-  imp = npm_norm(mod_self, imp);
+  imp = npm_base(mod_self, imp);
   let slow = eslow(15000, 'require_cjs_load('+imp+')');
   try {
   D && console.log('async load', mod_self, imp);
@@ -682,7 +682,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
 }
 
 function require_cjs_sync(mod_self, imp){
-  imp = npm_norm(mod_self, imp);
+  imp = npm_base(mod_self, imp);
   D && console.log('require_cjs_sync', imp);
   let p = modules[imp]?.parent[mod_self];
   let m;
@@ -697,7 +697,7 @@ function require_cjs_sync(mod_self, imp){
 }
 
 async function require_cjs_async(mod_self, imp){
-  imp = npm_norm(mod_self, imp);
+  imp = npm_base(mod_self, imp);
   D && console.log('require_cjs_async', imp);
   let m = await require_cjs_load({mod_self, imp});
   require_cjs_run(m);
@@ -707,7 +707,7 @@ async function require_cjs_async(mod_self, imp){
 function createRequire(mod_self){
   return function require_cjs_sync_mod(imp){
     mod_self = qs_trim(mod_self);
-    mod_self = npm_norm(mod_self, mod_self);
+    mod_self = npm_base(mod_self, mod_self);
     return require_cjs_sync(mod_self, imp);
   };
 }
@@ -727,7 +727,7 @@ function define_amd_get_mod(imp){
 
 async function import_amd(mod_self, [imp, opt]){
   D && console.log('import_amd', imp, mod_self);
-  imp = npm_norm(mod_self, imp);
+  imp = npm_base(mod_self, imp);
   let url = npm_2url(imp);
   let m;
   if (m = modules[imp])
@@ -962,7 +962,7 @@ let coi_reload = async()=>{
 };
 
 async function run_html(mod_self, webapp){
-  let _webapp = npm_norm(webapp, mod_self);
+  let _webapp = npm_base(webapp, mod_self);
   console.log('run_html start '+_webapp);
   let url = '/.lif/'+npm_to_lpm(_webapp);
   let html = await T_fetch_text(url);
@@ -999,7 +999,7 @@ let boot_app = async(boot_pkg)=>{
   let pkg = json_cp(boot_pkg);
   let webapp = pkg.lif?.webapp||pkg.webapp;
   if (webapp)
-    webapp = npm_expand(webapp);
+    webapp = npm_norm(webapp);
   console.log('boot: webapp '+webapp);
   npm_root = webapp;
   let slow = eslow('app_pkg');

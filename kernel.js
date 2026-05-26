@@ -1236,10 +1236,10 @@ async function lpm_pkg_get_follow({log, lmod}){
 }
 
 let local_dev_redirect_t = {
-  'git/github/lif-zone/lif-coin@latest': 'local/lif-coin/',
-  'git/github/lif-zone/lif-kernel@latest': 'local/lif-kernel/',
-  'git/github/lif-zone/lif-os@latest': 'local/lif-os/',
-  'git/github/lif-zone/lif-net@latest': 'local/lif-net/',
+  'git/github.com/lif-zone/lif-coin@latest': 'local/lif-coin/',
+  'git/github.com/lif-zone/lif-kernel@latest': 'local/lif-kernel/',
+  'git/github.com/lif-zone/lif-os@latest': 'local/lif-os/',
+  'git/github.com/lif-zone/lif-net@latest': 'local/lif-net/',
 };
 // server.js --local-dev will insert globalThis.local_dev_enable = 1;
 let local_dev_enable = globalThis.local_dev_enable;
@@ -1768,7 +1768,7 @@ function test_kernel(){
       globDependencies: {overg: '2.0.0'},
     },
     dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
-      dom: '>=18.3.1', os: '.git/github/repo/mod', over: '1.0.0'},
+      dom: '>=18.3.1', os: '.git/github.com/repo/mod', over: '1.0.0'},
     peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
     globDependencies: {glb: '1.2.0', overg: '1.0.0'},
   }};
@@ -1788,7 +1788,7 @@ function test_kernel(){
   t('npm/dom', {reg: ''});
   t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
   t('npm/dom_p', {peer: '>=18.3.1'});
-  t('npm/os/dir/index.js', {reg: 'git/github/repo/mod/dir/index.js'});
+  t('npm/os/dir/index.js', {reg: 'git/github.com/repo/mod/dir/index.js'});
   t('npm/glb', {glob: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
   t('npm/overg', {glob: 'npm/overg@2.0.0'});
@@ -1852,8 +1852,8 @@ function test_kernel(){
   t('npm/gpeer', 'npm/gpeer@13.0.1');
   t('npm/gpeer2', 'npm/gpeer2@14.0.1');
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
-  t('npm/GIT/dir/file', 'git/github/user/repo@v1/dir/file');
-  t('git/github/user/repo@vX', 'git/github/user/repo@vX');
+  t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
+  t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
   t = (pkg, imp, v)=>assert_eq(v, lpm_imp_lookup({lpm_pkg: {pkg}, imp}));
   t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
@@ -1988,7 +1988,7 @@ async function lpm_pkg_resolve_follow(opt){
 }
 
 async function webapp_load({log, lmod_self, webapp}){
-  let lmod_webapp = T_npm_to_lpm(webapp, {expand: true});
+  let lmod_webapp = T_npm_to_lpm(webapp, {norm: true});
   let _lpm_app = T_lpm_lmod(lmod_webapp);
   let _lpm_pkg_app;
   let slow = eslow('app_pg lpm_get');
