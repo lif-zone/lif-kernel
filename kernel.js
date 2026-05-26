@@ -1052,7 +1052,7 @@ async function _lpm_pkg_ver_get({log, lmod}){
     u.ver = npm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
   else if (u.reg='git'){
     let ver_fn = pv.src_ver.get_data;
-    u.ver = ver_fn(pv.pkg_ver);
+    u.ver = '@'+ver_fn(pv.pkg_ver);
   } else
     assert(0, 'pkg_ver not supported for '+u.reg);
   if (!u.ver)
