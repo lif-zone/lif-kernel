@@ -1176,8 +1176,6 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
   }
   if (v=str.starts(d, 'lif:', '.lif/'))
     return v.rest+path;
-  if (v=str.starts(d, '.git/', '.local/', '.http/', '.https/'))
-    return v.start.slice(1)+v.rest+path;
   if (v=str.starts(dep, 'file:')){
     let file = v.rest;
     if (!(v=str.starts(file, './')))
@@ -1210,6 +1208,10 @@ export function _npm_parse(npm){
   if (npm[0]=='/')
     return {reg: 'local', rest: npm.slice(1)};
   let {proto, proto_name, rest} = url_proto_parse(npm);
+  if (v=str.starts(npm, '.lif/')){
+    proto = 'lif:';
+    rest = v.rest;
+  }
   if (proto=='lif:'){
     if (!(m = rest.match(/^([^\/]+)\//)))
       return {rest: npm, err: 'invalid lif: '+npm};
@@ -1237,13 +1239,6 @@ export function _npm_parse(npm){
   }
   if (proto)
     return {rest: npm, err: 'invalid proto '+proto};
-  if (npm[0]=='.'){
-    if (!(m = npm.match(/^([^\/]+)\//)))
-      return {rest: npm, err: 'invalid lif: '+npm};
-    if (str.is(m[1], '.npm', '.local', '.git', '.http', '.https'))
-      return {reg: m[1].slice(1), rest: npm.slice(m[0].length)};
-    return {rest: npm, err: 'invalid npm: '+npm};
-  }
   return {reg: 'npm', rest: npm};
 }
 export function npm_norm(npm){
@@ -1251,7 +1246,7 @@ export function npm_norm(npm){
   if (p.reg=='npm')
     return p.rest;
   if (p.reg)
-    return '.'+p.reg+'/'+p.rest;
+    return '.lif/'+p.reg+'/'+p.rest;
   return npm;
 }
 export function T_npm_to_lpm(npm){
@@ -1270,7 +1265,7 @@ export function T_lpm_to_npm(lpm){
   let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
   if (u.reg=='npm')
     return u.lmod.slice(4)+u.path;
-  return '.'+u.lmod+u.path;
+  return '.lif/'+u.lmod+u.path;
 }
 export const lpm_to_npm = Tf(T_lpm_to_npm);
 
@@ -1865,16 +1860,18 @@ function test_util(){
   t('git/dir:file', {rest: 'git/dir:file'});
   t = (npm, v)=>assert_obj(v, npm_norm(npm));
   t('mod', 'mod');
-  t('/', '.local/');
-  t('/dir/file', '.local/dir/file');
-  t('/mod//file', '.local/mod//file');
-  t('local:/mod//file', '.local/mod//file');
-  // XXX: should be git://github.com/user/repo/submod//file#ver
+  t('.lif/npm/mod', 'mod');
+  t('/', '.lif/local/');
+  t('/dir/file', '.lif/local/dir/file');
+  t('/mod//file', '.lif/local/mod//file');
+  t('local:/mod//file', '.lif/local/mod//file');
+  t('.lif/local/mod//file', '.lif/local/mod//file');
   t('git://github.com/user/repo/submod//file#ver',
-    '.git/github.com/user/repo@ver/submod//file');
-  // XXX: should be github://github.com/user/repo/submod//file#ver
+    '.lif/git/github.com/user/repo@ver/submod//file');
+  t('.lif/git/github.com/user/repo@ver/submod//file',
+    '.lif/git/github.com/user/repo@ver/submod//file');
   t('github:user/repo/submod//file#ver',
-    '.git/github.com/user/repo@ver/submod//file');
+    '.lif/git/github.com/user/repo@ver/submod//file');
   t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
@@ -1966,9 +1963,9 @@ function test_util(){
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
   t('npm/react/index.js', '^18.3.1', 'npm/react@18.3.1/index.js');
   t('npm/rmod', 'npm:react@18.3.1', 'npm/react@18.3.1');
-  t('npm/os/dir/index.js', '.git/github.com/repo/mod',
+  t('npm/os/dir/index.js', '.lif/git/github.com/repo/mod',
     'git/github.com/repo/mod/dir/index.js');
-  t('npm/mod2/dir/main.tsx', '.local/MOD/',
+  t('npm/mod2/dir/main.tsx', '.lif/local/MOD/',
     'local/MOD//dir/main.tsx');
   t('npm/http1/dir/main.tsx', 'http://localhost:3000/MOD',
     'http/localhost:3000/MOD//dir/main.tsx');
@@ -1976,7 +1973,7 @@ function test_util(){
     'http/localhost:3000/MOD//dir/main.tsx');
   t('npm/https1/dir/main.tsx', 'https://localhost:3000/MOD',
     'https/localhost:3000/MOD//dir/main.tsx');
-  t('npm/http2/dir/main.tsx', '.http/localhost:3000/MOD/',
+  t('npm/http2/dir/main.tsx', '.lif/http/localhost:3000/MOD/',
     'http/localhost:3000/MOD//dir/main.tsx');
   //t('npm/os/dir/index.js', 'git:user/github.com/repo/mod',
   //  'git/github.com/repo/mod/dir/index.js');
@@ -1986,23 +1983,55 @@ function test_util(){
   t('@mod/sub', 'npm/@mod/sub');
   t('@mod/sub/', 'npm/@mod/sub/');
   t('@mod/sub/file', 'npm/@mod/sub/file');
-  t('.npm/mod', 'npm/mod');
+  t('.lif/npm/mod', 'npm/mod');
   t('npm:mod', 'npm/mod');
-  t('.npm/mod/dir/file', 'npm/mod/dir/file');
-  t('.git/github.com/a_user/a_repo', 'git/github.com/a_user/a_repo');
+  t('.lif/npm/mod/dir/file', 'npm/mod/dir/file');
+  t('.lif/git/github.com/a_user/a_repo', 'git/github.com/a_user/a_repo');
   t('git://github.com/a_user/a_repo', 'git/github.com/a_user/a_repo');
   t('github:a_user/a_repo', 'git/github.com/a_user/a_repo');
-  t('.git/github.com/a_user/a_repo/dir/file',
+  t('.lif/git/github.com/a_user/a_repo/dir/file',
     'git/github.com/a_user/a_repo/dir/file');
-  t('.local/file.js', 'local/file.js');
+  t('.lif/local/file.js', 'local/file.js');
   t('local:/file.js', 'local/file.js');
   t('/file.js', 'local/file.js');
   t('/mod//file.js', 'local/mod//file.js');
-  t('.local/file.js', 'local/file.js');
-  t('.local/mod//file.js', 'local/mod//file.js');
-  t('.none/github.com/a_user/a_repo/dir/file');
+  t('.lif/local/file.js', 'local/file.js');
+  t('.lif/local/mod//file.js', 'local/mod//file.js');
   t('http://site/dir', 'http/site/dir');
   t('https://site/dir', 'https/site/dir');
+  t = (lpm, v)=>assert_eq(v, lpm_to_npm(lpm));
+  t('npm/mod', 'mod');
+  t('npm/mod/file.js', 'mod/file.js');
+  t('npm/mod/sub//file.js', 'mod/sub//file.js');
+  t(lpm_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
+  t('git/github.com/user/repo', '.lif/git/github.com/user/repo');
+  t('git/gitlab.com/user/repo/file.js',
+    '.lif/git/gitlab.com/user/repo/file.js');
+  t('local', '.lif/local');
+  t('local/file.js', '.lif/local/file.js');
+  t('local/dir/file.js', '.lif/local/dir/file.js');
+  t('local/sub//dir/file.js', '.lif/local/sub//dir/file.js');
+  t = (lpm, lmod, path)=>{
+    let u = T_lpm_parse(lpm);
+    assert_eq(path, u.path);
+    assert_eq(lmod, u.lmod);
+    assert_eq(lmod, T_lpm_lmod(lpm));
+    assert_eq(lpm, T_lpm_str(u));
+  };
+  t('local', 'local', '');
+  t('local/main.tsx', 'local', '/main.tsx');
+  t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
+  t('local/mod//', 'local/mod/', '/');
+  t('local/mod/', 'local/mod/', '');
+  t('npm/mod', 'npm/mod', '');
+  t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
+  t('git/github.com/user/repo', 'git/github.com/user/repo', '');
+  t('git/github.com/user/repo/dir/file.js',
+    'git/github.com/user/repo', '/dir/file.js');
+  t('git/github.com/user/repo/mod//dir/file.js',
+    'git/github.com/user/repo/mod/', '/dir/file.js');
+  t('git/github.com/user/repo@ver/mod//dir/file.js',
+    'git/github.com/user/repo@ver/mod/', '/dir/file.js');
   t = (v, arg)=>assert_obj_f(v, T_npm_url_base(...arg));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
@@ -2025,14 +2054,15 @@ function test_util(){
     ['mod/c/d', 'mod@1.2.3/c/a']);
   t({path: 'mod@4.5.6/c/d', is: {mod: 1}}, ['mod@4.5.6/c/d', 'mod@1.2.3/c/a']);
   t({path: 'mod/c/d', is: {mod: 1}}, ['mod/c/d', 'other@1.2.3/c/a']);
-  t({path: '.git/github.com/user/repo@v1.2.3/c/d', is: {mod: 1, rel_ver: 1}},
-    ['.git/github.com/user/repo/c/d', '.git/github.com/user/repo@v1.2.3/c/a']);
-  t({path: '.git/github.com/user/repo/c/d', is: {mod: 1}},
-    ['.git/github.com/user/repo/c/d', '.git/github.com/other/repo@v1.2.3/c/a']);
+  t({path: '.lif/git/github.com/user/repo@v1.2.3/c/d', is: {mod: 1, rel_ver: 1}},
+    ['.lif/git/github.com/user/repo/c/d', '.lif/git/github.com/user/repo@v1.2.3/c/a']);
+  t({path: '.lif/git/github.com/user/repo/c/d', is: {mod: 1}},
+    ['.lif/git/github.com/user/repo/c/d',
+    '.lif/git/github.com/other/repo@v1.2.3/c/a']);
   t({path: 'mod/sub//a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod/sub//a/b']);
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
-  t({path: '.git/github.com/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
-    ['./c/d', '.git/github.com/user/repo@1.2.3/a/b']);
+  t({path: '.lif/git/github.com/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
+    ['./c/d', '.lif/git/github.com/user/repo@1.2.3/a/b']);
   t = (webapp, v)=>assert_eq(v, webapp_to_lpm(webapp));
   t('lif:local/file.js', 'local/file.js');
   t('local/file.js', 'local/file.js');
@@ -2048,38 +2078,6 @@ function test_util(){
   t('local/dir//file.js', '/dir/file.js');
   t('http/localhost:3000/dir//file.js', 'http://localhost:3000/dir/file.js');
   t('npm/mod/file.js', '/.lif/npm/mod/file.js');
-  t = (lpm, v)=>assert_eq(v, lpm_to_npm(lpm));
-  t('npm/mod', 'mod');
-  t('npm/mod/file.js', 'mod/file.js');
-  t('npm/mod/sub//file.js', 'mod/sub//file.js');
-  t(lpm_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
-  t('git/github.com/user/repo', '.git/github.com/user/repo');
-  t('git/gitlab.com/user/repo/file.js', '.git/gitlab.com/user/repo/file.js');
-  t('local', '.local');
-  t('local/file.js', '.local/file.js');
-  t('local/dir/file.js', '.local/dir/file.js');
-  t('local/sub//dir/file.js', '.local/sub//dir/file.js');
-  t = (lpm, lmod, path)=>{
-    let u = T_lpm_parse(lpm);
-    assert_eq(path, u.path);
-    assert_eq(lmod, u.lmod);
-    assert_eq(lmod, T_lpm_lmod(lpm));
-    assert_eq(lpm, T_lpm_str(u));
-  };
-  t('local', 'local', '');
-  t('local/main.tsx', 'local', '/main.tsx');
-  t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
-  t('local/mod//', 'local/mod/', '/');
-  t('local/mod/', 'local/mod/', '');
-  t('npm/mod', 'npm/mod', '');
-  t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
-  t('git/github.com/user/repo', 'git/github.com/user/repo', '');
-  t('git/github.com/user/repo/dir/file.js',
-    'git/github.com/user/repo', '/dir/file.js');
-  t('git/github.com/user/repo/mod//dir/file.js',
-    'git/github.com/user/repo/mod/', '/dir/file.js');
-  t('git/github.com/user/repo@ver/mod//dir/file.js',
-    'git/github.com/user/repo@ver/mod/', '/dir/file.js');
   t = (lpm, v)=>assert_eq(v, lpm_is_perm(lpm));
   t('npm/mod@1.2.3/file', true);
   t('npm/mod/dir', false);

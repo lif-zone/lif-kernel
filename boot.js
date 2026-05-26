@@ -171,8 +171,8 @@ function test(){
   let t;
   t = (mod_self, url, v)=>assert_eq(v, npm_base(mod_self, url));
   t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
-  t('.local/other.js', './a/file.js', '.local/a/file.js');
-  t('.local/mod/', './a/file.js', '.local/mod//a/file.js');
+  t('.lif/local/other.js', './a/file.js', '.lif/local/a/file.js');
+  t('.lif/local/mod/', './a/file.js', '.lif/local/mod//a/file.js');
   t('react@1.2.3', 'mod/file.js', 'mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', 'mod@4.5.6/file.js');
   t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
@@ -186,16 +186,16 @@ function test(){
   t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
   t(null, globalThis.origin+'/b/file.js', globalThis.origin+'/b/file.js');
   t(null, globalThis.origin+'/.lif/npm/react', 'react');
-  t(null, globalThis.origin+'/.lif/local/dir', '.local/dir');
+  t(null, globalThis.origin+'/.lif/local/dir', '.lif/local/dir');
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
   t(null, '/.lif/npm/mod', 'mod');
-  t(null, '/.lif/local/mod/a', '.local/mod/a');
+  t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
   t = (mod_self, url, v)=>assert_eq(v, npm_2url(url, mod_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
-  t('.local/other.js', './a/file.js', '/.lif/local/a/file.js');
-  t('.local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
+  t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
+  t('.lif/local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
   t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
   t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
@@ -215,10 +215,10 @@ function test(){
     '/.lif/npm/mod@1.2.3/a/file.js?mod_self=mod@1.2.3');
   t('/dir/dir2/file', './a/file.js', {},
     '/dir/dir2/a/file.js');
-  t('.local/other.js', './a/file.js', {worker: 1},
-    '/.lif/local/a/file.js?worker=1&mod_self=.local/other.js');
-  t('.local/mod/', './a/file.js', {type: 'module'},
-    '/.lif/local/mod//a/file.js?mjs=1&mod_self=.local/mod/');
+  t('.lif/local/other.js', './a/file.js', {worker: 1},
+    '/.lif/local/a/file.js?worker=1&mod_self=.lif/local/other.js');
+  t('.lif/local/mod/', './a/file.js', {type: 'module'},
+    '/.lif/local/mod//a/file.js?mjs=1&mod_self=.lif/local/mod/');
   t('react@1.2.3', 'mod/file.js', {},
     '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
   t('react@1.2.3', 'mod@4.5.6/file.js', {},

@@ -1769,7 +1769,7 @@ function test_kernel(){
       globDependencies: {overg: '2.0.0'},
     },
     dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
-      dom: '>=18.3.1', os: '.git/github.com/repo/mod', over: '1.0.0'},
+      dom: '>=18.3.1', os: '.lif/git/github.com/repo/mod', over: '1.0.0'},
     peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
     globDependencies: {glb: '1.2.0', overg: '1.0.0'},
   }};
@@ -1795,9 +1795,9 @@ function test_kernel(){
   t('npm/overg', {glob: 'npm/overg@2.0.0'});
   lpm_pkg = {lmod: 'npm/self@1.2.3', pkg: {lif: {dependencies: {
     mod: '/MOD',
-    mod2: '.local/MOD/',
+    mod2: '.lif/local/MOD/',
     http1: 'http://localhost:3000/MOD',
-    http2: '.http/localhost:3000/MOD/',
+    http2: '.lif/http/localhost:3000/MOD/',
     react: '18.3.1',
     reactok: 'npm:react@18.3.1',
     reactbad: 'react@18.3.1', // currently not supported in NPM
