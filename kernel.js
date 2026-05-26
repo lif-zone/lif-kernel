@@ -317,9 +317,9 @@ let lpm_cdn = {
       url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
     }], src_ver: [{
       name: 'api.github.com',
-      url: u=>`https://api.github.com/repos/${u.name}/branches/${u.branch}`,
+      url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
       get_data: data=>data.commit.sha,
-      _uri: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.branch}`,
+      _uri: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
       _get_data: data=>data.object.sha,
     }]},
     'gitlab.com': {src: [{
@@ -975,6 +975,7 @@ async function reg_get({log, lmod, opt}){
       continue;
     let url = url_fn(u);
     reg.url = url;
+    reg.src_ver = _src;
     ret = await reg_http_get({log, url});
     if (ret.blob)
       break;
@@ -1013,13 +1014,14 @@ async function lpm_pkg_ver_get({log, lmod}){
     throw get.err;
   try {
     pv.pkg_ver = JSON.parse(get.body);
+    pv.src_ver = get.src_ver;
     return pv;
   } catch(err){
     throw Error('invalid package.json parse '+ver_file);
   }
 }); }
 
-function lpm_pkg_ver_lookup(pkg_ver, date){
+function npm_pkg_ver_lookup(pkg_ver, date){
   let time = pkg_ver.time;
   date = +new Date(date);
   let created = +new Date(time.created);
@@ -1053,7 +1055,13 @@ async function _lpm_pkg_ver_get({log, lmod}){
   let pv = await lpm_pkg_ver_get({log, lmod: u.lmod});
   if (pv.not_exist)
     return pv;
-  u.ver = lpm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
+  if (u.reg=='npm')
+    u.ver = npm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
+  else if (u.reg='git'){
+    let ver_fn = pv.src_ver.get_data;
+    u.ver = ver_fn(pv.pkg_ver);
+  } else
+    assert(0, 'pkg_ver not supported for '+u.reg);
   if (!u.ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
   return T_lpm_str(u);
@@ -1728,7 +1736,7 @@ function test_kernel(){
   t('@', '@');
   t('@1.2.3', '@1.2.3');
   t('@semver:=1.2.3', '@=1.2.3');
-  t = (date, v)=>assert_eq(v, lpm_pkg_ver_lookup(pkg_ver, date));
+  t = (date, v)=>assert_eq(v, npm_pkg_ver_lookup(pkg_ver, date));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
     modified: '2024-05-27T21:37:19.361Z',

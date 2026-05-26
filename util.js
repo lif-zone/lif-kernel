@@ -2078,6 +2078,8 @@ function test_util(){
     'git/github.com/user/repo', '/dir/file.js');
   t('git/github.com/user/repo/mod//dir/file.js',
     'git/github.com/user/repo/mod/', '/dir/file.js');
+  t('git/github.com/user/repo@ver/mod//dir/file.js',
+    'git/github.com/user/repo@ver/mod/', '/dir/file.js');
   t = (lpm, v)=>assert_eq(v, lpm_is_perm(lpm));
   t('npm/mod@1.2.3/file', true);
   t('npm/mod/dir', false);
