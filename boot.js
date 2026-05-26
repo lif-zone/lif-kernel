@@ -886,6 +886,7 @@ let boot_kernel = async()=>{
     return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
+    let serviceWorker = navigator.serviceWorker;
     const conn_kernel = async()=>{
       console.log('conn kernel');
       if (kernel_chan){
@@ -894,7 +895,7 @@ let boot_kernel = async()=>{
         kernel_chan = null;
       }
       kernel_chan = null;
-      let controller = navigator.serviceWorker.controller;
+      let controller = serviceWorker.controller;
       if (!controller){
         console.log('no sw controllier - reloading');
         window.location.reload();
@@ -919,14 +920,34 @@ let boot_kernel = async()=>{
       wait.return();
     };
     let slow = eslow('sw register');
-    const registration = await navigator.serviceWorker.register(
+    const registration = await serviceWorker.register(
       '/.lif.kernel_sw.js'+qs_enc({lif_kernel_base}));
-    const sw = await navigator.serviceWorker.ready;
+    if (0){
+      registration.update();
+      // Listen for new service worker
+      registration.addEventListener('updatefound', ()=>{
+        const newWorker = registration.installing;
+        if (!newWorker)
+          return;
+        newWorker.addEventListener('statechange', ()=>{
+          // New service worker is ready
+          if (newWorker.state=='installed')
+            console.log('new worker ready');
+        });
+      });
+    }
+    registration.addEventListener('updatefound', ()=>{
+      console.log('sw updatefound', event);
+    });
+    serviceWorker.addEventListener('statechange', ()=>{
+      console.log('sw statechange', event);
+    });
+    const sw = await serviceWorker.ready;
     slow.end();
     // this boots the app if the SW has been installed before or
     // immediately after registration
     // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
-    navigator.serviceWorker.addEventListener('controllerchange', conn_kernel);
+    serviceWorker.addEventListener('controllerchange', conn_kernel);
     await conn_kernel();
     slow = eslow('sw conn');
     await wait;
