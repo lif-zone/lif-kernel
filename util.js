@@ -1870,10 +1870,10 @@ function test_util(){
   t('/mod//file', '.local/mod//file');
   t('local:/mod//file', '.local/mod//file');
   // XXX: should be git://github.com/user/repo/submod//file#ver
-  t('git://github.com/user/repo@ver/submod//file',
+  t('git://github.com/user/repo/submod//file#ver',
     '.git/github.com/user/repo@ver/submod//file');
   // XXX: should be github://github.com/user/repo/submod//file#ver
-  t('github:user/repo@ver/submod//file',
+  t('github:user/repo/submod//file#ver',
     '.git/github.com/user/repo@ver/submod//file');
   t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
