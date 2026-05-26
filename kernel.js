@@ -265,12 +265,11 @@ function sha256_hex(v){
 // https://unpkg.com/lif-kernel@latest/boot.js
 // https://cdn.jsdelivr.net/npm/lif-kernel@1.0.6/boot.js
 // GITHUB metadata
-// https://api.github.com/repos/xderry/lif-os/tags
-// https://api.github.com/repos/xderry/lif-os/commits/799b55788fabee94cdcf5bded757a6ca9be778df
-// https://api.github.com/repos/xderry/lif-coin/git/ref/heads/master
+// https://api.github.com/repos/lif-zone/lif-kernel/tags
+// https://api.github.com/repos/lif-zone/lif-kernel/commits/0f78e4cef8ce6b7a0d24d8716cc599143af20312
+// https://api.github.com/repos/lif-zone/lif-kernel/git/ref/heads/master
 // GITHUB content
-// https://raw.githubusercontent.com/xderry/lif-os/799b55788fabee94cdcf5bded757a6ca9be778df/package.json
-
+// https://raw.githubusercontent.com/lif-zone/lif-kernel/0f78e4cef8ce6b7a0d24d8716cc599143af20312/package.json
 let gh_ver = u=>{
   let ver = typeof u=='string' ? u : u.ver;
   if (!ver)
@@ -515,12 +514,6 @@ function tr_tsx_to_js({tsx, type}){
   return js;
 }
 
-// TODO: webpack.DefinePlugin() to change variable values in code
-// 'process.env.NODE_BACKEND': JSON.stringify(process.env.NODE_BACKEND || 'default'),
-// or commonly:
-// 'process.env.NODE_ENV': JSON.stringify('production'),
-
-// http://localhost:3000/.lif/npm/lif-coin/browser/main.tsx?raw=1
 function tr_js_to_ast(js){
   let ast = {};
   let parse_ast = ()=>{

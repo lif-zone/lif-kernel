@@ -1038,7 +1038,7 @@ export function T_lpm_parse(lpm){
     if (!ver);
     else if (/^[0-9a-f]+$/.test(ver)){
       l.ver_type = ver.length==40 ? 'sha1' : ver.length==64 ? 'sha256' :
-        ver.length>=4 && !(ver.length % 2) && ver.length<=20 ? 'shortcut' :
+        ver.length>=7 && ver.length<=20 ? 'shortcut' :
         'name';
     } else
       l.ver_type = 'name';
