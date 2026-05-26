@@ -306,7 +306,7 @@ let lpm_cdn = {
     url: u=>`https://registry.npmmirror.com/${u.name}`,
   }]},
   git: {
-    github: {src: [{
+    'github.com': {src: [{
       name: 'jsdeliver.net',
       url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${u.submod_path}`
     }, {
@@ -322,7 +322,7 @@ let lpm_cdn = {
       _uri: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.branch}`,
       _get_data: data=>data.object.sha,
     }]},
-    gitlab: {src: [{
+    'gitlab.com': {src: [{
       name: 'statically.io',
       url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
     }], src_ver: [{
