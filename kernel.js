@@ -332,6 +332,8 @@ let lpm_cdn = {
       // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
       // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
       // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12310d75175dea2366e750952080c236b6e
+      // https://api.github.com/repos/lif-zone/lif-kernel/commits/HEAD
+      // https://api.github.com/repos/lif-zone/lif-kernel/commits/main
       // lookup branch+date: [0].sha
       // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
       // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
@@ -1019,11 +1021,11 @@ let max_redirect = 8;
 function assert_lmod(lmod){
   assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod); }
 
-async function lpm_pkg_ver_get({log, lmod}){
+async function npm_ver_get({log, lmod}){
   return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
     async function run(pv)
 {
-  D && console.log('lpm_pkg_ver_get '+lmod);
+  D && console.log('npm_ver_get '+lmod);
   pv.lmod = lmod;
   pv.log = log;
   let ver_file = pv.lmod+'/--ver';
@@ -1041,7 +1043,7 @@ async function lpm_pkg_ver_get({log, lmod}){
   }
 }); }
 
-function npm_pkg_ver_lookup(pkg_ver, date){
+function npm_ver_lookup(pkg_ver, date){
   let time = pkg_ver.time;
   date = +new Date(date);
   let created = +new Date(time.created);
@@ -1069,22 +1071,75 @@ function npm_pkg_ver_lookup(pkg_ver, date){
     return '@'+found.ver;
 }
 
-async function _lpm_pkg_ver_get({log, lmod}){
+async function npm_ver_resolve({log, lmod}){
   let u = T_lpm_parse(lmod);
   assert(lpm_ver_missing(u));
-  let pv = await lpm_pkg_ver_get({log, lmod: u.lmod});
+  assert(u.reg=='npm');
+  let pv = await npm_ver_get({log, lmod: u.lmod});
   if (pv.not_exist)
     return pv;
-  if (u.reg=='npm')
-    u.ver = npm_pkg_ver_lookup(pv.pkg_ver, lpm_app_date);
-  else if (u.reg='git'){
-    let ver_fn = pv.src_ver.get_data;
-    u.ver = '@'+ver_fn(pv.pkg_ver);
-  } else
-    assert(0, 'pkg_ver not supported for '+u.reg);
+  u.ver = npm_ver_lookup(pv.pkg_ver, lpm_app_date);
   if (!u.ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
   return T_lpm_str(u);
+}
+
+async function git_ver_resolve({log, lmod}){
+  let u = T_lpm_parse(lmod);
+  let url;
+  // XXX add support for getting branch+date lpm_app_date
+  let _ver = u.ver.slice(1)
+  if (!u.ver)
+    url = `https://api.github.com/repos/${u.name}/commits/HEAD`;
+  else if (u.ver_type=='shortcut')
+    url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
+  else if (u.ver_type=='name')
+    url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
+  else
+    assert(0, 'invalid ver_type');
+  let reg = await reg_http_get({log, url});
+  if (reg.not_exist)
+    return reg;
+  if (!reg.blob)
+    return {err: 'failed git ver fetch '+url};
+  let body = await reg.blob.text();
+  let v;
+  try {
+    v = JSON.parse(body);
+  } catch(err){
+    throw Error('git '+url+' invalid JSON: '+err);
+  }
+  let sha = v.sha;
+  if (sha.length!=40 && sha.length!=64)
+    throw Error('git '+url+' sha invalid: '+sha);
+  u.ver = '@'+sha;
+  v = T_lpm_str(u);
+  return T_lpm_str(u);
+}
+
+async function lpm_ver_resolve({log, lmod, mod_self}){
+  let u = lpm_parse(lmod);
+  if (u.reg=='npm'){
+    if (!lpm_ver_missing(lmod))
+      return;
+    let v = await npm_ver_resolve({log, lmod});
+    if (v.not_exist){
+      console.error('pkg not found: '+lmod);
+      return v;
+    }
+    console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
+    return {redirect: v};
+  } else if (u.reg=='git'){
+    if (str.is(u.ver_type, 'sha1', 'sha256'))
+      return;
+    let v = await git_ver_resolve({log, lmod});
+    if (v.not_exist){
+      console.error('pkg not found: '+lmod);
+      return v;
+    }
+    console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
+    return {redirect: v};
+  }
 }
 
 async function lpm_pkg_cache(lmod){
@@ -1216,13 +1271,9 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   lpm_pkg.log = log;
   lpm_pkg.parent_mod = mod_self;
   // resolve ver
-  if (lpm_ver_missing(lmod)){
-    let v = await _lpm_pkg_ver_get({log, lmod});
-    if (v.not_exist)
-      throw Error('pkg does not exist: '+lmod);
-    console.warn('module('+(_mod_self||mod_self)+') redirect ver '+lmod+' -> '+v);
-    return OA(lpm_pkg, {redirect: v});
-  }
+  let v = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
+  if (v)
+    return OA(lpm_pkg, v);
   // fetch pkg
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lmod: pkg_json});
@@ -1756,7 +1807,7 @@ function test_kernel(){
   t('@', '@');
   t('@1.2.3', '@1.2.3');
   t('@semver:=1.2.3', '@=1.2.3');
-  t = (date, v)=>assert_eq(v, npm_pkg_ver_lookup(pkg_ver, date));
+  t = (date, v)=>assert_eq(v, npm_ver_lookup(pkg_ver, date));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
     modified: '2024-05-27T21:37:19.361Z',
