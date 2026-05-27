@@ -316,9 +316,30 @@ let lpm_cdn = {
       url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
     }], src_ver: [{
       name: 'api.github.com',
+      // all branches: [i].name, [i].commit.sha
+      // https://api.github.com/repos/facebook/react/branches
+      // all tags: [i].name [i].commit.sha
+      // https://api.github.com/repos/facebook/react/tags
+      // specific branch: name, commit.sha
+      // https://api.github.com/repos/facebook/react/branches/main
+      // specific tag: object.sha
+      // https://api.github.com/repos/facebook/react/git/refs/tags/v19.0.0
+      // list of all heads (including non-released): [i].object.sha
+      // https://api.github.com/repos/facebook/react/git/refs/heads
+      // specific head: object.sha
+      // https://api.github.com/repos/facebook/react/git/refs/heads/main
+      // commit (with its contents, works partial sha): sha
+      // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
+      // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
+      // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12310d75175dea2366e750952080c236b6e
+      // lookup branch+date: [0].sha
+      // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
+      // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
       url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
       get_data: data=>data.commit.sha,
-      _uri: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
+      _uri_branch: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
+      _uri_tag: u=>`https://api.github.com/repos/${u.name}/git/ref/tags/${u.ver||'main'}`,
+      _uri_branch_date: u=>`https://api.github.com/repos/${u.name}/commits?per_page=1&until={u.date}&sha=${u.ver||'main'}`,
       _get_data: data=>data.object.sha,
     }]},
     'gitlab.com': {src: [{
@@ -326,16 +347,22 @@ let lpm_cdn = {
       url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
     }], src_ver: [{
       name: "gitlab.com",
-      url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/branches/${b}`,
-      get_data: data=>data.commit.id,
+      // commit (works partial sha): id
+      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/dc83328
+      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/dc8332848c7f32dbd0e7eb56a94dd07bcdeabdf4
+      // specific tag/branch: id
+      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/master
+      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/v18.11.2-ee
+      url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/commits/${b}`,
+      get_data: data=>data.id,
     }]},
   },
   ipfs: {src: [{
     name: 'ipfs.io',
     url: u=>`https://ipfs.io/ipfs/${u.cid}${u.submod_path}`,
   }, {
-    name: 'cloudflare-ipfs.com',
-    url: u=>`https://cloudflare-ipfs.com/ipfs/${u.cid}${u.submod_path}`,
+    name: 'dweb.link',
+    url: u=>`https://dweb.link/ipfs/${u.cid}${u.submod_path}`,
   }]},
   local: {src: [{
     name: 'local',
