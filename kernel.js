@@ -205,12 +205,14 @@ function db_upgrade(db, table, opt){
 
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kernel', 13, {
+    db = await idb.openDB('lif-kernel', 16, {
       upgrade(db, old_ver, new_ver){
+        console.log('upgrade cache db '+old_ver+' -> '+new_ver);
         db_upgrade(db, 'js_to_meta', {keyPath: ['h_js']});
         db_upgrade(db, 'tsx_to_js',
           {keyPath: ['h_tsx'], del_create: old_ver<13});
         db_upgrade(db, 'lpm_file', {keyPath: ['lmod']});
+        db_upgrade(db, 'lpm_ver', {keyPath: ['lmod']});
       }
     });
   }
@@ -235,6 +237,8 @@ async function cache_set(table, v, k){
 let cache_opt = {refresh_tm: Date.now()};
 function cache_refresh(){
   cache_opt.refresh_tm = Date.now();
+  // XXX should also update lpm_app_date?
+  // lpm_app_date = +new Date();
 }
 
 function sha256_hex(v){
@@ -1084,16 +1088,24 @@ async function npm_ver_resolve({log, lmod}){
   return T_lpm_str(u);
 }
 
-async function git_ver_resolve({log, lmod}){
+async function git_ver_resolve({log, lmod, mod_self}){
+  return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
+    async function run(pv)
+{
   let u = T_lpm_parse(lmod);
-  let url;
+  let url, v;
   // XXX add support for getting branch+date lpm_app_date
-  let _ver = u.ver.slice(1)
+  let _ver = u.ver.slice(1);
+  let is_c = enable_cache>=1;
   if (!u.ver)
     url = `https://api.github.com/repos/${u.name}/commits/HEAD`;
-  else if (u.ver_type=='shortcut')
+  else if (u.ver_type=='shortcut'){
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
-  else if (u.ver_type=='name')
+    if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
+      u.ver = v.ver;
+      return T_lpm_str(u);
+    }
+  } else if (u.ver_type=='name')
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
   else
     assert(0, 'invalid ver_type');
@@ -1103,7 +1115,6 @@ async function git_ver_resolve({log, lmod}){
   if (!reg.blob)
     return {err: 'failed git ver fetch '+url};
   let body = await reg.blob.text();
-  let v;
   try {
     v = JSON.parse(body);
   } catch(err){
@@ -1113,9 +1124,10 @@ async function git_ver_resolve({log, lmod}){
   if (sha.length!=40 && sha.length!=64)
     throw Error('git '+url+' sha invalid: '+sha);
   u.ver = '@'+sha;
-  v = T_lpm_str(u);
+  if (is_c && u.ver_type=='shortcut')
+    cache_set('lpm_ver', {lmod, ver: u.ver});
   return T_lpm_str(u);
-}
+}); }
 
 async function lpm_ver_resolve({log, lmod, mod_self}){
   let u = lpm_parse(lmod);
