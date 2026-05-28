@@ -1,5 +1,5 @@
 // querystring-browser.js
-export const querystring = {
+const querystring = {
   parse: str=>{
     const params = new URLSearchParams(str);
     const obj = {};
@@ -19,3 +19,5 @@ export const querystring = {
     return params.toString().replace(/&/g, sep).replace(/=/g, eq); // rare custom sep/eq
   },
 };
+
+export default querystring;
