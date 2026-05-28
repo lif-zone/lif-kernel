@@ -1234,7 +1234,7 @@ export function _npm_parse(npm){
     proto = 'git:';
     rest = '//github.com/'+npm;
   }
-  if (proto=='git:'){
+  if (proto.is('git:', 'git+https:'){
     v = git_to_lpm(proto+rest);
     return {reg: 'git', rest: v.slice(4)};
   }
