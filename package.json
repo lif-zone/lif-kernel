@@ -28,6 +28,7 @@
     "compat/querystring.js",
     "compat/cluster.js",
     "compat/events.js",
+    "compat/net.js",
     "etask.js",
     "util.js",
     "boot.js",
@@ -50,7 +51,8 @@
     "assert": "./compat/assert.js",
     "querystring": "./compat/querystring.js",
     "events": "./compat/events.js",
-    "cluster": "./compat/cluster.js"
+    "cluster": "./compat/cluster.js",
+    "net": "./compat/net.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
