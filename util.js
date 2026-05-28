@@ -6,7 +6,7 @@ const is_worker = !globalThis.window;
 const is_node = globalThis.process?.versions?.node!==undefined;
 let D = 0; // Debug
 
-const EventEmitter = (await import(is_node ? 'events' : './events.js')).default;
+const EventEmitter = (await import(is_node ? 'events' : './compat/events.js')).default;
 
 // Promise with return() and throw()
 export function ewait(ms, arg){
