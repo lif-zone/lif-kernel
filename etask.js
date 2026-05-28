@@ -1,6 +1,6 @@
 // author: derry. coder: arik.
 import events from 'events';
-const compat = await import('./compat.js');
+const compat = await import('./compat/compat.js');
 let {xerr, assert, is_node} = compat;
 let process = is_node ? globalThis.process : compat.process;
 
