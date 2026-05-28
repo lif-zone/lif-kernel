@@ -24,6 +24,8 @@
   },
   "files": [
     "compat.js",
+    "assert.js",
+    "querystring.js",
     "etask.js",
     "util.js",
     "boot.js",
@@ -41,6 +43,10 @@
     "acme.js",
     "lif-kernel.service"
   ],
+  "exports": {
+    "assert": "./assert.js",
+    "querystring": "./querystring.js"
+  },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
     "@peculiar/x509": "1.9.3",
