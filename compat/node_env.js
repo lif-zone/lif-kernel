@@ -3,6 +3,7 @@ import compat, {setImmediate, clearImmediate} from 'lif-kernel/compat';
 globalThis.global = globalThis; // for bsock npm
 import buffer from 'buffer';
 globalThis.Buffer = buffer.Buffer;
+/*global process*/
 // process npm
 // https://github.com/defunctzombie/node-process/blob/master/browser.js
 process.env.NODE_BACKEND = 'js'; // for bcrypto npm
