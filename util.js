@@ -1234,7 +1234,7 @@ export function _npm_parse(npm){
     proto = 'git:';
     rest = '//github.com/'+npm;
   }
-  if (proto.is('git:', 'git+https:'){
+  if (str.is(proto, 'git:', 'git+https:')){
     v = git_to_lpm(proto+rest);
     return {reg: 'git', rest: v.slice(4)};
   }
@@ -1875,6 +1875,8 @@ function test_util(){
   t('/mod//file', '.lif/local/mod//file');
   t('local:/mod//file', '.lif/local/mod//file');
   t('.lif/local/mod//file', '.lif/local/mod//file');
+  t('git://github.com/user/repo', '.lif/git/github.com/user/repo');
+  t('git+https://github.com/user/repo', '.lif/git/github.com/user/repo');
   t('git://github.com/user/repo/submod//file#ver',
     '.lif/git/github.com/user/repo@ver/submod//file');
   t('.lif/git/github.com/user/repo@ver/submod//file',
