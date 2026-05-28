@@ -19,13 +19,15 @@
     ],
     "webapp": "./hi.js",
     "dependencies": {
-      "events": "./events.js"
+      "events": "./compat/events.js"
     }
   },
   "files": [
-    "compat.js",
-    "assert.js",
-    "querystring.js",
+    "compat/compat.js",
+    "compat/assert.js",
+    "compat/querystring.js",
+    "compat/cluster.js",
+    "compat/events.js",
     "etask.js",
     "util.js",
     "boot.js",
@@ -44,8 +46,11 @@
     "lif-kernel.service"
   ],
   "exports": {
-    "assert": "./assert.js",
-    "querystring": "./querystring.js"
+    "compat": "./compat/compat.js",
+    "assert": "./compat/assert.js",
+    "querystring": "./compat/querystring.js",
+    "events": "./compat/events.js",
+    "cluster": "./compat/cluster.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
