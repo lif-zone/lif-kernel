@@ -280,15 +280,29 @@ async function _define_amd(mod_id, imps, factory, m){
 }
 
 // AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
+let require_amd_sync_enable = 0;
 async function require_amd(m, imps){
   let _imps = [], _m;
   for (let i=0; i<imps.length; i++){
     let imp = imps[i], v;
     switch (imp){
     case 'require': // implementation of AMD require(imps, cb)
-      v = async(imps, cb)=>{
-        let _imps = await require_amd(m, imps);
-        cb(..._imps);
+      v = (imps, cb)=>{
+        if (!cb){
+          // sync require - only to previously loaded modules
+          let _m = modules[imps];
+          if (_m)
+            return _m.exports;
+          if (require_amd_sync_enable)
+            return require_cjs_sync(m.id, imp);
+          throw Error('amd sync require('+imps+') not already loaded');
+        } else {
+          // async require
+          return async(imps, cb)=>{
+            let _imps = await require_amd(m, imps);
+            cb(..._imps);
+          };
+        }
       };
       break;
     case 'exports': v = m.exports; break;
