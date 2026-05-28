@@ -1161,8 +1161,12 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
     return mod_self+(v.rest?'/'+v.rest:'')+path;
   if (v=str.starts(d, 'https://github.com/', 'github:'))
     d = 'git://github.com/'+v.rest;
-  if (v=str.starts(d, 'https://gitlab.com/'))
+  if (v=str.starts(d, 'https://gitlab.com/', 'gitlab:'))
     d = 'git://gitlab.com/'+v.rest;
+  if (v=str.starts(d, 'https://bitbucket.org/', 'bitbucket:'))
+    d = 'git://bitbucket.org/'+v.rest;
+  if (v=d.match(/^[a-z0-9-]+\/[a-z0-9._-]+#[^#\/]*$/i))
+    d = 'git://github.com/'+d;
   if (v=str.starts(d, 'git:', 'git+https:'))
     return git_to_lpm(d)+path;
   if (v=str.starts(d, 'http://', 'https://'))
@@ -1226,6 +1230,10 @@ export function _npm_parse(npm){
     proto = 'git:';
     rest = '//'+v+'/'+rest;
   }
+  if (v=npm.match(/^[a-z0-9-]+\/[a-z0-9._-]+#[^#\/]*$/i)){
+    proto = 'git:';
+    rest = '//github.com/'+npm;
+  }
   if (proto=='git:'){
     v = git_to_lpm(proto+rest);
     return {reg: 'git', rest: v.slice(4)};
@@ -1233,6 +1241,7 @@ export function _npm_parse(npm){
   if (proto=='npm:')
     return {reg: 'npm', rest};
   if (proto=='http:' || proto=='https:'){
+    // missing support for https://github.com gitlab.com bitbucket.org
     if (!(v=str.starts(rest, '//')))
       return {rest: npm, err: 'invalid http/https host '+npm};
     return {reg: proto_name, rest: v.rest};
@@ -1872,6 +1881,12 @@ function test_util(){
     '.lif/git/github.com/user/repo@ver/submod//file');
   t('github:user/repo/submod//file#ver',
     '.lif/git/github.com/user/repo@ver/submod//file');
+  t('user/repo#ver', '.lif/git/github.com/user/repo@ver');
+  t('user/repo', 'user/repo'); // notice: in NPM this is github:user/repo
+  t('user/repo#', '.lif/git/github.com/user/repo');
+  t('https://site.com/dir/file', '.lif/https/site.com/dir/file');
+  // XXX: missing detection of git hosts
+  t('https://github.com/user/repo', '.lif/https/github.com/user/repo');
   t = (npm, v)=>assert_obj_f(v, T_npm_parse(npm));
   t('@noble/hashes@1.2.0/esm/utils.js',
     {name: '@noble/hashes', scoped: true,
@@ -1948,6 +1963,9 @@ function test_util(){
   t('lif:npm/react', 'npm/react');
   t('.lif/npm/react', 'npm/react');
   t('lif:git/github.com/npm/cli@v1.0.27','git/github.com/npm/cli@v1.0.27');
+  t('user/repo#ver', 'git/github.com/user/repo@ver');
+  t('user/repo'); // notice: in NPM this is github:user/repo
+  t('user/repo#', 'git/github.com/user/repo');
   t = (imp, dep, v)=>
     assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
