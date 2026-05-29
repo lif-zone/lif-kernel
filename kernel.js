@@ -1131,27 +1131,24 @@ async function git_ver_resolve({log, lmod, mod_self}){
 
 async function lpm_ver_resolve({log, lmod, mod_self}){
   let u = lpm_parse(lmod);
+  let v;
   if (u.reg=='npm'){
     if (!lpm_ver_missing(lmod))
       return;
-    let v = await npm_ver_resolve({log, lmod});
-    if (v.not_exist){
-      console.error('pkg not found: '+lmod);
-      return v;
-    }
-    console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
-    return {redirect: v};
+    v = await npm_ver_resolve({log, lmod});
   } else if (u.reg=='git'){
     if (str.is(u.ver_type, 'sha1', 'sha256'))
       return;
-    let v = await git_ver_resolve({log, lmod});
-    if (v.not_exist){
-      console.error('pkg not found: '+lmod);
-      return v;
-    }
-    console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
-    return {redirect: v};
+    v = await git_ver_resolve({log, lmod});
+  } else
+    return;
+  if (v.not_exist){
+    console.error('pkg not found: '+lmod);
+    return v;
   }
+  console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
+  D && console.warm('module('+mod_self+') redirect from '+log?.mod);
+  return {redirect: v};
 }
 
 async function lpm_pkg_cache(lmod){
