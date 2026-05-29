@@ -708,6 +708,7 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   let ret_err = err=>{
     D && console.log('lpm_dep_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
   };
+  imp = pkg_browser_lookup({lpm_pkg, imp}) || imp;
   if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
   // no need to lookup final versioned imports and local imports
@@ -874,26 +875,38 @@ function mjs_import_mjs(export_default, path){
   return js;
 }
 
-// - import resolution order: parent: (importer - mod_self)
+// - parent module resolution order: pkg_browser_lookup()
 //   - "browser" section (string or ".")
 //   - "dependencies" section (& friends)
 //   - in imported module: lookup "exports" section
-// - default/main export file of a module priority: (imported - dep lmod)
+// - child module resolution order: pkg_exports_lookup()
 //   - "exports" section (string or ".")
 //     may have "browser", "module" etc conditional sub sections
 //   - "browser" section (string or ".")
 //   - "main"
 //   - index.js file
-function lpm_browser_lookup({lpm_pkg, imp}){
+function pkg_browser_lookup({lpm_pkg, imp}){
   let pkg = lpm_pkg.pkg;
   let lmod = T_lpm_lmod(imp);
-  let npm = T_lpm_to_npm(lmod);
   let br = pkg.browser;
+  let _imp = imp;
   if (!br)
     return;
   if (typeof br=='string')
-    br = {'.': br};
-  let v = npm_browser_parse();
+    return; // not relevant for parent;
+  let v;
+  if (!(v = str.starts(lmod, 'npm/')))
+    return;
+  let npm = v.rest;
+  if (v = br[npm]){
+    let _v;
+    if (_v = str.starts(v, './')){
+      console.warn('found file!', _imp, v);
+      return lpm_pkg.lmod+'/'+_v.rest;
+    }
+    console.warn('found module!', _imp, v);
+    return 'npm/'+v+imp.slice(lmod.length);
+  }
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -1332,8 +1345,7 @@ async function lpm_pkg_get_follow({log, lmod}){
   let v;
   // XXX should call pkg_browser_lookup()? not sure!
   let lookup = pkg_dep_lookup({lpm_pkg: lpm_pkg_root, imp: lmod});
-  // XXX should lookup.glob be checked? maybe only glob?
-  let _lmod = /* lookup.glob || */ lookup.reg;
+  let _lmod = lookup.glob || lookup.reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
     lmod = _lmod;
@@ -1420,8 +1432,6 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
       return {lpm_pkg: lpm_self};
   } else
     lpm_self = lpm_pkg_root;
-  // XXX: translate import with pkg_browser_lookup()
-  //imp = lpm_browser_lookup({lpm_pkg: lpm_self, imp}) || imp;
   // lookup for imports in parent
   let _imp = lpm_dep_lookup({lpm_pkg: lpm_self, imp});
   let lmod = _imp || imp;
