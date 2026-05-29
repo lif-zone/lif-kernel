@@ -1150,6 +1150,10 @@ function git_to_lpm(url){
   return 'git/'+host+'/'+user+'/'+repo+ver+_path;
 }
 
+export function T_npm_browser_parse({mod_self, imp, br}){
+}
+export const npm_browser_parse = Tf(T_npm_browser_parse, '');
+
 // parse-package-name: package.json:dependencies
 export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);

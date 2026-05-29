@@ -19,7 +19,8 @@
     ],
     "webapp": "./hi.js",
     "dependencies": {
-      "events": "./compat/events.js"
+      "events": "./compat/events.js",
+      "buffer": "6.0.3"
     }
   },
   "files": [

@@ -179,6 +179,7 @@ let {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
+  npm_browser_parse,
   uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
   pkg_export_lookup, export_path_match, str_to_buf,
   eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
@@ -873,6 +874,28 @@ function mjs_import_mjs(export_default, path){
   return js;
 }
 
+// - import resolution order: parent: (importer - mod_self)
+//   - "browser" section (string or ".")
+//   - "dependencies" section (& friends)
+//   - in imported module: lookup "exports" section
+// - default/main export file of a module priority: (imported - dep lmod)
+//   - "exports" section (string or ".")
+//     may have "browser", "module" etc conditional sub sections
+//   - "browser" section (string or ".")
+//   - "main"
+//   - index.js file
+function lpm_browser_lookup({lpm_pkg, imp}){
+  let pkg = lpm_pkg.pkg;
+  let lmod = T_lpm_lmod(imp);
+  let npm = T_lpm_to_npm(lmod);
+  let br = pkg.browser;
+  if (!br)
+    return;
+  if (typeof br=='string')
+    br = {'.': br};
+  let v = npm_browser_parse();
+}
+
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
 function pkg_dep_lookup({lpm_pkg, imp}){
   let pkg = lpm_pkg.pkg;
@@ -1303,11 +1326,14 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   return lpm_pkg;
 }); }
 
+// XXX this is only used to lookup parent mod_self
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v;
+  // XXX should call pkg_browser_lookup()? not sure!
   let lookup = pkg_dep_lookup({lpm_pkg: lpm_pkg_root, imp: lmod});
-  let _lmod = lookup.glob || lookup.reg;
+  // XXX should lookup.glob be checked? maybe only glob?
+  let _lmod = /* lookup.glob || */ lookup.reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
     lmod = _lmod;
@@ -1394,7 +1420,9 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
       return {lpm_pkg: lpm_self};
   } else
     lpm_self = lpm_pkg_root;
-  // lookup imports from parent
+  // XXX: translate import with pkg_browser_lookup()
+  //imp = lpm_browser_lookup({lpm_pkg: lpm_self, imp}) || imp;
+  // lookup for imports in parent
   let _imp = lpm_dep_lookup({lpm_pkg: lpm_self, imp});
   let lmod = _imp || imp;
   // load the module, even if redirect later, so its loaded with mod_self
