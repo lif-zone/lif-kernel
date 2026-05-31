@@ -158,7 +158,7 @@ EventEmitter.prototype.setMaxListeners = function setMaxListeners(){
   return this;
 };
 EventEmitter.prototype.listenerCount = function listenerCount(eventName){
-  return this._events[eventName].?length;
+  return this._events[eventName]?.length;
 };
 EventEmitter.prototype.eventNames = function eventNames(){
   return Object.keys(this._events).filter(e=>this._events[e]!==null);
