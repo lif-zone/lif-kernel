@@ -6,7 +6,9 @@
  * @constructor
  * @api public
  */
-export function EventEmitter(){ this._events = {}; }
+export function EventEmitter(){
+  this._events = {};
+}
 
 /**
  * Return a list of assigned event listeners.
@@ -16,7 +18,8 @@ export function EventEmitter(){ this._events = {}; }
  * @api public
  */
 EventEmitter.prototype.listeners = function listeners(name){
-  let events = this._events && this._events[name] || [];
+  this._events ||= {}; // XXX bug in mocha 9.1.3
+  let events = this._events[name] ||= [];
   let listeners = [];
   for (let i = 0; i<events.length; i++)
     listeners.push(events[i].fn);
@@ -31,9 +34,11 @@ EventEmitter.prototype.listeners = function listeners(name){
  * @api public
  */
 EventEmitter.prototype.emit = function emit(name, ...args){
-  if (!this._events || !this._events[name])
-    return false;
+  this._events ||= {}; // XXX bug in mocha 9.1.3
+  let events = this._events[name] ||= [];
   let listeners = this._events[name];
+  if (!listeners)
+    return false;
   for (let i = 0; i<listeners.length; i++){
     let event = listeners[i];
     event.fn.apply(event.context||this, args);
@@ -44,11 +49,9 @@ EventEmitter.prototype.emit = function emit(name, ...args){
 };
 
 function add_listener(name, fn, opt){
+  this._events ||= {}; // XXX bug in mocha 9.1.3
   opt = opt||{};
-  if (!this._events)
-    this._events = {};
-  if (!this._events[name])
-    this._events[name] = [];
+  this._events[name] ||= [];
   let event = {fn: fn};
   if (opt.context)
     event.context = opt.context;
@@ -62,9 +65,10 @@ function add_listener(name, fn, opt){
 }
 
 function remove_listener(name, listener){
-  if (!this._events || !this._events[name])
-    return this;
+  this._events ||= {}; // XXX bug in mocha 9.1.3
   let listeners = this._events[name], events = [];
+  if (!listeners)
+    return this;
   let is_fn = typeof listener=='function';
   if (listener){
     for (let i = 0; i<listeners.length; i++){
@@ -140,8 +144,7 @@ EventEmitter.prototype.removeListener = function removeListener(name, fn){
  * @api public
  */
 EventEmitter.prototype.removeAllListeners = function removeAllListeners(name){
-  if (!this._events)
-    return this;
+  this._events ||= {}; // XXX bug in mocha 9.1.3
   if (name)
     this._events[name] = null;
   else
@@ -158,9 +161,11 @@ EventEmitter.prototype.setMaxListeners = function setMaxListeners(){
   return this;
 };
 EventEmitter.prototype.listenerCount = function listenerCount(eventName){
+  this._events ||= {}; // XXX bug in mocha 9.1.3
   return this._events[eventName]?.length;
 };
 EventEmitter.prototype.eventNames = function eventNames(){
+  this._events ||= {}; // XXX bug in mocha 9.1.3
   return Object.keys(this._events).filter(e=>this._events[e]!==null);
 };
 
