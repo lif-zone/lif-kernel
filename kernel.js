@@ -878,7 +878,6 @@ function mjs_import_mjs(export_default, path){
 // - parent module resolution order: pkg_browser_lookup()
 //   - "browser" section (string or ".")
 //   - "dependencies" section (& friends)
-//   - in imported module: lookup "exports" section
 // - child module resolution order: pkg_exports_lookup()
 //   - "exports" section (string or ".")
 //     may have "browser", "module" etc conditional sub sections

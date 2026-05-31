@@ -232,93 +232,6 @@ test();
 
 let url_expand = Tf(url=>(new URL(url, globalThis.location)).href || url);
 
-async function define_amd(mod_id, args, m){
-  let _mod_id /* ignored */, imps, factory;
-  let imps_default = ['require', 'exports', 'module'];
-  let exports_val; /* not supported */
-  if (args.length==1){
-    // define(function(){...})
-    // define(function(require, exports, module){...});
-    factory = args[0];
-    imps = imps_default;
-  } else if (args.length==2){
-    if (typeof args[0]=='string'){
-      // define('my_mod', function(require, exports, module){...});
-      _mod_id = args[0];
-      imps = imps_default;
-    } else {
-      // define(['imp1', 'imp2'], function(imp1, imp2){...});
-      imps = args[0];
-    }
-    factory = args[1];
-  } else if (args.length==3)
-    // define('my_mod', ['imp1', 'imp2'], function(imp1, imp2){...});
-    [_mod_id, imps, factory] = args;
-  else
-    throw Error('define() invalid num args');
-  if (typeof factory!='function'){
-    throw Error('define() non-function factory not supported');
-    exports_val = factory;
-    factory = undefined;
-  }
-  return await _define_amd(mod_id, imps, factory, m);
-}
-async function _define_amd(mod_id, imps, factory, m){
-  let id = mod_id;
-  if (!m){
-    if (modules[id])
-      throw Error('define('+id+') already defined');
-    m = modules[id] = {id, imps, factory, loaded: false, parent: {},
-      wait: ewait(), exports: {}};
-  }
-  let _imps = await require_amd(m, imps);
-  let exports = factory(..._imps);
-  if (exports)
-    m.exports = exports;
-  m.loaded = true;
-  return m.wait.return(m.exports);
-}
-
-// AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
-let require_amd_sync_enable = 0;
-async function require_amd(m, imps){
-  let _imps = [], _m;
-  for (let i=0; i<imps.length; i++){
-    let imp = imps[i], v;
-    switch (imp){
-    case 'require': // implementation of AMD require(imps, cb)
-      v = (imps, cb)=>{
-        if (!cb){
-          // sync require - only to previously loaded modules
-          let _m = modules[imps];
-          if (_m)
-            return _m.exports;
-          if (require_amd_sync_enable)
-            return require_cjs_sync(m.id, imp);
-          throw Error('amd sync require('+imps+') not already loaded');
-        } else {
-          // async require
-          return async(imps, cb)=>{
-            let _imps = await require_amd(m, imps);
-            cb(..._imps);
-          };
-        }
-      };
-      break;
-    case 'exports': v = m.exports; break;
-    case 'module': v = m; break;
-    default:
-      // TOOO validate npm module or relative file
-      // TODO merge cjs and amd modules shared table, and assert on mixes
-      _m = await require_cjs_load({mod_self: m.id, imp});
-      require_cjs_run(_m);
-      v = _m.exports;
-    }
-    _imps[i] = v;
-  }
-  return _imps;
-}
-
 function require_cjs_get_mod(url){
   let m;
   assert(m = modules[url], 'module '+url+' not loaded');
@@ -545,9 +458,38 @@ async function require_cjs_load_requires(m, loading){
   }
   m.load_requires = 1;
 }
+async function import_amd_load_requires(m, loading){
+  if (m.load_requires)
+    return;
+  let reqs = [];
+  for (let req of m.define.reqs||[]){
+    let e;
+    if (!(e = req.e))
+      e = await require_cjs_async(m.id, req.imp);
+    reqs.push(e);
+  }
+  m.load_requires = reqs;
+}
+function define_amd_run(m, p){
+  if (m.run)
+    return m.run;
+  m.run = 'running';
+  try {
+    if (m.define.factory)
+      m.exports = m.define.factory(...m.load_requires);
+  } catch(err){
+    m.run = 'err';
+    console.error('define('+m.id+') failed eval', err);
+    return m.run;
+  }
+  m.loaded = true;
+  return m.run = 'done';
+}
 function require_cjs_run(m, p){
   if (m.run)
     return m.run;
+  if (m.type=='amd')
+    return define_amd_run(m, p);
   m.run = 'running';
   if (m.is_json){
     m.exports = m.file.json;
@@ -618,16 +560,132 @@ function require_cjs_load_sync({mod_self, imp, p}){
     return p.redirect;
   }
   m.meta = p.meta;
+  m.type = m.meta.type;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
     return m;
-  if (str.is(m.meta.type, 'mjs', 'amd')){
-    console.warn('cannot load '+m.meta.type+' sync '+
+  if (str.is(m.type, 'mjs', 'amd')){
+    // TODO: add support for sync amd
+    console.error('cannot load '+m.type+' sync '+
       m.id+(mod_self?' from '+mod_self:''));
     return m;
   }
   require_cjs_load_requires_sync(m);
   return m;
+}
+
+function amd_define_args(args){
+  let id, reqs, factory;
+  let reqs_default = ['require', 'exports', 'module'];
+  let exports_val; /* not supported */
+  if (args.length==1){
+    // define(function(){...})
+    // define(function(require, exports, module){...});
+    factory = args[0];
+    reqs = reqs_default;
+  } else if (args.length==2){
+    if (typeof args[0]=='string'){
+      // define('my_mod', function(require, exports, module){...});
+      id = args[0];
+      reqs = reqs_default;
+    } else {
+      // define(['imp1', 'imp2'], function(imp1, imp2){...});
+      reqs = args[0];
+    }
+    factory = args[1];
+  } else if (args.length==3)
+    // define('my_mod', ['imp1', 'imp2'], function(imp1, imp2){...});
+    [id, reqs, factory] = args;
+  else
+    throw Error('define() invalid num args');
+  if (typeof factory!='function'){
+    throw Error('define() non-function factory not supported');
+    exports_val = factory;
+    factory = undefined;
+  }
+  return {id, reqs, factory};
+}
+
+// AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
+function define_amd_require(m, reqs){
+  let _reqs = [], _m;
+  for (let i=0; i<reqs.length; i++){
+    let imp = reqs[i], v;
+    switch (imp){
+    case 'require': // implementation of AMD require(reqs, cb)
+      assert(0, 'amd require() not yet implemented correctly');
+      v = {e: function _amd_require(_imp, cb){
+        if (!cb){
+          // sync require - only to previously loaded modules
+          let _m = modules[_imp];
+          if (_m)
+            return _m.exports;
+          throw Error('amd sync require('+_imp+') not already loaded');
+          return require_cjs_sync(m.id, _imp);
+        }
+        (async function __amd_require(){
+          let exports = await require_cjs_async(m.id, _imp);
+          cb(exports);
+        })();
+      }};
+      break;
+    case 'exports': v = {e: m.exports}; break;
+    case 'module': v = {e: m}; break;
+    default:
+      v = {imp};
+    }
+    _reqs[i] = v;
+  }
+  return _reqs;
+}
+
+function define_amd_multi(id, reqs, factory, m){
+  let _id = id+(id!=m.id ? ' from '+m.id : '');
+  assert(0, 'multi AMD define('+_id+') per-file not supported yet');
+  // TOOO validate/normalize id vs m.id -> npm module, and call
+  // _mod_id is ignored. 1st define() in file should ignore it, or maybe
+  // create an alias for it.
+  if (!m){
+    if (modules[id])
+      throw Error('define('+_id+') already defined');
+    m = modules[id] = {id, loaded: false, parent: {}, wait: ewait(),
+      exports: {}};
+  }
+  // TODO not yet implemented loading of multi-define() per file AMD
+  return m;
+}
+
+function import_amd_run_define(m, loading){
+  // define() was detected, so run the module to get the define import list,
+  // and the export_fn
+  // implementation of AMD define()
+  let js = `//# sourceURL=${m.url}\n`;
+  let called = 0;
+  let eval_completed = false;
+  m.define = function(id, reqs, factory){
+    ({id, reqs, factory} = amd_define_args(arguments));
+    let _m = m;
+    assert(!eval_completed, 'got define('+m.id+') after script completed');
+    if (called++)
+      _m = define_amd_multi(id, reqs, factory, m);
+    m.define.reqs = define_amd_require(_m, reqs);
+    m.define.factory = factory;
+  };
+  m.define.amd = {};
+  m.amd_imp = [];
+  m.define.module = m; // debug
+  js += `let define = globalThis.$lif.boot.define_amd_get_mod(${json(m.id)}).define;`;
+  js += `(function(){\n${m.script}\n}());`;
+  try {
+    eval?.(js); // script return value is ignored
+  } catch(err){
+    console.error('import('+m.url+') failed eval', err, err?.stack);
+    throw err;
+  } finally {
+    eval_completed = true;
+  }
+  if (!m.define.reqs)
+    console.log('AMD module '+m.id+' did not call define()');
 }
 
 async function require_cjs_load({mod_self, imp, p, loading}){
@@ -639,8 +697,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   if (!p){
     if (!(m=modules[imp])){
       m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
-        is_json: imp.endsWith('.json'),
-        exports: {}};
+        is_json: imp.endsWith('.json'), exports: {}};
     }
     mod_self ||= '';
     if (!(p = m.parent[mod_self]))
@@ -654,7 +711,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
     return p.redirect;
   if (m.run || m.load_requires)
     return m;
-  loading = loading ? [...loading] : [];
+  loading = [...loading];
   if (loading.includes(p))
     return m;
   loading.push(p);
@@ -663,7 +720,8 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   if (p.res!='done')
     return m;
   if (p.meta.redirect){
-    p.redirect = await require_cjs_load({mod_self: null, imp: p.meta.redirect, loading});
+    p.redirect = await require_cjs_load({mod_self: null, imp: p.meta.redirect,
+      loading});
     return p.redirect;
   }
   if (mod_self){
@@ -671,24 +729,28 @@ async function require_cjs_load({mod_self, imp, p, loading}){
     return p.redirect;
   }
   m.meta = p.meta;
+  m.type = m.meta.type;
   await require_cjs_load_file(m);
   if (m.file.res!='done')
     return m;
-  if (m.meta.type=='mjs'){
+  if (m.type=='mjs'){
+    if (m.wait)
+      return await m.wait;
+    m.wait = ewait();
     // hard-coded import()s should be imported and run just before
     // require_cjs_run(). but might be also ok here already to import them
     let e = await /*keep*/ import(m.url+'?mjs=1');
     m.exports = e.default || e;
     m.run = 'done';
-    return m;
+    return m.wait.return(m);
   }
-  if (m.meta.type=='amd'){
-    // XXX TODO: should only import_amd() at require_cjs_run()
-    // solve it using sync amd load.
-    let e = await import_amd(null, [m.url]);
-    m.exports = e;
-    m.run = 'done';
-    return m;
+  if (m.type=='amd'){
+    if (m.wait)
+      return await m.wait;
+    m.wait = ewait();
+    import_amd_run_define(m, loading);
+    await import_amd_load_requires(m, loading);
+    return m.wait.return(m);
   }
   await require_cjs_load_requires(m, loading);
   return m;
@@ -713,7 +775,7 @@ function require_cjs_sync(mod_self, imp){
 async function require_cjs_async(mod_self, imp){
   imp = npm_base(mod_self, imp);
   D && console.log('require_cjs_async', imp);
-  let m = await require_cjs_load({mod_self, imp});
+  let m = await require_cjs_load({mod_self, imp, loading: []});
   require_cjs_run(m);
   return m.exports;
 }
@@ -758,22 +820,11 @@ async function import_amd(mod_self, [imp, opt]){
     console.error('import('+url+') failed', err);
     throw m.wait.throw(err);
   }
-  let js = `//# sourceURL=${url}\n`;
-  // implementation of AMD define()
-  m.define = async function(id, imps, factory){
-    return await define_amd(imp, arguments, m);
-  };
-  m.define.amd = {};
-  m.define.module = m; // debug
-  js += `let define = globalThis.$lif.boot.define_amd_get_mod(${json(imp)}).define;`;
-  js += `(function(){\n${m.script}\n}());`;
-  try {
-    eval?.(js); // script return value is ignored
-  } catch(err){
-    console.error('import('+url+') failed eval', err, err?.stack);
-    throw m.wait.throw(err);
-  }
-  await m.wait;
+  m.wait = ewait();
+  let loading = [];
+  import_amd_run_define(m, loading);
+  await import_amd_load_requires(m, loading);
+  require_cjs_run(m);
   assert(m.loaded, 'module not loaded: '+imp);
   return m.wait.return(m.exports);
 }

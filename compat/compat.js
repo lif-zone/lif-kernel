@@ -16,12 +16,17 @@ export const process = is_node ? globalThis.process : {
   env: {},
 };
 
+class AssertionError extends Error {}
 export const assert = function(val, msg){
   if (val)
     return;
-  console.error(msg);
-  debugger; // eslint-disable-line no-debugger
+  if (assert.debugger_break){
+    console.error(msg);
+    debugger; // eslint-disable-line no-debugger
+  }
+  throw AssertionError('assert '+msg);
 };
+assert.debugger_break = true;
 
 let nextId = 1;
 let callbacks = {};
