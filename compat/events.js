@@ -155,13 +155,13 @@ EventEmitter.prototype.addListener = EventEmitter.prototype.on;
 
 // this function doesn't apply anymore
 EventEmitter.prototype.setMaxListeners = function setMaxListeners(){
-  return this; };
-
+  return this;
+};
+EventEmitter.prototype.listenerCount = function listenerCount(eventName){
+  return this._events[eventName].?length;
+};
 EventEmitter.prototype.eventNames = function eventNames(){
-  var _this = this;
-  return Object.keys(this._events).filter(function(e){
-    return _this._events[e]!==null;
-  });
+  return Object.keys(this._events).filter(e=>this._events[e]!==null);
 };
 
 // expose the module

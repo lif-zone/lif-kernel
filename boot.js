@@ -613,8 +613,8 @@ function define_amd_require(m, reqs){
     let imp = reqs[i], v;
     switch (imp){
     case 'require': // implementation of AMD require(reqs, cb)
-      assert(0, 'amd require() not yet implemented correctly');
       v = {e: function _amd_require(_imp, cb){
+        assert(0, 'amd require() not yet implemented correctly');
         if (!cb){
           // sync require - only to previously loaded modules
           let _m = modules[_imp];
