@@ -302,6 +302,7 @@ export class rpc_base extends EventEmitter {
   method_fn = {};
   id = 0;
   req = {};
+  seq = {};
   open = ewait();
   jsonrpc;
   D = 0;
@@ -446,11 +447,140 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: not jsonrpc msg', msg);
     if (!msg)
       return console.error('rpc: invalid empty msg');
+    if (msg.seq!=null)
+      return this.on_seq_msg(msg);
     if (msg.method==null)
       return this.on_res(msg);
     if (msg.id==null)
       return this.on_notify(msg);
     return this.on_call(msg);
+  }
+  // Sequence RPC
+  _seq_create(id){
+    let client_seq = 0;
+    let server_seq = 0;
+    const s = {
+      id,
+      pending: {},
+      r_pending: {},
+      method_fn: {},
+      closed: false,
+      api: null,
+    };
+    s.api = {
+      call: async(method, params)=>{
+        if (s.closed)
+          throw new Error('seq closed');
+        const n = ++client_seq;
+        const wait = ewait();
+        s.pending[n] = wait;
+        await this.send({seq: ''+n, id, method, ...(params ? {params} : {})});
+        const ret = await wait;
+        delete s.pending[n];
+        if ('error' in ret)
+          throw ret.error;
+        return ret.result;
+      },
+      push: async(method, params)=>{
+        if (s.closed)
+          throw new Error('seq closed');
+        const n = server_seq++;
+        const wait = ewait();
+        s.r_pending[n] = wait;
+        await this.send({seq: `r ${n}`, id, method, ...(params ? {params} : {})});
+        const ret = await wait;
+        delete s.r_pending[n];
+        if ('error' in ret)
+          throw ret.error;
+        return ret.result;
+      },
+      method: (method, fn)=>{
+        s.method_fn[method] = fn;
+      },
+      close: async()=>{
+        if (s.closed)
+          return;
+        s.closed = true;
+        delete this.seq[id];
+        await this.send({seq: 'close', id});
+      },
+    };
+    return s;
+  }
+  async seq_open(method, params){
+    const id = this.id++;
+    const s = this._seq_create(id);
+    this.seq[id] = s;
+    const wait = ewait();
+    s.pending[0] = wait;
+    await this.send({seq: '0 open', id, method, ...(params ? {params} : {})});
+    const ret = await wait;
+    delete s.pending[0];
+    if ('error' in ret)
+      throw ret.error;
+    return {result: ret.result, seq: s.api};
+  }
+  async on_seq_open(msg){
+    const {seq, id, method, params} = msg;
+    const n = parseInt(seq);
+    const method_fn = this.method_fn[method];
+    const s = this._seq_create(id);
+    this.seq[id] = s;
+    let res;
+    try {
+      if (!method_fn)
+        throw 'seq: unsupported method '+method;
+      const ret = await method_fn(params, s.api);
+      res = {seq: ''+n, id, result: this.json_null(ret ?? null)};
+    } catch(err){
+      console.error(err);
+      res = {seq: ''+n, id, error: ''+err};
+    }
+    if (this.D)
+      console.log('rpc seq< '+method, params, res.error||res.result);
+    await this.send(res);
+  }
+  async on_seq_msg(msg){
+    const {seq, id, method} = msg;
+    if (seq.endsWith(' open'))
+      return this.on_seq_open(msg);
+    if (seq=='close'){
+      const s = this.seq[id];
+      if (s){
+        s.closed = true;
+        delete this.seq[id];
+      }
+      return;
+    }
+    const s = this.seq[id];
+    if (!s)
+      return console.error('rpc seq: unknown id', id, seq);
+    const is_remote = seq.startsWith('r ');
+    const n = is_remote ? +seq.slice(2) : +seq;
+    if (method!=null){
+      const fn = s.method_fn[method];
+      let res;
+      try {
+        if (!fn)
+          throw 'seq: unsupported method '+method;
+        const ret = await fn(msg.params, s.api);
+        res = {seq, id, result: this.json_null(ret ?? null)};
+      } catch(err){
+        console.error(err);
+        res = {seq, id, error: ''+err};
+      }
+      await this.send(res);
+    } else {
+      const pending = is_remote ? s.r_pending : s.pending;
+      const wait = pending[n];
+      if (wait)
+        wait.return(msg);
+      else
+        console.error('rpc seq: unexpected response', seq, id);
+    }
+  }
+  seq_method(method, fn){
+    this.method_fn[method] = fn;
   }
   on_error(err){
     console.error('rpc socket error');
@@ -484,6 +614,14 @@ export class rpc_base extends EventEmitter {
     for (let [id, req] of OE(this.req)){
       delete this.req[id];
       req.wait.throw('close');
+    }
+    for (let [id, s] of OE(this.seq)){
+      s.closed = true;
+      delete this.seq[id];
+      for (let w of OV(s.pending))
+        w.throw('close');
+      for (let w of OV(s.r_pending))
+        w.throw('close');
     }
     if (this.D)
       console.log('rpc>!close');

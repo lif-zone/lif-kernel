@@ -1,0 +1,48 @@
+Session log
+===========
+
+---
+
+USER: in ~/lif-kernel/util.js there is rpc_base that implements a generic JSON RPC protocol. I would like to extend it with an additional optional field 'seq', which creates a long-term 'connection': the 'id' will be used long term, until the 'seq' is closed.
+
+Wire format:
+  Open:    { seq: "0 open", id: 234, method: "long_request", params: {...} }
+  Reply:   { seq: "0",      id: 234, result: {...} }
+  Client:  { seq: "1",      id: 234, method: "next_step", params: {...} }
+  Reply:   { seq: "1",      id: 234, result: ... }
+  Server:  { seq: "r 0",   id: 234, method: "server_push", params: {...} }
+  Reply:   { seq: "r 0",   id: 234, result: ... }
+  Close:   { seq: "close", id: 234 }
+
+CLAUDE: Added sequence RPC support directly to rpc_base in util.js:
+- seqs = {} field — active sequences keyed by id
+- _seq_create(id) — builds seq state + api: {call, push, on, close}
+- seq_open(method, params) — client opens sequence, returns {result, seq}
+- on_seq_open(msg) — server handles "N open", calls handler with (params, seq_api)
+- on_seq_msg(msg) — dispatches all seq messages (open, close, calls, responses)
+- seq_method(method, fn) — registers server-side handler; fn receives (params, seq_api)
+- close() — extended to throw on all pending seq waits
+
+Routing in on_msg: if msg.seq != null, routed to on_seq_msg before normal dispatch.
+
+seq_api methods:
+  call(method, params)  — client sends seq "N", awaits response
+  push(method, params)  — server sends seq "r N", awaits response
+  on(method, fn)        — register handler for incoming calls within this sequence
+  close()               — sends {seq: "close", id}, cleans up state
+
+Usage:
+  // Server
+  rpc.seq_method('stream', async(params, seq)=>{
+    seq.on('next', async(p, seq)=>{ return 'ok'; });
+    const r = await seq.push('notify', {data: 1});
+    return 'started';
+  });
+
+  // Client
+  const {result, seq} = await rpc.seq_open('stream', {x: 1});
+  seq.on('notify', async(p)=>{ return 'ack'; });
+  const r = await seq.call('next', {step: 1});
+  await seq.close();
+
+---
