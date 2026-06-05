@@ -471,7 +471,7 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: not jsonrpc msg', msg);
     if (!msg)
       return console.error('rpc: invalid empty msg');
-    if (this?.on_msg_handler(msg))
+    if (this.on_msg_handler?.(msg))
       return;
     if (msg.method==null)
       return this.on_res(msg);
@@ -512,7 +512,7 @@ export class rpc_base extends EventEmitter {
       delete this.req[id];
       req.wait.throw('close');
     }
-    this?.on_close_handler();
+    this.on_close_handler?.();
     if (this.D)
       console.log('rpc>!close');
   }
