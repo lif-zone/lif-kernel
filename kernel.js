@@ -1520,6 +1520,47 @@ let response_send = ({body, ext, cache})=>{
   return new Response(body, opt);
 };
 
+let cache_store = {
+  // performance - loading lif-os from git, in linux:
+  // cache-store 1st   2nd    3rd
+  // enable      14.2s 8s     5.7s
+  // disable     24s   10.5s  8s
+  enable: 1,
+  inited: 0,
+  cache: null,
+};
+
+async function cache_store_init(){
+  let cs = cache_store;
+  if (!cs.enable || cs.inited)
+    return;
+  cs.cache = await caches.open('lif-cache-v1');
+  cs.inited = true;
+}
+await cache_store_init();
+
+async function cache_store_get(request){
+  let cs = cache_store;
+  if (!cs.enable || request.method!='GET')
+    return;
+  let response = await cs.cache.match(request);
+  if (!response)
+    return;
+  D && console.log('cache_store hit', request.url);
+  return response;
+}
+
+async function cache_store_set(request, response){
+  let cs = cache_store;
+  if (!cs.enable || request.method!='GET')
+    return;
+  if (!response.headers.get('etag'))
+    return;
+  D && console.log('cache_store set', request.url);
+  await cs.cache.put(request, response.clone());
+  return response;
+}
+
 let ctype_binary = path=>{
   let ext = _path_ext(path);
   let ctype = ctype_get(ext)?.ctype;
@@ -1788,8 +1829,13 @@ async function _kernel_fetch(event){
         console.error('parse '+url+': '+res.err);
       return send_res({body: json(meta), ext: 'json', path});
     }
+    let response = await cache_store_get(request);
+    if (response)
+      return response;
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
-    return send_res({...res, path});
+    response = await send_res({...res, path});
+    await cache_store_set(request, response);
+    return response;
   }
   if (path=='/cc'){ // clear cache command
     function cc(table){
