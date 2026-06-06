@@ -900,11 +900,13 @@ function pkg_browser_lookup({lpm_pkg, imp}){
   if (v = br[npm]){
     let _v;
     if (_v = str.starts(v, './')){
-      console.warn('found file!', _imp, v);
-      return lpm_pkg.lmod+'/'+_v.rest;
+      v = lpm_pkg.lmod+'/'+_v.rest;
+      D && console.log('browser file redir '+_imp+' -> '+v);
+      return v;
     }
-    console.warn('found module!', _imp, v);
-    return 'npm/'+v+imp.slice(lmod.length);
+    v = 'npm/'+v+imp.slice(lmod.length);
+    D && console.log('browser mod redir '+_imp+' -> '+v);
+    return v;
   }
 }
 
