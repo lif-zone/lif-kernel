@@ -410,7 +410,7 @@ export class rpc_base extends EventEmitter {
     slow.end();
     return res;
   }
-  async on_res(msg){
+  async _emit_res(msg){
     let {id} = msg, req;
     if (typeof id!='string' && typeof id!='number')
       return console.error('rpc: invalid msg id', msg);
@@ -423,7 +423,7 @@ export class rpc_base extends EventEmitter {
     }
     req.wait.return(msg);
   }
-  async on_call(msg){
+  async _emit_call(msg){
     let {id, method, params} = msg;
     let method_fn = this.method_fn[method];
     let res;
@@ -452,7 +452,7 @@ export class rpc_base extends EventEmitter {
     }
     await this.send(res);
   }
-  async on_notify(msg){
+  async _emit_notify(msg){
     let {method} = msg;
     let method_fn = this.method_fn[method];
     if (!method_fn)
@@ -466,7 +466,7 @@ export class rpc_base extends EventEmitter {
       slow.end();
     }
   }
-  on_msg(msg){
+  emit_msg(msg){
     if (this.jsonrpc && !msg.jsonrpc)
       return console.error('rpc: not jsonrpc msg', msg);
     if (!msg)
@@ -474,17 +474,17 @@ export class rpc_base extends EventEmitter {
     if (this.on_msg_handler?.(msg))
       return;
     if (msg.method==null)
-      return this.on_res(msg);
+      return this._emit_res(msg);
     if (msg.id==null)
-      return this.on_notify(msg);
-    return this.on_call(msg);
+      return this._emit_notify(msg);
+    return this._emit_call(msg);
   }
-  on_error(err){
+  emit_error(err){
     console.error('rpc socket error');
     this.open.throw('socket error');
     this.error = true;
   }
-  on_close(){
+  emit_close(){
     console.warn('rpc socket closed');
     this.emit('close');
     this.open.throw('close');
@@ -683,9 +683,9 @@ export class ipc_postmessage extends rpc_seq_base {
   }
   // controller = navigator.serviceWorker.controller
   set_events(){
-    this.port.addEventListener('message', event=>this.on_msg(event.data));
-    this.port.addEventListener('error', event=>this.on_error(event.data));
-    this.port.addEventListener('close', event=>this.on_close());
+    this.port.addEventListener('message', event=>this.emit_msg(event.data));
+    this.port.addEventListener('error', event=>this.emit_error(event.data));
+    this.port.addEventListener('close', event=>this.emit_close());
     this.port.start();
     this.open.return(true);
   }
@@ -735,10 +735,10 @@ export class rpc_websocket extends rpc_seq_base {
       } catch(e){
         return console.error('invalid ipc json', data);
       }
-      this.on_msg(msg);
+      this.emit_msg(msg);
     });
-    this.ws.on('error', err=>this.on_error(err));
-    this.ws.on('close', ()=>this.on_close());
+    this.ws.on('error', err=>this.emit_error(err));
+    this.ws.on('close', ()=>this.emit_close());
   }
   async connect(opt){
     if (opt.url){
