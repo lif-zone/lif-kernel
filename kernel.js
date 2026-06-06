@@ -1507,7 +1507,14 @@ let response_send = ({body, ext, cache})=>{
     ctype = ctype_get('text');
   }
   h['content-type'] = ctype.ctype;
+  // added 'immutable' - but did not seem to assist in caching
   h['cache-control'] = cache ? 'public, max-age=31536000' : 'no-cache';
+  if (cache){
+    h['etag'] = 'fixed-etag'; // XXX put sha256
+    // these two are probably useless
+    h['date'] = new Date().toUTCString();
+    h['last-modified'] = 'Sat, 01 Jan 2000 00:00:00 GMT';
+  }
   coi_set_headers(h);
   opt.headers = new Headers(h);
   return new Response(body, opt);
