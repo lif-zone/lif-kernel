@@ -675,7 +675,7 @@ export class rpc_seq_base extends rpc_base {
   }
 }
 
-export class ipc_postmessage extends rpc_base {
+export class ipc_postmessage extends rpc_seq_base {
   ports;
   port;
   send(json){
@@ -709,7 +709,7 @@ export class ipc_postmessage extends rpc_base {
 }
 
 // json-rpc over websocket
-export class rpc_websocket extends rpc_base {
+export class rpc_websocket extends rpc_seq_base {
   ws;
   constructor(opt={}){
     super({...opt, is_json: true});
