@@ -725,17 +725,17 @@ function lpm_dep_lookup({lpm_pkg, imp}){
     let _l = pkg_dep_lookup({lpm_pkg: p, imp});
     par.reg ||= _l.reg;
     par.dev ||= _l.dev;
-    par.glob ||= _l.glob;
+    par.over ||= _l.over;
   }
-  // lookup globDependencies of current and parents
-  if (l.glob)
-    return l.glob;
-  if (par.glob)
-    return par.glob;
+  // lookup overrides of current and parents
+  if (l.over)
+    return l.over;
+  if (par.over)
+    return par.over;
   // lookup dependencies (regular imports): current
   if (l.reg)
     return l.reg;
-  // lookup parent peer/global imports (peerDependencies, globDependencies)
+  // lookup parent peer/global imports (peerDependencies, overrides)
   if (l.peer){
     if (par.reg)
       return par.reg;
@@ -925,9 +925,8 @@ function pkg_dep_lookup({lpm_pkg, imp}){
     return '';
   }
   let found = {};
-  // TODO rename globDependencies to overrides
-  found.glob = get_imp(pkg.lif?.globDependencies);
-  found.glob ||= get_imp(pkg.globDependencies);
+  found.over = get_imp(pkg.lif?.overrides);
+  found.over ||= get_imp(pkg.overrides);
   found.reg = get_imp(pkg.lif?.dependencies);
   found.reg ||= get_imp(pkg.dependencies);
   found.peer = get_imp(pkg.lif?.peerDependencies, true);
@@ -1344,7 +1343,7 @@ async function lpm_pkg_get_follow({log, lmod}){
   let v;
   // XXX should call pkg_browser_lookup()? not sure!
   let lookup = pkg_dep_lookup({lpm_pkg: lpm_pkg_root, imp: lmod});
-  let _lmod = lookup.glob || lookup.reg;
+  let _lmod = lookup.over || lookup.reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
     lmod = _lmod;
@@ -1944,12 +1943,12 @@ function test_kernel(){
   let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
     lif: {
       dependencies: {over: '2.0.0'},
-      globDependencies: {overg: '2.0.0'},
+      overrides: {overg: '2.0.0'},
     },
     dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
       dom: '>=18.3.1', os: '.lif/git/github.com/repo/mod', over: '1.0.0'},
     peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
-    globDependencies: {glb: '1.2.0', overg: '1.0.0'},
+    overrides: {glb: '1.2.0', overg: '1.0.0'},
   }};
   t = (imp, v)=>{
     in_test = 1;
@@ -1958,7 +1957,7 @@ function test_kernel(){
     assert.eq(v.reg, res.reg);
     assert.eq(v.peer, res.peer);
     assert.eq(v.dev, res.dev);
-    assert.eq(v.glob, res.glob);
+    assert.eq(v.over, res.over);
   };
   t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
   t('npm/loc/file.js', {reg: 'local/loc//file.js'});
@@ -1968,9 +1967,9 @@ function test_kernel(){
   t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
   t('npm/dom_p', {peer: '>=18.3.1'});
   t('npm/os/dir/index.js', {reg: 'git/github.com/repo/mod/dir/index.js'});
-  t('npm/glb', {glob: 'npm/glb@1.2.0'});
+  t('npm/glb', {over: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
-  t('npm/overg', {glob: 'npm/overg@2.0.0'});
+  t('npm/overg', {over: 'npm/overg@2.0.0'});
   lpm_pkg = {lmod: 'npm/self@1.2.3', pkg: {lif: {dependencies: {
     mod: '/MOD',
     mod2: '.lif/local/MOD/',
@@ -1981,7 +1980,7 @@ function test_kernel(){
     reactbad: 'react@18.3.1', // currently not supported in NPM
     dir: './DIR',
     GIT: 'git://github.com/user/repo@v1',
-    glob: '99.9.9',
+    over: '99.9.9',
     glob2: '99.9.9',
   }, peerDependencies: {
     peer: '>=1.0.0',
@@ -1993,7 +1992,7 @@ function test_kernel(){
     peer: '2.0.0',
     gpeerdev: '97.9.9',
     gmod: '99.9.9',
-  }, globDependencies: {
+  }, overrides: {
     gmod: '21.0.0',
     glob2: '15.0.0',
   }}}, parent: {lmod: 'npm/par', pkg: {dependencies: {
@@ -2002,8 +2001,8 @@ function test_kernel(){
     gparent2: '99.9.9',
     gpeer: '13.0.1',
     gpeerdev: '13.0.1',
-  }, globDependencies: {
-    glob: '18.0.0',
+  }, overrides: {
+    over: '18.0.0',
     glob2: '99.9.9',
     gparent: '22.0.0',
   }}}};
@@ -2222,17 +2221,17 @@ let do_app_pkg = async function(boot_pkg){
     lpm_file_t = {};
   }
   // add lif-kernel package
-  if (!boot_pkg.globDependencies?.['lif-kernel'] &&
-    !lif.globDependencies?.['lif-kernel'])
+  if (!boot_pkg.overrides?.['lif-kernel'] &&
+    !lif.overrides?.['lif-kernel'])
   {
-    lif.globDependencies ||= {};
+    lif.overrides ||= {};
     // shorten http/localhost:3000/lif-kernel -> local/lif-kernel,
     // so its nicer visually in devtools
     let u = T_url_parse(lif_kernel_base);
     let base = lif_kernel_base;
     if (u.origin==location.origin)
       base = u.path;
-    lif.globDependencies['lif-kernel'] = base;
+    lif.overrides['lif-kernel'] = base;
   }
   // init root pkg
   lpm_pkg_root = await ecache({table: lpm_pkg_t, id: lmod_root},
