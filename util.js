@@ -323,14 +323,15 @@ function assert_log(cond, msg){
 
 export class rpc_base extends EventEmitter {
   method_fn = {};
+  id_fn = {};
   id = 0;
   req = {};
-  open = ewait();
+  _wait_open = ewait();
+  error;
+  state;
   jsonrpc;
   D = 0;
   is_json = false;
-  on_msg_handler;
-  on_close_handler;
   constructor(opt={}){
     super();
     if (opt.D)
@@ -343,6 +344,9 @@ export class rpc_base extends EventEmitter {
   json_null(v){
     // undefined -> null, since JSON.stringify({v: undefined})=='{}'
     return v!==undefined || !this.is_json ? v : null;
+  }
+  async wait_open(){
+    return await this._wait_open;
   }
   async T_call(method, params){
     let res = await this._call(method, params);
@@ -368,7 +372,7 @@ export class rpc_base extends EventEmitter {
     let res;
     let slow = eslow(5000, 'rpc '+method);
     try {
-      if (!await this.open)
+      if (!await this._wait_open)
         throw Error('rpc not open');
       await this.send(request);
       let ret = await req.wait;
@@ -397,7 +401,7 @@ export class rpc_base extends EventEmitter {
     let res;
     let slow = eslow(5000, 'rpc '+method);
     try {
-      if (!await this.open){
+      if (!await this._wait_open){
         if (opt?.no_fail)
           return;
         throw Error('rpc not open');
@@ -433,7 +437,7 @@ export class rpc_base extends EventEmitter {
     try {
       if (!method_fn)
         throw 'rpc unsupported method '+method;
-      let ret = await method_fn(params);
+      let ret = await method_fn(msg);
       if ('result' in ret)
         res = {result: this.json_null(ret.result)};
       else if ('error' in ret)
@@ -471,215 +475,147 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: not jsonrpc msg', msg);
     if (!msg)
       return console.error('rpc: invalid empty msg');
-    if (this.on_msg_handler?.(msg))
-      return;
+    let fn;
+    if (msg.id && (fn=this.id_fn[msg.id]))
+      return fn(msg);
     if (msg.method==null)
       return this._emit_res(msg);
     if (msg.id==null)
       return this._emit_notify(msg);
     return this._emit_call(msg);
   }
+  emit_connect(){
+    if (str.is(this.state, 'open', 'error', 'close'))
+      return;
+    this._wait_open.return(true);
+    this.state = 'open';
+  }
   emit_error(err){
+    if (str.is(this.state, 'error', 'close'))
+      return;
     console.error('rpc socket error');
-    this.open.throw('socket error');
-    this.error = true;
+    this.state = 'error';
+    this.error = err || true;
+    this._wait_open.throw('error');
+    this.emit('error');
+    this.emit_close();
   }
   emit_close(){
+    if (this.state=='close')
+      return;
     console.warn('rpc socket closed');
+    this.state = 'close';
+    this._wait_open.throw('close');
+    for (let [id, req] of OE(this.req)){
+      delete this.req[id];
+      req.wait.throw('close');
+    }
+    for (let [id, fn] of OE(this.id_fn)){
+      delete this.id_fn[id];
+      fn(null, 'close');
+    }
+    if (this.D)
+      console.log('rpc>!close');
     this.emit('close');
-    this.open.throw('close');
-    this.error = true;
   }
   method(method, fn){
-    this.method_fn[method] = async(params)=>{
-      let res = await fn(params);
+    this.method_fn[method] = async(msg)=>{
+      let res = await fn(msg.params);
       return {result: res};
     };
   }
   e_method(method, fn){
-    this.method_fn[method] = async(params)=>{
-      let res = await fn(params);
+    this.method_fn[method] = async(msg)=>{
+      let res = await fn(msg.params);
       if ('error' in res)
         return res;
       return {result: res};
     };
   }
   _method(method, fn){
+    this.method_fn[method] = async(msg)=>{
+      return await fn(msg.params);
+    };
+  }
+  __method(method, fn){
     this.method_fn[method] = fn;
+  }
+  on_id(id, fn){
+    if (!fn){
+      delete this.id_fn[id];
+      return;
+    }
+    this.id_fn[id] = fn;
   }
   close(){
-    for (let [id, req] of OE(this.req)){
-      delete this.req[id];
-      req.wait.throw('close');
-    }
-    this.on_close_handler?.();
-    if (this.D)
-      console.log('rpc>!close');
+    this.emit_close();
   }
 }
 
-class rpc_seq_call {
+class rpc_seq_call extends rpc_base {
   rpc;
   id;
-  is_remote;
-  seq_id = 0;
-  pending = {};
-  method_fn = {};
-  closed = false;
-  constructor({rpc, id, is_remote}){
-    OA(this, {rpc, id, is_remote});
+  is_connect;
+  async send(msg){
+    msg = {...msg, id: this.id, seq: msg.id};
+    this.rpc.send(msg);
   }
-  _get_id(){
-    this.seq_id++;
+  set_events(){
+    this.rpc.on_id(this.id, (msg, state)=>{
+      if (msg){
+        msg = {...msg, id: msg.seq};
+        if (msg.state=='close')
+          return this.emit_close();
+        this.emit_msg(msg);
+      }
+      if (state=='error')
+        this.emit_error();
+      if (state=='close')
+        this.emit_close();
+    });
+    this.emit_connect();
   }
-  async call(method, params){
-    if (this.closed)
-      throw Error('seq closed');
-    const n = this.seq_id++;
-    const wait = ewait();
-    this.pending[n] = wait;
-    await this.rpc.send({seq: (this.is_remote ? ' r' : '')+n, id: this.id,
-      method, ...(params ? {params} : {})});
-    const ret = await wait;
-    delete this.pending[n];
-    if ('error' in ret)
-      throw ret.error;
-    return ret.result;
+  async connect({rpc, method, params}){
+    this.is_connect = true;
+    this.rpc = rpc;
+    this.id = this.rpc.id;
+    this.set_events();
+    let res = await this.rpc.call(method, params);
+    if (res.error)
+      this.emit_error();
+    return res;
   }
-  method(method, fn){
-    this.method_fn[method] = fn;
+  accept({rpc, msg}){
+    this.is_connect = false;
+    this.rpc = rpc;
+    this.id = msg.id;
+    this.set_events();
   }
-  async close(){
-    if (this.closed)
-      return;
-    this.closed = true;
-    delete this.rpc.seq[this.id];
-    await this.rpc.send({seq: 'close', id: this.id});
-  }
-}
-export class rpc_seq_base extends rpc_base {
-  seq = {};
-  seq_method_fn = {};
-  constructor(){
-    super(...arguments);
-    this.on_msg_handler = msg=>{
+  static listen(rpc, method, fn){
+    rpc.__method(method, msg=>{
       if (!msg.seq)
-        return;
-      this.on_seg_msg();
-      return true;
-    };
-    this.on_close_handler = ()=>this._seq_close();
+        return {error: 'seq listen: missing msg.seq'};
+      if (!msg.id)
+        return {error: 'seq listen: missing msg.id'};
+      let seq = new rpc_seq_call();
+      seq.accept({rpc, msg});
+      let res = E_try(async()=>await fn({msg, seq}), err=>({error: ''+err}));
+      if ('error' in res)
+        seq.emit_error();
+      return res;
+    });
   }
-  _seq_create(id, is_remote){
-    return new rpc_seq_call({rpc: this, id, is_remote});
-  }
-  seq_open(method, params){
-    const id = this.id++;
-    const s = this._seq_create(id, false);
-    this.seq[id] = s;
-    const wait = s.pending[0] = ewait();
-    return {seq: s, wait: async()=>{
-      let seq_id = s._get_id();
-      await this.send({seq: ''+seq_id+' open', id, method, ...(params ? {params} : {})});
-      const ret = await wait;
-      delete s.pending[0];
-      if ('error' in ret)
-        throw ret.error;
-      return ret.result;
-    }};
-  }
-  _seq_parse(seq){
-    const _seq = seq.split(' ');
-    let is_remote = false;
-    if (!_seq[0])
-      throw Error('invalid seq: '+seq);
-    if (_seq[0]=='r'){
-      is_remote = true;
-      _seq.shift();
-    }
-    let seq_id = +_seq[0];
-    _seq.shift();
-    if (!Number.isInteger(seq_id))
-      throw Error('invalid seq id: '+seq);
-    let cmd = _seq[0];
-    if (cmd && cmd!='open' && cmd!='close')
-      throw Error('invalid seq cmd: '+seq);
-    _seq.shift();
-    if (_seq.length)
-      throw Error('invalid seq extra: '+seq);
-    return {seq_id, is_remote, cmd};
-  }
-  async on_seq_open(msg){
-    const {seq, id, method, params} = msg;
-    const {seq_id, is_remote, cmd} = this._seq_parse(seq);
-    assert(!is_remote);
-    assert(seq_id==0);
-    const method_fn = this.seq_method_fn[method];
-    const s = this._seq_create(id, true);
-    this.seq[id] = s;
-    let res;
-    try {
-      if (!method_fn)
-        throw 'seq: unsupported method '+method;
-      const ret = await method_fn(params, s);
-      res = {seq: ''+seq_id, id, result: this.json_null(ret ?? null)};
-    } catch(err){
-      console.error(err);
-      res = {seq: ''+seq_id, id, error: ''+err};
-    }
-    if (this.D)
-      console.log('rpc seq< '+method, params, res.error||res.result);
-    await this.send(res);
-  }
-  async on_seq_close({msg, seq, s}){
-    s.closed = true;
-    delete this.seq[msg.id];
-    // TODO: emit('close')
-    // add support for cmd=='error'
-  }
-  async on_seq_msg(msg){
-    const {seq, id, method} = msg;
-    const {seq_id, is_remote, cmd} = this._seq_parse(seq);
-    if (cmd=='open')
-      return this.on_seq_open(msg);
-    const s = this.seq[id];
-    if (!s)
-      return console.error('rpc seq: unknown id', id, seq);
-    if (cmd=='close')
-      return this.on_seq_close({msg, seq, s});
-    if (method==null){
-      assert_log(is_remote==s.is_remote);
-      const wait = s.pending[seq_id];
-      if (!wait)
-        return console.error('rpc seq: unexpected response', seq, id);
-      return wait.return(msg);
-    }
-    assert_log(is_remote!=s.is_remote);
-    const fn = s.method_fn[method];
-    if (!fn)
-      return console.error('seq: unsupported method '+method);
-    const ret = E_try(async()=>({result: await fn(msg.params)}),
-      err=>({error: ''+err}));
-    await this.send({seq, id, ...ret});
-  }
-  seq_method(method, fn){
-    this.seq_method_fn[method] = fn;
-  }
-  _seq_close(){
-    for (let [id, s] of OE(this.seq)){
-      s.closed = true;
-      delete this.seq[id];
-      for (let w of OV(s.pending))
-        w.throw('close');
-    }
+  close(){
+    this.send({state: 'close'});
+    super.close();
   }
 }
 
-export class ipc_postmessage extends rpc_seq_base {
+export class ipc_postmessage extends rpc_base {
   ports;
   port;
-  send(json){
-    this.port.postMessage(json);
+  send(msg){
+    this.port.postMessage(msg);
   }
   // controller = navigator.serviceWorker.controller
   set_events(){
@@ -687,7 +623,7 @@ export class ipc_postmessage extends rpc_seq_base {
     this.port.addEventListener('error', event=>this.emit_error(event.data));
     this.port.addEventListener('close', event=>this.emit_close());
     this.port.start();
-    this.open.return(true);
+    this.emit_connect();
   }
   connect(controller){
     this.ports = new MessageChannel();
@@ -709,21 +645,21 @@ export class ipc_postmessage extends rpc_seq_base {
 }
 
 // json-rpc over websocket
-export class rpc_websocket extends rpc_seq_base {
+export class rpc_websocket extends rpc_base {
   ws;
   constructor(opt={}){
     super({...opt, is_json: true});
     if (opt.jsonrpc)
       this.jsonrpc = opt.jsonrpc;
   }
-  async send(json){
-    this.ws.send(JSON.stringify(json));
+  async send(msg){
+    this.ws.send(JSON.stringify(msg));
   }
   set_events(){
     this.ws.on('open', ()=>{
       if (!is_node)
         assert(this.ws.readyState==WebSocket.OPEN);
-      this.open.return(true);
+      this.emit_connect();
     });
     this.ws.on('message', async(event)=>{
       let data = is_node ? event.toString('utf8') :
@@ -748,13 +684,13 @@ export class rpc_websocket extends rpc_seq_base {
     } else
       throw Error('missing connect opt');
     this.set_events();
-    return await this.open;
+    return await this.wait_open();
   }
   accept(opt){
     assert(is_node);
     this.ws = opt.ws;
-    this.open.return(true);
     this.set_events();
+    this.emit_connect();
   }
   close(){
     super.close();
