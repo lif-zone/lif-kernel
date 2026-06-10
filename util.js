@@ -123,6 +123,7 @@ export function Tf(fn, throw_val){
     }
   };
 }
+// try and catch to value
 export function T(fn, throw_val){
   try {
     return fn();
@@ -132,6 +133,7 @@ export function T(fn, throw_val){
 }
 export const _try = T;
 
+// event (await) try and catch to value
 export async function E_try(try_fn, throw_val){
   try {
     let res = await try_fn();
@@ -141,7 +143,7 @@ export async function E_try(try_fn, throw_val){
   }
 }
 
-// undefined -> Throw error
+// undefined -> throw Error
 export function TUf(fn){
   return function(){
     let v = fn(...arguments);
@@ -158,6 +160,7 @@ export function TU(fn){
 }
 export const _throw = TU;
 
+// catch critical error
 export function CE(err){
   if (err instanceof TypeError || err instanceof RangeError){
     console.error(err);
@@ -166,6 +169,7 @@ export function CE(err){
   return err;
 }
 
+// log error, and catch critical error
 export function CEA(err){
   console.error(err);
   if (err instanceof TypeError || err instanceof RangeError)
@@ -341,10 +345,6 @@ export class rpc_base extends EventEmitter {
     if (opt.is_json)
       this.is_json = opt.is_json;
   }
-  json_null(v){
-    // undefined -> null, since JSON.stringify({v: undefined})=='{}'
-    return v!==undefined || !this.is_json ? v : null;
-  }
   async wait_open(){
     return await this._wait_open;
   }
@@ -376,19 +376,19 @@ export class rpc_base extends EventEmitter {
         throw Error('rpc not open');
       await this.send(request);
       let ret = await req.wait;
-      if ('result' in ret)
-        res = {result: ret.result};
-      else if ('error' in ret)
-        res = {error: ret.error};
+      if ('error' in ret)
+        res = ret;
+      else if ('result' in ret)
+        res = ret;
       else
         res = {error: 'invalid msg: no result or error'};
-    } catch(err){
+    } catch(err){ CE(err);
       console.error('rpc failed call', err, request);
       res = {error: ''+err};
     }
     slow.end();
-    this.D && console.log('rpc>< '+method, res);
-    assert(typeof method=='string', 'invalid method type');
+    this.D && console.log(
+      'rpc>< '+(res.error!==undefined ? 'error ' : '')+method, res);
     return res;
   }
   async notify(method, params, opt){
@@ -438,18 +438,18 @@ export class rpc_base extends EventEmitter {
       if (!method_fn)
         throw 'rpc unsupported method '+method;
       let ret = await method_fn(msg);
-      if ('result' in ret)
-        res = {result: this.json_null(ret.result)};
-      else if ('error' in ret)
-        res = {error: this.json_null(ret.error)};
+      if (ret && 'error' in ret)
+        res = ret;
+      else if (ret && 'result' in ret)
+        res = ret;
       else
-        throw 'rpc: method invalid res '+method;
-    } catch(err){
+        res = {result: ret};
+    } catch(err){ CE(err);
       console.error(err);
       res = {error: ''+err};
     }
     slow.end();
-    res = {id, ...res};
+    res = {...res, id};
     if (this.D || 'error' in res){
       console.log('rpc< '+(res.error ? 'err ' : '')+method, params,
         res.error||res.result);
@@ -457,14 +457,14 @@ export class rpc_base extends EventEmitter {
     await this.send(res);
   }
   async _emit_notify(msg){
-    let {method} = msg;
+    let {method, params} = msg;
     let method_fn = this.method_fn[method];
     if (!method_fn)
       return console.error('rpc: invalid cmd', method);
     let slow = eslow('rpc notify '+method);
     try {
-      await method_fn(msg.params);
-    } catch(err){
+      await method_fn(msg);
+    } catch(err){ CE(err);
       console.error('rpc failed notify', msg, err);
     } finally {
       slow.end();
@@ -519,25 +519,13 @@ export class rpc_base extends EventEmitter {
     this.emit('close');
   }
   method(method, fn){
-    this.method_fn[method] = async(msg)=>{
-      let res = await fn(msg.params);
-      return {result: res};
-    };
-  }
-  e_method(method, fn){
-    this.method_fn[method] = async(msg)=>{
-      let res = await fn(msg.params);
-      if ('error' in res)
-        return res;
-      return {result: res};
-    };
+    this._method(method, async({params})=>{
+      return await fn(params);
+    });
   }
   _method(method, fn){
-    this.method_fn[method] = async(msg)=>{
-      return await fn(msg.params);
-    };
-  }
-  __method(method, fn){
+    if (!fn)
+      return delete this.method_fn[method];
     this.method_fn[method] = fn;
   }
   on_id(id, fn){
@@ -552,7 +540,7 @@ export class rpc_base extends EventEmitter {
   }
 }
 
-class rpc_seq_call extends rpc_base {
+export class rpc_sock extends rpc_base {
   rpc;
   id;
   is_connect;
@@ -575,13 +563,13 @@ class rpc_seq_call extends rpc_base {
     });
     this.emit_connect();
   }
-  async connect({rpc, method, params}){
+  async connect(rpc, method, params){
     this.is_connect = true;
     this.rpc = rpc;
     this.id = this.rpc.id;
     this.set_events();
-    let res = await this.rpc.call(method, params);
-    if (res.error)
+    let res = await this.call(method, params);
+    if ('error' in res)
       this.emit_error();
     return res;
   }
@@ -592,16 +580,22 @@ class rpc_seq_call extends rpc_base {
     this.set_events();
   }
   static listen(rpc, method, fn){
-    rpc.__method(method, msg=>{
+    rpc._method(method, async({msg})=>{
       if (!msg.seq)
         return {error: 'seq listen: missing msg.seq'};
       if (!msg.id)
         return {error: 'seq listen: missing msg.id'};
-      let seq = new rpc_seq_call();
-      seq.accept({rpc, msg});
-      let res = E_try(async()=>await fn({msg, seq}), err=>({error: ''+err}));
+      let sock = new rpc_sock();
+      sock.accept({rpc, msg});
+      let res;
+      try {
+        res = await fn({msg, sock});
+      } catch(err){
+        err = {error: ''+err};
+      }
       if ('error' in res)
-        seq.emit_error();
+        sock.emit_error();
+      res.seq = msg.seq;
       return res;
     });
   }
@@ -653,6 +647,12 @@ export class rpc_websocket extends rpc_base {
       this.jsonrpc = opt.jsonrpc;
   }
   async send(msg){
+    // protect against undefined in JSON making property disappear
+    msg = {...msg};
+    if ('error' in msg && msg.error===undefined)
+      msg.error = null;
+    if ('result' in msg && msg.result===undefined)
+      msg.result = null;
     this.ws.send(JSON.stringify(msg));
   }
   set_events(){

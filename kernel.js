@@ -150,7 +150,7 @@ let import_module = async(url, mod_self=lif_kernel_base+'/')=>{
   }
   try {
     let module = eval?.(
-      `//# sourceURL=${url}\n'use strict';${imod.script}`);
+      `//# sourceURL=${url}\n${imod.script}`);
     await module.wait;
     imod.exports = module.exports;
     if (imod.exports.default===undefined)
