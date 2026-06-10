@@ -47,15 +47,6 @@ export async function ws_on_connect_rg(ws){
   rpc.method('topic_get', ({topic})=>{
     return Object.keys(topics[topic]||{});
   });
-  rpc.method('_rcall', async({rg_id, method, params})=>{
-    if (typeof rg_id!='string')
-      throw 'invalid id';
-    let rg;
-    if (!(rg=rg_conn[rg_id]))
-      throw 'no connection to rg';
-    let ret = await rg._call(method, params);
-    return {remote: ret};
-  });
   rpc.method('rcall', async({rg_id, method, params})=>{
     if (typeof rg_id!='string')
       throw 'invalid id';
