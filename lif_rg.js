@@ -1,7 +1,7 @@
 // LIF Residential Gateway: a Hypernet between residences.
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
-import {assert_eq, rpc_websocket, version as util_version, date_time,
+import {assert_eq, rpc_websocket, version as util_version, date_time, CEA,
   rpc_base, rpc_sock,
 } from './util.js';
 import {WebSocket} from 'ws';
@@ -45,7 +45,7 @@ export async function ws_on_connect_rg(ws){
     return {};
   });
   rpc.method('topic_get', ({topic})=>{
-    return Object.keys(topics[topic]||{});
+    return {addr: Object.keys(topics[topic]||{})};
   });
   rpc.method('rcall', async({rg_id, method, params})=>{
     if (typeof rg_id!='string')
@@ -73,21 +73,25 @@ export async function ws_on_connect_rg(ws){
     let br = {br_id, time: date_time(), c, s};
     br_t[br_id] = br;
     for (let [_c, _s] of [[c, s], [s, c]]){
-      _s.sock._method('', async({method, params, msg})=>{
-        if (msg.id==null)
+      _s.sock._method('', async(msg)=>{
+        let {id, method, params} = msg;
+        if (id==null)
           return void _c.sock.notify(method, params);
         try {
           return await _c.sock._call(method, params);
-        } catch(err){
+        } catch(err){ CEA();
           return {error: ''+err};
         }
       });
-      _c.on('close', ()=>{
-        _s.close();
+      _c.sock.on('error', err=>{
+        console.error('lif_net error', err);
+      });
+      _c.sock.on('close', ()=>{
+        _s.sock.close();
         delete br_t[br_id];
       });
     }
-    return sock.connect({rpc: s.rpc, method, params});
+    return s.sock.connect(s.rpc, method, params);
   });
   rpc.on('close', ()=>{
     if (!rpc.rg_id)

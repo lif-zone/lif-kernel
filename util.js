@@ -429,7 +429,7 @@ export class rpc_base extends EventEmitter {
   }
   async _emit_call(msg){
     let {id, method, params} = msg;
-    let method_fn = this.method_fn[method];
+    let method_fn = this.method_fn[method] || this.method_fn[''];
     let res;
     if (this.jsonrpc)
       res.jsonrpc = this.jsonrpc;
@@ -458,7 +458,7 @@ export class rpc_base extends EventEmitter {
   }
   async _emit_notify(msg){
     let {method, params} = msg;
-    let method_fn = this.method_fn[method];
+    let method_fn = this.method_fn[method] || this.method_fn[''];
     if (!method_fn)
       return console.error('rpc: invalid cmd', method);
     let slow = eslow('rpc notify '+method);
@@ -476,8 +476,11 @@ export class rpc_base extends EventEmitter {
     if (!msg)
       return console.error('rpc: invalid empty msg');
     let fn;
-    if (msg.id && (fn=this.id_fn[msg.id]))
-      return fn(msg);
+    if (msg.id!=null && (fn=this.id_fn[msg.id])){
+      let ret = fn(msg);
+      if (ret!==rpc_base.sym_filter)
+        return ret;
+    }
     if (msg.method==null)
       return this._emit_res(msg);
     if (msg.id==null)
@@ -495,9 +498,9 @@ export class rpc_base extends EventEmitter {
       return;
     console.error('rpc socket error');
     this.state = 'error';
-    this.error = err || true;
+    this.error = err || 'rpc error';
     this._wait_open.throw('error');
-    this.emit('error');
+    this.emit('error', err);
     this.emit_close();
   }
   emit_close(){
@@ -539,62 +542,60 @@ export class rpc_base extends EventEmitter {
     this.emit_close();
   }
 }
+rpc_base.sym_filter = Symbol('filter');
 
 export class rpc_sock extends rpc_base {
   rpc;
-  id;
+  _id;
   is_connect;
   async send(msg){
-    msg = {...msg, id: this.id, seq: msg.id};
+    msg = {...msg, id: this._id, seq: msg.id};
     this.rpc.send(msg);
   }
   set_events(){
-    this.rpc.on_id(this.id, (msg, state)=>{
-      if (msg){
-        msg = {...msg, id: msg.seq};
-        if (msg.state=='close')
-          return this.emit_close();
-        this.emit_msg(msg);
-      }
-      if (state=='error')
-        this.emit_error();
-      if (state=='close')
-        this.emit_close();
+    this.rpc.on_id(this._id, msg=>{
+      msg = {...msg, id: msg.seq};
+      delete msg.seq;
+      if (msg.state=='close')
+        return this.emit_close();
+      this.emit_msg(msg);
     });
     this.emit_connect();
   }
   async connect(rpc, method, params){
     this.is_connect = true;
     this.rpc = rpc;
-    this.id = this.rpc.id;
+    this._id = this.rpc.id;
     this.set_events();
-    let res = await this.call(method, params);
+    let res = await this._call(method, params);
     if ('error' in res)
-      this.emit_error();
+      this.emit_error(res.error);
     return res;
   }
   accept({rpc, msg}){
     this.is_connect = false;
     this.rpc = rpc;
-    this.id = msg.id;
+    this._id = msg.id;
     this.set_events();
   }
   static listen(rpc, method, fn){
-    rpc._method(method, async({msg})=>{
-      if (!msg.seq)
+    rpc._method(method, async(msg)=>{
+      if (msg.seq==null)
         return {error: 'seq listen: missing msg.seq'};
-      if (!msg.id)
+      if (msg.id==null)
         return {error: 'seq listen: missing msg.id'};
       let sock = new rpc_sock();
       sock.accept({rpc, msg});
       let res;
       try {
         res = await fn({msg, sock});
-      } catch(err){
-        err = {error: ''+err};
+        if (!res || !('result' in res))
+          res = {result: res};
+      } catch(err){ CEA();
+        res = {error: ''+err};
       }
       if ('error' in res)
-        sock.emit_error();
+        sock.emit_error(res.error);
       res.seq = msg.seq;
       return res;
     });
