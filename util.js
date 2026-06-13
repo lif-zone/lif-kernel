@@ -169,8 +169,8 @@ export function CE(err){
   return err;
 }
 
-// log error, and catch critical error
-export function CEA(err){
+// Catch Error Assert/Critical Error Assert: log error, assert critical
+export function CEL(err){
   console.error(err);
   if (err instanceof TypeError || err instanceof RangeError)
     debugger; // eslint-disable-line no-debugger
@@ -383,7 +383,7 @@ export class rpc_base extends EventEmitter {
       else
         res = {error: 'invalid msg: no result or error'};
     } catch(err){ CE(err);
-      console.error('rpc failed call', err, request);
+      console.error('rpc failed '+method+' call:', err, request);
       res = {error: ''+err};
     }
     slow.end();
@@ -513,10 +513,8 @@ export class rpc_base extends EventEmitter {
       delete this.req[id];
       req.wait.throw('close');
     }
-    for (let [id, fn] of OE(this.id_fn)){
+    for (let [id, fn] of OE(this.id_fn))
       delete this.id_fn[id];
-      fn(null, 'close');
-    }
     if (this.D)
       console.log('rpc>!close');
     this.emit('close');
@@ -548,7 +546,7 @@ export class rpc_sock extends rpc_base {
   rpc;
   _id;
   is_connect;
-  async send(msg){
+  send(msg){
     msg = {...msg, id: this._id, seq: msg.id};
     this.rpc.send(msg);
   }
@@ -560,6 +558,8 @@ export class rpc_sock extends rpc_base {
         return this.emit_close();
       this.emit_msg(msg);
     });
+    this.rpc.on('error', err=>this.emit_error(err));
+    this.rpc.on('close', err=>this.emit_close());
     this.emit_connect();
   }
   async connect(rpc, method, params){
@@ -591,7 +591,7 @@ export class rpc_sock extends rpc_base {
         res = await fn({msg, sock});
         if (!res || !('result' in res))
           res = {result: res};
-      } catch(err){ CEA();
+      } catch(err){ CEL();
         res = {error: ''+err};
       }
       if ('error' in res)
