@@ -157,3 +157,88 @@ export async function ws_on_connect_electrum(ws){
   });
 }
 
+// from npm:binet/lib/ip.js
+const ip_no_route = [
+  '255.255.255.255', // broadcast
+  '10.0.0.0/8', // RFC 1918
+  '192.168.0.0/16', // RFC 1918
+  '172.16.0.0/255.240.0.0', // RFC 1918
+  '198.18.0.0/255.254.0.0', // RFC 2544 RFC 3300 inter-networking communication
+  '169.254.0.0/16', // RFC 3927
+  '100.64.0.0/255.192.0.0', // RFC 6598
+  '127.0.0.0/8', // loopback
+  '0.0.0.0/8', // loopback
+  '224.0.0.0/4', // multicast
+];
+
+function ip_to_array(ip){
+  let p = ip.split('.');
+  let _p = [];
+  if (p.length!=4 || !ip.match(/^[0-9.]+$/))
+    return;
+  for (let i=0; i<4; i++){
+    _p[i] = +p[i];
+    if (_p[i]>255)
+      return;
+  }
+  return _p;
+}
+
+function ip_aton(ip){
+  let p = ip_to_array(ip);
+  return p[0]<<24 | p[1]<<16 | p[2]<<8 | p[3];
+}
+
+function ip_range_aton(ip_range){
+  let p = ip_range.split('/');
+  if (p.length>2)
+    return;
+  let ip = ip_aton(p[0]);
+  if (ip==null)
+    return;
+  let mask = 0xffffffff;
+  if (p.length==2){
+    if (p[1].match(/^[0-9]+$/)){
+      let prefix = +p[1];
+      if (prefix>32)
+        return;
+      // bug in 8086 ROR, which got into JS with rotate >=32
+      let bits = prefix==32 ? 0 : 0xffffffff >>> (prefix-32);
+      mask = ~bits >>> 0;
+    } else {
+      mask = ip_aton(p[1]);
+      if (mask==null)
+        return;
+    }
+  }
+  return {ip, mask};
+}
+function ip_range_ntoa(ip_range){
+  if (ip_range.mask==0xffffffff)
+    return ip_ntoa(ip_range.ip);
+  return ip_ntoa(ip_range.ip)+'/'+ip_ntoa(ip_range.mask);
+}
+
+function ip_ntoa(n){
+  if (n<0 || n>0xffffffff)
+    return;
+  return ''+(n>>>24 & 0xff)+'.'+(n>>>16 & 0xff)+'.'+(n>>8 & 0xff)
+    +'.'+(n & 0xff);
+}
+
+function test(){
+  let t = (n, a)=>{
+    assert_eq(ip_ntoa(n), a);
+    assert_eq(ip_aton(a), n);
+  };
+  t(0xff0102fe, '255.1.2.254');
+  t(0x00ff0201, '0.255.2.1');
+  t = (a, range)=>assert_eq(ip_range_ntoa(ip_range_aton(a)), range || a);
+  t('255.255.255.255');
+  t('192.168.4.1');
+  t('192.168.4.1/32', '192.168.4.1');
+  t('0.0.0.0');
+  t('10.0.0.0/8', '10.0.0.0/255.0.0.0');
+  t('192.168.0.0/16', '192.168.0.0');
+  t('172.16.0.0/255.240.0.0');
+}
