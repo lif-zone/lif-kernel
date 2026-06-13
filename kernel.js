@@ -1769,12 +1769,15 @@ async function fetch_lpm_file({log, imp, mod_self, qs}){
 
 async function fetch_pass(request, type){
   let url = request.url;
+  let slow = eslow('fetch_pass');
   try {
     D && console.log('fetch '+type+': '+url);
     return await fetch(request); // type=='external' ? {mode: 'no-cors'} : {}
   } catch(err){
     console.log('failed ext fetch_pass '+type+' '+url+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
+  } finally {
+    slow.end();
   }
 }
 
