@@ -101,7 +101,7 @@ export async function ws_on_connect_rg(ws){
       delete topics[t][rpc.rg_id];
   });
   rpc.accept({ws});
-  let res = await rpc.call('ping');
+  let res = await rpc.U_call('ping');
   return res;
 }
 

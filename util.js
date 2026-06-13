@@ -354,11 +354,17 @@ export class rpc_base extends EventEmitter {
       throw res.error;
     return res.result;
   }
-  async call(method, params){
+  async U_call(method, params){
     let res = await this._call(method, params);
     if ('error' in res)
       return;
     return res.result;
+  }
+  async call(method, params){
+    let res = await this._call(method, params);
+    if ('error' in res)
+      return res;
+    return res.result==null ? false : res.result;
   }
   async _call(method, params){
     assert(typeof method=='string', 'invalid method type');
@@ -567,10 +573,7 @@ export class rpc_sock extends rpc_base {
     this.rpc = rpc;
     this._id = this.rpc.id;
     this.set_events();
-    let res = await this._call(method, params);
-    if ('error' in res)
-      this.emit_error(res.error);
-    return res;
+    return await this._call(method, params);
   }
   accept({rpc, msg}){
     this.is_connect = false;
@@ -647,7 +650,7 @@ export class rpc_websocket extends rpc_base {
     if (opt.jsonrpc)
       this.jsonrpc = opt.jsonrpc;
   }
-  async send(msg){
+  send(msg){
     // protect against undefined in JSON making property disappear
     msg = {...msg};
     if ('error' in msg && msg.error===undefined)
