@@ -345,6 +345,9 @@ export class rpc_base extends EventEmitter {
     if (opt.is_json)
       this.is_json = opt.is_json;
   }
+  id_get(){
+    return this.id++;
+  }
   async wait_open(){
     return await this._wait_open;
   }
@@ -368,7 +371,7 @@ export class rpc_base extends EventEmitter {
   }
   async _call(method, params){
     assert(typeof method=='string', 'invalid method type');
-    let id = this.id++;
+    let id = this.id_get();
     let req = this.req[id] = {wait: ewait()};
     const request = req.request = {id, method};
     if (params)
@@ -571,7 +574,7 @@ export class rpc_sock extends rpc_base {
   async connect(rpc, method, params){
     this.is_connect = true;
     this.rpc = rpc;
-    this._id = this.rpc.id;
+    this._id = this.rpc.id_get();
     this.set_events();
     return await this._call(method, params);
   }
