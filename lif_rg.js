@@ -2,9 +2,10 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock,
+  rpc_base, rpc_sock, ewait,
 } from './util.js';
 import {WebSocket} from 'ws';
+import net from 'net';
 
 const topics = {};
 const rg_conn = {};
@@ -92,6 +93,42 @@ export async function ws_on_connect_rg(ws){
       });
     }
     return s.sock.connect(s.rpc, method, params);
+  });
+  // TCP Proxy
+  rpc_sock.listen(rpc, 'tcp_connect', async({msg, sock})=>{
+    let {host, port} = msg.params;
+    if ((port&0xffff)!==port || typeof host!='string' || !host.length)
+      throw 'invalid host/port';
+    const tcp = net.connect(port, host);
+    let wait = ewait();
+    tcp.once('connect', ()=>wait.return(tcp));
+    tcp.once('error', err=>wait.throw(err));
+    tcp.on('data', data=>{
+      sock.notify('data', {data: data.toString('hex')});
+    });
+    tcp.on('error', err=>{
+      sock.notify('error', {message: err.message, code: err.code||null});
+    });
+    tcp.on('close', ()=>{
+      sock.notify('close');
+      sock.close();
+    });
+    sock.method('data', ({data})=>{
+      tcp.write(Buffer.from(data, 'hex'));
+    });
+    sock.method('keep_alive', ({enable, delay})=>{
+      tcp.setKeepAlive(enable, delay);
+    });
+    sock.method('no_delay', ({enable})=>{
+      tcp.setNoDelay(enable);
+    });
+    sock.method('set_timeout', ({timeout})=>{
+      tcp.setTimeout(timeout);
+    });
+    sock.method('pause', ()=>tcp.pause());
+    sock.method('resume', ()=>tcp.resume());
+    sock.on('close', ()=>tcp.destroy());
+    return {addr: tcp.remoteAddress, port: tcp.remotePort, tcp};
   });
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
