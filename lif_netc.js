@@ -1,5 +1,7 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
-import {rpc_sock, Buffer} from './util.js';
+import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
+  ewait,
+} from './util.js';
 import EventEmitter from './compat/events.js';
 
 // TCP socket proxy — mirrors net.Socket API over rpc_sock
@@ -149,6 +151,13 @@ export async function http_sock(rpc, {url, method='GET', headers={}, body=null})
   return {...resp, body: body_buf};
 }
 
+function ws_origin(){
+  let protocol = location.protocol=='http:' ? 'ws:' :
+    location.protocol=='https:' ? 'wss:' : assert();
+  return protocol+'//'+location.host;
+}
+let lif_rg_url = ws_origin()+'/.lif.rg';
+
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {rpc, method, headers, body})
 class Lif_response {
@@ -163,11 +172,120 @@ class Lif_response {
   async arrayBuffer(){ return this._buf.buffer; }
 }
 
-export async function lif_fetch(url, {rpc, method='GET', headers={}, body=null}={}){
-  let res = await http_sock(rpc, {url, method, headers, body});
+let g_rpc_t = {};
+function net_rg_connect(){
+  let rpc = new rpc_websocket({D: 1});
+}
+
+export class Lif_net {
+  rpc;
+  url;
+  _wait_open;
+  error;
+  constructor(){
+    this.url = ws_origin()+'/.lif.rg';
+    this.rpc = new rpc_websocket({D: 1});
+    this.set_events();
+    this.rpc.on('close', ()=>this.is_closed = true);
+  }
+  set_events(){
+    this.rpc.method('ping', ()=>({pong: 1}));
+    this.rpc.method('version',
+      ()=>({name: 'lif-coin-wallet', version: util_version}));
+  }
+  connect(rg_id, method, params){
+    let sock = new rpc_sock();
+    this.set_events(sock);
+    let wait = (async()=>{
+      let ret = await sock.connect(this.rpc, 'rconnect',
+        {rg_id, method, params});
+      if (ret.error){
+        console.warn('failed connect', ret);
+        return ret;
+      }
+      let ping = await sock._call('ping');
+      if (ping.error || !ping.result.pong){
+        console.warn('failed ping', ping);
+        return {error: 'no pong'};
+      }
+      return ret;
+    })();
+    return {sock, wait};
+  }
+  async _connect(){
+    if (this._wait_open)
+      return await this._wait_open;
+    this._wait_open = ewait();
+    try {
+      await this.rpc.connect({url: this.url});
+    } catch(e){
+      console.error('rpc_connect', e);
+      this.rpc.close();
+      throw e; // return
+    }
+    try {
+      this.server_version = await this.rpc.T_call('version',
+        {name: 'lif_netc', version: util_version});
+    } catch(e){
+      console.error('server version rpc', e);
+      this.close();
+      throw e; // XXX return
+    }
+    return this._wait_open.return(this.rpc);
+  }
+  async call(method, params){
+    return await this.rpc.T_call(method, params);
+  }
+  close(){
+    this._wait_open.throw('close');
+    this.rpc.close();
+  }
+  async topic_get(topic){
+    return await this.call('topic_get', {topic});
+  }
+  async topic_pub(topic, data){
+    return await this.call('topic_pub', {topic, data});
+  }
+  async topic_unpub(topic){
+    return await this.call('topic_unpub', {topic});
+  }
+  async rcall(rg_id, method, params){
+    return await this.call('rcall', {rg_id, method, params});
+  }
+  async rg_id(rg_id){
+    return await this.call('rg_id', {rg_id});
+  }
+  listen(method, fn){
+    rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
+      sock.method('ping', ()=>({pong: 1}));
+      return fn({msg, sock});
+    });
+  }
+}
+
+let g_lif_net;
+export function lif_net_get(){
+  if (g_lif_net?.error){
+    g_lif_net.close();
+    g_lif_net = null;
+  }
+  if (g_lif_net)
+    return g_lif_net;
+  g_lif_net = new Lif_net();
+  return g_lif_net;
+}
+
+export function lif_net_connect(topic){
+  let lif_net = lif_net_get();
+}
+
+export async function lif_fetch(url,
+  {server_http_out, method='GET', headers={}, body=null}={})
+{
+  server_http_out ||= lif_net_connect('server/ip_bridge/http_out');
+  let res = await http_sock(server_http_out, {url, method, headers, body});
   if (res.error)
     throw new Error(res.error);
   return new Lif_response(res.status, res.headers, res.body);
 }
-
 
