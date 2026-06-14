@@ -193,6 +193,12 @@ export class Lif_net {
     this.rpc.method('version',
       ()=>({name: 'lif-coin-wallet', version: util_version}));
   }
+  set_error(err){
+    console.error('server version rpc', err);
+    this.error = err;
+    this.close();
+    return {error: err};
+  }
   connect(rg_id, method, params){
     let sock = new rpc_sock();
     this.set_events(sock);
@@ -223,18 +229,18 @@ export class Lif_net {
       this.rpc.close();
       throw e; // return
     }
-    try {
-      this.server_version = await this.rpc.T_call('version',
-        {name: 'lif_netc', version: util_version});
-    } catch(e){
-      console.error('server version rpc', e);
-      this.close();
-      throw e; // XXX return
-    }
-    return this._wait_open.return(this.rpc);
+    let ret = await this.rpc.call('version',
+      {name: 'lif_netc', version: util_version});
+    if (ret.error)
+      return this.set_error('server version err: '+ret.error);
+    this.server_version = ret;
+    return this._wait_open.return();
+  }
+  async T_call(method, params){
+    return await this.rpc.T_call(method, params);
   }
   async call(method, params){
-    return await this.rpc.T_call(method, params);
+    return await this.rpc.call(method, params);
   }
   close(){
     this._wait_open.throw('close');
@@ -263,6 +269,11 @@ export class Lif_net {
   }
 }
 
+let g_rg = {};
+let g_rg_id = ''+Math.floor(Math.random()*1000000000);
+export function lif_rg_id_get(){
+  return g_rg_id;
+}
 let g_lif_net;
 export function lif_net_get(){
   if (g_lif_net?.error){
@@ -275,8 +286,33 @@ export function lif_net_get(){
   return g_lif_net;
 }
 
-export function lif_net_connect(topic){
-  let lif_net = lif_net_get();
+export async function lif_net_connect(topic, opt={}){
+  let net = lif_net_get();
+  await net._connect();
+  let ret = await net.topic_get(topic);
+  let addr = ret?.addr;
+  if (!addr)
+    return {error: 'lif_net error: failed get topic '+topic};
+  if (!addr.length)
+    return {error: 'no '+topic+' servers online'};
+  let rg, sock, _error;
+  for (let id of addr){
+    let _rg = g_rg[id] ||= {id};
+    if (opt.rg_block?.(_rg))
+      continue;
+    let {sock: _sock, wait} = net.connect(id, topic);
+    ret = await wait;
+    if (ret.error){
+      console.log('failed connecting to '+id);
+      _error = ret.error;
+      continue;
+    }
+    sock = _sock;
+    rg = _rg;
+  }
+  if (!rg)
+    return {error: 'no good '+topic+' servers online: '+_error};
+  return {sock, rg};
 }
 
 export async function lif_fetch(url,
