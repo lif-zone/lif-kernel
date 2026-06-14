@@ -333,6 +333,8 @@ let lpm_cdn = {
       // https://api.github.com/repos/facebook/react/git/refs/heads
       // specific head: object.sha
       // https://api.github.com/repos/facebook/react/git/refs/heads/main
+      // without cors:
+      // https://github.com/lif-zone/lif-kernel.git/info/refs?service=git-upload-pack
       // commit (with its contents, works partial sha): sha
       // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
       // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
