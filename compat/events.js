@@ -174,4 +174,22 @@ EventEmitter.EventEmitter = EventEmitter;
 EventEmitter.EventEmitter2 = EventEmitter;
 EventEmitter.EventEmitter3 = EventEmitter;
 
+export function once(emitter, name){
+  return new Promise(function (resolve, reject){
+    function errorListener(err){
+      emitter.removeListener(name, resolver);
+      reject(err);
+    }
+    function resolver(...args){
+      if (typeof emitter.removeListener=='function')
+        emitter.removeListener('error', errorListener);
+      resolve(args);
+    };
+    emitter.once(name, resolver);
+    if (name!=='error')
+      emitter.once('error', errorListener);
+  });
+}
+EventEmitter.once = once;
+
 export default EventEmitter;
