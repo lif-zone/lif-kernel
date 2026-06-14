@@ -2,10 +2,12 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait,
+  rpc_base, rpc_sock, ewait, assert,
 } from './util.js';
 import {WebSocket} from 'ws';
+import {once} from 'events';
 import net from 'net';
+import dns from 'dns';
 
 const topics = {};
 const rg_conn = {};
@@ -97,9 +99,9 @@ export async function ws_on_connect_rg(ws){
   // TCP Proxy
   rpc_sock.listen(rpc, 'tcp_connect', async({msg, sock})=>{
     let {host, port} = msg.params;
-    if ((port&0xffff)!==port || typeof host!='string' || !host.length)
-      throw 'invalid host/port';
-    const tcp = net.connect(port, host);
+    assert((port&0xffff)==port, 'invalid port');
+    assert(host && typeof host=='string', 'invalid host');
+    let tcp = net.Socket();
     let wait = ewait();
     tcp.once('connect', ()=>wait.return(tcp));
     tcp.once('error', err=>wait.throw(err));
@@ -128,7 +130,27 @@ export async function ws_on_connect_rg(ws){
     sock.method('pause', ()=>tcp.pause());
     sock.method('resume', ()=>tcp.resume());
     sock.on('close', ()=>tcp.destroy());
-    return {addr: tcp.remoteAddress, port: tcp.remotePort, tcp};
+    let ip = host;
+    if (!ip_aton(host)){
+      let addrs;
+      try {
+        addrs = await dns.lookup(host, {family: 4, all: true});
+      } catch(err){
+        return {error: 'cannot resolve '+host+': '+err};
+      }
+      ip = addrs[0]?.address;
+    }
+    if (!ip)
+      return {error: 'cannot resolve dns '+host};
+    if (is_ip_no_route(ip))
+      return {error: 'ip non routable: '+host+' '+ip};
+    tcp.connect({port, host: ip});
+    try {
+      await once(tcp, 'connect');
+    } catch(err){
+      return {error: 'failed connect '+host+':'+port+': '+err};
+    }
+    return {addr: tcp.remoteAddress, port: tcp.remotePort};
   });
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
@@ -158,7 +180,7 @@ export async function ws_on_connect_electrum(ws){
 }
 
 // from npm:binet/lib/ip.js
-const ip_no_route = [
+const ip_no_route_s = [
   '255.255.255.255', // broadcast
   '10.0.0.0/8', // RFC 1918
   '192.168.0.0/16', // RFC 1918
@@ -170,6 +192,25 @@ const ip_no_route = [
   '0.0.0.0/8', // loopback
   '224.0.0.0/4', // multicast
 ];
+let ip_no_route_t;
+
+function ip_range_init(){
+  ip_no_route_t = ip_no_route_s.map(ip_range=>ip_range_aton(ip_range));
+}
+ip_range_init();
+
+function is_ip_range(ip_range_t, ip){
+  if (typeof ip!='number')
+    ip = ip_aton(ip);
+  for (let range of ip_range_t){
+    if ((ip & range.mask)==range.ip)
+      return true;
+  }
+}
+
+function is_ip_no_route(ip){
+  return is_ip_range(ip_no_route_t, ip);
+}
 
 function ip_to_array(ip){
   let p = ip.split('.');
