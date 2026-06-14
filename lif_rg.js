@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait, assert,
+  rpc_base, rpc_sock, ewait, assert, URL_parse,
 } from './util.js';
 import {WebSocket} from 'ws';
 import {once} from 'events';
@@ -104,9 +104,6 @@ export async function ws_on_connect_rg(ws){
     assert((port&0xffff)==port, 'invalid port');
     assert(host && typeof host=='string', 'invalid host');
     let tcp = net.Socket();
-    let wait = ewait();
-    tcp.once('connect', ()=>wait.return(tcp));
-    tcp.once('error', err=>wait.throw(err));
     tcp.on('data', data=>{
       sock.notify('data', {data: data.toString('hex')});
     });
@@ -132,20 +129,9 @@ export async function ws_on_connect_rg(ws){
     sock.method('pause', ()=>tcp.pause());
     sock.method('resume', ()=>tcp.resume());
     sock.on('close', ()=>tcp.destroy());
-    let ip = host;
-    if (!ip_aton(host)){
-      let addrs;
-      try {
-        addrs = await dns.lookup(host, {family: 4, all: true});
-      } catch(err){
-        return {error: 'cannot resolve '+host+': '+err};
-      }
-      ip = addrs[0]?.address;
-    }
-    if (!ip)
-      return {error: 'cannot resolve dns '+host};
-    if (is_ip_no_route(ip))
-      return {error: 'ip non routable: '+host+' '+ip};
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
     tcp.connect({port, host: ip});
     try {
       await once(tcp, 'connect');
@@ -158,30 +144,22 @@ export async function ws_on_connect_rg(ws){
   rpc_sock.listen(rpc, 'http_connect', async({msg, sock})=>{
     let {url, method='GET', headers={}} = msg.params;
     assert(url && typeof url=='string', 'invalid url');
-    let parsed;
-    try { parsed = new URL(url); }
-    catch(e){ return {error: 'invalid url: '+url}; }
-    let {protocol, hostname, pathname, search} = parsed;
+    let parsed = URL_parse(url);
+    if (!parsed)
+      return {error: 'invalid url: '+url};
+    let {protocol, hostname: host, pathname, search} = parsed;
     let port = parsed.port ? +parsed.port : (protocol=='https:' ? 443 : 80);
     let is_https = protocol=='https:';
     let mod = is_https ? https : http;
     let path = pathname+(search||'');
-    // DNS + IP routing check
-    let ip = hostname;
-    if (!ip_aton(hostname)){
-      let addrs;
-      try { addrs = await dns.lookup(hostname, {family: 4, all: true}); }
-      catch(err){ return {error: 'cannot resolve '+hostname+': '+err}; }
-      ip = addrs[0]?.address;
-    }
-    if (!ip)
-      return {error: 'cannot resolve dns '+hostname};
-    if (is_ip_no_route(ip))
-      return {error: 'ip non routable: '+hostname+' '+ip};
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
     let req_headers = {...headers};
     if (!req_headers.host)
-      req_headers.host = hostname;
-    let req = mod.request({hostname: ip, port, path, method, headers: req_headers});
+      req_headers.host = host;
+    let req = mod.request({hostname: ip, port, path, method,
+      headers: req_headers});
     req.on('error', err=>{
       sock.notify('error', {message: err.message, code: err.code||null});
       sock.close();
@@ -230,6 +208,26 @@ export async function ws_on_connect_electrum(ws){
     console.error('electrum ws proxy error: %s', err.message);
     ws.close();
   });
+}
+
+async function host_to_ip(host){
+  let ip = host;
+  if (!ip_aton(host)){
+    let addrs;
+    try {
+      addrs = await dns.lookup(host, {family: 4, all: true});
+    } catch(err){
+      return {error: 'cannot resolve '+host+': '+err};
+    }
+    ip = addrs[0]?.address;
+  }
+  if (!ip)
+    return {error: 'cannot resolve dns '+host};
+  if (is_ip_no_route(ip)){
+    console.warn('blocked req to non-routable: '+host+' '+ip);
+    return {error: 'ip non routable: '+host+' '+ip};
+  }
+  return ip;
 }
 
 // from npm:binet/lib/ip.js

@@ -148,3 +148,26 @@ export async function http_sock(rpc, {url, method='GET', headers={}, body=null})
   let body_buf = Buffer.from(body_hex, 'hex');
   return {...resp, body: body_buf};
 }
+
+// fetch()-compatible API over rpc_sock
+// Usage: lif_fetch(url, {rpc, method, headers, body})
+class Lif_response {
+  constructor(status, headers, body_buf){
+    this.status = status;
+    this.ok = status>=200 && status<300;
+    this.headers = headers;
+    this._buf = body_buf;
+  }
+  async text(){ return this._buf.toString(); }
+  async json(){ return JSON.parse(this._buf.toString()); }
+  async arrayBuffer(){ return this._buf.buffer; }
+}
+
+export async function lif_fetch(url, {rpc, method='GET', headers={}, body=null}={}){
+  let res = await http_sock(rpc, {url, method, headers, body});
+  if (res.error)
+    throw new Error(res.error);
+  return new Lif_response(res.status, res.headers, res.body);
+}
+
+
