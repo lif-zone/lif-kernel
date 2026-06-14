@@ -113,7 +113,7 @@ export class tcp_sock extends EventEmitter {
 
 // HTTP/HTTPS request over rpc_sock
 // Returns {status, headers, body: Buffer} or {error: string}
-export async function http_sock(rpc, {url, method='GET', headers={}, body=null}){
+export async function http_sock_c(rpc, {url, method='GET', headers={}, body}){
   let sock = new rpc_sock();
   let resp_resolve, resp_reject;
   let resp_p = new Promise((res, rej)=>{ resp_resolve=res; resp_reject=rej; });
@@ -159,7 +159,7 @@ function ws_origin(){
 let lif_rg_url = ws_origin()+'/.lif.rg';
 
 // fetch()-compatible API over rpc_sock
-// Usage: lif_fetch(url, {rpc, method, headers, body})
+// Usage: lif_fetch(url, {method, headers, body})
 class Lif_response {
   constructor(status, headers, body_buf){
     this.status = status;
@@ -315,11 +315,11 @@ export async function lif_net_connect(topic, opt={}){
   return {sock, rg};
 }
 
-export async function lif_fetch(url,
-  {server_http_out, method='GET', headers={}, body=null}={})
+export async function lif_fetch(url, {method='GET', headers={}, body}={})
 {
-  server_http_out ||= lif_net_connect('server/ip_bridge/http_out');
-  let res = await http_sock(server_http_out, {url, method, headers, body});
+  let {sock, rg} = lif_net_connect('server/ip_bridge/http_out');
+  let res = await http_sock(sock, {url, method, headers, body});
+  sock.close();
   if (res.error)
     throw new Error(res.error);
   return new Lif_response(res.status, res.headers, res.body);
