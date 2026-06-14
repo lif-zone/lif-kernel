@@ -8,6 +8,8 @@ import {WebSocket} from 'ws';
 import {once} from 'events';
 import net from 'net';
 import dns from 'dns';
+import http from 'http';
+import https from 'https';
 
 const topics = {};
 const rg_conn = {};
@@ -96,7 +98,7 @@ export async function ws_on_connect_rg(ws){
     }
     return s.sock.connect(s.rpc, method, params);
   });
-  // TCP Proxy
+  // TCP Client Proxy
   rpc_sock.listen(rpc, 'tcp_connect', async({msg, sock})=>{
     let {host, port} = msg.params;
     assert((port&0xffff)==port, 'invalid port');
@@ -151,6 +153,57 @@ export async function ws_on_connect_rg(ws){
       return {error: 'failed connect '+host+':'+port+': '+err};
     }
     return {addr: tcp.remoteAddress, port: tcp.remotePort};
+  });
+  // HTTP/HTTPS Client Proxy
+  rpc_sock.listen(rpc, 'http_connect', async({msg, sock})=>{
+    let {url, method='GET', headers={}} = msg.params;
+    assert(url && typeof url=='string', 'invalid url');
+    let parsed;
+    try { parsed = new URL(url); }
+    catch(e){ return {error: 'invalid url: '+url}; }
+    let {protocol, hostname, pathname, search} = parsed;
+    let port = parsed.port ? +parsed.port : (protocol=='https:' ? 443 : 80);
+    let is_https = protocol=='https:';
+    let mod = is_https ? https : http;
+    let path = pathname+(search||'');
+    // DNS + IP routing check
+    let ip = hostname;
+    if (!ip_aton(hostname)){
+      let addrs;
+      try { addrs = await dns.lookup(hostname, {family: 4, all: true}); }
+      catch(err){ return {error: 'cannot resolve '+hostname+': '+err}; }
+      ip = addrs[0]?.address;
+    }
+    if (!ip)
+      return {error: 'cannot resolve dns '+hostname};
+    if (is_ip_no_route(ip))
+      return {error: 'ip non routable: '+hostname+' '+ip};
+    let req_headers = {...headers};
+    if (!req_headers.host)
+      req_headers.host = hostname;
+    let req = mod.request({hostname: ip, port, path, method, headers: req_headers});
+    req.on('error', err=>{
+      sock.notify('error', {message: err.message, code: err.code||null});
+      sock.close();
+    });
+    req.on('response', res=>{
+      sock.notify('response', {status: res.statusCode, headers: res.headers});
+      res.on('data', data=>{
+        sock.notify('data', {data: data.toString('hex')});
+      });
+      res.on('end', ()=>{
+        sock.notify('close');
+        sock.close();
+      });
+    });
+    sock.method('data', ({data})=>{
+      req.write(Buffer.from(data, 'hex'));
+    });
+    sock.method('end', ()=>{
+      req.end();
+    });
+    sock.on('close', ()=>req.destroy());
+    return {};
   });
   rpc.on('close', ()=>{
     if (!rpc.rg_id)

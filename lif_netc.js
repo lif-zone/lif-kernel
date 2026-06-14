@@ -2,6 +2,7 @@
 import {rpc_sock, Buffer} from './util.js';
 import EventEmitter from './compat/events.js';
 
+// TCP socket proxy — mirrors net.Socket API over rpc_sock
 export class tcp_sock extends EventEmitter {
   constructor(rpc){
     super();
@@ -106,4 +107,44 @@ export class tcp_sock extends EventEmitter {
     sock.connect(port, host);
     return sock;
   }
+}
+
+// HTTP/HTTPS request over rpc_sock
+// Returns {status, headers, body: Buffer} or {error: string}
+export async function http_sock(rpc, {url, method='GET', headers={}, body=null}){
+  let sock = new rpc_sock();
+  let resp_resolve, resp_reject;
+  let resp_p = new Promise((res, rej)=>{ resp_resolve=res; resp_reject=rej; });
+  let chunks = [];
+  let done_resolve;
+  let done_p = new Promise(res=>{ done_resolve=res; });
+  sock.method('response', ({status, headers})=>{
+    resp_resolve({status, headers});
+  });
+  sock.method('data', ({data})=>{
+    chunks.push(data);
+  });
+  sock.method('close', ()=>{
+    done_resolve();
+  });
+  sock.method('error', ({message, code})=>{
+    let err = Object.assign(new Error(message), {code: code||null});
+    resp_reject(err);
+    done_resolve();
+  });
+  let res = await sock.connect(rpc, 'http_connect', {url, method, headers});
+  if (res.error)
+    return res;
+  if (body){
+    let buf = typeof body=='string' ? Buffer.from(body) : Buffer.from(body);
+    sock.notify('data', {data: buf.toString('hex')});
+  }
+  sock.notify('end', {});
+  let resp;
+  try { resp = await resp_p; }
+  catch(err){ return {error: err.message}; }
+  await done_p;
+  let body_hex = chunks.join('');
+  let body_buf = Buffer.from(body_hex, 'hex');
+  return {...resp, body: body_buf};
 }
