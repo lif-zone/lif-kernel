@@ -3,7 +3,7 @@ let util_version = '26.5.7';
 export const dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 export const version = util_version;
 const is_worker = !globalThis.window;
-const is_node = globalThis.process?.versions?.node!==undefined;
+export const is_node = globalThis.process?.versions?.node!==undefined;
 let D = 0; // Debug
 
 const EventEmitter = (await import(is_node ? 'events' : './compat/events.js')).default;

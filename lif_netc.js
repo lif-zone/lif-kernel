@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  ewait,
+  ewait, is_node,
 } from './util.js';
 import EventEmitter from './compat/events.js';
 
@@ -152,12 +152,19 @@ export async function http_sock_c(rpc, {url, method='GET', headers={}, body}){
   return {...resp, body: body_buf};
 }
 
-function ws_origin(){
-  let protocol = location.protocol=='http:' ? 'ws:' :
-    location.protocol=='https:' ? 'wss:' : assert();
-  return protocol+'//'+location.host;
+
+function url_to_ws(url){
+  let u = new URL(url);
+  if (u.protocol=='http:')
+    u.protocol = 'ws:';
+  else if (u.protocol=='https:')
+    u.protocol = 'wss:';
+  else
+    assert(0, 'invalid protocol '+url);
+  return u.href;
 }
-let lif_rg_url = ws_origin()+'/.lif.rg';
+let lif_rg_url = is_node ? 'http://localhost:4000/' : location;
+let lif_rg_ws = url_to_ws(lif_rg_url)+'.lif.rg';
 
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {method, headers, body})
@@ -184,7 +191,7 @@ export class Lif_net {
   _wait_open;
   error;
   constructor(){
-    this.url = ws_origin()+'/.lif.rg';
+    this.url = lif_rg_ws;
     this.rpc = new rpc_websocket({D: 1});
     this.set_events();
     this.rpc.on('close', ()=>this.is_closed = true);
