@@ -144,11 +144,11 @@ export async function ws_on_connect_rg(ws){
   rpc_sock.listen(rpc, 'http_connect', async({msg, sock})=>{
     let {url, method='GET', headers={}} = msg.params;
     assert(url && typeof url=='string', 'invalid url');
-    let parsed = URL.parse(url);
-    if (!parsed)
+    let u = URL.parse(url);
+    if (!u)
       return {error: 'invalid url: '+url};
-    let {protocol, hostname: host, pathname, search} = parsed;
-    let port = parsed.port ? +parsed.port : (protocol=='https:' ? 443 : 80);
+    let {protocol, hostname: host, pathname, search} = u;
+    let port = u.port ? +u.port : (protocol=='https:' ? 443 : 80);
     let is_https = protocol=='https:';
     let mod = is_https ? https : http;
     let path = pathname+(search||'');
@@ -181,6 +181,46 @@ export async function ws_on_connect_rg(ws){
       req.end();
     });
     sock.on('close', ()=>req.destroy());
+    return {};
+  });
+  // WebSocket Client Proxy
+  rpc_sock.listen(rpc, 'websocket_connect', async({msg, sock})=>{
+    let {url, protocols, headers={}} = msg.params;
+    assert(url && typeof url=='string', 'invalid url');
+    let u = URL.parse(url);
+    if (!u)
+      return {error: 'invalid url: '+url};
+    let {hostname: host} = u;
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
+    u.hostname = ip;
+    let ws_opts = {headers: {host, ...headers}};
+    if (u.protocol=='wss:')
+      ws_opts.servername = host;
+    let ws = new WebSocket(u.href, protocols||[], ws_opts);
+    try { await once(ws, 'open'); }
+    catch(err){ return {error: 'ws connect failed: '+err.message}; }
+    ws.on('message', (data, is_bin)=>{
+      if (is_bin)
+        sock.notify('message', {data: Buffer.from(data).toString('hex'), binary: true});
+      else
+        sock.notify('message', {data: ''+data, binary: false});
+    });
+    ws.on('close', (code, reason)=>{
+      sock.notify('close', {code, reason: ''+reason});
+      sock.close();
+    });
+    ws.on('error', err=>{
+      sock.notify('error', {message: err.message});
+    });
+    sock.method('send', ({data, binary})=>{
+      ws.send(binary ? Buffer.from(data, 'hex') : data);
+    });
+    sock.method('close', ({code, reason}={})=>{
+      ws.close(code, reason);
+    });
+    sock.on('close', ()=>ws.terminate());
     return {};
   });
   rpc.on('close', ()=>{

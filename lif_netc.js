@@ -324,3 +324,93 @@ export async function lif_fetch(url, {method='GET', headers={}, body}={}){
   return new Lif_response(res.status, res.headers, res.body);
 }
 
+export class browser_EventEmitter extends EventEmitter {
+  _set_handler(event, fn){
+    if (this['_h_'+event])
+      this.off(event, this['_h_'+event]);
+    this['_h_'+event] = fn;
+    if (fn)
+      this.on(event, fn);
+  }
+  get onopen(){ return this._h_open||null; }
+  set onopen(fn){ this._set_handler('open', fn); }
+  get onmessage(){ return this._h_message||null; }
+  set onmessage(fn){ this._set_handler('message', fn); }
+  get onclose(){ return this._h_close||null; }
+  set onclose(fn){ this._set_handler('close', fn); }
+  get onerror(){ return this._h_error||null; }
+  set onerror(fn){ this._set_handler('error', fn); }
+}
+
+// WebSocket-like object proxied over rpc_sock via lif_rg websocket_connect
+export class lif_WebSocket extends browser_EventEmitter {
+  reasyState = 0; // CONNECTING
+  sock = null;
+  constructor(rpc, url, protocols){
+    super();
+    this.rpc = rpc;
+    this.url = url;
+    this.protocols = protocols;
+    this._connect();
+  }
+  async _connect(){
+    try {
+      let sock = new rpc_sock();
+      this.sock = sock;
+      sock.method('message', ({data, bin})=>{
+        let msg_data = bin ? Buffer.from(data, 'hex') : data;
+        this.emit('message', {data: msg_data, type: 'message',
+          target: this});
+      });
+      sock.method('close', ({code=1000, reason=''}={})=>{
+        if (this.readyState==3)
+          return;
+        this.readyState = 3;
+        this.emit('close', {code, reason, type: 'close', target: this});
+      });
+      sock.method('error', ({message})=>{
+        this.emit('error', {message, type: 'error', target: this});
+      });
+      sock.on('close', ()=>{
+        if (this.readyState==3)
+          return;
+        this.readyState = 3;
+        this.emit('close', {code: 1006, reason: '', type: 'close',
+          target: this});
+      });
+      let params = {url: this.url, headers: {}};
+      if (this.protocols)
+        params.protocols = this.protocols;
+      let res = await sock.connect(this.rpc, 'websocket_connect', params);
+      if (res.error){
+        this.readyState = 3;
+        this.emit('error', {message: res.error, type: 'error',
+          target: this});
+        return;
+      }
+      this.readyState = 1; // OPEN
+      this.emit('open', {type: 'open', target: this});
+    } catch(err){
+      this.readyState = 3;
+      this.emit('error', {message: err.message, type: 'error',
+        target: this});
+    }
+  }
+  send(data){
+    if (this.readyState!=1)
+      return;
+    let is_bin = typeof data!='string';
+    if (is_bin){
+      let buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      this.sock.notify('send', {data: buf.toString('hex'), binary: true});
+    } else
+      this.sock.notify('send', {data, binary: false});
+  }
+  close(code=1000, reason=''){
+    if (this.readyState>=2)
+      return;
+    this.readyState = 2; // CLOSING
+    this.sock?.notify('close', {code, reason});
+  }
+}
+
