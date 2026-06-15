@@ -14,8 +14,6 @@ import https from 'https';
 
 const topics = {};
 const rg_conn = {};
-let g_br_id = 0;
-const br_t = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export async function ws_on_connect_rg(ws){
   let rpc = new rpc_websocket({D: 1});
@@ -79,6 +77,8 @@ export async function ws_on_connect_rg(ws){
   return res;
 }
 
+let g_br_id = 0;
+const br_t = {};
 export async function rpc_sock_rconnect({msg, sock}){
   let {method, params, rg_id} = msg.params;
   let {rpc} = sock;
