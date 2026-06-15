@@ -6,6 +6,7 @@ import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
 } from './util.js';
 import {WebSocket} from 'ws';
 import {once} from 'events';
+import tls from 'tls';
 import net from 'net';
 import dns from 'dns';
 import http from 'http';
@@ -98,131 +99,10 @@ export async function ws_on_connect_rg(ws){
     }
     return s.sock.connect(s.rpc, method, params);
   });
-  // TCP Client Proxy
-  rpc_sock.listen(rpc, 'server/ip_bridge/tcp_out', async({msg, sock})=>{
-    let {host, port} = msg.params;
-    assert((port&0xffff)==port, 'invalid port');
-    assert(host && typeof host=='string', 'invalid host');
-    let tcp = net.Socket();
-    tcp.on('data', data=>{
-      sock.notify('data', {data: data.toString('hex')});
-    });
-    tcp.on('error', err=>{
-      sock.notify('error', {message: err.message, code: err.code||null});
-    });
-    tcp.on('close', ()=>{
-      sock.notify('close');
-      sock.close();
-    });
-    sock.method('data', ({data})=>{
-      tcp.write(Buffer.from(data, 'hex'));
-    });
-    sock.method('keep_alive', ({enable, delay})=>{
-      tcp.setKeepAlive(enable, delay);
-    });
-    sock.method('no_delay', ({enable})=>{
-      tcp.setNoDelay(enable);
-    });
-    sock.method('set_timeout', ({timeout})=>{
-      tcp.setTimeout(timeout);
-    });
-    sock.method('pause', ()=>tcp.pause());
-    sock.method('resume', ()=>tcp.resume());
-    sock.on('close', ()=>tcp.destroy());
-    let ip = await host_to_ip(host);
-    if (ip.error)
-      return ip;
-    tcp.connect({port, host: ip});
-    try {
-      await once(tcp, 'connect');
-    } catch(err){
-      return {error: 'failed connect '+host+':'+port+': '+err};
-    }
-    return {addr: tcp.remoteAddress, port: tcp.remotePort};
-  });
-  // HTTP/HTTPS Client Proxy
-  rpc_sock.listen(rpc, 'server/ip_bridge/http_out', async({msg, sock})=>{
-    let {url, method='GET', headers={}} = msg.params;
-    assert(url && typeof url=='string', 'invalid url');
-    let u = URL.parse(url);
-    if (!u)
-      return {error: 'invalid url: '+url};
-    let {protocol, hostname: host, pathname, search} = u;
-    let port = u.port ? +u.port : (protocol=='https:' ? 443 : 80);
-    let is_https = protocol=='https:';
-    let mod = is_https ? https : http;
-    let path = pathname+(search||'');
-    let ip = await host_to_ip(host);
-    if (ip.error)
-      return ip;
-    let req_headers = {...headers};
-    if (!req_headers.host)
-      req_headers.host = host;
-    let req = mod.request({hostname: ip, port, path, method,
-      headers: req_headers});
-    req.on('error', err=>{
-      sock.notify('error', {message: err.message, code: err.code||null});
-      sock.close();
-    });
-    req.on('response', res=>{
-      sock.notify('response', {status: res.statusCode, headers: res.headers});
-      res.on('data', data=>{
-        sock.notify('data', {data: data.toString('hex')});
-      });
-      res.on('end', ()=>{
-        sock.notify('close');
-        sock.close();
-      });
-    });
-    sock.method('data', ({data})=>{
-      req.write(Buffer.from(data, 'hex'));
-    });
-    sock.method('end', ()=>{
-      req.end();
-    });
-    sock.on('close', ()=>req.destroy());
-    return {};
-  });
-  // WebSocket Client Proxy
-  rpc_sock.listen(rpc, 'server/ip_bridge/websocket_out', async({msg, sock})=>{
-    let {url, protocols, headers={}} = msg.params;
-    assert(url && typeof url=='string', 'invalid url');
-    let u = URL.parse(url);
-    if (!u)
-      return {error: 'invalid url: '+url};
-    let {hostname: host} = u;
-    let ip = await host_to_ip(host);
-    if (ip.error)
-      return ip;
-    u.hostname = ip;
-    let ws_opts = {headers: {host, ...headers}};
-    if (u.protocol=='wss:')
-      ws_opts.servername = host;
-    let ws = new WebSocket(u.href, protocols, ws_opts);
-    try { await once(ws, 'open'); }
-    catch(err){ return {error: 'ws connect failed: '+err.message}; }
-    ws.on('message', (data, is_bin)=>{
-      if (is_bin)
-        sock.notify('message', {data: Buffer.from(data).toString('hex'), binary: true});
-      else
-        sock.notify('message', {data: ''+data, binary: false});
-    });
-    ws.on('close', (code, reason)=>{
-      sock.notify('close', {code, reason: ''+reason});
-      sock.close();
-    });
-    ws.on('error', err=>{
-      sock.notify('error', {message: err.message});
-    });
-    sock.method('send', ({data, binary})=>{
-      ws.send(binary ? Buffer.from(data, 'hex') : data);
-    });
-    sock.method('close', ({code, reason}={})=>{
-      ws.close(code, reason);
-    });
-    sock.on('close', ()=>ws.terminate());
-    return {};
-  });
+  rpc_sock.listen(rpc, 'server/ip_bridge/tcp_out', rpc_sock_tcp_out);
+  rpc_sock.listen(rpc, 'server/ip_bridge/http_out', rpc_sock_http_out);
+  rpc_sock.listen(rpc, 'server/ip_bridge/websocket_out',
+    rpc_sock_websocket_out);
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
       return;
@@ -356,6 +236,141 @@ function ip_ntoa(n){
     return;
   return ''+(n>>>24 & 0xff)+'.'+(n>>>16 & 0xff)+'.'+(n>>8 & 0xff)
     +'.'+(n & 0xff);
+}
+
+// TCP Client Proxy
+export async function rpc_sock_tcp_out({msg, sock}){
+  let {host, port, tls: is_tls} = msg.params;
+  assert((port&0xffff)==port, 'invalid port');
+  assert(host && typeof host=='string', 'invalid host');
+  let tcp;
+  if (is_tls)
+    tcp = tls.TLSSocket({socket: new net.Socket()});
+  else
+    tcp = net.Socket();
+  tcp.on('data', data=>{
+    sock.notify('data', {data: data.toString('hex')});
+  });
+  tcp.on('error', err=>{
+    sock.notify('error', {message: err.message, code: err.code||null});
+  });
+  tcp.on('close', ()=>{
+    sock.notify('close');
+    sock.close();
+  });
+  sock.method('data', ({data})=>{
+    tcp.write(Buffer.from(data, 'hex'));
+  });
+  sock.method('keep_alive', ({enable, delay})=>{
+    tcp.setKeepAlive(enable, delay);
+  });
+  sock.method('no_delay', ({enable})=>{
+    tcp.setNoDelay(enable);
+  });
+  sock.method('set_timeout', ({timeout})=>{
+    tcp.setTimeout(timeout);
+  });
+  sock.method('pause', ()=>tcp.pause());
+  sock.method('resume', ()=>tcp.resume());
+  sock.on('close', ()=>tcp.destroy());
+  let ip = await host_to_ip(host);
+  if (ip.error)
+    return ip;
+  if (is_tls)
+    tcp.connect({tcp, port, host: ip, servername: host});
+  else
+    tcp.connect({port, host: ip});
+  try {
+    await once(tcp, 'connect');
+  } catch(err){
+    return {error: 'failed connect '+host+':'+port+': '+err};
+  }
+  return {addr: tcp.remoteAddress, port: tcp.remotePort};
+}
+
+// HTTP/HTTPS Client Proxy for lif_fetch()
+async function rpc_sock_http_out({msg, sock}){
+  let {url, method='GET', headers={}} = msg.params;
+  assert(url && typeof url=='string', 'invalid url');
+  let u = URL.parse(url);
+  if (!u)
+    return {error: 'invalid url: '+url};
+  let {protocol, hostname: host, pathname, search} = u;
+  let port = u.port ? +u.port : (protocol=='https:' ? 443 : 80);
+  let is_https = protocol=='https:';
+  let mod = is_https ? https : http;
+  let path = pathname+(search||'');
+  let ip = await host_to_ip(host);
+  if (ip.error)
+    return ip;
+  let req_headers = {...headers};
+  if (!req_headers.host)
+    req_headers.host = host;
+  let req = mod.request({hostname: ip, port, path, method,
+    headers: req_headers});
+  req.on('error', err=>{
+    sock.notify('error', {message: err.message, code: err.code||null});
+    sock.close();
+  });
+  req.on('response', res=>{
+    sock.notify('response', {status: res.statusCode, headers: res.headers});
+    res.on('data', data=>{
+      sock.notify('data', {data: data.toString('hex')});
+    });
+    res.on('end', ()=>{
+      sock.notify('close');
+      sock.close();
+    });
+  });
+  sock.method('data', ({data})=>{
+    req.write(Buffer.from(data, 'hex'));
+  });
+  sock.method('end', ()=>{
+    req.end();
+  });
+  sock.on('close', ()=>req.destroy());
+  return {};
+}
+
+// WebSocket Client Proxy for lif_WebSocket()
+async function rpc_sock_websocket_out({msg, sock}){
+  let {url, protocols, headers={}} = msg.params;
+  assert(url && typeof url=='string', 'invalid url');
+  let u = URL.parse(url);
+  if (!u)
+    return {error: 'invalid url: '+url};
+  let {hostname: host} = u;
+  let ip = await host_to_ip(host);
+  if (ip.error)
+    return ip;
+  u.hostname = ip;
+  let ws_opts = {headers: {host, ...headers}};
+  if (u.protocol=='wss:')
+    ws_opts.servername = host;
+  let ws = new WebSocket(u.href, protocols, ws_opts);
+  try { await once(ws, 'open'); }
+  catch(err){ return {error: 'ws connect failed: '+err.message}; }
+  ws.on('message', (data, is_bin)=>{
+    if (is_bin)
+      sock.notify('message', {data: Buffer.from(data).toString('hex'), binary: true});
+    else
+      sock.notify('message', {data: ''+data, binary: false});
+  });
+  ws.on('close', (code, reason)=>{
+    sock.notify('close', {code, reason: ''+reason});
+    sock.close();
+  });
+  ws.on('error', err=>{
+    sock.notify('error', {message: err.message});
+  });
+  sock.method('send', ({data, binary})=>{
+    ws.send(binary ? Buffer.from(data, 'hex') : data);
+  });
+  sock.method('close', ({code, reason}={})=>{
+    ws.close(code, reason);
+  });
+  sock.on('close', ()=>ws.terminate());
+  return {};
 }
 
 function test(){
