@@ -61,10 +61,10 @@ export async function ws_on_connect_rg(ws){
     return ret;
   });
   rpc_sock.listen(rpc, 'rconnect', rpc_sock_rconnect);
-  rpc_sock.listen(rpc, 'server/ip_bridge/tcp_out', rpc_sock_tcp_out);
-  rpc_sock.listen(rpc, 'server/ip_bridge/http_out', rpc_sock_http_out);
-  rpc_sock.listen(rpc, 'server/ip_bridge/websocket_out',
-    rpc_sock_websocket_out);
+  rpc_sock.listen(rpc, 'ip_bridge/tcp_out', rpc_sock_tcp_out);
+  rpc_sock.listen(rpc, 'ip_bridge/http_out', rpc_sock_http_out);
+  rpc_sock.listen(rpc, 'ip_bridge/websocket_out', rpc_sock_websocket_out);
+  rpc_sock.listen(rpc, 'lifcoin/electrum', rpc_sock_lifcoin_electrum);
   rpc.on('close', ()=>{
     if (!rpc.rg_id)
       return;
@@ -118,9 +118,9 @@ export async function rpc_sock_rconnect({msg, sock}){
   return s.sock.connect(s.rpc, method, params);
 }
 
-const electrum_ws_url = 'ws://localhost:8432/';
+const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
 export async function ws_on_connect_electrum(ws){
-  let upstream = new WebSocket(electrum_ws_url);
+  let upstream = new WebSocket(lifcoin_electrum_ws_url);
   upstream.on('open', ()=>{
     ws.on('message', data=>upstream.send(data));
     upstream.on('message', data=>ws.send(data));
@@ -131,6 +131,11 @@ export async function ws_on_connect_electrum(ws){
     console.error('electrum ws proxy error: %s', err.message);
     ws.close();
   });
+}
+
+async function rpc_sock_lifcoin_electrum({msg, sock}){
+  msg.url = lifcoin_electrum_ws_url;
+  return await rpc_sock_websocket_out({msg, sock});
 }
 
 async function host_to_ip(host){
