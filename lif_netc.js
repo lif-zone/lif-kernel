@@ -398,7 +398,7 @@ export class lif_WebSocket extends browser_EventEmitter {
   }
   send(data){
     if (this.readyState!=1)
-      return;
+      throw new DOMException('WebSocket is not open', 'InvalidStateError');
     let is_bin = typeof data!='string';
     if (is_bin){
       let buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
