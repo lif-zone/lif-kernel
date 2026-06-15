@@ -315,8 +315,7 @@ export async function lif_net_connect(topic, opt={}){
   return {sock, rg};
 }
 
-export async function lif_fetch(url, {method='GET', headers={}, body}={})
-{
+export async function lif_fetch(url, {method='GET', headers={}, body}={}){
   let {sock, rg} = lif_net_connect('server/ip_bridge/http_out');
   let res = await http_sock_c(sock, {url, method, headers, body});
   sock.close();
