@@ -99,7 +99,7 @@ export async function ws_on_connect_rg(ws){
     return s.sock.connect(s.rpc, method, params);
   });
   // TCP Client Proxy
-  rpc_sock.listen(rpc, 'tcp_connect', async({msg, sock})=>{
+  rpc_sock.listen(rpc, 'server/ip_bridge/tcp_out', async({msg, sock})=>{
     let {host, port} = msg.params;
     assert((port&0xffff)==port, 'invalid port');
     assert(host && typeof host=='string', 'invalid host');
@@ -141,7 +141,7 @@ export async function ws_on_connect_rg(ws){
     return {addr: tcp.remoteAddress, port: tcp.remotePort};
   });
   // HTTP/HTTPS Client Proxy
-  rpc_sock.listen(rpc, 'http_connect', async({msg, sock})=>{
+  rpc_sock.listen(rpc, 'server/ip_bridge/http_out', async({msg, sock})=>{
     let {url, method='GET', headers={}} = msg.params;
     assert(url && typeof url=='string', 'invalid url');
     let u = URL.parse(url);
@@ -184,7 +184,7 @@ export async function ws_on_connect_rg(ws){
     return {};
   });
   // WebSocket Client Proxy
-  rpc_sock.listen(rpc, 'websocket_connect', async({msg, sock})=>{
+  rpc_sock.listen(rpc, 'server/ip_bridge/websocket_out', async({msg, sock})=>{
     let {url, protocols, headers={}} = msg.params;
     assert(url && typeof url=='string', 'invalid url');
     let u = URL.parse(url);
@@ -198,7 +198,7 @@ export async function ws_on_connect_rg(ws){
     let ws_opts = {headers: {host, ...headers}};
     if (u.protocol=='wss:')
       ws_opts.servername = host;
-    let ws = new WebSocket(u.href, protocols||[], ws_opts);
+    let ws = new WebSocket(u.href, protocols, ws_opts);
     try { await once(ws, 'open'); }
     catch(err){ return {error: 'ws connect failed: '+err.message}; }
     ws.on('message', (data, is_bin)=>{

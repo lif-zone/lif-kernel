@@ -50,7 +50,8 @@ export class tcp_sock extends EventEmitter {
       this.closed = true;
       this.emit('close');
     });
-    const res = await sock.connect(this.rpc, 'tcp_connect', {host, port});
+    const res = await sock.connect(this.rpc, 'server/ip_bridge/tcp_out',
+      {host, port});
     if (res.error){
       this.closed = true;
       this.emit('error', res.error);
