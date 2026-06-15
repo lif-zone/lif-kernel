@@ -62,43 +62,7 @@ export async function ws_on_connect_rg(ws){
     let ret = await rg._call(method, params);
     return ret;
   });
-  rpc_sock.listen(rpc, 'rconnect', async({msg, sock})=>{
-    let {method, params, rg_id} = msg.params;
-    let rg;
-    if (typeof rg_id!='string')
-      throw 'invalid id';
-    if (!(rg=rg_conn[rg_id]))
-      throw 'no connection to rg';
-    if (rg_id==rpc.rg_id)
-      throw 'loopback not supported'; // XXX add loopback sock
-    if (rg_id==g_rg_id)
-      throw 'localhost not yet supported'; // XXX add localhost sock
-    let c = {rpc, sock};
-    let s = {rpc: rg, sock: new rpc_sock()};
-    let br_id = g_br_id++;
-    let br = {br_id, time: date_time(), c, s};
-    br_t[br_id] = br;
-    for (let [_c, _s] of [[c, s], [s, c]]){
-      _s.sock._method('', async(msg)=>{
-        let {id, method, params} = msg;
-        if (id==null)
-          return void _c.sock.notify(method, params);
-        try {
-          return await _c.sock._call(method, params);
-        } catch(err){ CEL();
-          return {error: ''+err};
-        }
-      });
-      _c.sock.on('error', err=>{
-        console.error('lif_net error', err);
-      });
-      _c.sock.on('close', ()=>{
-        _s.sock.close();
-        delete br_t[br_id];
-      });
-    }
-    return s.sock.connect(s.rpc, method, params);
-  });
+  rpc_sock.listen(rpc, 'rconnect', rpc_sock_rconnect);
   rpc_sock.listen(rpc, 'server/ip_bridge/tcp_out', rpc_sock_tcp_out);
   rpc_sock.listen(rpc, 'server/ip_bridge/http_out', rpc_sock_http_out);
   rpc_sock.listen(rpc, 'server/ip_bridge/websocket_out',
@@ -113,6 +77,45 @@ export async function ws_on_connect_rg(ws){
   rpc.accept({ws});
   let res = await rpc.U_call('ping');
   return res;
+}
+
+export async function rpc_sock_rconnect({msg, sock}){
+  let {method, params, rg_id} = msg.params;
+  let {rpc} = sock;
+  let rg;
+  if (typeof rg_id!='string')
+    throw 'invalid id';
+  if (!(rg=rg_conn[rg_id]))
+    throw 'no connection to rg';
+  if (rg_id==rpc.rg_id)
+    throw 'loopback not supported'; // XXX add loopback sock
+  if (rg_id==g_rg_id)
+    throw 'localhost not yet supported'; // XXX add localhost sock
+  let c = {rpc, sock};
+  let s = {rpc: rg, sock: new rpc_sock()};
+  let br_id = g_br_id++;
+  let br = {br_id, time: date_time(), c, s};
+  br_t[br_id] = br;
+  for (let [_c, _s] of [[c, s], [s, c]]){
+    _s.sock._method('', async(msg)=>{
+      let {id, method, params} = msg;
+      if (id==null)
+        return void _c.sock.notify(method, params);
+      try {
+        return await _c.sock._call(method, params);
+      } catch(err){ CEL();
+        return {error: ''+err};
+      }
+    });
+    _c.sock.on('error', err=>{
+      console.error('lif_net error', err);
+    });
+    _c.sock.on('close', ()=>{
+      _s.sock.close();
+      delete br_t[br_id];
+    });
+  }
+  return s.sock.connect(s.rpc, method, params);
 }
 
 const electrum_ws_url = 'ws://localhost:8432/';
