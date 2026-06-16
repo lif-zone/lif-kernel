@@ -389,7 +389,7 @@ export class lif_WebSocket extends browser_EventEmitter {
       let params = {url: this.url, headers: {}};
       if (this.protocols)
         params.protocols = this.protocols;
-      let res = await sock.connect(this.rpc, 'http/websocket/out',
+      let res = await sock.connect(this.rpc, 'websocket/out',
         params);
       if (res.error){
         this.readyState = 3;

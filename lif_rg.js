@@ -84,7 +84,7 @@ export function rpc_methods_rg_net(rpc){
 export function rpc_methods_ip_out(rpc){
   rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
   rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
-  rpc_sock.listen(rpc, 'http/websocket/out', rpc_sock_websocket_out);
+  rpc_sock.listen(rpc, 'websocket/out', rpc_sock_websocket_out);
   rpc_sock.listen(rpc, 'dns/out', rpc_sock_dns_out);
 }
 
