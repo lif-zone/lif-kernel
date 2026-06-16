@@ -50,7 +50,7 @@ export class tcp_sock extends EventEmitter {
       this.closed = true;
       this.emit('close');
     });
-    const res = await sock.connect(this.rpc, 'ip_bridge/tcp_out',
+    const res = await sock.connect(this.rpc, 'tcp/out',
       {host, port});
     if (res.error){
       this.closed = true;
@@ -324,7 +324,7 @@ export async function lif_net_connect(topic, opt={}){
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
-  let {sock, rg} = lif_net_connect('ip_bridge/http_out');
+  let {sock, rg} = lif_net_connect('http/out');
   let res = await http_sock_c(sock, {url, method, headers, body});
   sock.close();
   if (res.error)
@@ -389,7 +389,7 @@ export class lif_WebSocket extends browser_EventEmitter {
       let params = {url: this.url, headers: {}};
       if (this.protocols)
         params.protocols = this.protocols;
-      let res = await sock.connect(this.rpc, 'ip_bridge/websocket_out',
+      let res = await sock.connect(this.rpc, 'http/websocket/out',
         params);
       if (res.error){
         this.readyState = 3;

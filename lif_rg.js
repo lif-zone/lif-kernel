@@ -82,9 +82,9 @@ export function rpc_methods_rg_net(rpc){
 }
 
 export function rpc_methods_ip_bridge(rpc){
-  rpc_sock.listen(rpc, 'ip_bridge/tcp_out', rpc_sock_tcp_out);
-  rpc_sock.listen(rpc, 'ip_bridge/http_out', rpc_sock_http_out);
-  rpc_sock.listen(rpc, 'ip_bridge/websocket_out', rpc_sock_websocket_out);
+  rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
+  rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
+  rpc_sock.listen(rpc, 'http/websocket/out', rpc_sock_websocket_out);
 }
 
 export function rpc_methods_lifcoin(rpc){
