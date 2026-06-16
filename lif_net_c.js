@@ -237,7 +237,7 @@ export class Lif_net {
       throw e; // return
     }
     let ret = await this.rpc.call('version',
-      {name: 'lif_netc', version: util_version});
+      {name: 'lif_net_c', version: util_version});
     if (ret.error)
       return this.set_error('server version err: '+ret.error);
     this.server_version = ret;
