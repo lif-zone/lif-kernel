@@ -15,14 +15,14 @@ import https from 'https';
 const topics = {};
 const rg_conn = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export async function ws_on_connect_rg(ws, opt={full: 1}){
+export async function ws_on_connect_net(ws, opt={full: 1}){
   let rpc = new rpc_websocket({D: 1});
   rpc.topics = {};
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
   if (opt.rg_net || opt.full)
     rpc_methods_rg_net(rpc);
-  if (opt.ip_bridge || opt.full)
+  if (opt.ip_out || opt.full)
     rpc_methods_ip_bridge(rpc);
   if (opt.lifcoin || opt.full)
     rpc_methods_lifcoin(rpc);

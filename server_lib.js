@@ -181,8 +181,8 @@ function server_init({port, ssl}){
   const wss = new WebSocketServer({noServer: true});
   const ws_upgrade = (req, socket, head)=>{
     let uri = (new URL(req.url, 'http://x')).pathname;
-    if (uri=='/.lif.rg')
-      return wss.handleUpgrade(req, socket, head, ws_on_connect_rg);
+    if (uri=='/.lif.net')
+      return wss.handleUpgrade(req, socket, head, ws_on_connect_net);
     if (uri=='/.lif.net/electrum')
       return wss.handleUpgrade(req, socket, head, ws_on_connect_electrum);
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');

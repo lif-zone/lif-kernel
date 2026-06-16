@@ -164,7 +164,7 @@ function url_to_ws(url){
   return u.href;
 }
 let lif_rg_url = is_node ? 'http://localhost:4000/' : location;
-let lif_rg_ws = url_to_ws(lif_rg_url)+'.lif.rg';
+let lif_net_ws = url_to_ws(lif_rg_url)+'.lif.net';
 
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {method, headers, body})
@@ -191,7 +191,7 @@ export class Lif_net {
   _wait_open;
   error;
   constructor(){
-    this.url = lif_rg_ws;
+    this.url = lif_net_ws;
     this.rpc = new rpc_websocket({D: 1});
     this.set_events();
     this.rpc.on('close', ()=>this.is_closed = true);
