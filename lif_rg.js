@@ -85,6 +85,7 @@ export function rpc_methods_ip_bridge(rpc){
   rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
   rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
   rpc_sock.listen(rpc, 'http/websocket/out', rpc_sock_websocket_out);
+  rpc_sock.listen(rpc, 'dns/out', rpc_sock_dns_out);
 }
 
 export function rpc_methods_lifcoin(rpc){
@@ -400,6 +401,16 @@ async function rpc_sock_websocket_out({msg, sock}){
   });
   sock.on('close', ()=>ws.terminate());
   return {};
+}
+
+// DNS Resolution Service
+async function rpc_sock_dns_out({msg, sock}){
+  let {host, family=4} = msg.params;
+  assert(host && typeof host=='string', 'invalid host');
+  let addrs;
+  try { addrs = await dns.lookup(host, {family, all: true}); }
+  catch(err){ return {error: 'cannot resolve '+host+': '+err.message}; }
+  return {addrs: addrs.map(a=>({address: a.address, family: a.family}))};
 }
 
 function test(){

@@ -423,3 +423,18 @@ export class lif_WebSocket extends browser_EventEmitter {
   }
 }
 
+// DNS lookup via lif_rg dns/out proxy
+// Returns {addrs: [{address, family}]} or {error}
+export async function lif_dns_lookup(host, {family=4}={}){
+  let net = lif_net_get();
+  await net._connect();
+  let ret = await net.topic_get('dns/out');
+  let addr = ret?.addr;
+  if (!addr?.length)
+    return {error: 'no dns/out servers online'};
+  let {sock, wait} = net.connect(addr[0], 'dns/out', {host, family});
+  let res = await wait;
+  sock.close();
+  return res;
+}
+
