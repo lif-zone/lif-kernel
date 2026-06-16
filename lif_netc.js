@@ -293,7 +293,7 @@ export function lif_net_get(){
   return g_lif_net;
 }
 
-export async function lif_net_connect(topic, opt={}){
+export async function lif_net_connect(topic, params, opt={}){
   let net = lif_net_get();
   await net._connect();
   let ret = await net.topic_get(topic);
@@ -302,24 +302,33 @@ export async function lif_net_connect(topic, opt={}){
     return {error: 'lif_net error: failed get topic '+topic};
   if (!addr.length)
     return {error: 'no '+topic+' servers online'};
-  let rg, sock, _error;
+  let rg, sock, _error, res;
   for (let id of addr){
     let _rg = g_rg[id] ||= {id};
     if (opt.rg_block?.(_rg))
       continue;
-    let {sock: _sock, wait} = net.connect(id, topic);
-    ret = await wait;
-    if (ret.error){
+    let {sock: _sock, wait} = net.connect(id, topic, opt.params);
+    let _ret = await wait;
+    if (_ret.error){
       console.log('failed connecting to '+id);
-      _error = ret.error;
+      _error = _ret.error;
       continue;
     }
     sock = _sock;
     rg = _rg;
+    ret = _ret;
   }
   if (!rg)
     return {error: 'no good '+topic+' servers online: '+_error};
-  return {sock, rg};
+  return {sock, rg, ret};
+}
+
+export async function lif_net_call(topic, params){
+  // TODO: use net._call() directly, dont connect with a socket first
+  // TODO: add support for connection re-use: pooling by rg_id+topic
+  let {sock, rg, ret} = await lif_net_connect(topic, params);
+  sock.close();
+  return ret;
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
@@ -425,15 +434,51 @@ export class lif_WebSocket extends browser_EventEmitter {
 // DNS lookup via lif_rg dns/out proxy
 // Returns {addrs: [{address, family}]} or {error}
 export async function lif_dns_lookup(host, {family=4}={}){
-  let net = lif_net_get();
-  await net._connect();
-  let ret = await net.topic_get('dns/out');
-  let addr = ret?.addr;
-  if (!addr?.length)
-    return {error: 'no dns/out servers online'};
-  let {sock, wait} = net.connect(addr[0], 'dns/out', {host, family});
-  let res = await wait;
-  sock.close();
-  return res;
+  return await lif_net_call('dns/out', {host, family});
 }
 
+// JSON-RPC over WebSocket via jsonrpc/out proxy — client-side mirror of rpc_sock_jsonrpc_out
+export class lif_rpc_websocket extends EventEmitter {
+  sock = null;
+  constructor(rpc, url){
+    super();
+    this.rpc = rpc;
+    this.url = url;
+    this._methods = {};
+  }
+  async connect(){
+    let sock = new rpc_sock();
+    this.sock = sock;
+    sock._method('', async(msg)=>{
+      let {id, method, params} = msg;
+      let fn = this._methods[method];
+      if (id==null){
+        if (fn)
+          fn(params);
+        return;
+      }
+      if (!fn)
+        return {error: 'method not found: '+method};
+      try { return await fn(params); }
+      catch(err){ return {error: ''+err}; }
+    });
+    sock.on('close', ()=>this.emit('close'));
+    sock.on('error', err=>this.emit('error', err));
+    let res = await sock.connect(this.rpc, 'jsonrpc/out', {url: this.url});
+    if (res.error)
+      throw new Error(res.error);
+    return this;
+  }
+  method(name, fn){
+    this._methods[name] = fn;
+  }
+  async call(method, params){
+    return await this.sock._call(method, params);
+  }
+  notify(method, params){
+    this.sock.notify(method, params);
+  }
+  close(){
+    this.sock?.close();
+  }
+}
