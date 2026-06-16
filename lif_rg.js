@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait, assert,
+  rpc_base, rpc_sock, ewait, assert, qs_enc,
 } from './util.js';
 import {WebSocket} from 'ws';
 import {once} from 'events';
@@ -89,6 +89,7 @@ export function rpc_methods_ip_bridge(rpc){
 }
 
 export function rpc_methods_lifcoin(rpc){
+  rpc_sock.listen(rpc, 'lifcoin/lif_kv', rpc_sock_lifcoin_lif_kv);
   rpc_sock.listen(rpc, 'lifcoin/node', rpc_sock_lifcoin_node);
   rpc_sock.listen(rpc, 'lifcoin/electrum', rpc_sock_lifcoin_electrum);
 }
@@ -134,6 +135,7 @@ export async function rpc_sock_rconnect({msg, sock}){
   return s.sock.connect(s.rpc, method, params);
 }
 
+const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
 const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
 export async function ws_on_connect_electrum(ws){
   let upstream = new WebSocket(lifcoin_electrum_ws_url);
@@ -149,15 +151,20 @@ export async function ws_on_connect_electrum(ws){
   });
 }
 
+async function rpc_sock_lifcoin_lif_kv({msg, sock}){
+  let {key} = msg;
+  let m = {url: lifcoin_lif_kv_url+qs_enc({key})};
+  return await rpc_sock_http_out({m, sock});
+}
+
 async function rpc_sock_lifcoin_node({msg, sock}){
-  msg.ip = '127.0.0.1';
-  msg.port = 8433;
-  return await rpc_sock_tcp_out({msg, sock});
+  let m = {ip: '127.0.0.1', port: 8433};
+  return await rpc_sock_tcp_out({m, sock});
 }
 
 async function rpc_sock_lifcoin_electrum({msg, sock}){
-  msg.url = 'ws://localhost:8432/';
-  return await rpc_sock_websocket_out({msg, sock});
+  let m = {url: 'ws://localhost:8432/'};
+  return await rpc_sock_websocket_out({m, sock});
 }
 
 async function host_to_ip(host){

@@ -14,7 +14,7 @@ import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
 import {WebSocketServer, WebSocket} from 'ws';
-import {ws_on_connect_rg, ws_on_connect_electrum} from './lif_rg.js';
+import {ws_on_connect_net, ws_on_connect_electrum} from './lif_rg.js';
 const efs = fs.promises;
 
 // DNS Setup
