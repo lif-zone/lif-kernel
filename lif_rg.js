@@ -23,7 +23,7 @@ export async function ws_on_connect_net(ws, opt={full: 1}){
   if (opt.rg_net || opt.full)
     rpc_methods_rg_net(rpc);
   if (opt.ip_out || opt.full)
-    rpc_methods_ip_bridge(rpc);
+    rpc_methods_ip_out(rpc);
   if (opt.lifcoin || opt.full)
     rpc_methods_lifcoin(rpc);
   rpc.accept({ws});
@@ -81,7 +81,7 @@ export function rpc_methods_rg_net(rpc){
   });
 }
 
-export function rpc_methods_ip_bridge(rpc){
+export function rpc_methods_ip_out(rpc){
   rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
   rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
   rpc_sock.listen(rpc, 'http/websocket/out', rpc_sock_websocket_out);
