@@ -133,7 +133,7 @@ export async function rpc_sock_rconnect({msg, sock}){
       delete br_t[br_id];
     });
   }
-  return s.sock.connect(s.rpc, method, params);
+  return await s.sock.connect(s.rpc, method, params);
 }
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
@@ -155,12 +155,12 @@ export async function ws_on_connect_electrum(ws){
 async function rpc_sock_lifcoin_lif_kv({msg, sock}){
   let {key} = msg;
   let m = {url: lifcoin_lif_kv_url+qs_enc({key})};
-  return await rpc_sock_http_out({m, sock});
+  return await rpc_sock_http_out({msg: m, sock});
 }
 
 async function rpc_sock_lifcoin_node({msg, sock}){
   let m = {ip: '127.0.0.1', port: 8433};
-  return await rpc_sock_tcp_out({m, sock});
+  return await rpc_sock_tcp_out({msg: m, sock});
 }
 
 // TODO: add tcp host:port support for electrum tcp servers
@@ -186,12 +186,12 @@ export async function rpc_sock_jsonrpc_out({msg, sock}){
       _s.close();
     });
   }
-  return s.connect({url});
+  return await s.connect({url});
 }
 
 async function rpc_sock_lifcoin_electrum({msg, sock}){
   let m = {url: 'ws://localhost:8432/'};
-  return await rpc_sock_jsonrpc_out({m, sock});
+  return await rpc_sock_jsonrpc_out({msg: m, sock});
 }
 
 async function host_to_ip(host){
