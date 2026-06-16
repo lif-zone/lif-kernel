@@ -85,6 +85,7 @@ export function rpc_methods_ip_out(rpc){
   rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
   rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
   rpc_sock.listen(rpc, 'websocket/out', rpc_sock_websocket_out);
+  rpc_sock.listen(rpc, 'jsonrpc/out', rpc_sock_jsonrpc_out);
   rpc_sock.listen(rpc, 'dns/out', rpc_sock_dns_out);
 }
 
@@ -162,9 +163,35 @@ async function rpc_sock_lifcoin_node({msg, sock}){
   return await rpc_sock_tcp_out({m, sock});
 }
 
+// TODO: add tcp host:port support for electrum tcp servers
+export async function rpc_sock_jsonrpc_out({msg, sock}){
+  let {url} = msg.params;
+  let c = sock;
+  let s = new rpc_websocket();
+  for (let [_c, _s] of [[c, s], [s, c]]){
+    _s._method('', async(msg)=>{
+      let {id, method, params} = msg;
+      if (id==null)
+        return void _c.notify(method, params);
+      try {
+        return await _c._call(method, params);
+      } catch(err){ CEL();
+        return {error: ''+err};
+      }
+    });
+    _c.on('error', err=>{
+      console.error('lif_net error', err);
+    });
+    _c.on('close', ()=>{
+      _s.close();
+    });
+  }
+  return s.connect({url});
+}
+
 async function rpc_sock_lifcoin_electrum({msg, sock}){
   let m = {url: 'ws://localhost:8432/'};
-  return await rpc_sock_websocket_out({m, sock});
+  return await rpc_sock_jsonrpc_out({m, sock});
 }
 
 async function host_to_ip(host){
