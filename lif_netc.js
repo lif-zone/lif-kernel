@@ -152,7 +152,6 @@ export async function http_sock_c(rpc, {url, method='GET', headers={}, body}){
   return {...resp, body: body_buf};
 }
 
-
 function url_to_ws(url){
   let u = new URL(url);
   if (u.protocol=='http:')
