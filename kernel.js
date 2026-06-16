@@ -294,9 +294,13 @@ let _gh_ver = u=>{
 };
 let lpm_cdn = {
   npm: {src: [{
+    // package file listing+size+sha256
+    // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
     name: 'jsdeliver.net',
     url: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.submod_path}`,
   }, {
+    // package file listing+size+sha256
+    //  https://unpkg.com/react@18.3.1/?meta
     name: 'unpkg.com',
     u: u=>`https://unpkg.com/${u.name}${u.ver}${u.submod_path}`,
   }], src_ver: [{
