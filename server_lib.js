@@ -74,9 +74,6 @@ const res_send = (res, _path)=>{
   }
   let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
-  // XXX ugly hack for local dev. should move it to /lif-kernel/conf.js
-  if (g_opt.local_dev_enable && _path.endsWith('/lif-kernel/kernel.js'))
-    res.write('globalThis.local_dev_enable = 1;');
   stream.pipe(res);
 };
 
@@ -390,7 +387,9 @@ async function run(opt){
       g_opt.ssl = true;
     } else if (a=='-l' || a=='--local'){
       argv.shift();
-      g_opt.local_dev_enable = 1;
+      console.log('in the browser open localhost:port url, and in console '+
+        'run: localStorage.setItem("local_dev_enable", true)');
+      process.exit(1);
     } else if (a=='--web'){
       argv.shift();
       g_opt.web = true;
