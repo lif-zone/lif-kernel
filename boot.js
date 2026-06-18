@@ -985,8 +985,11 @@ let boot_kernel = async()=>{
       wait.return();
     };
     let slow = eslow('sw register');
+    let kernel_opt = {lif_kernel_base};
+    if (localStorage.getItem())
+      kernel_opt.local_dev_enable = 1;
     const registration = await serviceWorker.register(
-      '/.lif.kernel_sw.js'+qs_enc({lif_kernel_base}));
+      '/.lif.kernel_sw.js'+qs_enc(kernel_opt));
     if (0){
       registration.update();
       // Listen for new service worker

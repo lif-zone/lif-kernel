@@ -122,6 +122,7 @@ function esm_kernel_tr(src){
 const json = JSON.stringify;
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_q.get('lif_kernel_base');
+let local_dev_enable = sw_q.get('local_dev_enable');
 let import_modules = {};
 let import_module = async(url, mod_self=lif_kernel_base+'/')=>{
   let imod;
@@ -1374,7 +1375,6 @@ let local_dev_redirect_t = {
   'git/github.com/lif-zone/lif-os@latest': 'local/lif-os/',
   'git/github.com/lif-zone/lif-net@latest': 'local/lif-net/',
 };
-let local_dev_enable = localStorage.getItem('local_dev_enable');
 if (local_dev_enable)
   console.log('local dev enabled');
 function lpm_local_dev_redirect(imp){
