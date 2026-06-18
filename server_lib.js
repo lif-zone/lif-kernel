@@ -185,7 +185,7 @@ function ws_upgrade_accept(req, socket, head){
   let uri = (new URL(req.url, 'http://x')).pathname;
   let fn;
   if (uri=='/.lif.net')
-    fn = ws_on_connect_net;
+    fn = ws_on_connect_lif_net;
   else if (uri=='/.lif.net/electrum')
     fn = ws_on_connect_electrum;
   else if (uri=='/.lif.net/electrum2')

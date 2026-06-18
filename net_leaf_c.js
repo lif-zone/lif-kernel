@@ -250,6 +250,7 @@ export class Lif_net {
     return await this.rpc.call(method, params);
   }
   close(){
+    this.error = 'close';
     this._wait_open.throw('close');
     this.rpc.close();
   }
