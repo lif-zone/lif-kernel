@@ -15,19 +15,17 @@ import https from 'https';
 const topics = {};
 const rg_conn = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export async function ws_on_connect_net(ws, opt={full: 1}){
+export function ws_on_connect_net(ws, opt={full: 1}){
   let rpc = new rpc_websocket({D: 1});
   rpc.topics = {};
+  rpc_methods_basic(rpc);
+  rpc.accept({ws});
+  return rpc;
+}
+
+export function rpc_methods_basic(rpc){
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
-  if (opt.net_trunk || opt.full)
-    rpc_methods_net_trunk(rpc);
-  if (opt.ip_out || opt.full)
-    rpc_methods_ip_out(rpc);
-  if (opt.lifcoin || opt.full)
-    rpc_methods_lifcoin(rpc);
-  rpc.accept({ws});
-  return await rpc.U_call('ping');
 }
 
 export function rpc_methods_net_trunk(rpc){
@@ -114,6 +112,29 @@ export async function rpc_sock_rconnect({msg, sock}){
   let br_id = g_br_id++;
   let br = {br_id, time: date_time(), c, s};
   br_t[br_id] = br;
+  rpc_sock_pipe(c, s);
+  c.sock.on('close', ()=>delete br_t[br_id]);
+  return await s.sock.connect(s.rpc, method, params);
+}
+
+export function websocket_pipe(c, s){
+  s.on('open', ()=>{
+    c.on('message', data=>s.send(data));
+    s.on('message', data=>c.send(data));
+    c.on('close', ()=>s.close());
+    s.on('close', ()=>c.close());
+  });
+  c.on('error', err=>{
+    console.error('websocket proxy error: %s', err.message);
+    s.close();
+  });
+  s.on('error', err=>{
+    console.error('websocket proxy error: %s', err.message);
+    c.close();
+  });
+}
+
+export function rpc_sock_pipe(c, s){
   for (let [_c, _s] of [[c, s], [s, c]]){
     _s.sock._method('', async(msg)=>{
       let {id, method, params} = msg;
@@ -126,30 +147,24 @@ export async function rpc_sock_rconnect({msg, sock}){
       }
     });
     _c.sock.on('error', err=>{
-      console.error('lif_net error', err);
+      console.error('rpc_sock_pipe error', err);
     });
     _c.sock.on('close', ()=>{
       _s.sock.close();
-      delete br_t[br_id];
     });
   }
-  return await s.sock.connect(s.rpc, method, params);
 }
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
 const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
 export async function ws_on_connect_electrum(ws){
   let upstream = new WebSocket(lifcoin_electrum_ws_url);
-  upstream.on('open', ()=>{
-    ws.on('message', data=>upstream.send(data));
-    upstream.on('message', data=>ws.send(data));
-    ws.on('close', ()=>upstream.close());
-    upstream.on('close', ()=>ws.close());
-  });
-  upstream.on('error', err=>{
-    console.error('electrum ws proxy error: %s', err.message);
-    ws.close();
-  });
+  websocket_pipe(ws, upstream);
+}
+
+export async function ws_on_connect_electrum2(ws){
+  let upstream = new WebSocket(lifcoin_electrum_ws_url);
+  websocket_pipe(ws, upstream);
 }
 
 async function rpc_sock_lifcoin_lif_kv({msg, sock}){

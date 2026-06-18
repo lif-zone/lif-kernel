@@ -14,7 +14,9 @@ import x509 from '@peculiar/x509';
 import dnss from './dnss.js';
 import acme from './acme.js';
 import {WebSocketServer, WebSocket} from 'ws';
-import {ws_on_connect_net, ws_on_connect_electrum} from './net_trunk.js';
+import {ws_on_connect_net, ws_on_connect_electrum, ws_on_connect_electrum2,
+  rpc_methods_net_trunk, rpc_methods_ip_out, rpc_methods_lifcoin,
+} from './net_trunk.js';
 const efs = fs.promises;
 
 // DNS Setup
@@ -168,24 +170,41 @@ function sni_cb(server_name, cb){
   cb(null, ctx);
 }
 
+function ws_on_connect_lif_net(ws){
+  let rpc = ws_on_connect_net(ws);
+  if (g_opt.net_trunk)
+    rpc_methods_net_trunk(rpc);
+  if (g_opt.ip_s)
+    rpc_methods_ip_out(rpc);
+  if (g_opt.lifcoin_s)
+    rpc_methods_lifcoin(rpc);
+}
+
+function ws_upgrade_accept(req, socket, head){
+  const wss = new WebSocketServer({noServer: true});
+  let uri = (new URL(req.url, 'http://x')).pathname;
+  let fn;
+  if (uri=='/.lif.net')
+    fn = ws_on_connect_net;
+  else if (uri=='/.lif.net/electrum')
+    fn = ws_on_connect_electrum;
+  else if (uri=='/.lif.net/electrum2')
+    fn = ws_on_connect_electrum2;
+  if (!fn){
+    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+    return socket.destroy();
+  }
+  return wss.handleUpgrade(req, socket, head, fn);
+}
+
 let server;
 let sserver;
 function server_init({port, ssl}){
   server = http.createServer(http_listener);
   sserver = https.createServer({SNICallback: sni_cb}, http_listener);
   // WebSocket
-  const wss = new WebSocketServer({noServer: true});
-  const ws_upgrade = (req, socket, head)=>{
-    let uri = (new URL(req.url, 'http://x')).pathname;
-    if (uri=='/.lif.net')
-      return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect_net(ws));
-    if (uri=='/.lif.net/electrum')
-      return wss.handleUpgrade(req, socket, head, ws_on_connect_electrum);
-    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-    return socket.destroy();
-  };
-  server.on('upgrade', ws_upgrade);
-  sserver.on('upgrade', ws_upgrade);
+  server.on('upgrade', ws_upgrade_accept);
+  sserver.on('upgrade', ws_upgrade_accept);
   server.listen(port, ()=>{
     console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
   });
@@ -401,10 +420,15 @@ async function run(opt){
     throw 'invalid args '+JSON.stringify(argv);
   if (!g_opt.web && !g_opt.leaf)
     g_opt.web = g_opt.leaf = true;
-  if (g_opt.web)
+  if (g_opt.web){
+    g_opt.net_trunk  = true;
     start_web();
-  if (g_opt.leaf)
+  }
+  if (g_opt.leaf){
+    g_opt.ip_s = true;
+    g_opt.lifcoin_s = true;
     start_leaf();
+  }
 }
 
 export default run;
