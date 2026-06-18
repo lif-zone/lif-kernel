@@ -648,6 +648,7 @@ function tr_mjs_import(f){
 
 function file_tr_mjs_worker(f, opt){
   let uri_s = json(f.npm_uri);
+  // double space between await and import, to prevent tr import_module
   let js = `
     let lif_worker = {
       queue: [],
@@ -660,7 +661,7 @@ function file_tr_mjs_worker(f, opt){
     // Chrome 148 Worker bug: must use dynamic import() to force correct order
     // see also lif-coin/browser/node_env.js
     //import lif from '/.lif/npm/lif-kernel/boot.js';
-    let lif = (await import('/.lif/npm/lif-kernel/boot.js')).default;
+    let lif = (await  import('/.lif/npm/lif-kernel/boot.js')).default;
     let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods);
     let import_lif = function(){
       return globalThis.$lif.boot.import_esm(${uri_s}, arguments);
@@ -704,9 +705,10 @@ function mjs_import_cjs(path, q){
   let uri_s = json(path);
   let js = '';
   if (q.get('worker')){
+    // double space between await and import, to prevent tr import_module
     js += `let $lif_message = {q: [], fn: e=>$lif_message.q.push(e)}; `;
     js += `globalThis.addEventListener('message', $lif_message.fn); `;
-    js += `let lif = (await import('/.lif/npm/lif-kernel/boot.js')).default; `;
+    js += `let lif = (await  import('/.lif/npm/lif-kernel/boot.js')).default; `;
   }
   js += `let exports = (await globalThis.$lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
   if (q.get('worker')){
@@ -1960,8 +1962,9 @@ function test_kernel(){
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
   t(`export default 180;`, {type: 'mjs', export_default: true});
-  t(`let a = await import("a");`,
-    {type: 'mjs', imports_dyn: [{start: 14, end: 20}]});
+  // double space between await and import, to prevent tr import_module
+  t(`let a = await  import("a");`,
+    {type: 'mjs', imports_dyn: [{start: 15, end: 21}]});
   t(`let a;
     if (process.env.node_backend=="js")
       a = require("a-js");
