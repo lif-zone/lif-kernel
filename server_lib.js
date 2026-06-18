@@ -355,7 +355,7 @@ async function start_web(){
     map['/lif-kernel'] = lif_kernel = import.meta.dirname;
   if (!map['/.lif.kernel_sw.js'])
     map['/.lif.kernel_sw.js'] = lif_kernel+'/lif_kernel_sw.js';
-  if (!map['/index.html'])
+  if (!map['/index.html']) // XXX remove
     map['/index.html'] = lif_kernel+'/index.html';
   if (!map['/favicon.ico'])
     map['/favicon.ico'] = lif_kernel+'/favicon.ico';
