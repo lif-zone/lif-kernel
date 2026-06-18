@@ -2,7 +2,7 @@
 export const lif_version = '26.4.23';
 let D = 0; // debug
 let in_test = 0;
-const $lif = globalThis.$lif = {};
+const $lif = globalThis.$lif ||= {};
 
 const util = (await import('./util.js')).default;
 const {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,

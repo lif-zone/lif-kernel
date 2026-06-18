@@ -1,6 +1,6 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 let sw_boot_version = '26.6.18';
-let $lif = globalThis.$lif = {};
+let $lif = globalThis.$lif ||= {};
 let D = 0; // debug
 
 // TORAT SHALO
@@ -16,7 +16,8 @@ let sw_boot = {
   version: sw_boot_version,
 };
 
-const ewait = ()=>{
+// util.js
+function ewait(){
   let _return, _throw;
   let promise = new Promise((resolve, reject)=>{
     _return = ret=>{ resolve(ret); return ret; };
@@ -26,17 +27,17 @@ const ewait = ()=>{
   promise.throw = _throw;
   promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
   return promise;
-};
+}
 
 // assert.js
-export function assert(ok, ...msg){
+function assert(ok, ...msg){
   if (ok)
     return;
   console.error('assert FAIL:', ...msg);
   debugger; // eslint-disable-line no-debugger
   throw Error('assert FAIL');
 }
-export function assert_eq(exp, res){
+function assert_eq(exp, res){
   assert(exp===res, 'exp', exp, 'got', res);
 }
 
