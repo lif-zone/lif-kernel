@@ -162,7 +162,7 @@ function url_to_ws(url){
     assert(0, 'invalid protocol '+url);
   return u.href;
 }
-let lif_rg_url = is_node ? 'http://localhost:4000/' : location;
+let lif_rg_url = is_node ? 'http://localhost:4000/' : location.origin+'/';
 let lif_net_ws = url_to_ws(lif_rg_url)+'.lif.net';
 
 // fetch()-compatible API over rpc_sock

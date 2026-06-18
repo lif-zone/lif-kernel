@@ -178,7 +178,7 @@ function server_init({port, ssl}){
   const ws_upgrade = (req, socket, head)=>{
     let uri = (new URL(req.url, 'http://x')).pathname;
     if (uri=='/.lif.net')
-      return wss.handleUpgrade(req, socket, head, ()=>ws_on_connect_net());
+      return wss.handleUpgrade(req, socket, head, ws=>ws_on_connect_net(ws));
     if (uri=='/.lif.net/electrum')
       return wss.handleUpgrade(req, socket, head, ws_on_connect_electrum);
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');

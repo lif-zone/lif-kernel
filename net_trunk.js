@@ -20,8 +20,8 @@ export async function ws_on_connect_net(ws, opt={full: 1}){
   rpc.topics = {};
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
-  if (opt.rg_net || opt.full)
-    rpc_methods_rg_net(rpc);
+  if (opt.net_trunk || opt.full)
+    rpc_methods_net_trunk(rpc);
   if (opt.ip_out || opt.full)
     rpc_methods_ip_out(rpc);
   if (opt.lifcoin || opt.full)
@@ -30,7 +30,7 @@ export async function ws_on_connect_net(ws, opt={full: 1}){
   return await rpc.U_call('ping');
 }
 
-export function rpc_methods_rg_net(rpc){
+export function rpc_methods_net_trunk(rpc){
   rpc.method('rg_id', ({rg_id})=>{
     if (typeof rg_id!='string')
       throw 'invalid id';
