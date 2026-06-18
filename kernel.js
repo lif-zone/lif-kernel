@@ -1374,7 +1374,7 @@ let local_dev_redirect_t = {
   'git/github.com/lif-zone/lif-os@latest': 'local/lif-os/',
   'git/github.com/lif-zone/lif-net@latest': 'local/lif-net/',
 };
-let local_dev_enable = localStroage.getItem('local_dev_enable');
+let local_dev_enable = localStorage.getItem('local_dev_enable');
 if (local_dev_enable)
   console.log('local dev enabled');
 function lpm_local_dev_redirect(imp){
