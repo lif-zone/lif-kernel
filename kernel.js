@@ -1,180 +1,11 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let lif_version = '26.4.23';
+export const lif_version = '26.4.23';
 let D = 0; // debug
 let in_test = 0;
-let $lif = globalThis.$lif = {};
+const $lif = globalThis.$lif = {};
 
-const ewait = ()=>{
-  let _return, _throw;
-  let promise = new Promise((resolve, reject)=>{
-    _return = ret=>{ resolve(ret); return ret; };
-    _throw = err=>{ reject(err); return err; };
-  });
-  promise.return = _return;
-  promise.throw = _throw;
-  promise.catch(err=>{}); // catch un-waited wait() objects. avoid Uncaught in promise
-  return promise;
-};
-
-let lif_kernel = {
-  whoami: 'IBEYOURGODDONTCREATEOTHERGODSOVERMEDONTUSEBEYOURGODSNAMEINVAINREMEMBERTODEDICATETHESATURDAYOBEYYOURFATHERANDMOTHERDONTMURDERDONTCHEATDONTSTEALDONTTORTUREFAKELIEDONTGREEDFELLOWSHOME',
-  on_message: null,
-  on_fetch: null,
-  wait_activate: ewait(),
-  version: lif_version,
-};
-
-async function _on_fetch(event){
-  if (lif_kernel.on_fetch){
-    try {
-      return lif_kernel.on_fetch(event);
-    } catch(err){
-      console.error('lif kernel sw: '+err);
-    }
-    return;
-  }
-  let wait = ewait();
-  let {request, request: {url}} = event;
-  let u = new URL(url);
-  let external = u.origin!=location.origin;
-  let path = u.pathname;
-  if (external || path=='/' || request.method!='GET'){
-    console.log('passed req', url);
-    return await fetch(request);
-  }
-  console.warn('sw pending fetch('+event.request.url+') event before inited');
-  await lif_kernel.wait_activate;
-  console.info('sw complete fetch('+event.request.url+')');
-  return await lif_kernel.on_fetch(event);
-}
-function on_fetch(event){
-  event.respondWith(_on_fetch(event));
-}
-// service worker must register handlers on first run (not async)
-function sw_init_pre(){
-  globalThis.addEventListener('install', event=>event.waitUntil((async()=>{
-    await globalThis.skipWaiting(); // force sw reload - dont wait for pages to close
-    console.log('kernel install', lif_version);
-  })()));
-  // this is needed to activate the worker immediately without reload
-  // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
-  globalThis.addEventListener('activate', event=>event.waitUntil((async()=>{
-    console.log('kernel activate');
-    await lif_kernel.wait_activate;
-    console.log('kernel claim');
-    await globalThis.clients.claim(); // move all pages immediatly to new sw
-    console.log('kernel activated', lif_version);
-  })()));
-  globalThis.addEventListener('message', event=>event.waitUntil((async()=>{
-    if (!lif_kernel.on_message){
-      console.warn('sw message event before inited', event);
-      await lif_kernel.wait_activate;
-      console.log('sw message event finished wait');
-    }
-    lif_kernel.on_message(event);
-  })()));
-  globalThis.addEventListener('fetch', on_fetch);
-}
-sw_init_pre();
-console.log('pre_init');
-
-(async()=>{try {
-// service worker import() implementation
-// 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
-let enable_cache = 1;
-function fetch_opt(url){
-  let no_cache = url.startsWith('/') ? !enable_cache : false;
-  return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
-}
-function cache_lmod(lmod){
-  if (!enable_cache)
-    return;
-  if (str.starts(lmod, 'npm/', 'git/'))
-    return enable_cache>=1;
-  if (str.starts(lmod, 'http/', 'https/'))
-    return enable_cache>=2;
-  if (str.starts(lmod, 'local/'))
-    return enable_cache>=3;
-  return true;
-}
-
-// quick-and-dirty kernel emulation of ESM:
-function esm_kernel_tr(src){
-  // hack for util.js
-  src = src.replace(/await import\(/g, 'await import_module(');
-  // collect all exports
-  let re = /($|\n)export +(default|class|let|const|function|async function|\*function) +([A-Za-z0-9_]+)([^\n]+)/g;
-  return src.replace(re, (match, pre, type, name, rest)=>{
-    let s;
-    if (type=='let' || type=='const')
-      s = `${type} ${name} = exports.${name}`;
-    else if (type=='default')
-      s = `module.exports = ${name}`;
-    else if (type=='class' || type=='function' || type=='async function'
-      || type=='*function')
-    {
-      s = `const ${name} = exports.${name} = ${type} ${name}`;
-    }
-    return `${pre}${s}${rest}`;
-  });
-}
-
-const json = JSON.stringify;
-let sw_q = new URLSearchParams(location.search);
-let lif_kernel_base = sw_q.get('lif_kernel_base');
-let local_dev_enable = sw_q.get('local_dev_enable');
-let import_modules = {};
-let import_module = async(url, mod_self=lif_kernel_base+'/')=>{
-  let imod;
-  url = (new URL(url, mod_self)).href;
-  if (imod = import_modules[url])
-    return await imod.wait;
-  imod = import_modules[url] = {url, wait: ewait()};
-  try {
-    let response = await fetch(url, fetch_opt(url));
-    if (response.status!=200)
-      throw Error('sw import_module('+url+') failed fetch');
-    let body = await response.text();
-    let tr = esm_kernel_tr(body);
-    imod.script = `'use strict';
-      let module = {exports: {}};
-      let exports = module.exports;
-      let import_module = (mod, mod_self)=>globalThis.$lif.import_module(mod, mod_self||${json(url)});
-      module.wait = (async()=>{
-      ${tr}
-      })();
-      module;
-    `;
-  } catch(err){
-    console.error('import('+url+') failed', err);
-    throw imod.wait.throw(err);
-  }
-  try {
-    let module = eval?.(
-      `//# sourceURL=${url}\n${imod.script}`);
-    await module.wait;
-    imod.exports = module.exports;
-    if (imod.exports.default===undefined)
-      imod.exports.default = imod.exports;
-    return imod.wait.return(imod.exports);
-  } catch(err){
-    console.error('import('+url+') failed eval', err, err?.stack);
-    throw imod.wait.throw(err);
-  }
-};
-$lif.import_module = import_module;
-
-console.log('kernel import');
-let kernel_cdn = 'https://unpkg.com/';
-let util = await import_module('./util.js');
-$lif.assert = util.assert;
-$lif.Buffer = util.Buffer;
-let mime_db = await import_module('./mime_db.js');
-let sha256 = await import_module('./sha256.js');
-let Babel = await import_module(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
-let idb = await import_module(kernel_cdn+'idb@8.0.3/build/index.cjs');
-console.log('kernel import end');
-let {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
+const util = (await import('./util.js')).default;
+const {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
@@ -184,10 +15,18 @@ let {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
   uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
   pkg_export_lookup, export_path_match, str_to_buf,
   eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
-  Donce} = util;
-let {qw} = str;
-let clog = console.log.bind(console);
-let cerr = console.error.bind(console);
+  ewait, Donce} = util;
+const {qw} = str;
+const clog = console.log.bind(console);
+const cerr = console.error.bind(console);
+const json = JSON.stringify;
+const kernel_cdn = 'https://unpkg.com/';
+const mime_db = (await import('./mime_db.js')).default;
+const sha256 = (await import('./sha256.js')).default;
+const Babel = (await import(kernel_cdn+'@babel/standalone@7.29.1/babel.js')).default;
+const idb = (await import(kernel_cdn+'idb@8.0.3/build/index.cjs')).default;
+
+let lif_kernel_base;
 
 let db;
 function db_upgrade(db, table, opt){
@@ -219,6 +58,24 @@ async function db_open(){
     });
   }
   return db;
+}
+
+// 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
+let enable_cache = 1;
+function fetch_opt(url){
+  let no_cache = url.startsWith('/') ? !enable_cache : false;
+  return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
+}
+function cache_lmod(lmod){
+  if (!enable_cache)
+    return;
+  if (str.starts(lmod, 'npm/', 'git/'))
+    return enable_cache>=1;
+  if (str.starts(lmod, 'http/', 'https/'))
+    return enable_cache>=2;
+  if (str.starts(lmod, 'local/'))
+    return enable_cache>=3;
+  return true;
 }
 
 async function cache_get(table, k, opt){
@@ -1375,6 +1232,7 @@ let local_dev_redirect_t = {
   'git/github.com/lif-zone/lif-os@latest': 'local/lif-os/',
   'git/github.com/lif-zone/lif-net@latest': 'local/lif-net/',
 };
+let local_dev_enable;
 if (local_dev_enable)
   console.log('local dev enabled');
 function lpm_local_dev_redirect(imp){
@@ -1899,18 +1757,6 @@ async function kernel_fetch(event){
 
 function test_kernel(){
   let t, pkg;
-  t = (js, v)=>assert_eq(`\n${v}\n`, esm_kernel_tr(`\n${js}\n`));
-  t('export default func;', 'module.exports = func;');
-  t('export let RICH = 10;', 'let RICH = exports.RICH = 10;');
-  t('export let mean = 42;\nexport let life = 18;',
-    'let mean = exports.mean = 42;\nlet life = exports.life = 18;');
-  t('export const name = 42;', 'const name = exports.name = 42;');
-  t('export class Life {', 'const Life = exports.Life = class Life {');
-  t('export function wc(s){', 'const wc = exports.wc = function wc(s){');
-  t('export async function strlen(',
-    'const strlen = exports.strlen = async function strlen(');
-  t('export *function split_words(',
-    'const split_words = exports.split_words = *function split_words(');
   t = (lpm_ver, v)=>assert_eq(v, gh_ver(lpm_ver));
   t('', '');
   t('@', '@');
@@ -2264,21 +2110,20 @@ let do_app_pkg = async function(boot_pkg){
 };
 
 let boot_chan;
-function sw_init_post(){
+export function boot(sw_boot){
+  ({lif_kernel_base, local_dev_enable} = sw_boot);
   boot_chan = new ipc_postmessage();
   boot_chan.method('version', ()=>({version: lif_version}));
   boot_chan.method('app_pkg', async(arg)=>await do_app_pkg(arg));
-  lif_kernel.on_message = event=>{
+  sw_boot.on_message = event=>{
     if (boot_chan.accept(event))
       return;
   };
-  lif_kernel.on_fetch = event=>kernel_fetch(event);
+  sw_boot.on_fetch = event=>kernel_fetch(event);
   let slow = eslow(1000, 'wait_activate');
-  lif_kernel.wait_activate.return();
+  sw_boot.wait_activate.return();
   slow.end();
+  console.log('lif kernel inited: '+lif_kernel_base
+    +' sw '+sw_boot.version+' util '+util.version);
 }
-sw_init_post();
-console.log('lif kernel inited: '+lif_kernel_base
-  +' sw '+lif_kernel.version+' util '+util.version);
-} catch(err){console.error('lif kernel failed sw init', err);}})();
 
