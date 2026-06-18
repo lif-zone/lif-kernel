@@ -21,7 +21,7 @@ export async function ws_on_connect_net(ws, opt={full: 1}){
   rpc.method('ping', ()=>({pong: 1}));
   rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
   if (opt.rg_net || opt.full)
-    rpc_methods_rg_net(rpc);
+    rpc_methods_node_trunk(rpc);
   if (opt.ip_out || opt.full)
     rpc_methods_ip_out(rpc);
   if (opt.lifcoin || opt.full)
@@ -30,7 +30,7 @@ export async function ws_on_connect_net(ws, opt={full: 1}){
   return await rpc.U_call('ping');
 }
 
-export function rpc_methods_rg_net(rpc){
+export function rpc_methods_node_trunk(rpc){
   rpc.method('rg_id', ({rg_id})=>{
     if (typeof rg_id!='string')
       throw 'invalid id';
@@ -85,7 +85,7 @@ export function rpc_methods_ip_out(rpc){
   rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
   rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
   rpc_sock.listen(rpc, 'websocket/out', rpc_sock_websocket_out);
-  rpc_sock.listen(rpc, 'jsonrpc/out', rpc_sock_jsonrpc_out);
+  rpc_sock.listen(rpc, 'rpc/websocket/out', rpc_sock_rpc_websocket_out);
   rpc_sock.listen(rpc, 'dns/out', rpc_sock_dns_out);
 }
 
@@ -164,7 +164,7 @@ async function rpc_sock_lifcoin_node({msg, sock}){
 }
 
 // TODO: add tcp host:port support for electrum tcp servers
-export async function rpc_sock_jsonrpc_out({msg, sock}){
+export async function rpc_sock_rpc_websocket_out({msg, sock}){
   let {url} = msg.params;
   let c = sock;
   let s = new rpc_websocket();
@@ -191,7 +191,7 @@ export async function rpc_sock_jsonrpc_out({msg, sock}){
 
 async function rpc_sock_lifcoin_electrum({msg, sock}){
   let m = {url: 'ws://localhost:8432/'};
-  return await rpc_sock_jsonrpc_out({msg: m, sock});
+  return await rpc_sock_rpc_websocket_out({msg: m, sock});
 }
 
 async function host_to_ip(host){
@@ -463,3 +463,4 @@ function test(){
   t('192.168.0.0/16', '192.168.0.0');
   t('172.16.0.0/255.240.0.0');
 }
+test();

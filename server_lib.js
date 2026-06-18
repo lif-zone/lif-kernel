@@ -57,7 +57,7 @@ const res_err = (res, code, msg)=>{
   res.writeHead(code, msg, {'cache-control': 'no-cache'}).end();
 };
 let coi_enable = true;
-let local_dev_enable;
+let g_opt = {};
 
 const res_send = (res, _path)=>{
   let ext = (path.extname(_path)||'').slice(1);
@@ -75,7 +75,7 @@ const res_send = (res, _path)=>{
   let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
   // XXX ugly hack for local dev. should move it to /lif-kernel/conf.js
-  if (local_dev_enable && _path.endsWith('/lif-kernel/kernel.js'))
+  if (g_opt.local_dev_enable && _path.endsWith('/lif-kernel/kernel.js'))
     res.write('globalThis.local_dev_enable = 1;');
   stream.pipe(res);
 };
@@ -129,7 +129,6 @@ function test_server(){
 }
 test_server();
 
-let options = {};
 let lifcoin_node = 'http://localhost:8432';
 const lif_kv_handler = (req, res)=>{
   let url = new URL(req.url, 'http://x');
@@ -149,7 +148,7 @@ const http_listener = (req, res)=>{
     `${uri} ${res.statusCode} ${res.statusMessage}`));
   if (uri=='/.lif.net/lif_kv')
     return lif_kv_handler(req, res);
-  let path = map_uri({uri, opt: options});
+  let path = map_uri({uri, opt: g_opt});
   if (!path)
     return res_err(res, 404, 'no map found');
   return res_send(res, path);
@@ -191,7 +190,7 @@ function server_init({port, ssl}){
   server.on('upgrade', ws_upgrade);
   sserver.on('upgrade', ws_upgrade);
   server.listen(port, ()=>{
-    console.log(`Serving ${options.root} on http://localhost:${port}`);
+    console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
   });
   console.log('SSL: %s', ssl ? 'auto '+ssl_dir : 'off (-s to enable auto cert generation)');
   if (ssl)
@@ -347,38 +346,14 @@ async function do_ssl(opt){
     'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}
   });
   sserver.listen(sport, ()=>{
-    console.log(`Serving SSL ${options.root} on https://localhost:${sport}`);
+    console.log(`Serving SSL ${g_opt.root} on https://localhost:${sport}`);
   });
   acme_check_if_need_ssl(); // background: dont wait
 }
 
-async function run(opt){
-  let port = 3000;
-  let [...argv] = [...process.argv];
-  let a, ssl;
-  let map = options.map = {...opt?.map||{}};
-  options.root = opt.root||process.cwd();
-  argv.shift();
-  argv.shift();
-  while ((a=argv[0])!=undefined){
-    if (a=='-p' || a=='--port'){
-      argv.shift();
-      port = +argv.shift();
-    } else if (a=='-m' || a=='--map'){
-      argv.shift();
-      map[argv.shift()] = argv.shift();
-      break;
-    } else if (a=='-s' || a=='--ssl'){
-      argv.shift();
-      ssl = 1;
-    } else if (a=='-l' || a=='--local'){
-      argv.shift();
-      local_dev_enable = 1;
-    }
-  }
-  if (argv[0]!=undefined)
-    throw 'invalid args '+JSON.stringify(argv);
+async function start_web(){
   let lif_kernel;
+  let map = g_opt.map;
   if (!(lif_kernel = map['/lif-kernel']))
     map['/lif-kernel'] = lif_kernel = import.meta.dirname;
   if (!map['/.lif.kernel_sw.js'])
@@ -388,7 +363,49 @@ async function run(opt){
   if (!map['/favicon.ico'])
     map['/favicon.ico'] = lif_kernel+'/favicon.ico';
   console.log(map);
-  server_init({port, ssl});
+  server_init({port: g_opt.port, ssl: g_opt.ssl});
+}
+
+async function start_leaf(){
+}
+
+async function run(opt){
+  let [...argv] = [...process.argv];
+  let a;
+  let map = g_opt.map = {...opt?.map||{}};
+  g_opt.root = opt.root||process.cwd();
+  g_opt.port = 3000;
+  argv.shift();
+  argv.shift();
+  while ((a=argv[0])!=undefined){
+    if (a=='-p' || a=='--port'){
+      argv.shift();
+      g_opt.port = +argv.shift();
+    } else if (a=='-m' || a=='--map'){
+      argv.shift();
+      map[argv.shift()] = argv.shift();
+      break;
+    } else if (a=='-s' || a=='--ssl'){
+      argv.shift();
+      g_opt.ssl = true;
+    } else if (a=='-l' || a=='--local'){
+      argv.shift();
+      g_opt.local_dev_enable = 1;
+    } else if (a=='--web'){
+      argv.shift();
+      g_opt.web = true;
+    } else if (a=='--leaf'){
+      g_opt.leaf = true;
+    }
+  }
+  if (argv[0]!=undefined)
+    throw 'invalid args '+JSON.stringify(argv);
+  if (!g_opt.web && !g_opt.leaf)
+    g_opt.web = g_opt.leaf = true;
+  if (g_opt.web)
+    start_web();
+  if (g_opt.leaf)
+    start_leaf();
 }
 
 export default run;
