@@ -142,6 +142,7 @@ async function ws_on_connect_electrum2(ws){
 function electrum_leaf_s(){
   // const net = lif_net_get();
   // yield net._connect();
+  return;
   let net;
   net.listen('lifcoin/electrum', ({msg, sock: c})=>{
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
