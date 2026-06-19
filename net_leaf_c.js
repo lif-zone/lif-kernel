@@ -277,6 +277,102 @@ export class Lif_net {
   }
 }
 
+export class Lif_net2 {
+  _rg_id;
+  rpc;
+  url;
+  _wait_open;
+  error;
+  constructor(){
+    this.url = lif_net_ws;
+    this.rpc = new rpc_websocket({D: 1});
+    this.set_events();
+    this.rpc.on('close', ()=>this.is_closed = true);
+  }
+  set_events(){
+    this.rpc.method('ping', ()=>({pong: 1}));
+    this.rpc.method('version',
+      ()=>({name: 'lif-coin-wallet', version: util_version}));
+  }
+  set_error(err){
+    console.error('server version rpc', err);
+    this.error = err;
+    this.close();
+    return {error: err};
+  }
+  connect(rg_id, method, params){
+    let sock = new rpc_sock();
+    this.set_events(sock);
+    if (rg_id==this._rg_id)
+      ; // TODO loopback
+    let wait = (async()=>{
+      let ret = await sock.connect(this.rpc, 'rconnect',
+        {rg_id, method, params});
+      if (ret.error){
+        console.warn('failed connect', ret);
+        return ret;
+      }
+      let ping = await sock._call('ping');
+      if (ping.error || !ping.result.pong){
+        console.warn('failed ping', ping);
+        return {error: 'no pong'};
+      }
+      return ret;
+    })();
+    return {sock, wait};
+  }
+  async _connect(){
+    if (this._wait_open)
+      return await this._wait_open;
+    this._wait_open = ewait();
+    try {
+      await this.rpc.connect({url: this.url});
+    } catch(e){
+      console.error('rpc_connect', e);
+      this.rpc.close();
+      throw e; // return
+    }
+    let ret = await this.rpc.call('version',
+      {name: 'lif_net_c', version: util_version});
+    if (ret.error)
+      return this.set_error('server version err: '+ret.error);
+    this.server_version = ret;
+    return this._wait_open.return();
+  }
+  async T_call(method, params){
+    return await this.rpc.T_call(method, params);
+  }
+  async call(method, params){
+    return await this.rpc.call(method, params);
+  }
+  close(){
+    this.error = 'close';
+    this._wait_open.throw('close');
+    this.rpc.close();
+  }
+  async topic_get(topic){
+    return await this.call('topic_get', {topic});
+  }
+  async topic_pub(topic, data){
+    return await this.call('topic_pub', {topic, data});
+  }
+  async topic_unpub(topic){
+    return await this.call('topic_unpub', {topic});
+  }
+  async rcall(rg_id, method, params){
+    return await this.call('rcall', {rg_id, method, params});
+  }
+  async rg_id(rg_id){
+    return await this.call('rg_id', {rg_id});
+  }
+  listen(method, fn){
+    rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
+      sock.method('ping', ()=>({pong: 1}));
+      return fn({msg, sock});
+    });
+  }
+}
+
 let g_rg = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export function lif_rg_id_get(){

@@ -48,12 +48,12 @@
     "lif-kernel.service"
   ],
   "exports": {
-    "compat": "./compat/compat.js",
-    "assert": "./compat/assert.js",
-    "querystring": "./compat/querystring.js",
-    "events": "./compat/events.js",
-    "cluster": "./compat/cluster.js",
-    "net": "./compat/net.js"
+    "./compat": "./compat/compat.js",
+    "./assert": "./compat/assert.js",
+    "./querystring": "./compat/querystring.js",
+    "./events": "./compat/events.js",
+    "./cluster": "./compat/cluster.js",
+    "./net": "./compat/net.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
