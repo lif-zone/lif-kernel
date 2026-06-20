@@ -54,6 +54,8 @@
     "./events": "./compat/events.js",
     "./cluster": "./compat/cluster.js",
     "./net": "./compat/net.js"
+    "./util.js": "./util.js"
+    "./util": "./util.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
