@@ -156,7 +156,7 @@ export function rpc_sock_pipe(c, s){
 }
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
-const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
+const lifcoin_electrum_ws_url = 'ws://localhost:8432/electrum';
 export async function ws_on_connect_electrum(ws){
   let upstream = new WebSocket(lifcoin_electrum_ws_url);
   websocket_pipe(ws, upstream);
