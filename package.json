@@ -68,6 +68,7 @@
     "test": "bmocha --reporter spec test/*.js"
   },
   "devDependencies": {
-    "bmocha": "^2.2.1"
+    "bmocha": "^2.2.1",
+    "puppeteer-core": "^25.1.0"
   }
 }

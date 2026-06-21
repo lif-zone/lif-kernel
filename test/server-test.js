@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import puppeteer from 'puppeteer-core';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 3097;
@@ -35,4 +36,23 @@ it('GET /lif-kernel/hi.js returns 200 with JS content', async ()=>{
   assert.match(res.headers.get('content-type')||'', /javascript/);
   let body = await res.text();
   assert.ok(body.includes('hi world'), 'body should contain "hi world"');
+});
+
+it('browser: localhost:3097 loads successfully', async function(){
+  this.timeout(15000);
+  let browser = await puppeteer.launch({
+    executablePath: '/usr/bin/google-chrome',
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  try {
+    let page = await browser.newPage();
+    let errors = [];
+    page.on('pageerror', err=>errors.push(err.message));
+    let res = await page.goto(`http://localhost:${port}`, {waitUntil: 'domcontentloaded'});
+    assert.equal(res.status(), 200);
+    assert.equal(errors.length, 0, 'page JS errors: '+errors.join(', '));
+  } finally {
+    await browser.close();
+  }
 });
