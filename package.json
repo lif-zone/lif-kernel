@@ -44,7 +44,7 @@
     "server.js",
     "server_lib.js",
     "dns_s.js",
-    "acme.js",
+    "ssl_acme.js",
     "lif-kernel.service"
   ],
   "exports": {

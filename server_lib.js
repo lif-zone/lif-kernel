@@ -10,8 +10,6 @@ import './browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str, rpc_websocket, version as util_version,
 } from './util.js';
-import x509 from '@peculiar/x509';
-import acme from './acme.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer, WebSocket} from 'ws';
 import {ws_on_connect_net, ws_on_connect_electrum,
