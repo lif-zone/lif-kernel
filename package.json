@@ -43,7 +43,7 @@
     "mine_db.js",
     "server.js",
     "server_lib.js",
-    "dnss.js",
+    "dns_s.js",
     "acme.js",
     "lif-kernel.service"
   ],

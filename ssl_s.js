@@ -4,7 +4,7 @@ import tls from 'tls';
 import './browser_env.js';
 import {esleep} from './util.js';
 import x509 from '@peculiar/x509';
-import dnss from './dnss.js';
+import dns_s from './dns_s.js';
 import acme from './acme.js';
 const efs = fs.promises;
 
@@ -46,7 +46,7 @@ function to_sql(d){ return to_sql_ms(d).replace(/( 00:00:00)?....$/, ''); }
 
 export function sni_cb(server_name, cb){
   console.log('XXX sni_cb %s', server_name);
-  let domain = dnss.get_our_domain(server_name);
+  let domain = dns_s.get_our_domain(server_name);
   if (!domain){
     let err = 'domain not handled '+server_name;
     console.error('server: %s', err);
@@ -130,12 +130,12 @@ const set_cert = async(domain, file_cert, file_key, cert, key)=>{
 
 const _acme_check_if_need_ssl = async()=>{
   try {
-    console.log('ssl: acme_check_if_need_ssl %O', dnss.domains);
+    console.log('ssl: acme_check_if_need_ssl %O', dns_s.domains);
     let queue = [];
-    if (!dnss.domains)
+    if (!dns_s.domains)
       return;
-    for (let name in dnss.domains){
-      if (dnss.domains[name].ssl)
+    for (let name in dns_s.domains){
+      if (dns_s.domains[name].ssl)
         queue.push(name);
     }
     for (let name of queue){
@@ -196,16 +196,16 @@ function get_wan_ips(){
 
 export async function do_ssl(opt){
   let wan_ips = get_wan_ips();
-  let dnss_opt = {ips: []};
+  let dns_s_opt = {ips: []};
   let sport = opt?.sport||443;
   for (let o of wan_ips)
-    dnss_opt.ips.push({address: o.address, port: 53});
-  dnss.start(dnss_opt);
+    dns_s_opt.ips.push({address: o.address, port: 53});
+  dns_s.start(dns_s_opt);
   console.log('service DNS port 53');
-  acme.init({dnss: dnss});
+  acme.init({dns_s});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
-  dnss.set_domains({
+  dns_s.set_domains({
     'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}
   });

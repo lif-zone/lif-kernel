@@ -120,7 +120,7 @@ function res_type_soa(name){
 }
 
 E.set_domains = domains=>{
-    console.log('dnss: set domains %s',
+    console.log('dns_s: set domains %s',
         domains ? Object.keys(domains).join(', ') : 'none');
     E.domains = {};
     if (!domains)
@@ -144,7 +144,7 @@ E.set_domains = domains=>{
 
 function create_dns_server(ips){
   if (E.servers)
-    throw new Error('dnss: already started servers');
+    throw new Error('dns_s: already started servers');
   E.servers = [];
   for (let {address, port} of ips){
     port = port||DEF_PORT;
@@ -171,15 +171,15 @@ function create_dns_server(ips){
           case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
           case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
           // XXX TODO
-          default: console.error('dnss: unsupported type %s', type);
+          default: console.error('dns_s: unsupported type %s', type);
           }
           send(res);
-        } catch(err){ console.error('dnss: error %s', err.stack||err); }
+        } catch(err){ console.error('dns_s: error %s', err.stack||err); }
       }
     });
-    server.on('close', ()=>console.log('dnss: closed'));
-    server.on('error', err=>console.error('dnss: error', err));
-    console.log('dnss: listen on %s udp+tcp ports %s', address, port);
+    server.on('close', ()=>console.log('dns_s: closed'));
+    server.on('error', err=>console.error('dns_s: error', err));
+    console.log('dns_s: listen on %s udp+tcp ports %s', address, port);
     server.listen({udp: {host: address, address, port},
       tcp: {host: address, address, port}});
     E.servers.push(server);
@@ -188,7 +188,7 @@ function create_dns_server(ips){
 
 E.start = opt=>{
   if (E.servers)
-    throw new Error('dnss: already started');
+    throw new Error('dns_s: already started');
   opt = opt||{};
   let {ips} = opt;
   E.res_cache = {};

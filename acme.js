@@ -15,7 +15,7 @@ const dns_add_cb = (auth, challenge, val)=>{
     return console.error('acme: unexected types %s', challenge.type);
   let host = '_acme-challenge.'+auth.identifier.value;
   console.log('acme: set challenge dns %s %s', host, val);
-  E.dnss.set_txt(host, val);
+  E.dns_s.set_txt(host, val);
 };
 
 const dns_rm_cb = (auth, challenge, val)=>function(){
@@ -23,7 +23,7 @@ const dns_rm_cb = (auth, challenge, val)=>function(){
     return console.error('acme: unexected types %s', challenge.type);
   let host = '_acme-challenge.'+auth.identifier.value;
   console.log('acme: remove challenge dns %s %s', host, val);
-  E.dnss.rm_txt(host);
+  E.dns_s.rm_txt(host);
 };
 
 // XXX: configure directory in conf
@@ -42,4 +42,4 @@ E.requet_cert = async opt=>{
   return cert;
 };
 
-E.init = opt=>E.dnss = opt.dnss;
+E.init = opt=>E.dns_s = opt.dns_s;
