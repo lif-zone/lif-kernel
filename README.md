@@ -9,7 +9,7 @@
 
 ```
 $ git clone https://github.com/lif-zone/lif-kernel
-$ cd lif-lernel
+$ cd lif-kernel
 $ npm install
 $ node ./server -p 3000
 
