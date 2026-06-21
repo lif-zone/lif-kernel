@@ -2,8 +2,8 @@
 import React, {type MouseEvent} from 'react';
 import confetti from 'canvas-confetti';
 
-const App = () => {
-  function onMouseMove(e: MouseEvent) {
+const App = ()=>{
+  function onMouseMove(e: MouseEvent){
     confetti({
       particleCount: 5,
       origin: {
