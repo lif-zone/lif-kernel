@@ -62,5 +62,9 @@
     "acme-client": "5.0.0",
     "dns2": "3.0.0",
     "ws": "^8.20.0"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "lint-ci": "eslint"
   }
 }
