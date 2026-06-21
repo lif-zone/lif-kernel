@@ -65,6 +65,10 @@
   },
   "scripts": {
     "lint": "eslint",
-    "lint-ci": "eslint"
+    "lint-ci": "eslint",
+    "test": "bmocha --reporter spec test/*.js"
+  },
+  "devDependencies": {
+    "bmocha": "^2.2.1"
   }
 }
