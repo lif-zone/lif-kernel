@@ -1,9 +1,9 @@
 // from code.esm.sh
-import React, {type MouseEvent} from 'react';
+import React, {MouseEvent} from 'react';
 import confetti from 'canvas-confetti';
 
 const App = ()=>{
-  function onMouseMove(e: MouseEvent){
+  function onMouseMove(e){
     confetti({
       particleCount: 5,
       origin: {
