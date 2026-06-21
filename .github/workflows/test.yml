@@ -21,7 +21,7 @@ jobs:
       - name: Install
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Lint
-        run: npm run lint-ci
+        run: npm run lint
 
   test:
     name: Test
