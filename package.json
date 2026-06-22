@@ -66,15 +66,16 @@
   },
   "scripts": {
     "lint": "eslint",
-    "test": "mocha --reporter spec test/*.js"
+    "test": "mocha --reporter spec test/*.js",
+    "test-ci": "mocha --reporter mocha-junit-reporter --reporter-options mochaFile=./test-results.xml test/*.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@eslint/json": "2.0.0",
     "eslint": "10.5.0",
     "globals": "17.6.0",
-    "bmocha": "^2.2.1",
     "mocha": "^11.7.6",
+    "mocha-junit-reporter": "^2.2.1",
     "puppeteer-core": "^25.1.0"
   }
 }
