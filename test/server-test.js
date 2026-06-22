@@ -3,28 +3,26 @@ import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
+import etask from '../etask.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 3097;
 let proc;
 
-before(async ()=>{
+before(()=>etask(function*(){
   proc = spawn('node', ['server.js', '-p', ''+port], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  await new Promise((resolve, reject)=>{
-    let timeout = setTimeout(()=>reject(new Error('server start timeout')), 8000);
-    proc.stdout.on('data', data=>{
-      if ((''+data).includes('Serving')){
-        clearTimeout(timeout);
-        resolve();
-      }
-    });
-    proc.on('error', err=>{ clearTimeout(timeout); reject(err); });
-    proc.on('exit', code=>{ clearTimeout(timeout); reject(new Error('server exited early: '+code)); });
+  let wait = this.wait(8000);
+  proc.stdout.on('data', data=>{
+    if ((''+data).includes('Serving'))
+      this.return();
   });
-});
+  proc.on('error', err=>this.throw(err));
+  proc.on('exit', code=>this.throw(Error('server exited early: '+code)));
+  return yield wait;
+}));
 
 after(()=>{
   proc?.kill();
@@ -49,7 +47,8 @@ it('browser: localhost:3097 loads successfully', async function(){
     let page = await browser.newPage();
     let errors = [];
     page.on('pageerror', err=>errors.push(err.message));
-    let res = await page.goto(`http://localhost:${port}`, {waitUntil: 'domcontentloaded'});
+    let res = await page.goto(`http://localhost:${port}`,
+      {waitUntil: 'domcontentloaded'});
     assert.equal(res.status(), 200);
     assert.equal(errors.length, 0, 'page JS errors: '+errors.join(', '));
   } finally {
