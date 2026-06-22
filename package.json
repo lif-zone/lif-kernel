@@ -55,6 +55,7 @@
     "./cluster": "./compat/cluster.js",
     "./net": "./compat/net.js",
     "./util.js": "./util.js"
+    "./etask": "./etask.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
