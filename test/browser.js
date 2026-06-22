@@ -16,7 +16,7 @@ describe('browser', function(){
       cwd: root,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    let wait = this.wait(8000);
+    let wait = this.wait(1000);
     proc.stdout.on('data', data=>{
       if ((''+data).includes('Serving'))
         this.return();
