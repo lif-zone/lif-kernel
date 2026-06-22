@@ -64,7 +64,7 @@
     "./cluster": "./compat/cluster.js",
     "./net": "./compat/net.js",
     "./util.js": "./util.js",
-    "./etask": "./etask.js"
+    "./etask": "./etask.js",
     "./server_lib.js": "./server_lib.js"
   },
   "dependencies": {
