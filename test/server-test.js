@@ -6,7 +6,8 @@ import puppeteer from 'puppeteer-core';
 import etask from '../etask.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const port = 3097;
+const port = 4004;
+const url_base = `http://localhost:${port}`;
 let proc;
 
 before(()=>etask(function*(){
@@ -28,15 +29,15 @@ after(()=>{
   proc?.kill();
 });
 
-it('GET /lif-kernel/hi.js returns 200 with JS content', async ()=>{
-  let res = await fetch(`http://localhost:${port}/lif-kernel/hi.js`);
+it('GET /lif-kernel/hi.js returns 200 with JS content', async()=>{
+  let res = await fetch(url_base+'/lif-kernel/hi.js');
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type')||'', /javascript/);
   let body = await res.text();
   assert.ok(body.includes('hi world'), 'body should contain "hi world"');
 });
 
-it('browser: localhost:3097 loads successfully', async function(){
+it('browser: http://localhost loads successfully', async function(){
   this.timeout(15000);
   let browser = await puppeteer.launch({
     executablePath: '/usr/bin/google-chrome',
@@ -47,8 +48,7 @@ it('browser: localhost:3097 loads successfully', async function(){
     let page = await browser.newPage();
     let errors = [];
     page.on('pageerror', err=>errors.push(err.message));
-    let res = await page.goto(`http://localhost:${port}`,
-      {waitUntil: 'domcontentloaded'});
+    let res = await page.goto(url_base, {waitUntil: 'domcontentloaded'});
     assert.equal(res.status(), 200);
     assert.equal(errors.length, 0, 'page JS errors: '+errors.join(', '));
   } finally {
