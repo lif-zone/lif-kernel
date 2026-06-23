@@ -5,11 +5,6 @@ import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
 import etask from 'lif-kernel/etask';
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const port = 4004;
-const url_base = `http://localhost:${port}`;
-let proc;
-
 export async function browser_open(){
   let browser = await puppeteer.launch({
     executablePath: '/usr/bin/google-chrome',
@@ -66,11 +61,8 @@ export async function browser_test({url, search, browser}){
   }
 }
 
-export function server_open({cmd, search}){ return etask(function*(){
-  proc = spawn('node', cmd, {
-    cwd: root,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
+export function server_open({cmd, search, cwd}){ return etask(function*(){
+  let proc = spawn('node', cmd, {cwd, stdio: ['pipe', 'pipe', 'pipe']});
   let wait = etask.wait(1000);
   proc.stdout.on('data', data=>{
     process.stdout.write(data);
@@ -93,7 +85,7 @@ export function server_open({cmd, search}){ return etask(function*(){
 }); }
 
 export async function fetch_test({url, search}){
-  let res = await fetch(url_base+'/lif-kernel/hi.js');
+  let res = await fetch(url);
   assert.equal(res.status, 200);
   let body = await res.text();
   assert.ok(body.includes(search), `body should contain "${search}"`);
