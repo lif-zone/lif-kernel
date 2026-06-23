@@ -148,7 +148,7 @@ const npm_2url_opt = (url, mod_self, opt)=>{
 const npm_2url = (url, mod_self)=>{
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
-    return (u.is.blob ? u.protocol : u.origin)+u.path;
+    return (u.is.blob || u.origin=='null' ? u.protocol : u.origin)+u.path;
   if (u.is.uri)
     return u.path;
   return '/.lif/'+T_npm_to_lpm(u.path);
@@ -163,7 +163,7 @@ const npm_base = (mod_self, url)=>{
     return lpm_to_npm(v.rest);
   }
   if (u.is.url)
-    return (u.is.blob ? u.protocol : u.origin)+u.path;
+    return (u.is.blob || u.origin=='null' ? u.protocol : u.origin)+u.path;
   return u.path;
 };
 
@@ -192,6 +192,7 @@ function test(){
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
   t(null, '/.lif/npm/mod', 'mod');
   t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
+  t('mod@1.2.3', 'node:path', 'node:path');
   t = (mod_self, url, v)=>assert_eq(v, npm_2url(url, mod_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
   t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
