@@ -73,8 +73,12 @@ export function server_open({cmd, search}){ return etask(function*(){
   });
   let wait = etask.wait(1000);
   proc.stdout.on('data', data=>{
+    process.stdout.write(data);
     if ((''+data).includes(search))
       wait.return();
+  });
+  proc.stderr.on('data', data=>{
+    process.stderr.write(data);
   });
   proc.on('error', err=>this.throw(err));
   proc.on('exit', code=>this.throw(Error('server exited early: '+code)));
