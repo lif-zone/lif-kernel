@@ -78,7 +78,7 @@ export function server_open({cmd, search, cwd}){ return etask(function*(){
     yield wait;
   } catch(err){
     console.error('server failed to start', err);
-    proc?.kill();
+    proc.kill();
     throw err;
   }
   return proc;
