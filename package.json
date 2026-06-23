@@ -79,7 +79,7 @@
   "scripts": {
     "lint": "eslint",
     "test": "mocha --reporter spec test/browser.js",
-    "test-ci": "mocha --reporter mocha-multi-reporters --reporter-options configFile=mocharc.json test/browser.js"
+    "test-ci": "mocha --reporter mocha-multi-reporters --reporter-options configFile=test/mocharc.json test/browser.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
