@@ -1592,11 +1592,12 @@ async function lpm_file_resolve_follow({log, imp, mod_self}){
     }
     return f;
   }
+  return {not_exist: true, err: 'max redirects'};
 }
 
 async function fetch_lpm_meta({log, imp, mod_self}){
   let f = await lpm_file_resolve_follow({log, imp, mod_self});
-  if (!f || f.redirect)
+  if (f.not_exist || f.redirect)
     return f;
   let type = file_type(f.lmod);
   if (type!='js')
