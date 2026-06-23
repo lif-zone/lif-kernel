@@ -10,7 +10,7 @@ import {server_open, browser_open, fetch_test, browser_test,
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 4004;
 const url_base = `http://localhost:${port}`;
-const cmd = ['server.js', '-p', ''+port];
+const cmd = [root+'/server.js', '-p', ''+port];
 
 describe('browser', function(){
   let proc, browser;
