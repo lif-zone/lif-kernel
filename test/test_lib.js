@@ -15,7 +15,7 @@ export async function browser_open(){
     executablePath: '/usr/bin/google-chrome',
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
-//      '--user-data-dir=/tmp/puppeteer-fresh-profile'],
+    // '--user-data-dir=/tmp/puppeteer-fresh-profile'
   });
   return browser;
 }
@@ -81,9 +81,9 @@ export function server_open({cmd, search}){ return etask(function*(){
   try {
     yield wait;
   } catch(err){
-    console.error(err);
+    console.error('server failed to start', err);
     proc?.kill();
-    proc = null;
+    throw err;
   }
   return proc;
 }); }
