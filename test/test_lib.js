@@ -69,7 +69,7 @@ export async function browser_test({url, search, browser}){
 export function server_open({cmd, search}){ return etask(function*(){
   proc = spawn('node', cmd, {
     cwd: root,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
   let wait = etask.wait(1000);
   proc.stdout.on('data', data=>{
