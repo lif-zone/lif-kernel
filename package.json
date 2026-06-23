@@ -54,7 +54,8 @@
     "net_leaf_c.js",
     "net_leaf_s.js",
     "net_trunk.js",
-    "lif-kernel.service"
+    "lif-kernel.service",
+    "test/test_lib.js"
   ],
   "exports": {
     "./compat": "./compat/compat.js",
