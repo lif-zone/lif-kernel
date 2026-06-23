@@ -84,6 +84,13 @@ export function server_open({cmd, search}){ return etask(function*(){
     proc?.kill();
     proc = null;
   }
-  return {proc};
+  return proc;
 }); }
+
+export async function fetch_test({url, search}){
+  let res = await fetch(url_base+'/lif-kernel/hi.js');
+  assert.equal(res.status, 200);
+  let body = await res.text();
+  assert.ok(body.includes(search), `body should contain "${search}"`);
+}
 

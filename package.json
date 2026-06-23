@@ -65,7 +65,8 @@
     "./net": "./compat/net.js",
     "./util.js": "./util.js",
     "./etask": "./etask.js",
-    "./server_lib.js": "./server_lib.js"
+    "./server_lib.js": "./server_lib.js",
+    "./test/test_lib.js": "./test/test_lib.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
@@ -76,8 +77,8 @@
   },
   "scripts": {
     "lint": "eslint",
-    "test": "mocha --reporter spec test/*.js",
-    "test-ci": "mocha --reporter mocha-junit-reporter --reporter-options mochaFile=./test-results.xml test/*.js"
+    "test": "mocha --reporter spec test/browser.js",
+    "test-ci": "mocha --reporter mocha-junit-reporter --reporter-options mochaFile=./test-results.xml test/browser.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
