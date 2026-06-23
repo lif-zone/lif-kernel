@@ -70,10 +70,10 @@ export function server_open({cmd, search}){ return etask(function*(){
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  let wait = this.wait(1000);
+  let wait = etask.wait(1000);
   proc.stdout.on('data', data=>{
     if ((''+data).includes(search))
-      this.return();
+      wait.return();
   });
   proc.on('error', err=>this.throw(err));
   proc.on('exit', code=>this.throw(Error('server exited early: '+code)));
