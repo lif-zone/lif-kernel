@@ -30,6 +30,7 @@
     "compat/cluster.js",
     "compat/events.js",
     "compat/net.js",
+    "compat/node_env.js",
     "sha256.js",
     "sha256lif.js",
     "etask.js",
@@ -67,7 +68,8 @@
     "./util.js": "./util.js",
     "./etask": "./etask.js",
     "./server_lib.js": "./server_lib.js",
-    "./test/test_lib.js": "./test/test_lib.js"
+    "./test/test_lib.js": "./test/test_lib.js",
+    "./compat/node_env.js": "./compat/node_env.js"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
