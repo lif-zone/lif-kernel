@@ -1109,13 +1109,8 @@ let boot_app = async(boot_pkg)=>{
       ret = await run_html(mod_self, webapp);
     else if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
       ret = await import_esm(null, [webapp]);
-    else {
-      // XXX: http://loclahost/?/lif-wallet/ -> .lif/local/lif-wallet/
-      // but real full resolution is .lif/local/lif-wallet/main.tsx
-      // and its needed to detect the ext html/js/...
-      // probably a bug in call('app_pkg')
+    else
       throw Error('no app type found: '+webapp);
-    }
   } catch(err){
     console.error('boot: app('+webapp+') failed: '+err);
     throw err;
