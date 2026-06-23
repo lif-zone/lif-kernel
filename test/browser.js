@@ -10,10 +10,10 @@ import {server_open, browser_open, fetch_test, browser_test,
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 4004;
 const url_base = `http://localhost:${port}`;
+const cmd = ['server.js', '-p', ''+port];
 
 describe('browser', function(){
   let proc, browser;
-  let cmd = ['server.js', '-p', ''+port];
   before(async()=>{
     proc = await server_open({cmd, search: 'Serving'});
     browser = await browser_open();
@@ -25,7 +25,7 @@ describe('browser', function(){
   it('GET /lif-kernel/hi.js', async()=>{
     await fetch_test({url: url_base+'/lif-kernel/hi.js', search: 'hi world'});
   });
-  it('page /?/lif-kernel/basic loads successfully', async function(){
+  it('page /?/lif-kernel/basic', async function(){
     this.timeout(30000);
     await browser_test({browser, url: url_base+'/?/lif-kernel/basic/',
       search: 'Hola Life!'});

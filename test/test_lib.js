@@ -14,8 +14,8 @@ export async function browser_open(){
   let browser = await puppeteer.launch({
     executablePath: '/usr/bin/google-chrome',
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox',
-      '--user-data-dir=/tmp/puppeteer-fresh-profile'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+//      '--user-data-dir=/tmp/puppeteer-fresh-profile'],
   });
   return browser;
 }
