@@ -80,7 +80,7 @@ function sw_init_pre(){
     await sw_boot.wait_activate;
     console.log('kernel claim');
     await globalThis.clients.claim(); // move all pages immediatly to new sw
-    console.log('kernel activated', $lif.boot.lif_version);
+    console.log('kernel activated', sw_boot_version);
   })()));
   globalThis.addEventListener('message', event=>event.waitUntil((async()=>{
     if (!sw_boot.on_message){
