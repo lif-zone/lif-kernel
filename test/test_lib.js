@@ -46,6 +46,7 @@ export async function browser_test({url, search, browser}){
   });
   let res = await page.goto(url, {waitUntil: 'domcontentloaded'});
   assert.equal(res.status(), 200);
+  await page.evaluate(()=>console.log(navigator.userAgent));
   // The kernel installs a ServiceWorker then reloads — wait for that navigation
   await page.waitForNavigation({waitUntil: 'domcontentloaded', timeout: 15000})
     .catch(()=>{}); // optional: may not happen if SW already installed
