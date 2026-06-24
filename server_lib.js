@@ -105,7 +105,12 @@ const lif_kv_handler = (req, res)=>{
   });
 };
 const http_listener = (req, res)=>{
-  let url = new URL(req.url, 'http://x');
+  let url;
+  try {
+    url = new URL(req.url, 'http://x');
+  } catch(err){
+    return res_err(res, 400, 'error: '+err);
+  }
   let uri = decodeURI(url.pathname);
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
