@@ -204,8 +204,8 @@ function test(){
   t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
   t('http://a.b/c', 'blob:a/b', 'blob:a/b');
   t('http://a.b/c', 'data:a/b', 'data:a/b');
-  t('http://a.b/c', 'node:mod', '/.lif/npm_node/mod');
-  t('http://a.b/c', 'node:mod/a/b', '/.lif/npm_node/mod/a/b');
+  t('http://a.b/c', 'node:mod', '/.lif/npm/node:mod');
+  t('http://a.b/c', 'node:mod/a/b', '/.lif/npm/node:mod/a/b');
   t('http://a.b/c', 'b/file.js', '/.lif/npm/b/file.js');
   t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
   t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
