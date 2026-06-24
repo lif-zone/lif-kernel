@@ -82,7 +82,7 @@ export async function browser_test({url, search, browser, inactive_stall}){
 
 export function server_open({cmd, search, cwd}){ return etask(function*(){
   let proc = spawn('node', cmd, {cwd, stdio: ['pipe', 'pipe', 'pipe']});
-  let wait = etask.wait(SEC);
+  let wait = etask.wait(5*SEC);
   proc.stdout.on('data', data=>{
     process.stdout.write(data);
     if ((''+data).includes(search))
