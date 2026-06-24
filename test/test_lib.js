@@ -14,10 +14,11 @@ export async function browser_open(){
   });
   return browser;
 }
-export async function browser_test({url, search, browser}){
+export async function browser_test({url, search, browser, inactive_stall}){
   let page = await browser.newPage();
   let errors = [];
   let last_activity = Date.now();
+  inactive_stall ??= 10*1000;
   const bump = ()=>{ last_activity = Date.now(); };
   page.on('pageerror', err=>{
     console.error('[pageerror]', err.message);
@@ -56,8 +57,11 @@ export async function browser_test({url, search, browser}){
     }, search);
     if (found)
       break;
-    if (Date.now()-last_activity>10000)
-      throw new Error('hang: no console/network activity for 10s');
+    let inactive = Date.now()-last_activity;
+    if (inactive_stall && inactive>inactive_stall){
+      throw new Error('hang: no console/network activity for '
+        +Math.round(inactive)+'s');
+    }
   }
 }
 
