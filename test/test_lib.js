@@ -15,16 +15,16 @@ export async function browser_open(){
   });
   return browser;
 }
-function pad(num, size){ return ('000'+num).slice(-size); }
-function ts(){
+export function pad(num, size){ return ('000'+num).slice(-size); }
+export function ts(){
   let d = new Date();
   return pad(d.getUTCHours(), 2)+':'+pad(d.getUTCMinutes(), 2)
     +':'+pad(d.getUTCSeconds(), 2);
 }
-function err(msg, ...args){ console.error(ts()+' E '+msg, ...args); }
-function warn(msg, ...args){ console.warn(ts()+' W '+msg, ...args); }
-function log(msg, ...args){ console.log(ts()+'   '+msg, ...args); }
-function log_type(type, ...args){
+export function err(msg, ...args){ console.error(ts()+' E '+msg, ...args); }
+export function warn(msg, ...args){ console.warn(ts()+' W '+msg, ...args); }
+export function log(msg, ...args){ console.log(ts()+'   '+msg, ...args); }
+export function log_type(type, ...args){
   (type=='error' ? err : type=='warn' ? warn : log)(...args);
 }
 export async function browser_test({url, search, browser, inactive_stall}){
@@ -32,13 +32,17 @@ export async function browser_test({url, search, browser, inactive_stall}){
   let errors = [];
   let last_activity = Date.now();
   inactive_stall ??= 10*SEC;
-  const bump = ()=>{ last_activity = Date.now(); };
+  let bump_last = 'none';
+  function bump(reason){
+    last_activity = Date.now();
+    bump_last = reason;
+  };
   page.on('pageerror', err=>{
     console.error('[pageerror]', err.message);
     errors.push(err.message);
   });
   page.on('console', msg=>{
-    bump();
+    bump('console');
     let type = msg.type();
     log_type(type, '[con.'+type+']', msg.text());
   });
@@ -46,7 +50,7 @@ export async function browser_test({url, search, browser, inactive_stall}){
     err('[reqfail]', req.url(), req.failure()?.errorText);
   });
   page.on('response', res=>{
-    bump();
+    bump('resport');
     (res.status()>=400 ? err : log)('[res:'+res.status()+']', res.url());
   });                                                                                                                                                
   let res = await page.goto(url, {waitUntil: 'domcontentloaded'});
@@ -68,8 +72,10 @@ export async function browser_test({url, search, browser, inactive_stall}){
       break;
     let inactive = Date.now()-last_activity;
     if (inactive_stall && inactive>inactive_stall){
-      throw new Error('hang: no console/network activity for '
-        +Math.round(inactive/SEC)+'s');
+      let inactive_sec = ''+Math.round(inactive/SEC)+'s';
+      let msg = 'no con/net activity '+inactive_sec+' since '+bump_last;
+      err(msg);
+      throw new Error(msg);
     }
   }
 }
