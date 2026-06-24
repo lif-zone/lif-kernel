@@ -1190,6 +1190,10 @@ export function T_lpm_parse(lpm){
     l.ver = v.ver;
     l.lmod = l.reg+'/'+l.name+l.ver;
     break;
+  case 'npm_node':
+    l.name = next('module name');
+    l.lmod = l.reg+'/'+l.name;
+    break;
   case 'git': {
     l.host = next('host');
     l.user = next('user');
@@ -1251,6 +1255,8 @@ export function T_lpm_str(l){
   switch (l.reg){
   case 'npm':
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
+  case 'npm_node':
+    return l.reg+'/'+l.name+l.submod+l.path;
   case 'git':
     return l.reg+'/'+l.host+'/'+l.name+l.ver+l.submod+l.path;
   case 'bittorent':
@@ -1346,6 +1352,8 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
       return mod_self+u.path;
     return _lmod;
   }
+  if (v=str.starts(d, 'node:'))
+    return 'npm_node/'+v.rest+path;
   if (v=str.starts(d, 'lif:', '.lif/'))
     return v.rest+path;
   if (v=str.starts(dep, 'file:')){
@@ -1408,6 +1416,8 @@ export function _npm_parse(npm){
   }
   if (proto=='npm:')
     return {reg: 'npm', rest};
+  if (proto=='node:')
+    return {reg: 'npm_node', rest};
   if (proto=='http:' || proto=='https:'){
     // missing support for https://github.com gitlab.com bitbucket.org
     if (!(v=str.starts(rest, '//')))
@@ -1479,8 +1489,12 @@ export function lpm_to_sw_passthrough(lpm){
 export function url_uri_type(url_uri){
   if (!url_uri)
     throw Error('empty url_uri');
-  if (URL_parse(url_uri))
+  let u = URL_parse(url_uri);
+  if (u){
+    if (u.protocol=='node:')
+      return 'mod';
     return 'url';
+  }
   if (url_uri[0]=='/')
     return 'uri';
   let dir = url_uri.split('/')[0];
@@ -1510,6 +1524,8 @@ export function lpm_is_perm(u){
   case 'npm':
     // XXX need to validate ver string is final, not expr, not 'latest'
     return !!l.ver;
+  case 'npm_node':
+    return false;
   case 'git':
     // XXX need to validate ver string is final '4.2.1' not '^4.2.1',
     // not expr semver:.., not 'latest'
@@ -1572,6 +1588,8 @@ export function T_npm_url_base(url_uri, base_uri){
     u.is = is;
     if (u.protocol=='blob:')
       u.is.blob = 1;
+    else if (u.protocol=='data:')
+      u.is.data = 1;
     is.url = 1;
     return u;
   }
@@ -2035,6 +2053,21 @@ function test_util(){
   t('git:/file', {proto: 'git:', proto_name: 'git', rest: '/file'});
   t('git:file', {proto: 'git:', proto_name: 'git', rest: 'file'});
   t('git/dir:file', {rest: 'git/dir:file'});
+  t = (url_uri, v)=>assert_obj(v, url_uri_type(url_uri));
+  t('http://site.com/', 'url');
+  t('http://site.com/a/b', 'url');
+  t('https://site.com/a/b', 'url');
+  t('blob:abcd', 'url');
+  t('/dir', 'uri');
+  t('/dir/a/b', 'uri');
+  t('.', 'rel');
+  t('./dir/a/b', 'rel');
+  t('..', 'rel');
+  t('../dir/a/b', 'rel');
+  t('module', 'mod');
+  t('module/a/b', 'mod');
+  t('node:module', 'mod');
+  t('node:module/a/b', 'mod');
   t = (npm, v)=>assert_obj(v, npm_norm(npm));
   t('mod', 'mod');
   t('.lif/npm/mod', 'mod');
@@ -2124,6 +2157,8 @@ function test_util(){
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
     {pkg_name: 'self'});
+  t('node:path', 'npm_node/path');
+  t('node:path/a/b', 'npm_node/path/a/b');
   t('http://localhost:3000/lif-kernel', // XXX
     'http/localhost:3000/lif-kernel//util.js',
     {imp: 'npm/lif-kernel/util.js'});
@@ -2173,6 +2208,9 @@ function test_util(){
   t('@mod/sub/file', 'npm/@mod/sub/file');
   t('.lif/npm/mod', 'npm/mod');
   t('npm:mod', 'npm/mod');
+  t('npm:mod/a/b', 'npm/mod/a/b');
+  t('node:mod', 'npm_node/mod');
+  t('node:mod/a/b', 'npm_node/mod/a/b');
   t('.lif/npm/mod/dir/file', 'npm/mod/dir/file');
   t('.lif/git/github.com/a_user/a_repo', 'git/github.com/a_user/a_repo');
   t('git://github.com/a_user/a_repo', 'git/github.com/a_user/a_repo');
@@ -2270,6 +2308,7 @@ function test_util(){
   t('npm/mod@1.2.3/file', true);
   t('npm/mod/dir', false);
   t('npm/other@1.2.3/file', true);
+  t('npm_node/path', false);
   t('local/dir/file', false);
   t('local/dir@1.2.3/file', false); // probaby useless and invalid
   t('git/github.com/user/repo/dir', false);
