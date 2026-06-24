@@ -61,7 +61,7 @@ export async function browser_test({url, search, browser, inactive_stall}){
     let inactive = Date.now()-last_activity;
     if (inactive_stall && inactive>inactive_stall){
       throw new Error('hang: no console/network activity for '
-        +Math.round(inactive)+'s');
+        +Math.round(inactive/SEC)+'s');
     }
   }
 }
