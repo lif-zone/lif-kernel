@@ -90,6 +90,8 @@ export function server_open({cmd, search, cwd}){ return etask(function*(){
   });
   proc.stderr.on('data', data=>{
     process.stderr.write(data);
+    if ((''+data).includes(search))
+      wait.return();
   });
   proc.on('error', err=>this.throw(err));
   proc.on('exit', code=>this.throw(Error('server exited early: '+code)));
