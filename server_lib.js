@@ -20,7 +20,9 @@ import {lif_net_connect} from './net_leaf_c.js';
 const efs = fs.promises;
 
 const res_err = (res, code, msg)=>{
-  res.writeHead(code, msg, {'cache-control': 'no-cache'}).end();
+  res.writeHead(code, msg, {'cache-control': 'no-cache'})
+  .write(''+code+' '+msg)
+  .end();
 };
 let coi_enable = true;
 let g_opt = {};
