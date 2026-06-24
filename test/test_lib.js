@@ -15,6 +15,18 @@ export async function browser_open(){
   });
   return browser;
 }
+function pad(num, size){ return ('000'+num).slice(-size); }
+function ts(){
+  let d = new Date();
+  return pad(d.getUTCHours(), 2)+':'+pad(d.getUTCMinutes(), 2)
+    +':'+pad(d.getUTCSeconds(), 2);
+}
+function err(msg, ...args){ console.error(ts()+' E '+msg, ...args); }
+function warn(msg, ...args){ console.warn(ts()+' W '+msg, ...args); }
+function log(msg, ...args){ console.log(ts()+'   '+msg, ...args); }
+function log_type(type, ...args){
+  (type=='error' ? err : type=='warn' ? warn : log)(...args);
+}
 export async function browser_test({url, search, browser, inactive_stall}){
   let page = await browser.newPage();
   let errors = [];
@@ -28,19 +40,15 @@ export async function browser_test({url, search, browser, inactive_stall}){
   page.on('console', msg=>{
     bump();
     let type = msg.type();
-    if (type=='error'||type=='warning')
-      console.error('[con.'+type+']', msg.text());
-    else
-      console.log('[con.'+type+']', msg.text());
+    log_type(type, '[con.'+type+']', msg.text());
   });
   page.on('requestfailed', req=>{
-    console.error('[reqfail]', req.url(), req.failure()?.errorText);
+    err('[reqfail]', req.url(), req.failure()?.errorText);
   });
   page.on('response', res=>{
     bump();
-    if (res.status()>=400)
-      console.error('[res:'+res.status()+']', res.url());
-  });
+    (res.status()>=400 ? err : log)('[res:'+res.status()+']', res.url());
+  });                                                                                                                                                
   let res = await page.goto(url, {waitUntil: 'domcontentloaded'});
   assert.equal(res.status(), 200);
   await page.evaluate(()=>console.log(navigator.userAgent));
