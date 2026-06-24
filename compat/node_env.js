@@ -10,6 +10,7 @@ process.env.NODE_BACKEND = 'js'; // for bcrypto npm
 process.on = ()=>{}; // TODO need require('events')
 process.argv = [''+globalThis.location];
 process.exit = code=>console.warn('process.exit('+(code||0)+')');
+process.fetures = {};
 globalThis.setImmediate = setImmediate; 
 globalThis.clearImmediate = clearImmediate;
 process.versions ||= {};
