@@ -21,8 +21,7 @@ const efs = fs.promises;
 
 const res_err = (res, code, msg)=>{
   res.writeHead(code, msg, {'cache-control': 'no-cache'})
-  .write(''+code+' '+msg)
-  .end();
+  .end(''+code+' '+msg);
 };
 let coi_enable = true;
 let g_opt = {};
