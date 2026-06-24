@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
 import etask from 'lif-kernel/etask';
+const SEC = 1000;
 
 export async function browser_open(){
   let browser = await puppeteer.launch({
@@ -18,7 +19,7 @@ export async function browser_test({url, search, browser, inactive_stall}){
   let page = await browser.newPage();
   let errors = [];
   let last_activity = Date.now();
-  inactive_stall ??= 10*1000;
+  inactive_stall ??= 10*SEC;
   const bump = ()=>{ last_activity = Date.now(); };
   page.on('pageerror', err=>{
     console.error('[pageerror]', err.message);
@@ -44,7 +45,7 @@ export async function browser_test({url, search, browser, inactive_stall}){
   assert.equal(res.status(), 200);
   await page.evaluate(()=>console.log(navigator.userAgent));
   // The kernel installs a ServiceWorker then reloads — wait for that navigation
-  await page.waitForNavigation({waitUntil: 'domcontentloaded', timeout: 15000})
+  await page.waitForNavigation({waitUntil: 'domcontentloaded', timeout: 15*SEC})
     .catch(()=>{}); // optional: may not happen if SW already installed
   console.log('[domcontentloaded]');
   last_activity = Date.now(); // reset after potential 15s waitForNavigation timeout
@@ -67,7 +68,7 @@ export async function browser_test({url, search, browser, inactive_stall}){
 
 export function server_open({cmd, search, cwd}){ return etask(function*(){
   let proc = spawn('node', cmd, {cwd, stdio: ['pipe', 'pipe', 'pipe']});
-  let wait = etask.wait(1000);
+  let wait = etask.wait(SEC);
   proc.stdout.on('data', data=>{
     process.stdout.write(data);
     if ((''+data).includes(search))
