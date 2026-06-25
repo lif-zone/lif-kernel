@@ -1,7 +1,7 @@
 # Lifcoin
 
-[![BAT-lint](https://github.com/lif-zone/lif-kernel/actions/workflows/lint.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/lint.yml)
-[![BAT-test](https://github.com/lif-zone/lif-kernel/actions/workflows/test.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/test.yml)
+[![BAT:lint](https://github.com/lif-zone/lif-kernel/actions/workflows/lint.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/lint.yml)
+[![BATtest](https://github.com/lif-zone/lif-kernel/actions/workflows/test.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/test.yml)
 
 **LIF** (liff, leaf, life, chai, 18) is JS OS and Network.
 [LIF Network][lif.zone]
