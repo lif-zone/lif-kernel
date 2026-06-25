@@ -1,6 +1,5 @@
 # Lifcoin
 
-[BAT](https://github.com/lif-zone/lif-kernel/actions)
 [![lint](https://github.com/lif-zone/lif-kernel/actions/workflows/lint.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/lint.yml)
 [![test](https://github.com/lif-zone/lif-kernel/actions/workflows/test.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/test.yml)
 
