@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait, assert, qs_enc,
+  rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
 } from './util.js';
 import {WebSocket} from 'ws';
 import {once} from 'events';
@@ -164,34 +164,16 @@ async function rpc_sock_lifcoin_node({msg, sock}){
 }
 
 // TODO: add tcp host:port support for electrum tcp servers
-export async function rpc_sock_rpc_websocket_out({msg, sock}){
-  let {url} = msg.params;
+export async function rpc_sock_rpc_websocket_out({url, sock}){
+  console.log('outgoing websocket '+url);
   let c = sock;
   let s = new rpc_websocket();
-  for (let [_c, _s] of [[c, s], [s, c]]){
-    _s._method('', async(msg)=>{
-      let {id, method, params} = msg;
-      if (id==null)
-        return void _c.notify(method, params);
-      try {
-        return await _c._call(method, params);
-      } catch(err){ CEL();
-        return {error: ''+err};
-      }
-    });
-    _c.on('error', err=>{
-      console.error('lif_net error', err);
-    });
-    _c.on('close', ()=>{
-      _s.close();
-    });
-  }
+  rpc_sock_pipe(c, s);
   return await s.connect({url});
 }
 
 async function rpc_sock_lifcoin_electrum({msg, sock}){
-  let m = {url: 'ws://localhost:8432/'};
-  return await rpc_sock_rpc_websocket_out({msg: m, sock});
+  return await rpc_sock_rpc_websocket_out({url: 'ws://localhost:8432/', sock});
 }
 
 async function host_to_ip(host){

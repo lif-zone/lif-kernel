@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  ewait, is_node,
+  ewait, is_node, OE, rpc_sock_pipe,
 } from './util.js';
 import EventEmitter from './compat/events.js';
 
@@ -162,8 +162,8 @@ function url_to_ws(url){
     assert(0, 'invalid protocol '+url);
   return u.href;
 }
-let lif_rg_url = is_node ? 'http://localhost:4000/' : location.origin+'/';
-let lif_net_ws = url_to_ws(lif_rg_url)+'.lif.net';
+let trunk_url_base = is_node ? 'http://localhost:4000/' : location.origin+'/';
+let trunk_url_ws = url_to_ws(trunk_url_base)+'.lif.net';
 
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {method, headers, body})
@@ -179,152 +179,26 @@ class Lif_response {
   async arrayBuffer(){ return this._buf.buffer; }
 }
 
-let g_rpc_t = {};
-function net_rg_connect(){
-  let rpc = new rpc_websocket({D: 1});
-}
-
 export class Lif_net {
-  rpc;
-  url;
-  _wait_open;
-  error;
-  constructor(){
-    this.url = lif_net_ws;
-    this.rpc = new rpc_websocket({D: 1});
-    this.set_events();
-    this.rpc.on('close', ()=>this.is_closed = true);
-  }
-  set_events(){
-    this.rpc.method('ping', ()=>({pong: 1}));
-    this.rpc.method('version',
-      ()=>({name: 'lif-coin-wallet', version: util_version}));
-  }
-  set_error(err){
-    console.error('server version rpc', err);
-    this.error = err;
-    this.close();
-    return {error: err};
-  }
-  connect(rg_id, method, params){
-    let sock = new rpc_sock();
-    this.set_events(sock);
-    let wait = (async()=>{
-      let ret = await sock.connect(this.rpc, 'rconnect',
-        {rg_id, method, params});
-      if (ret.error){
-        console.warn('failed connect', ret);
-        return ret;
-      }
-      let ping = await sock._call('ping');
-      if (ping.error || !ping.result.pong){
-        console.warn('failed ping', ping);
-        return {error: 'no pong'};
-      }
-      return ret;
-    })();
-    return {sock, wait};
-  }
-  async _connect(){
-    if (this._wait_open)
-      return await this._wait_open;
-    this._wait_open = ewait();
-    try {
-      await this.rpc.connect({url: this.url});
-    } catch(e){
-      console.error('rpc_connect', e);
-      this.rpc.close();
-      throw e; // return
-    }
-    let ret = await this.rpc.call('version',
-      {name: 'lif_net_c', version: util_version});
-    if (ret.error)
-      return this.set_error('server version err: '+ret.error);
-    this.server_version = ret;
-    return this._wait_open.return();
-  }
-  async T_call(method, params){
-    return await this.rpc.T_call(method, params);
-  }
-  async call(method, params){
-    return await this.rpc.call(method, params);
-  }
-  close(){
-    this.error = 'close';
-    this._wait_open.throw('close');
-    this.rpc.close();
-  }
-  async topic_get(topic){
-    return await this.call('topic_get', {topic});
-  }
-  async topic_pub(topic, data){
-    return await this.call('topic_pub', {topic, data});
-  }
-  async topic_unpub(topic){
-    return await this.call('topic_unpub', {topic});
-  }
-  async rcall(rg_id, method, params){
-    return await this.call('rcall', {rg_id, method, params});
-  }
-  async rg_id(rg_id){
-    return await this.call('rg_id', {rg_id});
-  }
-  listen(method, fn){
-    rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
-      sock.method('ping', ()=>({pong: 1}));
-      return fn({msg, sock});
-    });
-  }
-}
-
-export class Lif_net2 {
+  method_fn = {};
   _rg_id;
   rpc;
   url;
   _wait_open;
   error;
-  constructor(){
-    this.url = lif_net_ws;
-    this.rpc = new rpc_websocket({D: 1});
-    this.set_events();
-    this.rpc.on('close', ()=>this.is_closed = true);
-  }
-  set_events(){
-    this.rpc.method('ping', ()=>({pong: 1}));
-    this.rpc.method('version',
-      ()=>({name: 'lif-coin-wallet', version: util_version}));
-  }
-  set_error(err){
-    console.error('server version rpc', err);
-    this.error = err;
-    this.close();
-    return {error: err};
-  }
-  connect(rg_id, method, params){
-    let sock = new rpc_sock();
-    this.set_events(sock);
-    if (rg_id==this._rg_id)
-      ; // TODO loopback
-    let wait = (async()=>{
-      let ret = await sock.connect(this.rpc, 'rconnect',
-        {rg_id, method, params});
-      if (ret.error){
-        console.warn('failed connect', ret);
-        return ret;
-      }
-      let ping = await sock._call('ping');
-      if (ping.error || !ping.result.pong){
-        console.warn('failed ping', ping);
-        return {error: 'no pong'};
-      }
-      return ret;
-    })();
-    return {sock, wait};
+  constructor({url}){
+    this.url = url;
+    this._connect();
   }
   async _connect(){
     if (this._wait_open)
       return await this._wait_open;
     this._wait_open = ewait();
+    this.rpc = new rpc_websocket({D: 1});
+    this._set_events();
+    this.rpc.on('close', ()=>this.is_closed = true);
+    for (let [method, fn] of OE(this.method_fn))
+      this.rpc._method(method, fn);
     try {
       await this.rpc.connect({url: this.url});
     } catch(e){
@@ -338,6 +212,70 @@ export class Lif_net2 {
       return this.set_error('server version err: '+ret.error);
     this.server_version = ret;
     return this._wait_open.return();
+  }
+  _set_events(sock){
+    let rpc = sock || this;
+    rpc.method('ping', ()=>({pong: 1}));
+    rpc.method('version',
+      ()=>({name: 'lif-coin-wallet', version: util_version}));
+  }
+  set_error(err){
+    console.error('server version rpc', err);
+    this.error = err;
+    this.close();
+    return {error: err};
+  }
+  async connect_loopback(sock, method, params){
+    let fn = this.method_fn[method];
+    if (!fn)
+      return {error: 'no loopback method '+method};
+    assert(0, 'rpc loopback not yet supported');
+    // XXX: need to create pipe and pipe it
+    // how do we know what kind of method is this? seq or not?
+    // is a 'msg' struct needed?
+    let msg = {method, params};
+    let s = new rpc_sock();
+    s._method(method, fn);
+    s.accept({sock, msg});
+    let ret = await fn({method, params});
+    rpc_sock_pipe(sock, s);
+    return {sock, wait: 'connected'};
+  }
+  connect(rg_id, method, params){
+    let sock = new rpc_sock();
+    this._set_events(sock);
+    let wait = (async()=>{
+      let ret;
+      if (rg_id==this._rg_id)
+        ret = await this.connect_loopback(sock, method, params);
+      else {
+        ret = await sock.connect(this.rpc, 'rconnect',
+          {rg_id, method, params});
+      }
+      if (ret.error){
+        console.warn('failed connect', ret);
+        return ret;
+      }
+      let ping = await sock._call('ping');
+      if (ping.error || !ping.result.pong){
+        console.warn('failed ping', ping);
+        return {error: 'no pong'};
+      }
+      return ret;
+    })();
+    return {sock, wait};
+  }
+  method(method, fn){
+    this._method(method, async({params})=>{
+      return await fn(params);
+    });
+  }
+  _method(method, fn){
+    if (this.rpc)
+      this.rpc._method(method, fn);
+    if (!fn)
+      return delete this.method_fn[method];
+    this.method_fn[method] = fn;
   }
   async T_call(method, params){
     return await this.rpc.T_call(method, params);
@@ -360,6 +298,12 @@ export class Lif_net2 {
     return await this.call('topic_unpub', {topic});
   }
   async rcall(rg_id, method, params){
+    if (rg_id==this._rg_id){
+      let fn = this.method_fn[method];
+      if (!fn)
+        return {error: 'no method '+method};
+      return await fn({method, params});
+    }
     return await this.call('rcall', {rg_id, method, params});
   }
   async rg_id(rg_id){
@@ -367,7 +311,7 @@ export class Lif_net2 {
   }
   listen(method, fn){
     rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
-      sock.method('ping', ()=>({pong: 1}));
+      this._set_events(sock);
       return fn({msg, sock});
     });
   }
@@ -386,13 +330,13 @@ export function lif_net_get(){
   }
   if (g_lif_net)
     return g_lif_net;
-  g_lif_net = new Lif_net();
+  g_lif_net = new Lif_net(trunk_url_ws);
   return g_lif_net;
 }
 
 export async function lif_net_connect(topic, params, opt={}){
   let net = lif_net_get();
-  await net._connect();
+  await net._connect(); // wait for network to be 'online'
   let ret = await net.topic_get(topic);
   let addr = ret?.addr;
   if (!addr)

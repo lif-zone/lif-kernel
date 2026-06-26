@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait, assert, qs_enc,
+  rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
 } from './util.js';
 import {WebSocket} from 'ws';
 import {once} from 'events';
@@ -132,27 +132,6 @@ export function websocket_pipe(c, s){
     console.error('websocket proxy error: %s', err.message);
     c.close();
   });
-}
-
-export function rpc_sock_pipe(c, s){
-  for (let [_c, _s] of [[c, s], [s, c]]){
-    _s.sock._method('', async(msg)=>{
-      let {id, method, params} = msg;
-      if (id==null)
-        return void _c.sock.notify(method, params);
-      try {
-        return await _c.sock._call(method, params);
-      } catch(err){ CEL();
-        return {error: ''+err};
-      }
-    });
-    _c.sock.on('error', err=>{
-      console.error('rpc_sock_pipe error', err);
-    });
-    _c.sock.on('close', ()=>{
-      _s.sock.close();
-    });
-  }
 }
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
