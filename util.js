@@ -683,7 +683,7 @@ export class rpc_websocket extends rpc_base {
     });
     const on_message = (data, is_bin)=>{
       let msg;
-      if (this.bin_wait != is_bin){
+      if (!!this.bin_wait != !!is_bin){
         let err = 'expected '+(this.bin_wait ? 'bin' : 'text')+' got '+
           (is_bin ? 'bin' : 'text');
         this.emit_error(err);
@@ -698,6 +698,7 @@ export class rpc_websocket extends rpc_base {
       try {
         msg = JSON.parse(data);
       } catch(e){
+        console.log(data);
         this.emit_error('invalid json');
         return console.error('invalid ipc json', data);
       }
@@ -708,7 +709,7 @@ export class rpc_websocket extends rpc_base {
       }
       this.emit_msg(msg);
     };
-    if (is_node){
+    if (this.is_node_websocket_server){
       this.ws.on('message', (data, is_bin)=>{
         on_message(is_bin ? data : data.toString('utf8'), is_bin);
       });
@@ -731,6 +732,7 @@ export class rpc_websocket extends rpc_base {
   }
   accept(opt){
     assert(is_node);
+    this.is_node_websocket_server = true;
     this.ws = opt.ws;
     this.set_events();
     this.emit_connect();

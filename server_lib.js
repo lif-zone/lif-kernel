@@ -9,7 +9,7 @@ import {ext2mime} from './mime_db.js';
 import './browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str, rpc_websocket, version as util_version,
-  rpc_sock_pipe,
+  rpc_sock_pipe, OA,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer, WebSocket} from 'ws';
@@ -213,6 +213,7 @@ async function start_leaf(){
 async function run(opt){
   let [...argv] = [...process.argv];
   let a;
+  OA(g_opt, opt);
   let map = g_opt.map = {...opt?.map||{}};
   g_opt.root = opt.root||process.cwd();
   g_opt.port = 3000;
@@ -243,12 +244,12 @@ async function run(opt){
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
-  if (!g_opt.web)
+  if (!g_opt.web && !opt.leaf && !g_opt.net_trunk){
     g_opt.web = true;
-  if (g_opt.web){
     g_opt.net_trunk  = true;
-    start_web();
   }
+  if (g_opt.web)
+    start_web();
   if (g_opt.leaf){
     g_opt.ip_s = true;
     g_opt.lifcoin_s = true;

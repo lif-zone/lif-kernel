@@ -330,7 +330,7 @@ export function lif_net_get(){
   }
   if (g_lif_net)
     return g_lif_net;
-  g_lif_net = new Lif_net(trunk_url_ws);
+  g_lif_net = new Lif_net({url: trunk_url_ws});
   return g_lif_net;
 }
 
