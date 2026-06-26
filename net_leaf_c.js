@@ -181,7 +181,7 @@ class Lif_response {
 
 export class Lif_net {
   method_fn = {};
-  _rg_id;
+  rg_id = rg_id_get();
   rpc;
   url;
   _wait_open;
@@ -202,15 +202,16 @@ export class Lif_net {
     try {
       await this.rpc.connect({url: this.url});
     } catch(e){
-      console.error('rpc_connect', e);
-      this.rpc.close();
-      throw e; // return
+      return this.set_error('rpc_connect '+e);
     }
     let ret = await this.rpc.call('version',
       {name: 'lif_net_c', version: util_version});
     if (ret.error)
       return this.set_error('server version err: '+ret.error);
     this.server_version = ret;
+    ret = await this.rpc.call('rg_id', {rg_id: this.rg_id});
+    if (ret.error)
+      return this.set_error('rg_id err: '+ret.error);
     return this._wait_open.return();
   }
   _set_events(sock){
@@ -220,7 +221,7 @@ export class Lif_net {
       ()=>({name: 'lif-coin-wallet', version: util_version}));
   }
   set_error(err){
-    console.error('server version rpc', err);
+    console.error(err);
     this.error = err;
     this.close();
     return {error: err};
@@ -246,7 +247,7 @@ export class Lif_net {
     this._set_events(sock);
     let wait = (async()=>{
       let ret;
-      if (rg_id==this._rg_id)
+      if (rg_id==this.rg_id)
         ret = await this.connect_loopback(sock, method, params);
       else {
         ret = await sock.connect(this.rpc, 'rconnect',
@@ -298,16 +299,13 @@ export class Lif_net {
     return await this.call('topic_unpub', {topic});
   }
   async rcall(rg_id, method, params){
-    if (rg_id==this._rg_id){
+    if (rg_id==this.rg_id){
       let fn = this.method_fn[method];
       if (!fn)
         return {error: 'no method '+method};
       return await fn({method, params});
     }
     return await this.call('rcall', {rg_id, method, params});
-  }
-  async rg_id(rg_id){
-    return await this.call('rg_id', {rg_id});
   }
   listen(method, fn){
     rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
@@ -319,7 +317,7 @@ export class Lif_net {
 
 let g_rg = {};
 let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export function lif_rg_id_get(){
+export function rg_id_get(){
   return g_rg_id;
 }
 let g_lif_net;

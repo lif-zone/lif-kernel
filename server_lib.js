@@ -145,13 +145,13 @@ async function ws_on_connect_electrum2(ws){
 export async function electrum_leaf_s(){
   const lifnet = lif_net_get();
   await lifnet._connect();
-  rpc_methods_lifcoin(lifnet);
-  return;
+  //rpc_methods_lifcoin(lifnet);
   lifnet.listen('lifcoin/electrum', ({msg, sock: c})=>{
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
     s.connect({url: lifcoin_node});
     rpc_sock_pipe(c, s);
   });
+  lifnet.topic_pub('lifcoin/electrum');
 }
 
 function ws_upgrade_accept(req, socket, head){
