@@ -118,18 +118,14 @@ export async function rpc_sock_rconnect({msg, sock}){
 }
 
 export function websocket_pipe(c, s){
-  c.on('message', (data, binary)=>s.send(data, {binary}));
-  s.on('message', (data, binary)=>c.send(data, {binary}));
-  c.on('close', ()=>s.close());
-  s.on('close', ()=>c.close());
-  c.on('error', err=>{
-    console.error('websocket pipe error: %s', err.message);
-    s.close();
-  });
-  s.on('error', err=>{
-    console.error('websocket pipe error: %s', err.message);
-    c.close();
-  });
+  for (let [_c, _s] of [[c, s], [s, c]]){
+    _c.on('message', (data, binary)=>_s.send(data, {binary}));
+    _c.on('close', ()=>_s.close());
+    _c.on('error', err=>{
+      console.error('websocket pipe error: %s', err.message);
+      _s.close();
+    });
+  }
 }
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
