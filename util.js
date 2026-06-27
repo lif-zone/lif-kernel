@@ -515,7 +515,7 @@ export class rpc_base extends EventEmitter {
   emit_close(){
     if (this.state=='close')
       return;
-    console.warn('rpc socket closed');
+    console.warn('rpc closed');
     this.state = 'close';
     this._wait_open.throw('close');
     for (let [id, req] of OE(this.req)){
@@ -1080,6 +1080,15 @@ export function qs_append(url, q){
 export function qs_trim(url){
   let u = url.split('?');
   return u[0];
+}
+
+export function url_http_to_ws(url){
+  let v;
+  if (v=str.starts(url, 'http:'))
+    return 'ws:'+v.rest;
+  if (v=str.starts(url, 'https:'))
+    return 'wss:'+v.rest;
+  assert(0, 'invalid protocol '+url);
 }
 
 // URL.parse() only available on Chrome>=126
@@ -2072,6 +2081,10 @@ function test_util(){
   t('/', 'http://site/dir/', 'http://site/dir');
   t('/file', 'http://site/dir/file', 'http://site/dir');
   t('/', '../', '.', '..');
+  t = (url, v)=>assert_obj(v, url_http_to_ws(url));
+  t('http://site.com', 'ws://site.com');
+  t('http://site.com:800/a/b', 'ws://site.com:800/a/b');
+  t('https://site.com:800/a/b', 'wss://site.com:800/a/b');
   t = (url, v)=>assert_obj(v, url_proto_parse(url));
   t('/file', {rest: '/file'});
   t('git:/file', {proto: 'git:', proto_name: 'git', rest: '/file'});

@@ -9,7 +9,7 @@ import {ext2mime} from './mime_db.js';
 import './browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str, rpc_websocket, version as util_version,
-  rpc_sock_pipe, OA,
+  rpc_sock_pipe, OA, url_http_to_ws,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer, WebSocket} from 'ws';
@@ -94,6 +94,7 @@ function test_server(){
 test_server();
 
 let lifcoin_node = 'http://localhost:8432';
+let lifcoin_node_ws = url_http_to_ws(lifcoin_node);
 const lif_kv_handler = (req, res)=>{
   let url = new URL(req.url, 'http://x');
   let key = url.searchParams.get('key');
@@ -146,10 +147,18 @@ export async function electrum_leaf_s(){
   const lifnet = lif_net_get();
   await lifnet._connect();
   //rpc_methods_lifcoin(lifnet);
-  lifnet.listen('lifcoin/electrum', ({msg, sock: c})=>{
+  lifnet.listen('lifcoin/electrum', async({msg, sock: c})=>{
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
-    s.connect({url: lifcoin_node});
+    let url = lifcoin_node_ws+'/electrum';
+    let wait = s.connect({url});
     rpc_sock_pipe(c, s);
+    try {
+      await wait;
+    } catch(err){
+      console.error('failed connection '+url, err);
+      return {error: err};
+    }
+    return {connected: true};
   });
   lifnet.topic_pub('lifcoin/electrum');
 }

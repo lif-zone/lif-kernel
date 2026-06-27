@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  ewait, is_node, OE, rpc_sock_pipe,
+  ewait, is_node, OE, rpc_sock_pipe, str, url_http_to_ws,
 } from './util.js';
 import EventEmitter from './compat/events.js';
 
@@ -152,19 +152,8 @@ export async function http_sock_c(rpc, {url, method='GET', headers={}, body}){
   return {...resp, body: body_buf};
 }
 
-function url_to_ws(url){
-  let u = new URL(url);
-  if (u.protocol=='http:')
-    u.protocol = 'ws:';
-  else if (u.protocol=='https:')
-    u.protocol = 'wss:';
-  else
-    assert(0, 'invalid protocol '+url);
-  return u.href;
-}
-let trunk_url_base = is_node ? 'http://localhost:4000/' : location.origin+'/';
-let trunk_url_ws = url_to_ws(trunk_url_base)+'.lif.net';
-
+let trunk_url_base = is_node ? 'http://localhost:4000' : location.origin;
+let trunk_url_ws = url_http_to_ws(trunk_url_base)+'/.lif.net';
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {method, headers, body})
 class Lif_response {
