@@ -13,8 +13,9 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer, WebSocket as ws_WebSocket} from 'ws';
-import {ws_on_connect_net, ws_on_connect_electrum,
+import {ws_on_connect_net,
   rpc_methods_net_trunk, rpc_methods_ip_out, rpc_methods_lifcoin,
+  websocket_pipe,
 } from './net_trunk.js';
 import {lif_net_get, lif_net_connect} from './net_leaf_c.js';
 const efs = fs.promises;
@@ -134,10 +135,10 @@ function ws_on_connect_lif_net(ws){
     rpc_methods_lifcoin(rpc);
 }
 
-async function ws_on_connect_electrum2(ws){
+async function rpc_websocket_pipe_lif(ws, topic){
   let c = new rpc_websocket({D: 1, jsonrpc: '2.0'});
   c.accept({ws});
-  let {rg, sock: s, error} = await lif_net_connect('lifcoin/electrum');
+  let {rg, sock: s, error} = await lif_net_connect(topic);
   if (error)
     return c.close();
   rpc_sock_pipe(c, s);
@@ -162,7 +163,7 @@ export async function electrum_leaf_s(topic, url){
   });
   lifnet.topic_pub(topic);
 }
-
+const lifcoin_electrum_ws_url = 'ws://localhost:8432/electrum';
 function ws_upgrade_accept(req, socket, head){
   const wss = new WebSocketServer({noServer: true});
   let uri = (new URL(req.url, 'http://x')).pathname;
@@ -170,9 +171,9 @@ function ws_upgrade_accept(req, socket, head){
   if (uri=='/.lif.net')
     fn = ws_on_connect_lif_net;
   else if (uri=='/.lif.net/electrum')
-    fn = ws_on_connect_electrum;
+    fn = ws=>rpc_websocket_pipe_lif(ws, 'lifcoin/electrum');
   else if (uri=='/.lif.net/electrum2')
-    fn = ws_on_connect_electrum2;
+    fn = ws=>websocket_pipe(ws, new WebSocket(lifcoin_electrum_ws_url));
   if (!fn){
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
     return socket.destroy();
