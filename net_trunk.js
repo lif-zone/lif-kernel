@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
+  rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe, websocket_fix,
 } from './util.js';
 import {WebSocket} from 'ws';
 import {once} from 'events';
@@ -118,8 +118,10 @@ export async function rpc_sock_rconnect({msg, sock}){
 }
 
 export function websocket_pipe(c, s){
+  websocket_fix(c);
+  websocket_fix(s);
   for (let [_c, _s] of [[c, s], [s, c]]){
-    _c.on('message', (data, binary)=>_s.send(data, {binary}));
+    _c.on_message(({data})=>_s._send(data));
     _c.on('close', ()=>_s.close());
     _c.on('error', err=>{
       console.error('websocket pipe error: %s', err.message);

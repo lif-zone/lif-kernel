@@ -715,12 +715,17 @@ export class rpc_websocket extends rpc_base {
       }
       this.emit_msg(msg);
     };
-    if (this.is_ws_npm){
-      this.ws.on('message', (data, is_bin)=>{
-        on_message(is_bin ? data : data.toString('utf8'), is_bin);
-      });
-    } else
-      this.ws.on('message', ({data})=>on_message(data, typeof data!='string'));
+    websocket_fix(this.ws);
+    if (1)
+      this.ws.on_message(({data})=>on_message(data, typeof data!='string'));
+    else {
+      if (this.is_ws_npm){
+        this.ws.on('message', (data, is_bin)=>{
+          on_message(is_bin ? data : data.toString('utf8'), is_bin);
+        });
+      } else
+        this.ws.on('message', ({data})=>on_message(data, typeof data!='string'));
+    }
     this.ws.on('open', ()=>this.connected = true);
     this.ws.on('error', err=>{
       let _err = this.is_ws_npm ? ''+err :
@@ -774,6 +779,38 @@ export function rpc_sock_pipe(c, s){
       _s.close();
     });
   }
+}
+
+// browser WebSocket, node:net WebSocket, npm ws
+export function websocket_fix(ws){
+  if (ws.websocket_fix)
+    return;
+  if (!is_node){ // browser
+    ws.websocket_fix = 'browser';
+    ws.on ||= ws.addEventListener;
+  } else // node
+    ws.websocket_fix = ws instanceof WebSocket ? 'node:net' : 'npm:ws';
+  if (ws.websocket_fix!='npm:ws'){
+    // browser and node:net WebSocket
+    ws.on_message = function(fn){ return this.on('message', fn); };
+    ws._send = ws.send;
+    return;
+  }
+  // npm ws WebSocket/WebSocketServer
+  ws.on_message = function(fn){
+    return this.on('message', function(data, binary){
+      let _data = data;
+      if (!binary)
+        data = data.toString('utf8');
+      return fn({data});
+    });
+  };
+  ws._send = function(data){
+    let binary = typeof data!='string';
+    if (binary)
+      data = Buffer.from(data);
+    this.send(data, {binary});
+  };
 }
 
 const utf8_enc = new TextEncoder('utf-8');
