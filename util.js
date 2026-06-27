@@ -658,11 +658,16 @@ export class rpc_websocket extends rpc_base {
   bin_wait = false;
   bin_msg;
   connected = false;
-  is_ws_server = false;
+  is_ws_npm = false;
+  ws_ctor = WebSocket;
   constructor(opt={}){
     super({...opt, is_json: true});
     if (opt.jsonrpc)
       this.jsonrpc = opt.jsonrpc;
+    if (opt.ws_ctor){
+      this.ws_ctor = opt.ws_ctor;
+      this.is_ws_npm = is_node && this.ws_ctor!=WebSocket;
+    }
   }
   send(msg, opt){
     // protect against undefined in JSON making property disappear
@@ -679,8 +684,7 @@ export class rpc_websocket extends rpc_base {
   }
   set_events(){
     this.ws.on('open', ()=>{
-      if (!this.is_ws_server)
-        assert(this.ws.readyState==WebSocket.OPEN);
+      assert(this.ws.readyState==WebSocket.OPEN);
       this.emit_connect();
     });
     const on_message = (data, is_bin)=>{
@@ -711,17 +715,15 @@ export class rpc_websocket extends rpc_base {
       }
       this.emit_msg(msg);
     };
-    if (this.is_ws_server){
+    if (this.is_ws_npm){
       this.ws.on('message', (data, is_bin)=>{
         on_message(is_bin ? data : data.toString('utf8'), is_bin);
       });
-      this.connected = true;
-    } else {
+    } else
       this.ws.on('message', ({data})=>on_message(data, typeof data!='string'));
-      this.ws.on('open', ()=>this.connected = true);
-    }
+    this.ws.on('open', ()=>this.connected = true);
     this.ws.on('error', err=>{
-      let _err = this.is_ws_server ? ''+err :
+      let _err = this.is_ws_npm ? ''+err :
         !this.connected ? 'failed ws connect '+this.url :
         'ws error '+err.message;
       this.emit_error(_err);
@@ -731,7 +733,7 @@ export class rpc_websocket extends rpc_base {
   async connect(opt){
     if (opt.url){
       this.url = opt.url;
-      this.ws = new WebSocket(this.url);
+      this.ws = new this.ws_ctor(this.url);
       this.ws.binaryType = 'arraybuffer';
       this.ws.on ||= this.ws.addEventListener;
     } else
@@ -741,7 +743,8 @@ export class rpc_websocket extends rpc_base {
   }
   accept(opt){
     assert(is_node);
-    this.is_ws_server = true;
+    this.is_ws_npm = true;
+    this.connected = true;
     this.ws = opt.ws;
     this.set_events();
     this.emit_connect();

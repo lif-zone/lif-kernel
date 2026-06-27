@@ -12,7 +12,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   rpc_sock_pipe, OA, url_http_to_ws,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
-import {WebSocketServer, WebSocket} from 'ws';
+import {WebSocketServer, WebSocket as ws_WebSocket} from 'ws';
 import {ws_on_connect_net, ws_on_connect_electrum,
   rpc_methods_net_trunk, rpc_methods_ip_out, rpc_methods_lifcoin,
 } from './net_trunk.js';
@@ -143,13 +143,12 @@ async function ws_on_connect_electrum2(ws){
   rpc_sock_pipe(c, s);
 }
 
-export async function electrum_leaf_s(){
+export async function electrum_leaf_s(topic, url){
   const lifnet = lif_net_get();
   await lifnet._connect();
   //rpc_methods_lifcoin(lifnet);
-  lifnet.listen('lifcoin/electrum', async({msg, sock: c})=>{
-    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
-    let url = lifcoin_node_ws+'/electrum';
+  lifnet.listen(topic, async({msg, sock: c})=>{
+    let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor: ws_WebSocket});
     let wait = s.connect({url});
     rpc_sock_pipe(c, s);
     try {
@@ -160,7 +159,7 @@ export async function electrum_leaf_s(){
     }
     return {connected: true};
   });
-  lifnet.topic_pub('lifcoin/electrum');
+  lifnet.topic_pub(topic);
 }
 
 function ws_upgrade_accept(req, socket, head){
@@ -216,7 +215,14 @@ async function start_web(){
 }
 
 async function start_leaf(){
-  electrum_leaf_s();
+  // ws://localhost:8432/electrum
+  electrum_leaf_s('lifcoin/electrum', lifcoin_node_ws+'/electrum');
+  // wss://electrumx.nimiq.com:443/electrumx // restricted from localhost:5000
+  // wss://bitcoinserver.nl:50004 // unrestricted
+  // wss://electrum.blockstream.info:700 // does not work
+  electrum_leaf_s('bitcoin/electrum', 'wss://bitcoinserver.nl:50004');
+  electrum_leaf_s('bitcoin_test/electrum',
+    'wss://electrum.blockstream.info:993');
 }
 
 async function run(opt){
