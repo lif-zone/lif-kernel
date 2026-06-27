@@ -118,7 +118,6 @@ export async function rpc_sock_rconnect({msg, sock}){
 }
 
 export function websocket_pipe(c, s){
-  s.on('open', ()=>{});
   c.on('message', (data, binary)=>s.send(data, {binary}));
   s.on('message', (data, binary)=>c.send(data, {binary}));
   c.on('close', ()=>s.close());
