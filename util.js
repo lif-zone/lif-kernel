@@ -441,7 +441,7 @@ export class rpc_base extends EventEmitter {
     let method_fn = this.method_fn[method] || this.method_fn[''];
     let res;
     if (this.jsonrpc)
-      res.jsonrpc = this.jsonrpc;
+      msg.jsonrpc ??= this.jsonrpc;
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
