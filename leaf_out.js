@@ -14,56 +14,6 @@ import http from 'http';
 import https from 'https';
 import {lifnet_online} from './lifnet.js';
 
-const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
-const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
-export async function ws_on_connect_electrum(ws){ // XXX unused
-  let upstream = new ws_WebSocket(lifcoin_electrum_ws_url);
-  upstream.on('open', ()=>{
-    ws.on('message', data=>upstream.send(data));
-    upstream.on('message', data=>ws.send(data));
-    ws.on('close', ()=>upstream.close());
-    upstream.on('close', ()=>ws.close());
-  });
-  upstream.on('error', err=>{
-    console.error('electrum ws proxy error: %s', err.message);
-    ws.close();
-  });
-}
-
-async function rpc_sock_lifcoin_lif_kv({msg, sock}){ // XXX unused
-  let {key} = msg;
-  let m = {url: lifcoin_lif_kv_url+qs_enc({key})};
-  return await rpc_sock_http_out({msg: m, sock});
-}
-
-async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
-  let m = {ip: '127.0.0.1', port: 8433};
-  return await rpc_sock_tcp_out({msg: m, sock});
-}
-
-// TODO: split funciton into two parts
-export async function leaf_websocket_out(topic, url){
-  const lifnet = await lifnet_online();
-  lifnet.listen(topic, async({msg, sock: c})=>{
-    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
-    if (!url){
-      url = msg.params?.url;
-      // XXX - need to validate URL/allowed ip/dns resolve
-    }
-    if (!url)
-      return sock_error_log('missing url');
-    let wait = s.connect({url});
-    rpc_sock_pipe(c, s);
-    try {
-      await wait;
-    } catch(err){
-      return sock_error_log('failed connection '+url+': '+err);
-    }
-    return {connected: true};
-  });
-  lifnet.topic_pub(topic);
-}
-
 function ip_aton(ip){
   let p = ip_to_array(ip);
   return (p[0]<<24 | p[1]<<16 | p[2]<<8 | p[3])>>>0;
@@ -336,5 +286,55 @@ async function rpc_sock_dns_out({msg, sock}){ // XXX unused
   try { addrs = await dns.lookup(host, {family, all: true}); }
   catch(err){ return {error: 'cannot resolve '+host+': '+err.message}; }
   return {addrs: addrs.map(a=>({address: a.address, family: a.family}))};
+}
+
+const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
+const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
+export async function ws_on_connect_electrum(ws){ // XXX unused
+  let upstream = new ws_WebSocket(lifcoin_electrum_ws_url);
+  upstream.on('open', ()=>{
+    ws.on('message', data=>upstream.send(data));
+    upstream.on('message', data=>ws.send(data));
+    ws.on('close', ()=>upstream.close());
+    upstream.on('close', ()=>ws.close());
+  });
+  upstream.on('error', err=>{
+    console.error('electrum ws proxy error: %s', err.message);
+    ws.close();
+  });
+}
+
+async function rpc_sock_lifcoin_lif_kv({msg, sock}){ // XXX unused
+  let {key} = msg;
+  let m = {url: lifcoin_lif_kv_url+qs_enc({key})};
+  return await rpc_sock_http_out({msg: m, sock});
+}
+
+async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
+  let m = {ip: '127.0.0.1', port: 8433};
+  return await rpc_sock_tcp_out({msg: m, sock});
+}
+
+// TODO: split funciton into two parts
+export async function leaf_websocket_out(topic, url){
+  const lifnet = await lifnet_online();
+  lifnet.listen(topic, async({msg, sock: c})=>{
+    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
+    if (!url){
+      url = msg.params?.url;
+      // XXX - need to validate URL/allowed ip/dns resolve
+    }
+    if (!url)
+      return sock_error_log('missing url');
+    let wait = s.connect({url});
+    rpc_sock_pipe(c, s);
+    try {
+      await wait;
+    } catch(err){
+      return sock_error_log('failed connection '+url+': '+err);
+    }
+    return {connected: true};
+  });
+  lifnet.topic_pub(topic);
 }
 
