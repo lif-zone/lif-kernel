@@ -772,6 +772,11 @@ export function rpc_sock_pipe(c, s){
   }
 }
 
+export function sock_error_log(error, ...args){
+  console.error(error, ...args);
+  return {error};
+}
+
 // browser WebSocket, node:net WebSocket, npm ws
 export function websocket_fix(ws){
   if (ws.websocket_fix)

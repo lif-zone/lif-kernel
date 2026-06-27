@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  ewait, is_node, OE, rpc_sock_pipe, str, url_http_to_ws,
+  ewait, is_node, OE, rpc_sock_pipe, str, url_http_to_ws, sock_error_log,
 } from './util.js';
 import EventEmitter from './compat/events.js';
 
@@ -173,10 +173,15 @@ export class Lif_net {
   rg_id = rg_id_get();
   rpc;
   url;
+  client_name;
+  client_version;
+  server_version;
   _wait_open;
   error;
-  constructor({url}){
+  constructor({url, client_name, client_version}){
     this.url = url;
+    this.client_name = client_name||'net_leaf_c';
+    this.client_version = client_version||util_version;
     this._connect();
   }
   async _connect(){
@@ -194,7 +199,7 @@ export class Lif_net {
       return this.set_error('rpc_connect '+e);
     }
     let ret = await this.rpc.call('version',
-      {name: 'lif_net_c', version: util_version});
+      {name: this.client_name, version: this.client_version});
     if (ret.error)
       return this.set_error('server version err: '+ret.error);
     this.server_version = ret;
@@ -207,7 +212,7 @@ export class Lif_net {
     let rpc = sock || this;
     rpc.method('ping', ()=>({pong: 1}));
     rpc.method('version',
-      ()=>({name: 'lif-coin-wallet', version: util_version}));
+      ()=>({name: this.client_name, version: this.client_version}));
   }
   set_error(err){
     console.error(err);
@@ -218,7 +223,7 @@ export class Lif_net {
   async connect_loopback(sock, method, params){
     let fn = this.method_fn[method];
     if (!fn)
-      return {error: 'no loopback method '+method};
+      return sock_error_log('no loopback method '+method);
     assert(0, 'rpc loopback not yet supported');
     // XXX: need to create pipe and pipe it
     // how do we know what kind of method is this? seq or not?
@@ -309,25 +314,24 @@ let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export function rg_id_get(){
   return g_rg_id;
 }
-let g_lif_net;
-export function lif_net_get(){
-  if (g_lif_net?.error){
-    g_lif_net.close();
-    g_lif_net = null;
+let g_lifnet;
+export function lifnet_get(){
+  if (g_lifnet?.error){
+    g_lifnet.close();
+    g_lifnet = null;
   }
-  if (g_lif_net)
-    return g_lif_net;
-  g_lif_net = new Lif_net({url: trunk_url_ws});
-  return g_lif_net;
+  if (g_lifnet)
+    return g_lifnet;
+  g_lifnet = new Lif_net({url: trunk_url_ws});
+  return g_lifnet;
 }
 
-export async function lif_net_connect(topic, params, opt={}){
-  let net = lif_net_get();
-  await net._connect(); // wait for network to be 'online'
-  let ret = await net.topic_get(topic);
+export async function lifnet_connect(topic, params, opt={}){
+  let lifnet = await lifnet_online();
+  let ret = await lifnet.topic_get(topic);
   let addr = ret?.addr;
   if (!addr)
-    return {error: 'lif_net error: failed get topic '+topic};
+    return {error: 'lifnet error: failed get topic '+topic};
   if (!addr.length)
     return {error: 'no '+topic+' servers online'};
   let rg, sock, _error, res;
@@ -335,7 +339,7 @@ export async function lif_net_connect(topic, params, opt={}){
     let _rg = g_rg[id] ||= {id};
     if (opt.rg_block?.(_rg))
       continue;
-    let {sock: _sock, wait} = net.connect(id, topic, opt.params);
+    let {sock: _sock, wait} = lifnet.connect(id, topic, opt.params);
     let _ret = await wait;
     if (_ret.error){
       console.log('failed connecting to '+id);
@@ -351,16 +355,22 @@ export async function lif_net_connect(topic, params, opt={}){
   return {sock, rg, ret};
 }
 
-export async function lif_net_call(topic, params){
+export async function lifnet_online(){
+  let lifnet = await lifnet_get();
+  await lifnet._connect(); // wait for network to be 'online'
+  return lifnet;
+}
+
+export async function lifnet_call(topic, params){
   // TODO: use net._call() directly, dont connect with a socket first
   // TODO: add support for connection re-use: pooling by rg_id+topic
-  let {sock, rg, ret} = await lif_net_connect(topic, params);
+  let {sock, rg, ret} = await lifnet_connect(topic, params);
   sock.close();
   return ret;
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
-  let {sock, rg} = lif_net_connect('http/out');
+  let {sock, rg} = lifnet_connect('http/out');
   let res = await http_sock_c(sock, {url, method, headers, body});
   sock.close();
   if (res.error)
@@ -462,7 +472,7 @@ export class lif_WebSocket extends browser_EventEmitter {
 // DNS lookup via lif_rg dns/out proxy
 // Returns {addrs: [{address, family}]} or {error}
 export async function lif_dns_lookup(host, {family=4}={}){
-  return await lif_net_call('dns/out', {host, family});
+  return await lifnet_call('dns/out', {host, family});
 }
 
 // JSON-RPC over WebSocket via jsonrpc/out proxy — client-side mirror of rpc_sock_jsonrpc_out

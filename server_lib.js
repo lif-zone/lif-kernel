@@ -2,8 +2,6 @@ import http from 'http';
 import https from 'https';
 import process from 'process';
 import fs from 'fs';
-import os from 'os';
-import tls from 'tls';
 import path from 'path';
 import {ext2mime} from './mime_db.js';
 import './browser_env.js';
@@ -12,17 +10,43 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   rpc_sock_pipe, OA, url_http_to_ws, websocket_pipe,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
-import {WebSocketServer, WebSocket as ws_WebSocket} from 'ws';
-import {ws_on_connect_net,
-  rpc_methods_net_trunk, rpc_methods_ip_out, rpc_methods_lifcoin,
-} from './net_trunk.js';
-import {lif_net_get, lif_net_connect} from './net_leaf_c.js';
+import {WebSocketServer} from 'ws';
+import {ws_trunk_connect, rpc_methods_net_trunk} from './net_trunk.js';
+import {lifnet_connect} from './net_leaf_c.js';
 const efs = fs.promises;
 
-const res_err = (res, code, msg)=>{
+let lifcoin_node_url = 'http://localhost:8432';
+const lifcoin_electrum_ws_url = 'ws://localhost:8432/electrum';
+const lif_kv_handler = (req, res)=>{
+  let url = new URL(req.url, 'http://x');
+  let key = url.searchParams.get('key');
+  let lif_kv_url = lifcoin_node_url+'/lif_kv'+qs_enc({key});
+  http.get(lif_kv_url, _res=>{
+    res.writeHead(_res.statusCode, _res.headers);
+    _res.pipe(res);
+  }).on('error', err=>{
+    res_err(res, 502, 'proxy error: '+err.message);
+  });
+};
+
+async function rpc_websocket_pipe_lif(ws, topic){
+  let c = new rpc_websocket({D: 1, jsonrpc: '2.0'});
+  c.accept({ws});
+  let {rg, sock: s, error} = await lifnet_connect(topic);
+  if (error)
+    return c.close();
+  rpc_sock_pipe(c, s);
+}
+
+function ws_on_trunk_connect(ws){
+  let rpc = ws_trunk_connect(ws);
+  rpc_methods_net_trunk(rpc);
+}
+
+function res_err(res, code, msg){
   res.writeHead(code, msg, {'cache-control': 'no-cache'})
   .end(''+code+' '+msg);
-};
+}
 let coi_enable = true;
 let g_opt = {};
 
@@ -93,19 +117,6 @@ function test_server(){
 }
 test_server();
 
-let lifcoin_node = 'http://localhost:8432';
-let lifcoin_node_ws = url_http_to_ws(lifcoin_node);
-const lif_kv_handler = (req, res)=>{
-  let url = new URL(req.url, 'http://x');
-  let key = url.searchParams.get('key');
-  let lif_kv_url = lifcoin_node+'/lif_kv'+qs_enc({key});
-  http.get(lif_kv_url, _res=>{
-    res.writeHead(_res.statusCode, _res.headers);
-    _res.pipe(res);
-  }).on('error', err=>{
-    res_err(res, 502, 'proxy error: '+err.message);
-  });
-};
 const http_listener = (req, res)=>{
   let url;
   try {
@@ -124,54 +135,15 @@ const http_listener = (req, res)=>{
   return res_send(res, path);
 };
 
-function ws_on_connect_lif_net(ws){
-  let rpc = ws_on_connect_net(ws);
-  if (g_opt.net_trunk)
-    rpc_methods_net_trunk(rpc);
-  if (g_opt.ip_s)
-    rpc_methods_ip_out(rpc);
-  if (g_opt.lifcoin_s)
-    rpc_methods_lifcoin(rpc);
-}
-
-async function rpc_websocket_pipe_lif(ws, topic){
-  let c = new rpc_websocket({D: 1, jsonrpc: '2.0'});
-  c.accept({ws});
-  let {rg, sock: s, error} = await lif_net_connect(topic);
-  if (error)
-    return c.close();
-  rpc_sock_pipe(c, s);
-}
-
-export async function electrum_leaf_s(topic, url){
-  const lifnet = lif_net_get();
-  await lifnet._connect();
-  //rpc_methods_lifcoin(lifnet);
-  lifnet.listen(topic, async({msg, sock: c})=>{
-    // opt = {ws_ctor: ws_WebSocket}
-    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
-    let wait = s.connect({url});
-    rpc_sock_pipe(c, s);
-    try {
-      await wait;
-    } catch(err){
-      console.error('failed connection '+url, err);
-      return {error: err};
-    }
-    return {connected: true};
-  });
-  lifnet.topic_pub(topic);
-}
-const lifcoin_electrum_ws_url = 'ws://localhost:8432/electrum';
 function ws_upgrade_accept(req, socket, head){
   const wss = new WebSocketServer({noServer: true});
   let uri = (new URL(req.url, 'http://x')).pathname;
   let fn;
-  if (uri=='/.lif.net')
-    fn = ws_on_connect_lif_net;
+  if (uri=='/.lif.net' && g_opt.net_trunk)
+    fn = ws_on_trunk_connect;
   else if (uri=='/.lif.net/electrum')
     fn = ws=>rpc_websocket_pipe_lif(ws, 'lifcoin/electrum');
-  else if (uri=='/.lif.net/electrum2')
+  else if (uri=='/.lif.net/electrum-proxy')
     fn = ws=>websocket_pipe(ws, new WebSocket(lifcoin_electrum_ws_url));
   if (!fn){
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -215,17 +187,6 @@ async function start_web(){
   await server_init({port: g_opt.port, ssl: g_opt.ssl});
 }
 
-async function start_leaf(){
-  // ws://localhost:8432/electrum
-  electrum_leaf_s('lifcoin/electrum', lifcoin_node_ws+'/electrum');
-  // wss://electrumx.nimiq.com:443/electrumx // restricted from localhost:5000
-  // wss://bitcoinserver.nl:50004 // unrestricted
-  // wss://electrum.blockstream.info:700 // does not work
-  electrum_leaf_s('bitcoin/electrum', 'wss://bitcoinserver.nl:50004');
-  electrum_leaf_s('bitcoin_test/electrum',
-    'wss://electrum.blockstream.info:993');
-}
-
 async function run(opt){
   let [...argv] = [...process.argv];
   let a;
@@ -254,23 +215,15 @@ async function run(opt){
     } else if (a=='--web'){
       argv.shift();
       g_opt.web = true;
-    } else if (a=='--leaf'){
-      g_opt.leaf = true;
     }
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
-  if (!g_opt.web && !opt.leaf && !g_opt.net_trunk){
+  if (!g_opt.web && !g_opt.net_trunk){
     g_opt.web = true;
     g_opt.net_trunk  = true;
   }
-  if (g_opt.web)
-    start_web();
-  if (g_opt.leaf){
-    g_opt.ip_s = true;
-    g_opt.lifcoin_s = true;
-    start_leaf();
-  }
+  start_web();
 }
 
 export default run;

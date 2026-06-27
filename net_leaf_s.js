@@ -3,143 +3,21 @@
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
   rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
+  websocket_fix, sock_error_log,
 } from './util.js';
-import {WebSocket} from 'ws';
+import {WebSocket as ws_WebSocket} from 'ws';
 import {once} from 'events';
 import tls from 'tls';
 import net from 'net';
 import dns from 'dns';
 import http from 'http';
 import https from 'https';
-
-const topics = {};
-const rg_conn = {};
-let g_rg_id = ''+Math.floor(Math.random()*1000000000);
-export async function ws_on_connect_net(ws, opt={full: 1}){
-  let rpc = new rpc_websocket({D: 1});
-  rpc.topics = {};
-  rpc.method('ping', ()=>({pong: 1}));
-  rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
-  if (opt.rg_net || opt.full)
-    rpc_methods_net_trunk(rpc);
-  if (opt.ip_out || opt.full)
-    rpc_methods_ip_out(rpc);
-  if (opt.lifcoin || opt.full)
-    rpc_methods_lifcoin(rpc);
-  rpc.accept({ws});
-  return await rpc.U_call('ping');
-}
-
-export function rpc_methods_net_trunk(rpc){
-  rpc.method('rg_id', ({rg_id})=>{
-    if (typeof rg_id!='string')
-      throw 'invalid id';
-    rpc.rg_id = rg_id;
-    rg_conn[rg_id] = rpc;
-    return {rg_id: g_rg_id};
-  });
-  rpc.method('topic_pub', ({topic})=>{
-    if (!rpc.rg_id)
-      throw 'no rg_id for conn';
-    if (typeof topic!='string')
-      throw 'invalid topic';
-    let t = topics[topic] ||= {};
-    t[rpc.rg_id] = rpc;
-    rpc.topics ||= {};
-    rpc.topics[topic] = true;
-    return {};
-  });
-  rpc.method('topic_unpub', ({topic})=>{
-    if (!rpc.rg_id)
-      throw 'no rg_id for conn';
-    if (typeof topic!='string')
-      throw 'invalid topic';
-    if (topics[topic]?.[rpc.rg_id])
-      delete topics[topic][rpc.rg_id];
-    delete rpc.topics[topic];
-    return {};
-  });
-  rpc.method('topic_get', ({topic})=>{
-    return {addr: Object.keys(topics[topic]||{})};
-  });
-  rpc.method('rcall', async({rg_id, method, params})=>{
-    if (typeof rg_id!='string')
-      throw 'invalid id';
-    let rg;
-    if (!(rg=rg_conn[rg_id]))
-      throw 'no connection to rg';
-    let ret = await rg._call(method, params);
-    return ret;
-  });
-  rpc_sock.listen(rpc, 'rconnect', rpc_sock_rconnect);
-  rpc.on('close', ()=>{
-    if (!rpc.rg_id)
-      return;
-    delete rg_conn[rpc.rg_id];
-    for (let t in topics)
-      delete topics[t][rpc.rg_id];
-  });
-}
-
-export function rpc_methods_ip_out(rpc){
-  rpc_sock.listen(rpc, 'tcp/out', rpc_sock_tcp_out);
-  rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
-  rpc_sock.listen(rpc, 'websocket/out', rpc_sock_websocket_out);
-  rpc_sock.listen(rpc, 'rpc/websocket/out', rpc_sock_rpc_websocket_out);
-  rpc_sock.listen(rpc, 'dns/out', rpc_sock_dns_out);
-}
-
-export function rpc_methods_lifcoin(rpc){
-  rpc_sock.listen(rpc, 'lifcoin/lif_kv', rpc_sock_lifcoin_lif_kv);
-  rpc_sock.listen(rpc, 'lifcoin/node', rpc_sock_lifcoin_node);
-  rpc_sock.listen(rpc, 'lifcoin/electrum', rpc_sock_lifcoin_electrum);
-}
-
-let g_br_id = 0;
-const br_t = {};
-export async function rpc_sock_rconnect({msg, sock}){
-  let {method, params, rg_id} = msg.params;
-  let {rpc} = sock;
-  let rg;
-  if (typeof rg_id!='string')
-    throw 'invalid id';
-  if (!(rg=rg_conn[rg_id]))
-    throw 'no connection to rg';
-  if (rg_id==rpc.rg_id)
-    throw 'loopback not supported'; // XXX add loopback sock
-  if (rg_id==g_rg_id)
-    throw 'localhost not yet supported'; // XXX add localhost sock
-  let c = {rpc, sock};
-  let s = {rpc: rg, sock: new rpc_sock()};
-  let br_id = g_br_id++;
-  let br = {br_id, time: date_time(), c, s};
-  br_t[br_id] = br;
-  for (let [_c, _s] of [[c, s], [s, c]]){
-    _s.sock._method('', async(msg)=>{
-      let {id, method, params} = msg;
-      if (id==null)
-        return void _c.sock.notify(method, params);
-      try {
-        return await _c.sock._call(method, params);
-      } catch(err){ CEL();
-        return {error: ''+err};
-      }
-    });
-    _c.sock.on('error', err=>{
-      console.error('lif_net error', err);
-    });
-    _c.sock.on('close', ()=>{
-      _s.sock.close();
-      delete br_t[br_id];
-    });
-  }
-  return await s.sock.connect(s.rpc, method, params);
-}
+import {lifnet_online} from './net_leaf_c.js';
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
 const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
-export async function ws_on_connect_electrum(ws){
-  let upstream = new WebSocket(lifcoin_electrum_ws_url);
+export async function ws_on_connect_electrum(ws){ // XXX unused
+  let upstream = new ws_WebSocket(lifcoin_electrum_ws_url);
   upstream.on('open', ()=>{
     ws.on('message', data=>upstream.send(data));
     upstream.on('message', data=>ws.send(data));
@@ -152,48 +30,56 @@ export async function ws_on_connect_electrum(ws){
   });
 }
 
-async function rpc_sock_lifcoin_lif_kv({msg, sock}){
+async function rpc_sock_lifcoin_lif_kv({msg, sock}){ // XXX unused
   let {key} = msg;
   let m = {url: lifcoin_lif_kv_url+qs_enc({key})};
   return await rpc_sock_http_out({msg: m, sock});
 }
 
-async function rpc_sock_lifcoin_node({msg, sock}){
+async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
   let m = {ip: '127.0.0.1', port: 8433};
   return await rpc_sock_tcp_out({msg: m, sock});
 }
 
-// TODO: add tcp host:port support for electrum tcp servers
-export async function rpc_sock_rpc_websocket_out({url, sock}){
-  console.log('outgoing websocket '+url);
-  let c = sock;
-  let s = new rpc_websocket();
-  rpc_sock_pipe(c, s);
-  return await s.connect({url});
-}
-
-async function rpc_sock_lifcoin_electrum({msg, sock}){
-  return await rpc_sock_rpc_websocket_out({url: 'ws://localhost:8432/', sock});
-}
-
-async function host_to_ip(host){
-  let ip = host;
-  if (!ip_aton(host)){
-    let addrs;
-    try {
-      addrs = await dns.lookup(host, {family: 4, all: true});
-    } catch(err){
-      return {error: 'cannot resolve '+host+': '+err};
+// TODO: split funciton into two parts
+export async function leaf_websocket_out(topic, url){
+  const lifnet = await lifnet_online();
+  lifnet.listen(topic, async({msg, sock: c})=>{
+    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
+    if (!url){
+      url = msg.params?.url;
+      // XXX - need to validate URL/allowed ip/dns resolve
     }
-    ip = addrs[0]?.address;
-  }
-  if (!ip)
-    return {error: 'cannot resolve dns '+host};
-  if (is_ip_no_route(ip)){
-    console.warn('blocked req to non-routable: '+host+' '+ip);
-    return {error: 'ip non routable: '+host+' '+ip};
-  }
-  return ip;
+    if (!url)
+      return sock_error_log('missing url');
+    let wait = s.connect({url});
+    rpc_sock_pipe(c, s);
+    try {
+      await wait;
+    } catch(err){
+      return sock_error_log('failed connection '+url+': '+err);
+    }
+    return {connected: true};
+  });
+  lifnet.topic_pub(topic);
+}
+
+function ip_aton(ip){
+  let p = ip_to_array(ip);
+  return (p[0]<<24 | p[1]<<16 | p[2]<<8 | p[3])>>>0;
+}
+
+function ip_ntoa(n){
+  if (n<0 || n>0xffffffff)
+    return;
+  return ''+(n>>>24 & 0xff)+'.'+(n>>>16 & 0xff)+'.'+(n>>8 & 0xff)
+    +'.'+(n & 0xff);
+}
+
+function ip_range_ntoa(ip_range){
+  if (ip_range.mask==0xffffffff)
+    return ip_ntoa(ip_range.ip);
+  return ip_ntoa(ip_range.ip)+'/'+ip_ntoa(ip_range.mask);
 }
 
 // from npm:binet/lib/ip.js
@@ -242,11 +128,6 @@ function ip_to_array(ip){
   return _p;
 }
 
-function ip_aton(ip){
-  let p = ip_to_array(ip);
-  return p[0]<<24 | p[1]<<16 | p[2]<<8 | p[3];
-}
-
 function ip_range_aton(ip_range){
   let p = ip_range.split('/');
   if (p.length>2)
@@ -271,21 +152,47 @@ function ip_range_aton(ip_range){
   }
   return {ip, mask};
 }
-function ip_range_ntoa(ip_range){
-  if (ip_range.mask==0xffffffff)
-    return ip_ntoa(ip_range.ip);
-  return ip_ntoa(ip_range.ip)+'/'+ip_ntoa(ip_range.mask);
-}
 
-function ip_ntoa(n){
-  if (n<0 || n>0xffffffff)
-    return;
-  return ''+(n>>>24 & 0xff)+'.'+(n>>>16 & 0xff)+'.'+(n>>8 & 0xff)
-    +'.'+(n & 0xff);
+function test(){
+  let t = (n, a)=>{
+    assert_eq(ip_ntoa(n), a);
+    assert_eq(ip_aton(a), n);
+  };
+  t(0xff0102fe, '255.1.2.254');
+  t(0x00ff0201, '0.255.2.1');
+  t = (a, range)=>assert_eq(ip_range_ntoa(ip_range_aton(a)), range || a);
+  t('255.255.255.255');
+  t('192.168.4.1');
+  t('192.168.4.1/32', '192.168.4.1');
+  t('0.0.0.0');
+  t('10.0.0.0/8', '10.0.0.0/255.0.0.0');
+  t('192.168.0.0/16', '192.168.0.0/255.255.0.0');
+  t('172.16.0.0/255.240.0.0');
+}
+test();
+
+async function host_to_ip(host){
+  let ip = host;
+  if (!ip_aton(host)){
+    let addrs;
+    try {
+      addrs = await dns.lookup(host, {family: 4, all: true});
+    } catch(err){
+      return {error: 'cannot resolve '+host+': '+err};
+    }
+    ip = addrs[0]?.address;
+  }
+  if (!ip)
+    return {error: 'cannot resolve dns '+host};
+  if (is_ip_no_route(ip)){
+    console.warn('blocked req to non-routable: '+host+' '+ip);
+    return {error: 'ip non routable: '+host+' '+ip};
+  }
+  return ip;
 }
 
 // TCP Client Proxy
-export async function rpc_sock_tcp_out({msg, sock}){
+export async function rpc_sock_tcp_out({msg, sock}){ // XXX unused
   let {host, port, tls: is_tls} = msg.params;
   assert((port&0xffff)==port, 'invalid port');
   assert(host && typeof host=='string', 'invalid host');
@@ -335,7 +242,7 @@ export async function rpc_sock_tcp_out({msg, sock}){
 }
 
 // HTTP/HTTPS Client Proxy for lif_fetch()
-async function rpc_sock_http_out({msg, sock}){
+async function rpc_sock_http_out({msg, sock}){ // XXX unused
   let {url, method='GET', headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -379,7 +286,7 @@ async function rpc_sock_http_out({msg, sock}){
 }
 
 // WebSocket Client Proxy for lif_WebSocket()
-async function rpc_sock_websocket_out({msg, sock}){
+async function rpc_sock_websocket_out({msg, sock}){ // XXX unused
   let {url, protocols, headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -393,10 +300,12 @@ async function rpc_sock_websocket_out({msg, sock}){
   let ws_opts = {headers: {host, ...headers}};
   if (u.protocol=='wss:')
     ws_opts.servername = host;
-  let ws = new WebSocket(u.href, protocols, ws_opts);
+  let ws = new ws_WebSocket(u.href, protocols, ws_opts);
   try { await once(ws, 'open'); }
   catch(err){ return {error: 'ws connect failed: '+err.message}; }
-  ws.on('message', (data, is_bin)=>{
+  websocket_fix(ws);
+  ws.on_message(({data})=>{
+    let is_bin = typeof data!='string';
     if (is_bin)
       sock.notify('message', {data: Buffer.from(data).toString('hex'), binary: true});
     else
@@ -420,7 +329,7 @@ async function rpc_sock_websocket_out({msg, sock}){
 }
 
 // DNS Resolution Service
-async function rpc_sock_dns_out({msg, sock}){
+async function rpc_sock_dns_out({msg, sock}){ // XXX unused
   let {host, family=4} = msg.params;
   assert(host && typeof host=='string', 'invalid host');
   let addrs;
@@ -429,20 +338,3 @@ async function rpc_sock_dns_out({msg, sock}){
   return {addrs: addrs.map(a=>({address: a.address, family: a.family}))};
 }
 
-function test(){
-  let t = (n, a)=>{
-    assert_eq(ip_ntoa(n), a);
-    assert_eq(ip_aton(a), n);
-  };
-  t(0xff0102fe, '255.1.2.254');
-  t(0x00ff0201, '0.255.2.1');
-  t = (a, range)=>assert_eq(ip_range_ntoa(ip_range_aton(a)), range || a);
-  t('255.255.255.255');
-  t('192.168.4.1');
-  t('192.168.4.1/32', '192.168.4.1');
-  t('0.0.0.0');
-  t('10.0.0.0/8', '10.0.0.0/255.0.0.0');
-  t('192.168.0.0/16', '192.168.0.0');
-  t('172.16.0.0/255.240.0.0');
-}
-test();
