@@ -687,9 +687,9 @@ export class rpc_websocket extends rpc_base {
       assert(this.ws.readyState==WebSocket.OPEN);
       this.emit_connect();
     });
-    const on_message = (data, is_bin)=>{
-      let msg;
-      if (this.bin_wait != !!is_bin){
+    const on_message = ({data})=>{
+      let msg, is_bin = typeof data!='string';
+      if (this.bin_wait != is_bin){
         let err = 'expected '+(this.bin_wait ? 'bin' : 'text')+' got '+
           (is_bin ? 'bin' : 'text');
         this.emit_error(err);
@@ -716,16 +716,7 @@ export class rpc_websocket extends rpc_base {
       this.emit_msg(msg);
     };
     websocket_fix(this.ws);
-    if (1)
-      this.ws.on_message(({data})=>on_message(data, typeof data!='string'));
-    else {
-      if (this.is_ws_npm){
-        this.ws.on('message', (data, is_bin)=>{
-          on_message(is_bin ? data : data.toString('utf8'), is_bin);
-        });
-      } else
-        this.ws.on('message', ({data})=>on_message(data, typeof data!='string'));
-    }
+    this.ws.on_message(on_message);
     this.ws.on('open', ()=>this.connected = true);
     this.ws.on('error', err=>{
       let _err = this.is_ws_npm ? ''+err :
@@ -785,15 +776,13 @@ export function rpc_sock_pipe(c, s){
 export function websocket_fix(ws){
   if (ws.websocket_fix)
     return;
-  if (!is_node){ // browser
-    ws.websocket_fix = 'browser';
-    ws.on ||= ws.addEventListener;
-  } else // node
-    ws.websocket_fix = ws instanceof WebSocket ? 'node:net' : 'npm:ws';
+  ws.websocket_fix = !is_node ? 'browser' :
+    ws instanceof WebSocket ? 'node:net' : 'npm:ws';
+  if (!ws.on)
+    ws.on = ws.addEventListener;
   if (ws.websocket_fix!='npm:ws'){
     // browser and node:net WebSocket
     ws.on_message = function(fn){ return this.on('message', fn); };
-    ws._send = ws.send;
     return;
   }
   // npm ws WebSocket/WebSocketServer
@@ -804,12 +793,6 @@ export function websocket_fix(ws){
         data = data.toString('utf8');
       return fn({data});
     });
-  };
-  ws._send = function(data){
-    let binary = typeof data!='string';
-    if (binary)
-      data = Buffer.from(data);
-    this.send(data, {binary});
   };
 }
 

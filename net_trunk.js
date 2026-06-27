@@ -121,7 +121,7 @@ export function websocket_pipe(c, s){
   websocket_fix(c);
   websocket_fix(s);
   for (let [_c, _s] of [[c, s], [s, c]]){
-    _c.on_message(({data})=>_s._send(data));
+    _c.on_message(({data})=>_s.send(data));
     _c.on('close', ()=>_s.close());
     _c.on('error', err=>{
       console.error('websocket pipe error: %s', err.message);
@@ -394,7 +394,9 @@ async function rpc_sock_websocket_out({msg, sock}){
   let ws = new WebSocket(u.href, protocols, ws_opts);
   try { await once(ws, 'open'); }
   catch(err){ return {error: 'ws connect failed: '+err.message}; }
-  ws.on('message', (data, is_bin)=>{
+  websocket_fix(ws);
+  ws.on_message(({data})=>{
+    let is_bin = typeof data!='string';
     if (is_bin)
       sock.notify('message', {data: Buffer.from(data).toString('hex'), binary: true});
     else
