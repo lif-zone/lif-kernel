@@ -9,13 +9,12 @@ import {ext2mime} from './mime_db.js';
 import './browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str, rpc_websocket, version as util_version,
-  rpc_sock_pipe, OA, url_http_to_ws,
+  rpc_sock_pipe, OA, url_http_to_ws, websocket_pipe,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer, WebSocket as ws_WebSocket} from 'ws';
 import {ws_on_connect_net,
   rpc_methods_net_trunk, rpc_methods_ip_out, rpc_methods_lifcoin,
-  websocket_pipe,
 } from './net_trunk.js';
 import {lif_net_get, lif_net_connect} from './net_leaf_c.js';
 const efs = fs.promises;

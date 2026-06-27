@@ -796,6 +796,19 @@ export function websocket_fix(ws){
   };
 }
 
+export function websocket_pipe(c, s){
+  websocket_fix(c);
+  websocket_fix(s);
+  for (let [_c, _s] of [[c, s], [s, c]]){
+    _c.on_message(({data})=>_s.send(data));
+    _c.on('close', ()=>_s.close());
+    _c.on('error', err=>{
+      console.error('websocket pipe error: %s', err.message);
+      _s.close();
+    });
+  }
+}
+
 const utf8_enc = new TextEncoder('utf-8');
 export function str_to_buf(buf){
   if (buf instanceof ArrayBuffer)
