@@ -5,7 +5,7 @@ import path from 'path';
 import './browser_env.js';
 import {url_http_to_ws} from './util.js';
 import {lifnet_connect} from './lifnet_api.js';
-import {leaf_websocket_out} from './net_leaf_s.js';
+import {leaf_websocket_out} from './leaf_out.js';
 
 function node_is_main(mod_self){
   return path.resolve(process.argv[1])==fileURLToPath(mod_self);

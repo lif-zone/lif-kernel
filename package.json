@@ -53,7 +53,7 @@
     "hi.js",
     "browser_env.js",
     "lifnet_api.js",
-    "net_leaf_s.js",
+    "leaf_out.js",
     "trunk.js",
     "lif-kernel.service",
     "test/test_lib.js"
