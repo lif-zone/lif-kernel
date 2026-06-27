@@ -52,7 +52,7 @@
     "hi.html",
     "hi.js",
     "browser_env.js",
-    "net_leaf_c.js",
+    "lifnet_api.js",
     "net_leaf_s.js",
     "net_trunk.js",
     "lif-kernel.service",

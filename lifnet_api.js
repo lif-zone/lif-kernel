@@ -180,7 +180,7 @@ export class Lif_net {
   error;
   constructor({url, client_name, client_version}){
     this.url = url;
-    this.client_name = client_name||'net_leaf_c';
+    this.client_name = client_name||'lifnet-leaf';
     this.client_version = client_version||util_version;
     this._connect();
   }

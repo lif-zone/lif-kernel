@@ -12,7 +12,7 @@ import net from 'net';
 import dns from 'dns';
 import http from 'http';
 import https from 'https';
-import {lifnet_online} from './net_leaf_c.js';
+import {lifnet_online} from './lifnet_api.js';
 
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
 const lifcoin_electrum_ws_url = 'ws://localhost:8432/';

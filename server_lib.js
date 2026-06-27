@@ -12,7 +12,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
 import {ws_trunk_connect, rpc_methods_net_trunk} from './net_trunk.js';
-import {lifnet_connect} from './net_leaf_c.js';
+import {lifnet_connect} from './lifnet_api.js';
 const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';
