@@ -505,7 +505,7 @@ export class rpc_base extends EventEmitter {
   emit_error(err){
     if (str.is(this.state, 'error', 'close'))
       return;
-    console.error('rpc socket error');
+    console.error('rpc error: '+err);
     this.state = 'error';
     this.error = err || 'rpc error';
     this._wait_open.throw('error');
@@ -657,6 +657,8 @@ export class rpc_websocket extends rpc_base {
   ws;
   bin_wait = false;
   bin_msg;
+  connected = false;
+  is_ws_server = false;
   constructor(opt={}){
     super({...opt, is_json: true});
     if (opt.jsonrpc)
@@ -677,13 +679,13 @@ export class rpc_websocket extends rpc_base {
   }
   set_events(){
     this.ws.on('open', ()=>{
-      if (!is_node)
+      if (!this.is_ws_server)
         assert(this.ws.readyState==WebSocket.OPEN);
       this.emit_connect();
     });
     const on_message = (data, is_bin)=>{
       let msg;
-      if (!!this.bin_wait != !!is_bin){
+      if (this.bin_wait != !!is_bin){
         let err = 'expected '+(this.bin_wait ? 'bin' : 'text')+' got '+
           (is_bin ? 'bin' : 'text');
         this.emit_error(err);
@@ -709,21 +711,28 @@ export class rpc_websocket extends rpc_base {
       }
       this.emit_msg(msg);
     };
-    if (this.is_node_websocket_server){
+    if (this.is_ws_server){
       this.ws.on('message', (data, is_bin)=>{
         on_message(is_bin ? data : data.toString('utf8'), is_bin);
       });
-    } else
+      this.connected = true;
+    } else {
       this.ws.on('message', ({data})=>on_message(data, typeof data!='string'));
-    this.ws.on('error', err=>this.emit_error(err));
+      this.ws.on('open', ()=>this.connected = true);
+    }
+    this.ws.on('error', err=>{
+      let _err = this.is_ws_server ? ''+err :
+        !this.connected ? 'failed ws connect '+this.url :
+        'ws error '+err.message;
+      this.emit_error(_err);
+    });
     this.ws.on('close', ()=>this.emit_close());
   }
   async connect(opt){
     if (opt.url){
       this.url = opt.url;
       this.ws = new WebSocket(this.url);
-      if (!is_node)
-        this.ws.binaryType = 'arraybuffer';
+      this.ws.binaryType = 'arraybuffer';
       this.ws.on ||= this.ws.addEventListener;
     } else
       throw Error('missing connect opt');
@@ -732,7 +741,7 @@ export class rpc_websocket extends rpc_base {
   }
   accept(opt){
     assert(is_node);
-    this.is_node_websocket_server = true;
+    this.is_ws_server = true;
     this.ws = opt.ws;
     this.set_events();
     this.emit_connect();
@@ -745,21 +754,21 @@ export class rpc_websocket extends rpc_base {
 
 export function rpc_sock_pipe(c, s){
   for (let [_c, _s] of [[c, s], [s, c]]){
-    _s.sock._method('', async(msg)=>{
+    _s._method('', async(msg)=>{
       let {id, method, params} = msg;
       if (id==null)
-        return void _c.sock.notify(method, params);
+        return void _c.notify(method, params);
       try {
-        return await _c.sock._call(method, params);
+        return await _c._call(method, params);
       } catch(err){ CEL();
         return {error: ''+err};
       }
     });
-    _c.sock.on('error', err=>{
+    _c.on('error', err=>{
       console.error('rpc_sock_pipe error', err);
     });
-    _c.sock.on('close', ()=>{
-      _s.sock.close();
+    _c.on('close', ()=>{
+      _s.close();
     });
   }
 }

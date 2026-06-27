@@ -112,7 +112,7 @@ export async function rpc_sock_rconnect({msg, sock}){
   let br_id = g_br_id++;
   let br = {br_id, time: date_time(), c, s};
   br_t[br_id] = br;
-  rpc_sock_pipe(c, s);
+  rpc_sock_pipe(c.sock, s.sock);
   c.sock.on('close', ()=>delete br_t[br_id]);
   return await s.sock.connect(s.rpc, method, params);
 }
