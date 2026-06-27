@@ -118,18 +118,17 @@ export async function rpc_sock_rconnect({msg, sock}){
 }
 
 export function websocket_pipe(c, s){
-  s.on('open', ()=>{
-    c.on('message', data=>s.send(data));
-    s.on('message', data=>c.send(data));
-    c.on('close', ()=>s.close());
-    s.on('close', ()=>c.close());
-  });
+  s.on('open', ()=>{});
+  c.on('message', (data, binary)=>s.send(data, {binary}));
+  s.on('message', (data, binary)=>c.send(data, {binary}));
+  c.on('close', ()=>s.close());
+  s.on('close', ()=>c.close());
   c.on('error', err=>{
-    console.error('websocket proxy error: %s', err.message);
+    console.error('websocket pipe error: %s', err.message);
     s.close();
   });
   s.on('error', err=>{
-    console.error('websocket proxy error: %s', err.message);
+    console.error('websocket pipe error: %s', err.message);
     c.close();
   });
 }
