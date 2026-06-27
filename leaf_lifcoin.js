@@ -4,7 +4,7 @@ import {fileURLToPath} from 'url';
 import path from 'path';
 import './browser_env.js';
 import {url_http_to_ws} from './util.js';
-import {lifnet_connect} from './lifnet_api.js';
+import {lifnet_connect} from './lifnet.js';
 import {leaf_websocket_out} from './leaf_out.js';
 
 function node_is_main(mod_self){

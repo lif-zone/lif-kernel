@@ -52,7 +52,7 @@
     "hi.html",
     "hi.js",
     "browser_env.js",
-    "lifnet_api.js",
+    "lifnet.js",
     "leaf_out.js",
     "trunk.js",
     "lif-kernel.service",
@@ -68,6 +68,7 @@
     "./util.js": "./util.js",
     "./etask": "./etask.js",
     "./server_lib.js": "./server_lib.js",
+    "./lifnet": "./lifnet.js",
     "./test/test_lib.js": "./test/test_lib.js",
     "./compat/node_env.js": "./compat/node_env.js"
   },
