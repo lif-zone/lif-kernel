@@ -148,7 +148,8 @@ export async function electrum_leaf_s(topic, url){
   await lifnet._connect();
   //rpc_methods_lifcoin(lifnet);
   lifnet.listen(topic, async({msg, sock: c})=>{
-    let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor: ws_WebSocket});
+    // opt = {ws_ctor: ws_WebSocket}
+    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
     let wait = s.connect({url});
     rpc_sock_pipe(c, s);
     try {
