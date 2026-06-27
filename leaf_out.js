@@ -12,7 +12,7 @@ import net from 'net';
 import dns from 'dns';
 import http from 'http';
 import https from 'https';
-import {lifnet_online} from './lifnet.js';
+import {lifnet_online, lifnet_listen} from './lifnet.js';
 
 function ip_aton(ip){
   let p = ip_to_array(ip);
@@ -315,10 +315,8 @@ async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
   return await rpc_sock_tcp_out({msg: m, sock});
 }
 
-// TODO: split funciton into two parts
-export async function leaf_websocket_out(topic, url){
-  const lifnet = await lifnet_online();
-  lifnet.listen(topic, async({msg, sock: c})=>{
+export async function leaf_rpc_websocket_out(topic, url){
+  await lifnet_listen(topic, async({msg, sock: c})=>{
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
     if (!url){
       url = msg.params?.url;
@@ -335,6 +333,5 @@ export async function leaf_websocket_out(topic, url){
     }
     return {connected: true};
   });
-  lifnet.topic_pub(topic);
 }
 

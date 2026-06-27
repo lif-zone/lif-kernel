@@ -326,6 +326,12 @@ export function lifnet_get(){
   return g_lifnet;
 }
 
+export async function lifnet_online(){
+  let lifnet = await lifnet_get();
+  await lifnet._connect(); // wait for network to be 'online'
+  return lifnet;
+}
+
 export async function lifnet_connect(topic, params, opt={}){
   let lifnet = await lifnet_online();
   let ret = await lifnet.topic_get(topic);
@@ -355,10 +361,10 @@ export async function lifnet_connect(topic, params, opt={}){
   return {sock, rg, ret};
 }
 
-export async function lifnet_online(){
-  let lifnet = await lifnet_get();
-  await lifnet._connect(); // wait for network to be 'online'
-  return lifnet;
+export async function lifnet_listen(topic, fn){
+  const lifnet = await lifnet_online();
+  lifnet.listen(topic, fn);
+  lifnet.topic_pub(topic);
 }
 
 export async function lifnet_call(topic, params){
