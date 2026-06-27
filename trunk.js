@@ -46,7 +46,7 @@ export async function rpc_sock_rconnect({msg, sock}){
   return await s.sock.connect(s.rpc, method, params);
 }
 
-export function rpc_methods_net_trunk(rpc){
+export function rpc_methods_lifnet_trunk(rpc){
   rpc.method('rg_id', ({rg_id})=>{
     if (typeof rg_id!='string')
       throw 'invalid id';

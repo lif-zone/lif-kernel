@@ -11,7 +11,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_connect, rpc_methods_net_trunk} from './net_trunk.js';
+import {ws_trunk_connect, rpc_methods_lifnet_trunk} from './trunk.js';
 import {lifnet_connect} from './lifnet_api.js';
 const efs = fs.promises;
 
@@ -40,7 +40,7 @@ async function rpc_websocket_pipe_lif(ws, topic){
 
 function ws_on_trunk_connect(ws){
   let rpc = ws_trunk_connect(ws);
-  rpc_methods_net_trunk(rpc);
+  rpc_methods_lifnet_trunk(rpc);
 }
 
 function res_err(res, code, msg){
@@ -139,7 +139,7 @@ function ws_upgrade_accept(req, socket, head){
   const wss = new WebSocketServer({noServer: true});
   let uri = (new URL(req.url, 'http://x')).pathname;
   let fn;
-  if (uri=='/.lif.net' && g_opt.net_trunk)
+  if (uri=='/.lif.net' && g_opt.lifnet_trunk)
     fn = ws_on_trunk_connect;
   else if (uri=='/.lif.net/electrum')
     fn = ws=>rpc_websocket_pipe_lif(ws, 'lifcoin/electrum');
@@ -219,9 +219,9 @@ async function run(opt){
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
-  if (!g_opt.web && !g_opt.net_trunk){
+  if (!g_opt.web && !g_opt.lifnet_trunk){
     g_opt.web = true;
-    g_opt.net_trunk  = true;
+    g_opt.lifnet_trunk  = true;
   }
   start_web();
 }

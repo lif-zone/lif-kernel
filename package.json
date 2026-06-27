@@ -54,7 +54,7 @@
     "browser_env.js",
     "lifnet_api.js",
     "net_leaf_s.js",
-    "net_trunk.js",
+    "trunk.js",
     "lif-kernel.service",
     "test/test_lib.js"
   ],
