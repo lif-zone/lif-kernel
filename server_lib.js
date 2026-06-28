@@ -12,12 +12,12 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
 import {ws_trunk_connect, rpc_methods_lifnet_trunk} from './trunk.js';
-import {lifnet_connect} from './lifnet.js';
+import {lifnet_connect, lifnet_call} from './lifnet.js';
 const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';
 const lifcoin_electrum_ws_url = 'ws://localhost:8432/electrum';
-const lif_kv_handler = (req, res)=>{
+function http_pipe_lif_kv(req, res){ // XXX obsolete
   let url = new URL(req.url, 'http://x');
   let key = url.searchParams.get('key');
   let lif_kv_url = lifcoin_node_url+'/lif_kv'+qs_enc({key});
@@ -27,12 +27,22 @@ const lif_kv_handler = (req, res)=>{
   }).on('error', err=>{
     res_err(res, 502, 'proxy error: '+err.message);
   });
-};
+}
+
+async function lifnet_lif_kv_handler(req, res){
+  let url = new URL(req.url, 'http://x');
+  let key = url.searchParams.get('key');
+  let {ret, error} = await lifnet_call('lifcoin/lif_kv', {key});
+  if (error)
+    return res_err(res, 500, 'proxy error: '+error);
+  let {result} = ret;
+  res_send(res, {body: result.body, ext: 'json'});
+}
 
 async function rpc_websocket_pipe_lif(ws, topic){
   let c = new rpc_websocket({D: 1, jsonrpc: '2.0'});
   c.accept({ws});
-  let {rg, sock: s, error} = await lifnet_connect(topic);
+  let {sock: s, error} = await lifnet_connect(topic);
   if (error)
     return c.close();
   rpc_sock_pipe(c, s);
@@ -50,7 +60,7 @@ function res_err(res, code, msg){
 let coi_enable = true;
 let g_opt = {};
 
-const res_send = (res, _path)=>{
+function res_send_file(res, _path){
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = ext2mime[ext]||'plain/text';
   let e = fs.statSync(_path, {throwIfNoEntry: false});
@@ -66,9 +76,22 @@ const res_send = (res, _path)=>{
   let stream = fs.createReadStream(_path);
   res.writeHead(200, h);
   stream.pipe(res);
-};
+}
 
-const map_uri = ({uri, opt: {map, root}})=>{
+function res_send(res, {body, ext}){
+  let ctype = ext2mime[ext]||'plain/text';
+  let h = {};
+  h['content-type'] = ctype;
+  h['cache-control'] = 'no-cache'; // for dev/debug
+  if (coi_enable){
+    h['cross-origin-embedder-policy'] = 'require-corp';
+    h['cross-origin-opener-policy'] = 'same-origin';
+  }
+  res.writeHead(200, h);
+  res.end(body);
+}
+
+function map_uri({uri, opt: {map, root}}){
   let _uri, _to;
   if (path_is_dir(uri))
     uri = path_join(uri, 'index.html');
@@ -90,7 +113,7 @@ const map_uri = ({uri, opt: {map, root}})=>{
   if (_to.endsWith('/'))
     _to = path_join(_to, path_file(uri)||'index.html');
   return _to;
-};
+}
 function test_server(){
   let map = {
     '/os': '../',
@@ -117,7 +140,7 @@ function test_server(){
 }
 test_server();
 
-const http_listener = (req, res)=>{
+function http_listener(req, res){
   let url;
   try {
     url = new URL(req.url, 'http://x');
@@ -128,12 +151,14 @@ const http_listener = (req, res)=>{
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
   if (uri=='/.lif.net/lif_kv')
-    return lif_kv_handler(req, res);
+    return lifnet_lif_kv_handler(req, res);
+  if (uri=='/.lif.net/lif_kv-proxy') // obsolete
+    return http_pipe_lif_kv(req, res);
   let path = map_uri({uri, opt: g_opt});
   if (!path)
     return res_err(res, 404, 'no map found');
-  return res_send(res, path);
-};
+  return res_send_file(res, path);
+}
 
 function ws_upgrade_accept(req, socket, head){
   const wss = new WebSocketServer({noServer: true});
@@ -143,7 +168,7 @@ function ws_upgrade_accept(req, socket, head){
     fn = ws_on_trunk_connect;
   else if (uri=='/.lif.net/electrum')
     fn = ws=>rpc_websocket_pipe_lif(ws, 'lifcoin/electrum');
-  else if (uri=='/.lif.net/electrum-proxy')
+  else if (uri=='/.lif.net/electrum-proxy') // obsolete
     fn = ws=>websocket_pipe(ws, new WebSocket(lifcoin_electrum_ws_url));
   if (!fn){
     socket.write('HTTP/1.1 404 Not Found\r\n\r\n');

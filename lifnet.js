@@ -345,7 +345,7 @@ export async function lifnet_connect(topic, params, opt={}){
     let _rg = g_rg[id] ||= {id};
     if (opt.rg_block?.(_rg))
       continue;
-    let {sock: _sock, wait} = lifnet.connect(id, topic, opt.params);
+    let {sock: _sock, wait} = lifnet.connect(id, topic, params);
     let _ret = await wait;
     if (_ret.error){
       console.log('failed connecting to '+id);
@@ -370,13 +370,15 @@ export async function lifnet_listen(topic, fn){
 export async function lifnet_call(topic, params){
   // TODO: use net._call() directly, dont connect with a socket first
   // TODO: add support for connection re-use: pooling by rg_id+topic
-  let {sock, rg, ret} = await lifnet_connect(topic, params);
-  sock.close();
-  return ret;
+  let {sock, ret, error} = await lifnet_connect(topic, params);
+  sock?.close();
+  return {ret, error};
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
-  let {sock, rg} = lifnet_connect('http/out');
+  let {sock, error} = lifnet_connect('http/out');
+  if (error)
+    throw new Error(error);
   let res = await http_sock_c(sock, {url, method, headers, body});
   sock.close();
   if (res.error)

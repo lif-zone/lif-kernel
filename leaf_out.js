@@ -9,13 +9,28 @@ import {WebSocket as ws_WebSocket} from 'ws';
 import {once} from 'events';
 import tls from 'tls';
 import net from 'net';
-import dns from 'dns';
+import dns from 'dns/promises';
 import http from 'http';
 import https from 'https';
 import {lifnet_online, lifnet_listen} from './lifnet.js';
 
+function ip_to_array(ip){
+  let p = ip.split('.');
+  let _p = [];
+  if (p.length!=4 || !ip.match(/^[0-9.]+$/))
+    return;
+  for (let i=0; i<4; i++){
+    _p[i] = +p[i];
+    if (_p[i]>255)
+      return;
+  }
+  return _p;
+}
+
 function ip_aton(ip){
   let p = ip_to_array(ip);
+  if (!p)
+    return;
   return (p[0]<<24 | p[1]<<16 | p[2]<<8 | p[3])>>>0;
 }
 
@@ -53,8 +68,11 @@ function ip_range_init(){
 ip_range_init();
 
 function is_ip_range(ip_range_t, ip){
-  if (typeof ip!='number')
+  if (typeof ip!='number'){
     ip = ip_aton(ip);
+    if (!ip)
+      return;
+  }
   for (let range of ip_range_t){
     if ((ip & range.mask)==range.ip)
       return true;
@@ -63,19 +81,6 @@ function is_ip_range(ip_range_t, ip){
 
 function is_ip_no_route(ip){
   return is_ip_range(ip_no_route_t, ip);
-}
-
-function ip_to_array(ip){
-  let p = ip.split('.');
-  let _p = [];
-  if (p.length!=4 || !ip.match(/^[0-9.]+$/))
-    return;
-  for (let i=0; i<4; i++){
-    _p[i] = +p[i];
-    if (_p[i]>255)
-      return;
-  }
-  return _p;
 }
 
 function ip_range_aton(ip_range){
@@ -105,11 +110,14 @@ function ip_range_aton(ip_range){
 
 function test(){
   let t = (n, a)=>{
-    assert_eq(ip_ntoa(n), a);
+    if (n!=null)
+      assert_eq(ip_ntoa(n), a);
     assert_eq(ip_aton(a), n);
   };
   t(0xff0102fe, '255.1.2.254');
   t(0x00ff0201, '0.255.2.1');
+  t(undefined, 'x');
+  t(undefined, '1.2.3');
   t = (a, range)=>assert_eq(ip_range_ntoa(ip_range_aton(a)), range || a);
   t('255.255.255.255');
   t('192.168.4.1');
@@ -192,7 +200,7 @@ export async function rpc_sock_tcp_out({msg, sock}){ // XXX unused
 }
 
 // HTTP/HTTPS Client Proxy for lif_fetch()
-async function rpc_sock_http_out({msg, sock}){ // XXX unused
+async function sock_http_out({msg, sock}){
   let {url, method='GET', headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -235,18 +243,50 @@ async function rpc_sock_http_out({msg, sock}){ // XXX unused
   return {};
 }
 
+export async function leaf_fetch_out({msg, sock, allow_ip}){
+  let {url, method='GET', headers={}} = msg.params;
+  assert(url && typeof url=='string', 'invalid url');
+  let u = URL.parse(url);
+  if (!u)
+    return sock_error_log('invalid url: '+url);
+  let {protocol, hostname: host, pathname, search} = u;
+  let port = u.port ? +u.port : (protocol=='https:' ? 443 : 80);
+  let is_https = protocol=='https:';
+  let mod = is_https ? https : http;
+  let path = pathname+(search||'');
+  if (!allow_ip){
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
+  }
+  let req_headers = {...headers};
+  if (!req_headers.host)
+    req_headers.host = host;
+  // XXX ip address vs dns not checked very well. use mod.request()
+  const res = await fetch(url, {
+    method: method||'GET',
+    headers: req_headers||{},
+  });
+  if (res.status!=200)
+    return sock_error_log('failed fetch()');
+  let body = await res.text();
+  return {body};
+}
+
 // WebSocket Client Proxy for lif_WebSocket()
-async function rpc_sock_websocket_out({msg, sock}){ // XXX unused
+async function rpc_sock_websocket_out({msg, sock, allow_ip}){ // XXX unused
   let {url, protocols, headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
   if (!u)
     return {error: 'invalid url: '+url};
   let {hostname: host} = u;
-  let ip = await host_to_ip(host);
-  if (ip.error)
-    return ip;
-  u.hostname = ip;
+  if (!allow_ip){
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
+    u.hostname = ip;
+  }
   let ws_opts = {headers: {host, ...headers}};
   if (u.protocol=='wss:')
     ws_opts.servername = host;
@@ -288,10 +328,8 @@ async function rpc_sock_dns_out({msg, sock}){ // XXX unused
   return {addrs: addrs.map(a=>({address: a.address, family: a.family}))};
 }
 
-const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
-const lifcoin_electrum_ws_url = 'ws://localhost:8432/';
-export async function ws_on_connect_electrum(ws){ // XXX unused
-  let upstream = new ws_WebSocket(lifcoin_electrum_ws_url);
+export async function ws_on_connect_pipe(ws, url){ // XXX unused
+  let upstream = new ws_WebSocket(url);
   upstream.on('open', ()=>{
     ws.on('message', data=>upstream.send(data));
     upstream.on('message', data=>ws.send(data));
@@ -302,12 +340,6 @@ export async function ws_on_connect_electrum(ws){ // XXX unused
     console.error('electrum ws proxy error: %s', err.message);
     ws.close();
   });
-}
-
-async function rpc_sock_lifcoin_lif_kv({msg, sock}){ // XXX unused
-  let {key} = msg;
-  let m = {url: lifcoin_lif_kv_url+qs_enc({key})};
-  return await rpc_sock_http_out({msg: m, sock});
 }
 
 async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
