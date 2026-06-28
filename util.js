@@ -597,7 +597,7 @@ export class rpc_sock extends rpc_base {
         res = await fn({msg, sock});
         if (!res || !('result' in res))
           res = {result: res};
-      } catch(err){ CEL();
+      } catch(err){ CEL(err);
         res = {error: ''+err};
       }
       if ('error' in res)
@@ -759,7 +759,7 @@ export function rpc_sock_pipe(c, s){
         return void _c.notify(method, params);
       try {
         return await _c._call(method, params);
-      } catch(err){ CEL();
+      } catch(err){ CEL(err);
         return {error: ''+err};
       }
     });
