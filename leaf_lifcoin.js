@@ -16,7 +16,7 @@ export function leaf_ip_out(){
   //rpc_sock.listen(rpc, 'http/out', rpc_sock_http_out);
   //rpc_sock.listen(rpc, 'websocket/out', rpc_sock_websocket_out);
   leaf_rpc_websocket_out('rpc/websocket/out');
-  //rpc_sock.listen(rpc, 'dns/out', rpc_sock_dns_out);
+  //leaf_dns_out('dns/out', rpc_sock_dns_out);
 }
 
 const lifcoin_node_url = 'http://localhost:8432';

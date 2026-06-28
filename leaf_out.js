@@ -348,7 +348,7 @@ async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
 }
 
 export async function leaf_rpc_websocket_out(topic, url){
-  await lifnet_listen(topic, async({msg, sock: c})=>{
+  await lifnet_listen(topic, async({msg, sock})=>{
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
     if (!url){
       url = msg.params?.url;
@@ -357,7 +357,7 @@ export async function leaf_rpc_websocket_out(topic, url){
     if (!url)
       return sock_error_log('missing url');
     let wait = s.connect({url});
-    rpc_sock_pipe(c, s);
+    rpc_sock_pipe(sock, s);
     try {
       await wait;
     } catch(err){
