@@ -150,10 +150,16 @@ async function host_to_ip(host){
 }
 
 // TCP Client Proxy
-export async function rpc_sock_tcp_out({msg, sock}){ // XXX unused
+export async function leaf_tcp_out({msg, sock, allow_ip}){ // XXX unused
   let {host, port, tls: is_tls} = msg.params;
   assert((port&0xffff)==port, 'invalid port');
   assert(host && typeof host=='string', 'invalid host');
+  let ip = host;
+  if (allow_ip){
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
+  }
   let tcp;
   if (is_tls)
     tcp = tls.TLSSocket({socket: new net.Socket()});
@@ -184,9 +190,6 @@ export async function rpc_sock_tcp_out({msg, sock}){ // XXX unused
   sock.method('pause', ()=>tcp.pause());
   sock.method('resume', ()=>tcp.resume());
   sock.on('close', ()=>tcp.destroy());
-  let ip = await host_to_ip(host);
-  if (ip.error)
-    return ip;
   if (is_tls)
     tcp.connect({tcp, port, host: ip, servername: host});
   else
@@ -200,7 +203,7 @@ export async function rpc_sock_tcp_out({msg, sock}){ // XXX unused
 }
 
 // HTTP/HTTPS Client Proxy for lif_fetch()
-async function sock_http_out({msg, sock}){
+export async function leaf_http_out({msg, sock, allow_ip}){
   let {url, method='GET', headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -211,9 +214,12 @@ async function sock_http_out({msg, sock}){
   let is_https = protocol=='https:';
   let mod = is_https ? https : http;
   let path = pathname+(search||'');
-  let ip = await host_to_ip(host);
-  if (ip.error)
-    return ip;
+  let ip = host;
+  if (allow_ip){
+    let ip = await host_to_ip(host);
+    if (ip.error)
+      return ip;
+  }
   let req_headers = {...headers};
   if (!req_headers.host)
     req_headers.host = host;
@@ -274,7 +280,7 @@ export async function leaf_fetch_out({msg, sock, allow_ip}){
 }
 
 // WebSocket Client Proxy for lif_WebSocket()
-async function rpc_sock_websocket_out({msg, sock, allow_ip}){ // XXX unused
+async function leaf_websocket_out({msg, sock, allow_ip}){ // XXX unused
   let {url, protocols, headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -319,7 +325,7 @@ async function rpc_sock_websocket_out({msg, sock, allow_ip}){ // XXX unused
 }
 
 // DNS Resolution Service
-async function rpc_sock_dns_out({msg, sock}){ // XXX unused
+async function leaf_dns_out({msg, sock}){ // XXX unused
   let {host, family=4} = msg.params;
   assert(host && typeof host=='string', 'invalid host');
   let addrs;
@@ -342,9 +348,9 @@ export async function ws_on_connect_pipe(ws, url){ // XXX unused
   });
 }
 
-async function rpc_sock_lifcoin_node({msg, sock}){ // XXX unused
+async function leaf_lifcoin_node_out({msg, sock}){ // XXX unused
   let m = {ip: '127.0.0.1', port: 8433};
-  return await rpc_sock_tcp_out({msg: m, sock});
+  return await leaf_tcp_out({msg: m, sock, allow_ip: true});
 }
 
 export async function leaf_rpc_websocket_out(topic, url){
