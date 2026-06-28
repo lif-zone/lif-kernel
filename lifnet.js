@@ -168,7 +168,7 @@ class Lif_response {
   async arrayBuffer(){ return this._buf.buffer; }
 }
 
-export class Lif_net {
+export class Lif_net extends EventEmitter {
   method_fn = {};
   rg_id = rg_id_get();
   rpc;
@@ -206,6 +206,7 @@ export class Lif_net {
     ret = await this.rpc.call('rg_id', {rg_id: this.rg_id});
     if (ret.error)
       return this.set_error('rg_id err: '+ret.error);
+    this.emit('online');
     return this._wait_open.return();
   }
   _set_events(sock){
