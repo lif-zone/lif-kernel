@@ -280,7 +280,7 @@ export async function leaf_fetch_out({msg, sock, allow_ip}){
 }
 
 // WebSocket Client Proxy for lif_WebSocket()
-async function leaf_websocket_out({msg, sock, allow_ip}){ // XXX unused
+export async function leaf_websocket_out({msg, sock, allow_ip}){ // XXX unused
   let {url, protocols, headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -325,7 +325,7 @@ async function leaf_websocket_out({msg, sock, allow_ip}){ // XXX unused
 }
 
 // DNS Resolution Service
-async function leaf_dns_out({msg, sock}){ // XXX unused
+export async function leaf_dns_out({msg, sock}){ // XXX unused
   let {host, family=4} = msg.params;
   assert(host && typeof host=='string', 'invalid host');
   let addrs;
@@ -348,7 +348,7 @@ export async function ws_on_connect_pipe(ws, url){ // XXX unused
   });
 }
 
-async function leaf_lifcoin_node_out({msg, sock}){ // XXX unused
+export async function leaf_lifcoin_node_out({msg, sock}){ // XXX unused
   let m = {ip: '127.0.0.1', port: 8433};
   return await leaf_tcp_out({msg: m, sock, allow_ip: true});
 }

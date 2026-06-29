@@ -2,7 +2,9 @@
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
   ewait, is_node, OE, rpc_sock_pipe, str, url_http_to_ws, sock_error_log,
 } from './util.js';
+import etask from './etask.js';
 import EventEmitter from './compat/events.js';
+let D = 0;
 
 // TCP socket proxy — mirrors net.Socket API over rpc_sock
 export class tcp_sock extends EventEmitter {
@@ -168,33 +170,111 @@ class Lif_response {
   async arrayBuffer(){ return this._buf.buffer; }
 }
 
-export class Lif_net extends EventEmitter {
+let RETRY_MS = 1000;
+export class Lifnet extends EventEmitter {
   method_fn = {};
+  listen_fn = [];
+  trunk_t = [];
+  trunk;
+  pub_t = [];
   rg_id = rg_id_get();
   rpc;
-  url;
+  status = 'offline';
   client_name;
   client_version;
   server_version;
   _wait_open;
   error;
-  constructor({url, client_name, client_version}){
-    this.url = url;
+  constructor({url, client_name, client_version}={}){
+    super();
     this.client_name = client_name||'lifnet-leaf';
     this.client_version = client_version||util_version;
-    this._connect();
+    if (url)
+      this.trunk_add(url);
   }
-  async _connect(){
-    if (this._wait_open)
-      return await this._wait_open;
-    this._wait_open = ewait();
-    this.rpc = new rpc_websocket({D: 1});
-    this._set_events();
-    this.rpc.on('close', ()=>this.is_closed = true);
+  trunk_add(url){
+    if (!this.trunk_t.some(t=>t.url==url))
+      this.trunk_t.push({url, last: null});
+    this.trunk_connect();
+  }
+  trunk_get_next(){
+    function cmp(a, b){ return (a.last||0)<=(b.last||0); }
+    let next = this.trunk_t[0];
+    for (let t of this.trunk_t){
+      if (cmp(next, t))
+        next = t;
+    }
+    return next;
+  }
+  trunk_connect_step(){
+    if (this.status=='closed')
+      return;
+    if (this.trunk_wait)
+      this.trunk_wait.return('close');
+    if (this.status=='online')
+      return;
+    if (this.rpc)
+      return;
+    let next = this.trunk_get_next();
+    if (!next)
+      return;
+    if (Date.now()-next.last<RETRY_MS){
+      (async()=>{
+        await etask.sleep(next.last+RETRY_MS);
+        this.trunk_connect_step();
+      })();
+      return;
+    }
+    this.trunk_connect();
+  }
+  set_events(){
+    this.base_methods();
+    this.rpc.on('close', ()=>{
+      this.set_error('close');
+      this.trunk_connect();
+    });
+    this.rpc.on('error', err=>this.set_error(err));
     for (let [method, fn] of OE(this.method_fn))
       this.rpc._method(method, fn);
+    for (let [method, fn] of OE(this.listen_fn)){
+      rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
+        this.base_methods(sock);
+        return fn({msg, sock});
+      });
+    }
+    for (let t of this.pub_t)
+      this.call('topic_pub', {topic: t.topic, data: t.data});
+  }
+  async trunk_connect(){
+    if (this._wait_open)
+      return await this._wait_open;
+    if (this.status=='closed')
+      return;
+    if (this.status=='online')
+      return;
+    if (this.rpc)
+      return;
+    let next = this.trunk_get_next();
+    if (!next)
+      return this.set_error('no trunks defined');
+    let now = Date.now();
+    let next_ms = Math.max(next.last+RETRY_MS-now, 0);
+    if (next_ms){
+      (async()=>{
+        D && console.log('lifnet waiting reconnect');
+        await etask.sleep(next_ms);
+        this.trunk_connect();
+      })();
+      return;
+    }
+    this.trunk  = next;
+    this.trunk.last = now;
+    this._wait_open = ewait();
+    this.rpc = new rpc_websocket({D: 1});
+    D && console.log('lifnet connecting');
+    this.set_events();
     try {
-      await this.rpc.connect({url: this.url});
+      await this.rpc.connect({url: this.trunk.url});
     } catch(e){
       return this.set_error('rpc_connect '+e);
     }
@@ -206,40 +286,55 @@ export class Lif_net extends EventEmitter {
     ret = await this.rpc.call('rg_id', {rg_id: this.rg_id});
     if (ret.error)
       return this.set_error('rg_id err: '+ret.error);
+    this.status = 'online';
+    D && console.log('lifnet online');
     this.emit('online');
-    return this._wait_open.return();
+    ret = this._wait_open.return({status: 'online'});
+    this._wait_open = null;
+    return ret;
   }
-  _set_events(sock){
+  base_methods(sock){
     let rpc = sock || this;
     rpc.method('ping', ()=>({pong: 1}));
     rpc.method('version',
       ()=>({name: this.client_name, version: this.client_version}));
   }
   set_error(err){
+    if (this.status!='offline')
+      D && console.log('lifnet offline');
+    this.status = 'offline';
     console.error(err);
     this.error = err;
-    this.close();
+    if (this.rpc)
+      this.rpc.close();
+    this.rpc = null;
+    if (this._wait_open)
+      this._wait_open.return({error: 'close'});
+    this._wait_open = null;
+    this.trunk_connect();
     return {error: err};
+  }
+  close(){
+    this.set_error('close');
+    this.status = 'closed';
   }
   async connect_loopback(sock, method, params){
     let fn = this.method_fn[method];
     if (!fn)
       return sock_error_log('no loopback method '+method);
     assert(0, 'rpc loopback not yet supported');
-    // XXX: need to create pipe and pipe it
-    // how do we know what kind of method is this? seq or not?
-    // is a 'msg' struct needed?
+    // untested
     let msg = {method, params};
     let s = new rpc_sock();
     s._method(method, fn);
     s.accept({sock, msg});
     let ret = await fn({method, params});
     rpc_sock_pipe(sock, s);
-    return {sock, wait: 'connected'};
+    return ret;
   }
   connect(rg_id, method, params){
     let sock = new rpc_sock();
-    this._set_events(sock);
+    this.base_methods(sock);
     let wait = (async()=>{
       let ret;
       if (rg_id==this.rg_id)
@@ -273,40 +368,50 @@ export class Lif_net extends EventEmitter {
       return delete this.method_fn[method];
     this.method_fn[method] = fn;
   }
-  async T_call(method, params){
+  async trunk_T_call(method, params){
+    if (!this.rpc) // XXX check loopback
+      return {error: 'offline'};
     return await this.rpc.T_call(method, params);
   }
-  async call(method, params){
+  async trunk_call(method, params){
+    if (!this.rpc) // XXX check loopback
+      return {error: 'offline'};
     return await this.rpc.call(method, params);
   }
-  close(){
-    this.error = 'close';
-    this._wait_open.throw('close');
-    this.rpc.close();
-  }
   async topic_get(topic){
-    return await this.call('topic_get', {topic});
+    let addr = [];
+    if (this.pub_t[topic])
+      addr.push(g_rg_id);
+    let ret = await this.trunk_call('topic_get', {topic});
+    if (!ret.error && ret.addr?.length)
+      addr.push(...ret.addr);
+    return {addr};
   }
   async topic_pub(topic, data){
-    return await this.call('topic_pub', {topic, data});
+    this.pub_t[topic] = {topic, data};
+    return await this.trunk_call('topic_pub', {topic, data});
   }
   async topic_unpub(topic){
-    return await this.call('topic_unpub', {topic});
+    this.pub_t[topic] = null;
+    return await this.trunk_call('topic_unpub', {topic});
   }
   async rcall(rg_id, method, params){
-    if (rg_id==this.rg_id){
+    if (rg_id==g_rg_id){ // loopback
       let fn = this.method_fn[method];
       if (!fn)
         return {error: 'no method '+method};
       return await fn({method, params});
     }
-    return await this.call('rcall', {rg_id, method, params});
+    return await this.trunk_call('rcall', {rg_id, method, params});
   }
   listen(method, fn){
-    rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
-      this._set_events(sock);
-      return fn({msg, sock});
-    });
+    this.listen_fn[method] = fn;
+    if (this.rpc){
+      rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
+        this.base_methods(sock);
+        return fn({msg, sock});
+      });
+    }
   }
 }
 
@@ -317,19 +422,16 @@ export function rg_id_get(){
 }
 let g_lifnet;
 export function lifnet_get(){
-  if (g_lifnet?.error){
-    g_lifnet.close();
-    g_lifnet = null;
-  }
   if (g_lifnet)
     return g_lifnet;
-  g_lifnet = new Lif_net({url: trunk_url_ws});
+  g_lifnet = new Lifnet();
+  g_lifnet.trunk_add(trunk_url_ws);
   return g_lifnet;
 }
 
 export async function lifnet_online(){
   let lifnet = await lifnet_get();
-  await lifnet._connect(); // wait for network to be 'online'
+  await lifnet.trunk_connect(); // wait for network to be 'online'
   return lifnet;
 }
 
