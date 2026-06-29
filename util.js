@@ -340,8 +340,7 @@ export class rpc_base extends EventEmitter {
     super();
     if (opt.D)
       this.D = 1;
-    if (this.D)
-      console.log('rpc>>connect');
+    this.D && console.log('rpc>>connect');
     if (opt.is_json)
       this.is_json = opt.is_json;
   }
