@@ -191,6 +191,7 @@ export class Lifnet extends EventEmitter {
     this.client_version = client_version||util_version;
     if (url)
       this.trunk_add(url);
+    this.base_methods();
   }
   trunk_add(url){
     if (!this.trunk_t.some(t=>t.url==url))
@@ -228,7 +229,6 @@ export class Lifnet extends EventEmitter {
     this.trunk_connect();
   }
   set_events(){
-    this.base_methods();
     this.rpc.on('close', ()=>{
       this.set_error('close');
       this.trunk_connect();
@@ -392,7 +392,7 @@ export class Lifnet extends EventEmitter {
     return await this.trunk_call('topic_pub', {topic, data});
   }
   async topic_unpub(topic){
-    this.pub_t[topic] = null;
+    delete this.pub_t[topic];
     return await this.trunk_call('topic_unpub', {topic});
   }
   async rcall(rg_id, method, params){
@@ -405,6 +405,13 @@ export class Lifnet extends EventEmitter {
     return await this.trunk_call('rcall', {rg_id, method, params});
   }
   listen(method, fn){
+    if (!fn){
+      if (this.rpc)
+        rpc_sock.listen(this.rpc, method);
+      delete this.listen_fn[method];
+      return;
+    }
+    assert(!this.listen_fn[method], 'lifnet double listen('+method+')'); 
     this.listen_fn[method] = fn;
     if (this.rpc){
       rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
@@ -430,7 +437,7 @@ export function lifnet_get(){
 }
 
 export async function lifnet_online(){
-  let lifnet = await lifnet_get();
+  let lifnet = lifnet_get();
   await lifnet.trunk_connect(); // wait for network to be 'online'
   return lifnet;
 }
@@ -464,10 +471,18 @@ export async function lifnet_connect(topic, params, opt={}){
   return {sock, rg, ret};
 }
 
-export async function lifnet_listen(topic, fn){
-  const lifnet = await lifnet_online();
-  lifnet.listen(topic, fn);
-  lifnet.topic_pub(topic);
+export function lifnet_listen(topic, fn){
+  let opt = {};
+  if (typeof topic=='string')
+    opt = {topic, method: topic};
+  else {
+    opt = {...topic};
+    opt.method ||= opt.topic;
+  }
+  const lifnet = lifnet_get();
+  lifnet.listen(opt.method, fn);
+  if (opt.topic)
+    lifnet.topic_pub(opt.topic, opt.data);
 }
 
 export async function lifnet_call(topic, params){

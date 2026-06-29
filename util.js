@@ -535,6 +535,7 @@ export class rpc_base extends EventEmitter {
   _method(method, fn){
     if (!fn)
       return delete this.method_fn[method];
+    assert(!this.method_fn[method], 'rpc double listen('+method+')'); 
     this.method_fn[method] = fn;
   }
   on_id(id, fn){
@@ -584,6 +585,10 @@ export class rpc_sock extends rpc_base {
     this.set_events();
   }
   static listen(rpc, method, fn){
+    if (!fn){
+      rpc._method(method);
+      return;
+    }
     rpc._method(method, async(msg)=>{
       if (msg.seq==null)
         return {error: 'seq listen: missing msg.seq'};

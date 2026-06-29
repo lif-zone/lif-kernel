@@ -54,7 +54,7 @@ export function rpc_methods_lifnet_trunk(rpc){
     rg_conn[rg_id] = rpc;
     return {rg_id: g_rg_id};
   });
-  rpc.method('topic_pub', ({topic})=>{
+  rpc.method('topic_pub', ({topic, data})=>{
     if (!rpc.rg_id)
       throw 'no rg_id for conn';
     if (typeof topic!='string')
