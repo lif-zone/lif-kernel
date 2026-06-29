@@ -471,8 +471,6 @@ export async function lifnet_listen(topic, fn){
 }
 
 export async function lifnet_call(topic, params){
-  // TODO: use net._call() directly, dont connect with a socket first
-  // TODO: add support for connection re-use: pooling by rg_id+topic
   let {sock, ret, error} = await lifnet_connect(topic, params);
   sock?.close();
   return {ret, error};
