@@ -925,7 +925,8 @@ async function reg_get({log, lmod, opt}){
 
 let max_redirect = 8;
 function assert_lmod(lmod){
-  assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod); }
+  assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod);
+}
 
 async function npm_ver_get({log, lmod}){
   return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
@@ -999,7 +1000,7 @@ async function git_ver_resolve({log, lmod, mod_self}){
   // XXX add support for getting branch+date lpm_app_date
   let _ver = u.ver.slice(1);
   let is_c = enable_cache>=1;
-  if (!u.ver)
+  if (!u.ver || _ver=='latest')
     url = `https://api.github.com/repos/${u.name}/commits/HEAD`;
   else if (u.ver_type=='shortcut'){
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
@@ -1015,7 +1016,7 @@ async function git_ver_resolve({log, lmod, mod_self}){
   if (reg.not_exist)
     return reg;
   if (!reg.blob)
-    return {err: 'failed git ver fetch '+url};
+    throw Error('failed git ver fetch '+url);
   let body = await reg.blob.text();
   try {
     v = JSON.parse(body);
