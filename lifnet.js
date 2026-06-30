@@ -428,23 +428,28 @@ let g_rg_id = ''+Math.floor(Math.random()*1000000000);
 export function rg_id_get(){
   return g_rg_id;
 }
-let g_lifnet;
+export const lifnet = new Lifnet();
+let lifnet_inited;
 export function lifnet_get(){
-  if (g_lifnet)
-    return g_lifnet;
-  g_lifnet = new Lifnet();
-  g_lifnet.trunk_add(trunk_url_ws);
-  return g_lifnet;
+  lifnet_init();
+  return lifnet;
+}
+function lifnet_init(){
+  if (lifnet_inited)
+    return lifnet;
+  lifnet_inited = true;
+  lifnet.trunk_add(trunk_url_ws);
+  return lifnet;
 }
 
 export async function lifnet_online(){
-  let lifnet = lifnet_get();
+  lifnet_init();
   await lifnet.trunk_connect(); // wait for network to be 'online'
   return lifnet;
 }
 
 export async function lifnet_connect(topic, params, opt={}){
-  let lifnet = await lifnet_online();
+  await lifnet_online();
   let ret = await lifnet.topic_get(topic);
   let addr = ret?.addr;
   if (!addr)
@@ -472,7 +477,13 @@ export async function lifnet_connect(topic, params, opt={}){
   return {sock, rg, ret};
 }
 
+function lifnet_listen_close(opt){
+  lifnet.listen(opt.method);
+  if (opt.topic)
+    lifnet.topic_unpub(opt.topic);
+}
 export function lifnet_listen(topic, fn){
+  lifnet_init();
   let opt = {};
   if (typeof topic=='string')
     opt = {topic, method: topic, auto_close: true};
@@ -482,21 +493,23 @@ export function lifnet_listen(topic, fn){
     opt.auto_close ??= true;
   }
   const lifnet = lifnet_get();
+  if (!fn)
+    return lifnet_listen_close(topic);
   lifnet.listen(opt.method, fn);
   if (opt.topic)
     lifnet.topic_pub(opt.topic, opt.data);
-  if (!fn)
-    return;
-  return {close: ()=>lifnet_listen(topic)};
+  return {close: ()=>lifnet_listen_close(opt)};
 }
 
 export async function lifnet_call(topic, params){
+  lifnet_init();
   let {sock, ret, error} = await lifnet_connect(topic, params);
   sock?.close();
   return {ret, error};
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
+  lifnet_init();
   let {sock, error} = lifnet_connect('http/out');
   if (error)
     throw new Error(error);

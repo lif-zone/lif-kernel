@@ -595,7 +595,7 @@ export class rpc_sock extends rpc_base {
     this.set_events();
   }
   static listen_close(rpc, method){
-    for (let sock in rpc.listen_req[method])
+    for (let sock of rpc.listen_req[method]||[])
       sock.close();
     delete rpc.listen_req[method];
     rpc._method(method);
