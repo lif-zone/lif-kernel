@@ -371,7 +371,7 @@ export class rpc_base extends EventEmitter {
   async _call(method, params, opt){
     assert(typeof method=='string', 'invalid method type');
     let id = this.id_get();
-    let req = this.req[id] = {wait: ewait()};
+    let req = this.req[id] = {wait: ewait(), method};
     const request = req.request = {id, method};
     if (params)
       request.params = params;
@@ -528,15 +528,24 @@ export class rpc_base extends EventEmitter {
     this.emit('close');
   }
   method(method, fn){
+    if (!fn)
+      return this.method_close(method);
     this._method(method, async({params})=>{
       return await fn(params);
     });
   }
   _method(method, fn){
     if (!fn)
-      return delete this.method_fn[method];
+      return this.method_close(method);
     assert(!this.method_fn[method], 'rpc double listen('+method+')'); 
     this.method_fn[method] = fn;
+  }
+  method_close(method){
+    for (let [id, req] of OE(this.req)){
+      if (req.method==method)
+        req.wait.throw('close');
+    }
+    delete this.method_fn[method];
   }
   on_id(id, fn){
     if (!fn){
@@ -555,6 +564,7 @@ export class rpc_sock extends rpc_base {
   rpc;
   _id;
   is_connect;
+  req = {};
   send(msg, opt){
     msg = {...msg, id: this._id, seq: msg.id};
     this.rpc.send(msg, opt);
@@ -584,17 +594,24 @@ export class rpc_sock extends rpc_base {
     this._id = msg.id;
     this.set_events();
   }
+  static listen_close(rpc, method){
+    for (let sock in rpc.listen_req[method])
+      sock.close();
+    delete rpc.listen_req[method];
+    rpc._method(method);
+  }
   static listen(rpc, method, fn){
-    if (!fn){
-      rpc._method(method);
-      return;
-    }
+    rpc.listen_req ||= {};
+    if (!fn)
+      return rpc_sock.listen_close(rpc, method);
     rpc._method(method, async(msg)=>{
       if (msg.seq==null)
         return {error: 'seq listen: missing msg.seq'};
       if (msg.id==null)
         return {error: 'seq listen: missing msg.id'};
       let sock = new rpc_sock();
+      rpc.listen_req[method] ||= [];
+      rpc.listen_req[method].push(sock);
       sock.accept({rpc, msg});
       let res;
       try {

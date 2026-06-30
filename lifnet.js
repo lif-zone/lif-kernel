@@ -173,7 +173,7 @@ class Lif_response {
 let RETRY_MS = 1000;
 export class Lifnet extends EventEmitter {
   method_fn = {};
-  listen_fn = [];
+  listen_fn = {};
   trunk_t = [];
   trunk;
   pub_t = [];
@@ -404,13 +404,14 @@ export class Lifnet extends EventEmitter {
     }
     return await this.trunk_call('rcall', {rg_id, method, params});
   }
+  listen_close(method){
+    if (this.rpc)
+      rpc_sock.listen(this.rpc, method);
+    delete this.listen_fn[method];
+  }
   listen(method, fn){
-    if (!fn){
-      if (this.rpc)
-        rpc_sock.listen(this.rpc, method);
-      delete this.listen_fn[method];
-      return;
-    }
+    if (!fn)
+      return this.listen_close(method);
     assert(!this.listen_fn[method], 'lifnet double listen('+method+')'); 
     this.listen_fn[method] = fn;
     if (this.rpc){
@@ -474,15 +475,19 @@ export async function lifnet_connect(topic, params, opt={}){
 export function lifnet_listen(topic, fn){
   let opt = {};
   if (typeof topic=='string')
-    opt = {topic, method: topic};
+    opt = {topic, method: topic, auto_close: true};
   else {
     opt = {...topic};
-    opt.method ||= opt.topic;
+    opt.method ??= opt.topic;
+    opt.auto_close ??= true;
   }
   const lifnet = lifnet_get();
   lifnet.listen(opt.method, fn);
   if (opt.topic)
     lifnet.topic_pub(opt.topic, opt.data);
+  if (!fn)
+    return;
+  return {close: ()=>lifnet_listen(topic)};
 }
 
 export async function lifnet_call(topic, params){
