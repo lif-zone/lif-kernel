@@ -357,7 +357,7 @@ export class Lifnet extends EventEmitter {
     return {sock, wait};
   }
   method(method, fn){
-    this._method(method, async({params})=>{
+    this._method(method, !fn ? null : async({params})=>{
       return await fn(params);
     });
   }
