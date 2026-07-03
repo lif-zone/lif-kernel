@@ -173,7 +173,6 @@ class Lif_response {
 let RETRY_MS = 1000;
 export class Lifnet extends EventEmitter {
   method_fn = {};
-  listen_fn = {};
   trunk_t = [];
   trunk;
   pub_t = [];
@@ -234,14 +233,8 @@ export class Lifnet extends EventEmitter {
       this.trunk_connect();
     });
     this.rpc.on('error', err=>this.set_error(err));
-    for (let [method, fn] of OE(this.method_fn))
-      this.rpc._method(method, fn);
-    for (let [method, fn] of OE(this.listen_fn)){
-      rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
-        this.base_methods(sock);
-        return fn({msg, sock});
-      });
-    }
+    for (let method in this.method_fn)
+      this.rpc_method_set(method);
   }
   async trunk_connect(){
     if (this._wait_open)
@@ -319,9 +312,10 @@ export class Lifnet extends EventEmitter {
     this.status = 'closed';
   }
   async connect_loopback(sock, method, params){
-    let fn = this.method_fn[method];
+    let {fn, is_listen} = this.method_fn[method];
     if (!fn)
       return sock_error_log('no loopback method '+method);
+    assert(is_listen, 'only sock loopback supported for now');
     //assert(0, 'rpc loopback not yet supported');
     // untested
     let msg = {method, params};
@@ -366,7 +360,7 @@ export class Lifnet extends EventEmitter {
       this.rpc._method(method, fn);
     if (!fn)
       return delete this.method_fn[method];
-    this.method_fn[method] = fn;
+    this.method_fn[method] = {fn, is_listen: false};
   }
   async trunk_call(method, params){
     if (!this.rpc)
@@ -392,29 +386,45 @@ export class Lifnet extends EventEmitter {
   }
   async rcall(rg_id, method, params){
     if (rg_id==g_rg_id){ // loopback
-      let fn = this.method_fn[method];
+      let {fn, is_listen} = this.method_fn[method];
       if (!fn)
         return {error: 'no method '+method};
+      assert(!is_listen, 'listen not supported for rcall now');
       return await fn({method, params});
     }
     return await this.trunk_call('rcall', {rg_id, method, params});
   }
-  listen_close(method){
-    if (this.rpc)
-      rpc_sock.listen(this.rpc, method);
-    delete this.listen_fn[method];
-  }
-  listen(method, fn){
-    if (!fn)
-      return this.listen_close(method);
-    assert(!this.listen_fn[method], 'lifnet double listen('+method+')'); 
-    this.listen_fn[method] = fn;
-    if (this.rpc){
+  rpc_method_set(method){
+    if (!this.rpc)
+      return;
+    let {fn, is_listen} = this.method_fn[method];
+    if (is_listen){
       rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
         this.base_methods(sock);
         return fn({msg, sock});
       });
-    }
+    } else
+      this.rpc._method(method, fn);
+  }
+  rpc_method_del(method){
+    if (!this.rpc)
+      return;
+    let {is_listen} = this.method_fn[method];
+    if (is_listen)
+      rpc_sock.listen(this.rpc, method);
+    else
+      this.rpc._method(method);
+  }
+  listen_close(method){
+    this.rpc_method_del(method);
+    delete this.method_fn[method];
+  }
+  listen(method, fn){
+    if (!fn)
+      return this.listen_close(method);
+    assert(!this.method_fn[method], 'lifnet double listen('+method+')'); 
+    this.method_fn[method] = {fn, is_listen: true};
+    this.rpc_method_set(method);
   }
 }
 
