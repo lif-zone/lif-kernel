@@ -46,3 +46,17 @@ Usage:
   await seq.close();
 
 ---
+
+---
+USER:
+I want lif-kernel/trunk.js (and required other files) to expand the current code from star topology (1 backbone) to DHT mesh backbone.
+
+CLAUDE:
+Analyzed the existing star topology in trunk.js and lifnet.js. Implemented mesh backbone in trunk.js with:
+- peer_conn (trunk_id→rpc) and rg_peer (rg_id→trunk_id) module-level maps
+- rg_id registration/disconnect gossips peer_rg_add/peer_rg_remove to all peers
+- rcall forwards to peer trunk via peer_rcall when rg_id not local
+- rconnect creates cross-trunk pipe via peer_rconnect (C1 ↔ trunk A ↔ trunk B ↔ C2)
+- peer_hello exchanges state on connect
+- trunk_peer_connect(url) new export to join the mesh from server.js
+- Added OV to imports; single-trunk deployments unchanged
