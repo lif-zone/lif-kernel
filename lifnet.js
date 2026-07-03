@@ -177,7 +177,6 @@ export class Lifnet extends EventEmitter {
   trunk;
   pub_t = [];
   rg_id = rg_id_get();
-  rpc;
   status = 'offline';
   client_name;
   client_version;
@@ -213,7 +212,7 @@ export class Lifnet extends EventEmitter {
       this.trunk_wait.return('close');
     if (this.status=='online')
       return;
-    if (this.rpc)
+    if (this.trunk)
       return;
     let next = this.trunk_get_next();
     if (!next)
@@ -228,11 +227,12 @@ export class Lifnet extends EventEmitter {
     this.trunk_connect();
   }
   set_events(){
-    this.rpc.on('close', ()=>{
+    let rpc = this.trunk.rpc;
+    rpc.on('close', ()=>{
       this.set_error('close');
       this.trunk_connect();
     });
-    this.rpc.on('error', err=>this.set_error(err));
+    rpc.on('error', err=>this.set_error(err));
     for (let method in this.method_fn)
       this.rpc_method_set(method);
   }
@@ -243,7 +243,7 @@ export class Lifnet extends EventEmitter {
       return;
     if (this.status=='online')
       return;
-    if (this.rpc)
+    if (this.trunk)
       return;
     let next = this.trunk_get_next();
     if (!next)
@@ -258,27 +258,27 @@ export class Lifnet extends EventEmitter {
       })();
       return;
     }
-    this.trunk  = next;
-    this.trunk.last = now;
+    let trunk = this.trunk  = next;
+    trunk.last = now;
     this._wait_open = ewait();
-    this.rpc = new rpc_websocket({D: 1});
+    let rpc = trunk.rpc = new rpc_websocket({D: 1});
     D && console.log('lifnet connecting');
     this.set_events();
     try {
-      await this.rpc.connect({url: this.trunk.url});
+      await rpc.connect({url: trunk.url});
     } catch(e){
       return this.set_error('rpc_connect '+e);
     }
-    let ret = await this.rpc.call('version',
+    let ret = await this.trunk_call('version',
       {name: this.client_name, version: this.client_version});
     if (ret.error)
       return this.set_error('server version err: '+ret.error);
     this.server_version = ret;
-    ret = await this.rpc.call('rg_id', {rg_id: this.rg_id});
+    ret = await this.trunk_call('rg_id', {rg_id: this.rg_id});
     if (ret.error)
       return this.set_error('rg_id err: '+ret.error);
     for (let t of OV(this.pub_t))
-      this.rpc.call('topic_pub', {topic: t.topic, data: t.data});
+      this.trunk_call('topic_pub', {topic: t.topic, data: t.data});
     this.status = 'online';
     D && console.log('lifnet online');
     this.emit('online');
@@ -298,9 +298,12 @@ export class Lifnet extends EventEmitter {
     this.status = 'offline';
     console.error(err);
     this.error = err;
-    if (this.rpc)
-      this.rpc.close();
-    this.rpc = null;
+    let trunk = this.trunk;
+    if (trunk){
+      trunk.rpc.close();
+      trunk.rpc = null;
+    }
+    this.trunk = null;
     if (this._wait_open)
       this._wait_open.return({error: 'close'});
     this._wait_open = null;
@@ -322,7 +325,7 @@ export class Lifnet extends EventEmitter {
     let s = new rpc_sock();
     s._method(method, fn);
     s.accept({sock, msg});
-    let ret = await fn({method, params});
+    let ret = await fn({msg, sock});
     rpc_sock_pipe(sock, s);
     return ret;
   }
@@ -334,7 +337,7 @@ export class Lifnet extends EventEmitter {
       if (rg_id==this.rg_id)
         ret = await this.connect_loopback(sock, method, params);
       else {
-        ret = await sock.connect(this.rpc, 'rconnect',
+        ret = await sock.connect(this.trunk.rpc, 'rconnect',
           {rg_id, method, params});
       }
       if (ret.error){
@@ -356,16 +359,18 @@ export class Lifnet extends EventEmitter {
     });
   }
   _method(method, fn){
-    if (this.rpc)
-      this.rpc._method(method, fn);
+    let rpc = this.trunk?.rpc;
+    if (rpc)
+      rpc._method(method, fn);
     if (!fn)
       return delete this.method_fn[method];
     this.method_fn[method] = {fn, is_listen: false};
   }
   async trunk_call(method, params){
-    if (!this.rpc)
+    let rpc = this.trunk?.rpc;
+    if (!rpc)
       return {error: 'offline'};
-    return await this.rpc.call(method, params);
+    return await rpc.call(method, params);
   }
   async topic_get(topic){
     let addr = [];
@@ -395,25 +400,27 @@ export class Lifnet extends EventEmitter {
     return await this.trunk_call('rcall', {rg_id, method, params});
   }
   rpc_method_set(method){
-    if (!this.rpc)
+    let rpc = this.trunk?.rpc;
+    if (!rpc)
       return;
     let {fn, is_listen} = this.method_fn[method];
     if (is_listen){
-      rpc_sock.listen(this.rpc, method, ({msg, sock})=>{
+      rpc_sock.listen(rpc, method, ({msg, sock})=>{
         this.base_methods(sock);
         return fn({msg, sock});
       });
     } else
-      this.rpc._method(method, fn);
+      rpc._method(method, fn);
   }
   rpc_method_del(method){
-    if (!this.rpc)
+    let rpc = this.trunk?.rpc;
+    if (!rpc)
       return;
     let {is_listen} = this.method_fn[method];
     if (is_listen)
-      rpc_sock.listen(this.rpc, method);
+      rpc_sock.listen(rpc, method);
     else
-      this.rpc._method(method);
+      rpc._method(method);
   }
   listen_close(method){
     this.rpc_method_del(method);
