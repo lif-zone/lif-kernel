@@ -60,3 +60,13 @@ Analyzed the existing star topology in trunk.js and lifnet.js. Implemented mesh 
 - peer_hello exchanges state on connect
 - trunk_peer_connect(url) new export to join the mesh from server.js
 - Added OV to imports; single-trunk deployments unchanged
+
+---
+USER:
+lifnet listen + connect across two trunks failed. Also made trunk_peer_add sync with retry like lifnet.js trunk_add.
+
+CLAUDE:
+Fixed two issues:
+1. trunk_peer_connect → trunk_peer_add(url): sync, fires _peer_connect in background with retry (PEER_RETRY_MS=5s), same pattern as lifnet.js trunk_connect. Added peer_introduce gossip for self-forming mesh.
+2. topic_get only checked local topics. Added peer_topics map (topic→{rg_id:trunk_id}), gossip via peer_topic_add/remove on topic_pub/unpub, peer_hello now exchanges topic snapshots. topic_get merges local+remote. Peer disconnect cleans peer_topics.
+Added --peer flag to server_lib.js for CLI seeding.

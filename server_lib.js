@@ -11,7 +11,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 } from './util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_connect, rpc_methods_lifnet_trunk} from './trunk.js';
+import {ws_trunk_connect, rpc_methods_lifnet_trunk, trunk_peer_add} from './trunk.js';
 import {lifnet_connect, lifnet_call} from './lifnet.js';
 const efs = fs.promises;
 
@@ -240,6 +240,10 @@ async function run(opt){
     } else if (a=='--web'){
       argv.shift();
       g_opt.web = true;
+    } else if (a=='--peer'){
+      argv.shift();
+      let peer_url = argv.shift();
+      g_opt.peers = [...(g_opt.peers||[]), peer_url];
     }
   }
   if (argv[0]!=undefined)
@@ -249,6 +253,8 @@ async function run(opt){
     g_opt.lifnet_trunk  = true;
   }
   start_web();
+  for (let url of (g_opt.peers||[]))
+    trunk_peer_add(url);
 }
 
 export default run;
