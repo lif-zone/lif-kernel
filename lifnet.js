@@ -322,7 +322,7 @@ export class Lifnet extends EventEmitter {
     let fn = this.method_fn[method];
     if (!fn)
       return sock_error_log('no loopback method '+method);
-    assert(0, 'rpc loopback not yet supported');
+    //assert(0, 'rpc loopback not yet supported');
     // untested
     let msg = {method, params};
     let s = new rpc_sock();
@@ -368,13 +368,8 @@ export class Lifnet extends EventEmitter {
       return delete this.method_fn[method];
     this.method_fn[method] = fn;
   }
-  async trunk_T_call(method, params){
-    if (!this.rpc) // XXX check loopback
-      return {error: 'offline'};
-    return await this.rpc.T_call(method, params);
-  }
   async trunk_call(method, params){
-    if (!this.rpc) // XXX check loopback
+    if (!this.rpc)
       return {error: 'offline'};
     return await this.rpc.call(method, params);
   }
