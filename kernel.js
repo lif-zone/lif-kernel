@@ -2125,9 +2125,6 @@ export function boot(sw_boot){
       return;
   };
   sw_boot.on_fetch = event=>kernel_fetch(event);
-  let slow = eslow(1000, 'wait_activate');
-  sw_boot.wait_activate.return();
-  slow.end();
   console.log('lif kernel inited: '+lif_kernel_base
     +' sw '+sw_boot.version+' util '+util.version);
 }

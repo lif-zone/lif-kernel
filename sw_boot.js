@@ -12,9 +12,10 @@ let sw_boot = {
   whoami: 'IBEYOURGODDONTCREATEOTHERGODSOVERMEDONTUSEBEYOURGODSNAMEINVAINREMEMBERTODEDICATETHESATURDAYOBEYYOURFATHERANDMOTHERDONTMURDERDONTBETRAYDONTSTEALDONTBLAMEFAKELIESDONTGREEDFELLOWSHOME',
   on_message: null,
   on_fetch: null,
-  wait_activate: ewait(),
   version: sw_boot_version,
 };
+
+let wait_activate = ewait();
 
 // util.js
 function ewait(){
@@ -60,7 +61,7 @@ async function _on_fetch(event){
     return await fetch(request);
   }
   console.warn('sw pending fetch('+event.request.url+') event before inited');
-  await sw_boot.wait_activate;
+  await wait_activate;
   console.info('sw complete fetch('+event.request.url+')');
   return await sw_boot.on_fetch(event);
 }
@@ -77,7 +78,7 @@ function sw_init_pre(){
   // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
   globalThis.addEventListener('activate', event=>event.waitUntil((async()=>{
     console.log('kernel activate');
-    await sw_boot.wait_activate;
+    await wait_activate;
     console.log('kernel claim');
     await globalThis.clients.claim(); // move all pages immediatly to new sw
     console.log('kernel activated', sw_boot_version);
@@ -85,7 +86,7 @@ function sw_init_pre(){
   globalThis.addEventListener('message', event=>event.waitUntil((async()=>{
     if (!sw_boot.on_message){
       console.warn('sw message event before inited', event);
-      await sw_boot.wait_activate;
+      await wait_activate;
       console.log('sw message event finished wait');
     }
     sw_boot.on_message(event);
@@ -176,7 +177,10 @@ async function kernel_boot(){
   console.log('kernel import end');
   try {
     kernel.boot(sw_boot);
+    wait_activate.return();
   } catch(err){
+    globalThis.registration.unregister();
+    wait_activate.throw('failed kernel.boot');
     console.error('lif kernel failed sw init', err);
   }
 }
