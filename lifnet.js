@@ -8,20 +8,6 @@ let D = 0;
 
 let trunk_url_base = is_node ? 'http://localhost:4000' : location.origin;
 let trunk_url_ws = url_http_to_ws(trunk_url_base)+'/.lif.net';
-// fetch()-compatible API over rpc_sock
-// Usage: lif_fetch(url, {method, headers, body})
-class Lif_response {
-  constructor(status, headers, body_buf){
-    this.status = status;
-    this.ok = status>=200 && status<300;
-    this.headers = headers;
-    this._buf = body_buf;
-  }
-  async text(){ return this._buf.toString(); }
-  async json(){ return JSON.parse(this._buf.toString()); }
-  async arrayBuffer(){ return this._buf.buffer; }
-}
-
 let RETRY_MS = 1000;
 
 class Trunk_loopback {
@@ -396,6 +382,20 @@ export async function lifnet_call(topic, params){
   let {sock, ret, error} = await lifnet_connect(topic, params);
   sock?.close();
   return {ret, error};
+}
+
+// fetch()-compatible API over rpc_sock
+// Usage: lif_fetch(url, {method, headers, body})
+class Lif_response {
+  constructor(status, headers, body_buf){
+    this.status = status;
+    this.ok = status>=200 && status<300;
+    this.headers = headers;
+    this._buf = body_buf;
+  }
+  async text(){ return this._buf.toString(); }
+  async json(){ return JSON.parse(this._buf.toString()); }
+  async arrayBuffer(){ return this._buf.buffer; }
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
