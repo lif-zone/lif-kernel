@@ -29,14 +29,12 @@ class Trunk_loopback {
     let s_sock = new rpc_sock();
     this.lifnet.base_methods(s_sock);
     // In-memory pipe: bypass rpc routing since neither sock has a parent rpc
-    sock.send = msg=>s_sock.emit_msg(msg);
-    s_sock.send = msg=>sock.emit_msg(msg);
-    sock.on('error', ()=>{});
-    s_sock.on('error', ()=>{});
-    sock.on('close', ()=>s_sock.close());
-    s_sock.on('close', ()=>sock.close());
-    sock.emit_connect();
-    s_sock.emit_connect();
+    for (let [_c, _s] of [[sock, s_sock], [s_sock, sock]]){
+      _c.send = msg=>_s.emit_msg(msg);
+      _c.on('error', ()=>{});
+      _c.on('close', ()=>_s.close());
+      _c.emit_connect();
+    }
     return await fn({msg: {method, params}, sock: s_sock});
   }
   async rcall(method, params){
@@ -120,20 +118,19 @@ class Trunk {
     else
       rpc._method(method);
   }
-  async topic_pub(topic, data){
+  async trunk_call(method, params){
     if (this.status!='online')
       return {error: 'offline'};
-    return await this.rpc.call('topic_pub', {topic, data});
+    return await this.rpc.call(method, params);
+  }
+  async topic_pub(topic, data){
+    return await this.trunk_call('topic_pub', {topic, data});
   }
   async topic_unpub(topic){
-    if (this.status!='online')
-      return {error: 'offline'};
-    return await this.rpc.call('topic_unpub', {topic});
+    return await this.trunk_call('topic_unpub', {topic});
   }
   async topic_get(topic){
-    if (this.status!='online')
-      return [];
-    let ret = await this.rpc.call('topic_get', {topic});
+    let ret = await this.trunk_call('topic_get', {topic});
     if (ret.error)
       return [];
     return ret.addr||[];
