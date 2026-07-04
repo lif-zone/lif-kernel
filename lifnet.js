@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  is_node, url_http_to_ws,
+  is_node, url_http_to_ws, ewait, OA,
 } from './util.js';
 import etask from './etask.js';
 import EventEmitter from './compat/events.js';
@@ -118,37 +118,34 @@ export class tcp_sock extends EventEmitter {
 // Returns {status, headers, body: Buffer} or {error: string}
 export async function http_sock_c(rpc, {url, method='GET', headers={}, body}){
   let sock = new rpc_sock();
-  let resp_resolve, resp_reject;
-  let resp_p = new Promise((res, rej)=>{ resp_resolve=res; resp_reject=rej; });
+  let resp = ewait();
+  let done = ewait();
   let chunks = [];
-  let done_resolve;
-  let done_p = new Promise(res=>{ done_resolve=res; });
   sock.method('response', ({status, headers})=>{
-    resp_resolve({status, headers});
+    resp.return({status, headers});
   });
   sock.method('data', ({data})=>{
     chunks.push(data);
   });
   sock.method('close', ()=>{
-    done_resolve();
+    done.return();
   });
   sock.method('error', ({message, code})=>{
-    let err = Object.assign(new Error(message), {code: code||null});
-    resp_reject(err);
-    done_resolve();
+    let err = OA(Error(message), {code});
+    resp.throw(err);
+    done.return();
   });
   let res = await sock.connect(rpc, 'http_connect', {url, method, headers});
   if (res.error)
     return res;
   if (body){
-    let buf = typeof body=='string' ? Buffer.from(body) : Buffer.from(body);
+    let buf = Buffer.from(body);
     sock.notify('data', {data: buf.toString('hex')});
   }
   sock.notify('end', {});
-  let resp;
-  try { resp = await resp_p; }
+  try { resp = await resp; }
   catch(err){ return {error: err.message}; }
-  await done_p;
+  await done;
   let body_hex = chunks.join('');
   let body_buf = Buffer.from(body_hex, 'hex');
   return {...resp, body: body_buf};
