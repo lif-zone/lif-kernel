@@ -4,6 +4,7 @@ let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
   rpc_sock, assert, rpc_sock_pipe, OV,
 } from './util.js';
+import etask from './etask.js';
 
 const topics = {};       // topic → {rg_id: rpc} (locally published)
 const peer_topics = {};  // topic → {rg_id: trunk_id} (published on peer trunks)
@@ -222,13 +223,14 @@ async function _peer_connect(url){
     return;
   let delay = Math.max(entry.last + PEER_RETRY_MS - Date.now(), 0);
   if (delay)
-    await new Promise(r=>setTimeout(r, delay));
+    await etask.sleep(delay);
   if (!peer_urls[url])
     return;
   entry.last = Date.now();
   let rpc = new rpc_websocket({D: 1});
   rpc_methods_basic(rpc);
   rpc_methods_lifnet_trunk(rpc);
+  rpc.on('error', ()=>{});
   try {
     await rpc.connect({url});
     let ret = await rpc.call('peer_hello', {
