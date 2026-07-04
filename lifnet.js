@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  is_node, url_http_to_ws, ewait, OA, sock_pair,
+  is_node, url_http_to_ws, ewait, OA, sock_pair, rpc_sock_pipe,
 } from './util.js';
 import etask from './etask.js';
 import EventEmitter from './compat/events.js';
@@ -12,23 +12,26 @@ let RETRY_MS = 1000;
 
 class Trunk_loopback {
   status = 'online';
+  rpc;
   constructor(lifnet){
     this.lifnet = lifnet;
+    let [a, b] = sock_pair();
+    this.rpc = a;
+    rpc_sock.listen(b, 'rconnect', async({msg, sock: c_sock})=>{
+      let {method, params} = msg.params;
+      let {fn, is_listen} = this.lifnet.method_fn[method]||{};
+      if (!fn || !is_listen)
+        return {error: 'no loopback listen '+method};
+      let [svc_c, svc_s] = sock_pair();
+      rpc_sock_pipe(c_sock, svc_c);
+      this.lifnet.base_methods(svc_s);
+      return await fn({msg: {method, params}, sock: svc_s});
+    });
   }
   topic_get(topic){
     if (this.lifnet.pub_t[topic])
       return [this.lifnet.rg_id];
     return [];
-  }
-  async rconnect(sock, method, params){
-    let {fn, is_listen} = this.lifnet.method_fn[method]||{};
-    if (!fn)
-      return {error: 'no loopback method '+method};
-    if (!is_listen)
-      return {error: 'loopback only supports listen methods'};
-    let [, s_sock] = sock_pair(sock);
-    this.lifnet.base_methods(s_sock);
-    return await fn({msg: {method, params}, sock: s_sock});
   }
   async rcall(method, params){
     let {fn, is_listen} = this.lifnet.method_fn[method]||{};
@@ -189,15 +192,10 @@ export class Lifnet extends EventEmitter {
     let sock = new rpc_sock();
     this.base_methods(sock);
     let wait = (async()=>{
-      let ret;
-      if (rg_id==this.rg_id)
-        ret = await this.trunk_t.loopback.rconnect(sock, method, params);
-      else {
-        let trunk = this._any_ws_trunk();
-        if (!trunk)
-          return {error: 'no WS trunk online'};
-        ret = await sock.connect(trunk.rpc, 'rconnect', {rg_id, method, params});
-      }
+      let trunk = rg_id==this.rg_id ? this.trunk_t.loopback : this._any_ws_trunk();
+      if (!trunk)
+        return {error: 'no trunk online'};
+      let ret = await sock.connect(trunk.rpc, 'rconnect', {rg_id, method, params});
       if (ret?.error){
         console.warn('failed connect', ret);
         return ret;
