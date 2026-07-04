@@ -1,8 +1,7 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  ewait, is_node, OE, OV, rpc_sock_pipe, str, url_http_to_ws, sock_error_log,
+  is_node, url_http_to_ws,
 } from './util.js';
-import etask from './etask.js';
 import EventEmitter from './compat/events.js';
 let D = 0;
 
@@ -190,7 +189,13 @@ class Trunk_loopback {
       return {error: 'loopback only supports listen methods'};
     let s_sock = new rpc_sock();
     this.lifnet.base_methods(s_sock);
-    rpc_sock_pipe(sock, s_sock);
+    // In-memory pipe: bypass rpc routing since neither sock has a parent rpc
+    sock.send = msg=>s_sock.emit_msg(msg);
+    s_sock.send = msg=>sock.emit_msg(msg);
+    sock.on('close', ()=>s_sock.close());
+    s_sock.on('close', ()=>sock.close());
+    sock.emit_connect();
+    s_sock.emit_connect();
     return await fn({msg: {method, params}, sock: s_sock});
   }
   async rcall(method, params){
@@ -362,7 +367,7 @@ export class Lifnet extends EventEmitter {
           return {error: 'no WS trunk online'};
         ret = await sock.connect(trunk.rpc, 'rconnect', {rg_id, method, params});
       }
-      if (ret.error){
+      if (ret?.error){
         console.warn('failed connect', ret);
         return ret;
       }
@@ -493,7 +498,7 @@ export async function lifnet_connect(topic, params, opt={}){
       continue;
     let {sock: _sock, wait} = lifnet.connect(id, topic, params);
     let _ret = await wait;
-    if (_ret.error){
+    if (_ret?.error){
       console.log('failed connecting to '+id);
       _error = _ret.error;
       continue;
