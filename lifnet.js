@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  is_node, url_http_to_ws, ewait, OA,
+  is_node, url_http_to_ws, ewait, OA, sock_pair,
 } from './util.js';
 import etask from './etask.js';
 import EventEmitter from './compat/events.js';
@@ -26,15 +26,8 @@ class Trunk_loopback {
       return {error: 'no loopback method '+method};
     if (!is_listen)
       return {error: 'loopback only supports listen methods'};
-    let s_sock = new rpc_sock();
+    let [, s_sock] = sock_pair(sock);
     this.lifnet.base_methods(s_sock);
-    // In-memory pipe: bypass rpc routing since neither sock has a parent rpc
-    for (let [_c, _s] of [[sock, s_sock], [s_sock, sock]]){
-      _c.send = msg=>_s.emit_msg(msg);
-      _c.on('error', ()=>{});
-      _c.on('close', ()=>_s.close());
-      _c.emit_connect();
-    }
     return await fn({msg: {method, params}, sock: s_sock});
   }
   async rcall(method, params){

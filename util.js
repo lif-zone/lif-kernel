@@ -793,6 +793,16 @@ export function rpc_sock_pipe(c, s){
   }
 }
 
+export function sock_pair(c=new rpc_sock(), s=new rpc_sock()){
+  for (let [_c, _s] of [[c, s], [s, c]]){
+    _c.send = msg=>_s.emit_msg(msg);
+    _c.on('error', ()=>{});
+    _c.on('close', ()=>_s.close());
+    _c.emit_connect();
+  }
+  return [c, s];
+}
+
 export function sock_error_log(error, ...args){
   console.error(error, ...args);
   return {error};
