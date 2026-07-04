@@ -3,17 +3,18 @@ import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
   is_node, url_http_to_ws, ewait, OA, sock_pair, rpc_sock_pipe, OV,
 } from './util.js';
 import etask from './etask.js';
-import EventEmitter from './compat/events.js';
+import EventEmitter, {once} from './compat/events.js';
 let D = 0;
 
 let trunk_url_base = is_node ? 'http://localhost:4000' : location.origin;
 let trunk_url_ws = url_http_to_ws(trunk_url_base)+'/.lif.net';
 let RETRY_MS = 1000;
 
-class Trunk_loopback {
+class Trunk_loopback extends EventEmitter {
   status = 'online';
   rpc;
   constructor(lifnet){
+    super();
     this.lifnet = lifnet;
     let [a, b] = sock_pair();
     this.rpc = a;
@@ -43,11 +44,12 @@ class Trunk_loopback {
   }
 }
 
-class Trunk {
+class Trunk extends EventEmitter {
   status = 'offline';
   rpc = null;
   last = 0;
   constructor(lifnet, url){
+    super();
     this.lifnet = lifnet;
     this.url = url;
   }
@@ -84,11 +86,13 @@ class Trunk {
         if (this.status=='closed')
           return;
         this.status = 'offline';
+        this.emit('status', 'offline');
         this.rpc = null;
         D && console.log('lifnet trunk offline', this.url);
         this._connect();
       });
       this.status = 'online';
+      this.emit('status', 'online');
       D && console.log('lifnet trunk online', this.url);
     } catch(e){
       console.error('lifnet trunk connect '+this.url+': '+e);
@@ -147,6 +151,7 @@ export class Lifnet extends EventEmitter {
   client_version;
   server_version;
   error;
+  status = 'offline';
   constructor({url, client_name, client_version}={}){
     super();
     this.client_name = client_name||'lifnet-leaf';
@@ -156,25 +161,36 @@ export class Lifnet extends EventEmitter {
       this.trunk_add(url);
     this.base_methods();
   }
-  get status(){
-    return 'online';
+  _status_update(){
+    let prev = this.status;
+    this.status = this._trunk_online() ? 'online' : 'offline';
+    if (prev!=this.status)
+      this.emit('status', this.status);
   }
   trunk_add(url){
     if (this.trunk_t[url])
       return;
     let trunk = new Trunk(this, url);
     this.trunk_t[url] = trunk;
+    trunk.on('status', ()=>this._status_update());
     trunk.start();
   }
   _ws_trunks(){
     return OV(this.trunk_t).filter(t=>t instanceof Trunk);
   }
-  _any_ws_trunk(){
+  _trunk_online(){
     return this._ws_trunks().find(t=>t.status=='online');
   }
   async trunk_connect(){
-    // loopback is always online — resolves immediately
-    // WS trunks connect in background independently
+    if (this.status=='online')
+      return {ok: true};
+    let t = this._ws_trunks();
+    if (!t.length){
+      console.error('failed trunk_connect: no trunks defined');
+      return {error: 'no trunks'};
+    }
+    let status = await once(this, 'status');
+    return status=='online' ? {ok: true} : {error: 'offline'};
   }
   base_methods(sock){
     let rpc = sock || this;
@@ -192,7 +208,7 @@ export class Lifnet extends EventEmitter {
     let sock = new rpc_sock();
     this.base_methods(sock);
     let wait = (async()=>{
-      let trunk = rg_id==this.rg_id ? this.trunk_t.loopback : this._any_ws_trunk();
+      let trunk = rg_id==this.rg_id ? this.trunk_t.loopback : this._trunk_online();
       if (!trunk)
         return {error: 'no trunk online'};
       let ret = await sock.connect(trunk.rpc, 'rconnect', {rg_id, method, params});
@@ -217,26 +233,27 @@ export class Lifnet extends EventEmitter {
   _method(method, fn){
     if (!fn){
       delete this.method_fn[method];
-      for (let trunk of this._ws_trunks()){
+      for (let trunk of this._ws_trunks()){ // XXX what about loopback?
         if (trunk.rpc)
           trunk._rpc_method_del(trunk.rpc, method);
       }
       return;
     }
     this.method_fn[method] = {fn, is_listen: false};
-    for (let trunk of this._ws_trunks()){
+    for (let trunk of this._ws_trunks()){ // XXX what about loopback
       if (trunk.rpc)
         trunk._rpc_method_set(trunk.rpc, method);
     }
   }
   async trunk_call(method, params){
-    let trunk = this._any_ws_trunk();
+    let trunk = this._trunk_online();
     if (!trunk)
       return {error: 'offline'};
     return await trunk.rpc.call(method, params);
   }
   async topic_get(topic){
     let addr = new Set();
+    // XXX is it possible to merge loopback into _ws_trunks loop?
     for (let id of this.trunk_t.loopback.topic_get(topic))
       addr.add(id);
     for (let trunk of this._ws_trunks()){
@@ -294,10 +311,6 @@ export function rg_id_get(){
 }
 export const lifnet = new Lifnet();
 let lifnet_inited;
-export function lifnet_get(){
-  lifnet_init();
-  return lifnet;
-}
 function lifnet_init(){
   if (lifnet_inited)
     return lifnet;
@@ -306,14 +319,35 @@ function lifnet_init(){
   return lifnet;
 }
 
-export async function lifnet_online(){
+export function lifnet_get(){
   lifnet_init();
-  await lifnet.trunk_connect(); // wait for network to be 'online'
   return lifnet;
 }
 
+async function wait_pipe(wait, wait_val){
+  try {
+    wait.return(await wait_val);
+  } catch(err){
+    wait.throw(err);
+  }
+}
+export async function lifnet_online({timeout}={}){
+  lifnet_init();
+  if (lifnet.status=='online')
+    return;
+  let wait = ewait();
+  if (timeout){
+    (async()=>{
+      await etask.sleep(timeout);
+      wait.return({error: 'lifnet connect timeout'});
+    })();
+  }
+  wait_pipe(wait, lifnet.trunk_connect());
+  return await wait;
+}
+
 export async function lifnet_connect(topic, params, opt={}){
-  await lifnet_online();
+  await lifnet_online({timeout: 1000});
   let ret = await lifnet.topic_get(topic);
   let addr = ret?.addr;
   if (!addr)
