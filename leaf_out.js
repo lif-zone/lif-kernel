@@ -6,7 +6,7 @@ import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
   websocket_fix, sock_error_log,
 } from './util.js';
 import {WebSocket as ws_WebSocket} from 'ws';
-import {once} from 'events';
+import {once, EventEmitter} from 'events';
 import tls from 'tls';
 import net from 'net';
 import dns from 'dns/promises';
@@ -368,6 +368,75 @@ export async function leaf_rpc_websocket_out(topic, url){
       await wait;
     } catch(err){
       return sock_error_log('failed connection '+url+': '+err);
+    }
+    return {connected: true};
+  });
+}
+
+// WebSocket-compatible adapter for a plain TCP or TLS socket.
+// Reads JSON messages terminated by \r, sends JSON+\r.
+// Used as ws_ctor in rpc_websocket for tcp:/ssl: URLs.
+class tcp_ws extends EventEmitter {
+  readyState = 0; // CONNECTING
+  websocket_fix = 'tcp'; // prevent websocket_fix() from touching this
+  binaryType = null; // unused, satisfies rpc_websocket.connect()
+  _buf = '';
+  constructor(url){
+    super();
+    let m = url.match(/^(tcp|ssl):\/?\/?([^:]+):(\d+)/);
+    if (!m)
+      throw new Error('invalid tcp url: '+url);
+    let [, proto, host, port] = m;
+    let sock = proto=='ssl'
+      ? tls.connect({host, port: +port})
+      : net.createConnection({host, port: +port});
+    this._sock = sock;
+    let on_connect = ()=>{
+      if (this.readyState==1)
+        return;
+      this.readyState = 1; // OPEN
+      this.emit('open');
+    };
+    sock.on('connect', on_connect);
+    sock.on('secureConnect', on_connect);
+    sock.on('data', data=>{
+      this._buf += data.toString('utf8');
+      let lines = this._buf.split('\r');
+      this._buf = lines.pop();
+      for (let line of lines){
+        if (line.trim())
+          this.emit('message', {data: line});
+      }
+    });
+    sock.on('error', err=>this.emit('error', err));
+    sock.on('close', ()=>{
+      this.readyState = 3; // CLOSED
+      this.emit('close');
+    });
+  }
+  on_message(fn){
+    return this.on('message', fn);
+  }
+  send(text){
+    this._sock.write(text+'\r');
+  }
+  close(){
+    this._sock.destroy();
+  }
+}
+
+export async function leaf_rpc_tcp_out(topic, url){
+  await lifnet_listen(topic, async({msg, sock})=>{
+    let _url = url || msg.params?.url;
+    if (!_url)
+      return sock_error_log('missing url');
+    let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor: tcp_ws});
+    let wait = s.connect({url: _url});
+    rpc_sock_pipe(sock, s);
+    try {
+      await wait;
+    } catch(err){
+      return sock_error_log('failed tcp connection '+_url+': '+err);
     }
     return {connected: true};
   });
