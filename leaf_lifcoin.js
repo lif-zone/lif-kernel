@@ -30,7 +30,7 @@ async function leaf_lifcoin_lif_kv_out({msg, sock}){
   return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
 }
 
-export function leaf_lifcoin_out(rpc){
+export function leaf_lifcoin_out(){
   // ws://localhost:8432/electrum
   leaf_rpc_websocket_out('lifcoin/electrum', lifcoin_node_ws_url+'/electrum');
   // wss://electrumx.nimiq.com:443/electrumx // restricted from localhost:5000

@@ -2,6 +2,7 @@
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
   is_node, url_http_to_ws,
 } from './util.js';
+import etask from './etask.js';
 import EventEmitter from './compat/events.js';
 let D = 0;
 
@@ -192,6 +193,8 @@ class Trunk_loopback {
     // In-memory pipe: bypass rpc routing since neither sock has a parent rpc
     sock.send = msg=>s_sock.emit_msg(msg);
     s_sock.send = msg=>sock.emit_msg(msg);
+    sock.on('error', ()=>{});
+    s_sock.on('error', ()=>{});
     sock.on('close', ()=>s_sock.close());
     s_sock.on('close', ()=>sock.close());
     sock.emit_connect();
@@ -222,11 +225,12 @@ class Trunk {
   async _connect(){
     let delay = Math.max(this.last+RETRY_MS-Date.now(), 0);
     if (delay)
-      await new Promise(r=>setTimeout(r, delay));
+      await etask.sleep(delay);
     if (this.status=='closed')
       return;
     this.last = Date.now();
     let rpc = this.rpc = new rpc_websocket({D: 1});
+    rpc.on('error', err=>console.error('lifnet trunk error', this.url, err));
     D && console.log('lifnet connecting', this.url);
     try {
       await rpc.connect({url: this.url});
@@ -244,7 +248,6 @@ class Trunk {
       }
       for (let method in this.lifnet.method_fn)
         this._rpc_method_set(rpc, method);
-      rpc.on('error', err=>console.error('lifnet trunk error', this.url, err));
       rpc.on('close', ()=>{
         if (this.status=='closed')
           return;
