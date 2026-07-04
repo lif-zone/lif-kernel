@@ -20,7 +20,7 @@ class Trunk_loopback {
       return [this.lifnet.rg_id];
     return [];
   }
-  async connect_sock(sock, method, params){
+  async rconnect(sock, method, params){
     let {fn, is_listen} = this.lifnet.method_fn[method]||{};
     if (!fn)
       return {error: 'no loopback method '+method};
@@ -191,7 +191,7 @@ export class Lifnet extends EventEmitter {
     let wait = (async()=>{
       let ret;
       if (rg_id==this.rg_id)
-        ret = await this.trunk_t.loopback.connect_sock(sock, method, params);
+        ret = await this.trunk_t.loopback.rconnect(sock, method, params);
       else {
         let trunk = this._any_ws_trunk();
         if (!trunk)
