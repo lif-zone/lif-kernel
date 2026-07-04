@@ -1,6 +1,6 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  is_node, url_http_to_ws, ewait, OA, sock_pair, rpc_sock_pipe,
+  is_node, url_http_to_ws, ewait, OA, sock_pair, rpc_sock_pipe, OV,
 } from './util.js';
 import etask from './etask.js';
 import EventEmitter from './compat/events.js';
@@ -167,7 +167,7 @@ export class Lifnet extends EventEmitter {
     trunk.start();
   }
   _ws_trunks(){
-    return Object.values(this.trunk_t).filter(t=>t instanceof Trunk);
+    return OV(this.trunk_t).filter(t=>t instanceof Trunk);
   }
   _any_ws_trunk(){
     return this._ws_trunks().find(t=>t.status=='online');
@@ -183,7 +183,7 @@ export class Lifnet extends EventEmitter {
       ()=>({name: this.client_name, version: this.client_version}));
   }
   close(){
-    for (let trunk of Object.values(this.trunk_t)){
+    for (let trunk of OV(this.trunk_t)){
       if (trunk instanceof Trunk)
         trunk.close();
     }
