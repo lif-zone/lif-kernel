@@ -36,12 +36,12 @@ export function leaf_lifcoin_out(){
   let electrum_servers = [
     //'wss://electrumx.nimiq.com:443/electrumx', // restricted CORS localhost:5000
     //'wss://bitcoinserver.nl:50004', // good
-    // wss://electrum.blockstream.info:700', // no response
-    'ussl:mainnet.foundationdevices.com:50002',
-    //'ussl:bitcoin.lu.ke:50002',
+    //'wss://electrum.blockstream.info:700', // no response
+    'ussl:mainnet.foundationdevices.com:50002', // good
+    //'ussl:bitcoin.lu.ke:50002', // good
     //'ussl:electrum.acinq.co:50002',
     //'tcp:electrum1.bluewallet.io:50001', // refused
-    //'ussl:electrum1.bluewallet.io:443',
+    //'ussl:electrum1.bluewallet.io:443', // good
     //'ssl:electrum2.bluewallet.io:443', // good
     //'ussl:electrum3.bluewallet.io:443', // good
     //'wss://electrum.blockstream.info:993', // no response
