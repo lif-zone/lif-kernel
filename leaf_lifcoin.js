@@ -36,6 +36,7 @@ export function leaf_lifcoin_out(){
   // wss://electrumx.nimiq.com:443/electrumx // restricted from localhost:5000
   // wss://bitcoinserver.nl:50004 // unrestricted
   // wss://electrum.blockstream.info:700 // does not work
+  //leaf_rpc_websocket_out('bitcoin/electrum', 'tcp:electrum1.bluewallet.io:50001'); // untested
   leaf_rpc_websocket_out('bitcoin/electrum', 'wss://bitcoinserver.nl:50004'); // untested
   leaf_rpc_websocket_out('bitcoin_test/electrum',
     'wss://electrum.blockstream.info:993'); // untested

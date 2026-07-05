@@ -3,7 +3,7 @@
 let lif_rg_version = '26.4.23';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
   rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
-  websocket_fix, sock_error_log,
+  websocket_fix, sock_error_log, str,
 } from './util.js';
 import {WebSocket as ws_WebSocket} from 'ws';
 import {once, EventEmitter} from 'events';
@@ -355,13 +355,16 @@ export async function leaf_lifcoin_node_out({msg, sock}){ // XXX unused
 
 export async function leaf_rpc_websocket_out(topic, url){
   await lifnet_listen(topic, async({msg, sock})=>{
-    let s = new rpc_websocket({D: 1, jsonrpc: '2.0'});
     if (!url){
       url = msg.params?.url;
       // XXX - need to validate URL/allowed ip/dns resolve
     }
     if (!url)
       return sock_error_log('missing url');
+    let ws_ctor;
+    if (str.starts(url, 'tcp:', 'ssl:'))
+      ws_ctor = tcp_ws;
+    let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor});
     let wait = s.connect({url});
     rpc_sock_pipe(sock, s);
     try {
@@ -423,22 +426,5 @@ class tcp_ws extends EventEmitter {
   close(){
     this._sock.destroy();
   }
-}
-
-export async function leaf_rpc_tcp_out(topic, url){
-  await lifnet_listen(topic, async({msg, sock})=>{
-    let _url = url || msg.params?.url;
-    if (!_url)
-      return sock_error_log('missing url');
-    let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor: tcp_ws});
-    let wait = s.connect({url: _url});
-    rpc_sock_pipe(sock, s);
-    try {
-      await wait;
-    } catch(err){
-      return sock_error_log('failed tcp connection '+_url+': '+err);
-    }
-    return {connected: true};
-  });
 }
 
