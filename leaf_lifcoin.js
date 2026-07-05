@@ -37,7 +37,8 @@ export function leaf_lifcoin_out(){
   // wss://bitcoinserver.nl:50004 // unrestricted
   // wss://electrum.blockstream.info:700 // does not work
   //leaf_rpc_websocket_out('bitcoin/electrum', 'tcp:electrum1.bluewallet.io:50001'); // untested
-  leaf_rpc_websocket_out('bitcoin/electrum', 'wss://bitcoinserver.nl:50004'); // untested
+  leaf_rpc_websocket_out('bitcoin/electrum', 'ssl:electrum2.bluewallet.io:443'); // untested
+  //leaf_rpc_websocket_out('bitcoin/electrum', 'wss://bitcoinserver.nl:50004'); // untested
   leaf_rpc_websocket_out('bitcoin_test/electrum',
     'wss://electrum.blockstream.info:993'); // untested
   lifnet_listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
