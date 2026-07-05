@@ -363,7 +363,7 @@ export async function leaf_rpc_websocket_out(topic, url){
       return sock_error_log('missing url');
     console.log('leaf try');
     let ws_ctor;
-    if (str.starts(url, 'tcp:', 'ssl:'))
+    if (str.starts(url, 'tcp:', 'ssl:', 'ussl:'))
       ws_ctor = rpc_tcp;
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor});
     let wait = s.connect({url});
@@ -388,13 +388,15 @@ class rpc_tcp extends EventEmitter {
   _buf = '';
   constructor(url){
     super();
-    let m = url.match(/^(tcp|ssl):\/?\/?([^:]+):(\d+)/);
+    let m = url.match(/^(tcp|ssl|ussl):\/?\/?([^:]+):(\d+)/);
     if (!m)
       throw new Error('invalid tcp url: '+url);
     let [, proto, host, port] = m;
-    let sock = proto=='ssl'
-      ? tls.connect({host, port: +port})
-      : net.createConnection({host, port: +port});
+    let opt = {host, port: +port};
+    let ssl = str.is(proto, 'ssl', 'ussl');
+    if (proto=='ussl')
+      opt.rejectUnauthorized = false;
+    let sock = ssl ? tls.connect(opt) : net.createConnection(opt);
     this._sock = sock;
     let on_connect = ()=>{
       if (this.readyState==1)

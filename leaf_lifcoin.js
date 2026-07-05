@@ -33,18 +33,24 @@ async function leaf_lifcoin_lif_kv_out({msg, sock}){
 export function leaf_lifcoin_out(){
   // ws://localhost:8432/electrum
   leaf_rpc_websocket_out('lifcoin/electrum', lifcoin_node_ws_url+'/electrum');
-  // wss://electrumx.nimiq.com:443/electrumx // restricted from localhost:5000
-  // wss://bitcoinserver.nl:50004 // unrestricted
-  // wss://electrum.blockstream.info:700 // does not work
-  //leaf_rpc_websocket_out('bitcoin/electrum', 'tcp:electrum1.bluewallet.io:50001'); // untested
-  leaf_rpc_websocket_out('bitcoin/electrum', 'ssl:electrum2.bluewallet.io:443'); // untested
-  //leaf_rpc_websocket_out('bitcoin/electrum', 'wss://bitcoinserver.nl:50004'); // untested
-  leaf_rpc_websocket_out('bitcoin_test/electrum',
-    'wss://electrum.blockstream.info:993'); // untested
+  let electrum_servers = [
+    //'wss://electrumx.nimiq.com:443/electrumx', // restricted CORS localhost:5000
+    //'wss://bitcoinserver.nl:50004', // good
+    // wss://electrum.blockstream.info:700', // no response
+    'ussl:mainnet.foundationdevices.com:50002',
+    //'ussl:bitcoin.lu.ke:50002',
+    //'ussl:electrum.acinq.co:50002',
+    //'tcp:electrum1.bluewallet.io:50001', // refused
+    //'ussl:electrum1.bluewallet.io:443',
+    //'ssl:electrum2.bluewallet.io:443', // good
+    //'ussl:electrum3.bluewallet.io:443', // good
+    //'wss://electrum.blockstream.info:993', // no response
+  ];
+  for (let s of electrum_servers)
+    leaf_rpc_websocket_out('bitcoin/electrum', s);
   lifnet_listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
   lifnet_listen('lifcoin/node', leaf_lifcoin_node_out); // unused
 }
-
 
 async function start_leaf(opt={}){
   leaf_lifcoin_out();
