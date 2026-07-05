@@ -361,9 +361,10 @@ export async function leaf_rpc_websocket_out(topic, url){
     }
     if (!url)
       return sock_error_log('missing url');
+    console.log('leaf try');
     let ws_ctor;
     if (str.starts(url, 'tcp:', 'ssl:'))
-      ws_ctor = tcp_ws;
+      ws_ctor = rpc_tcp;
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor});
     let wait = s.connect({url});
     rpc_sock_pipe(sock, s);
@@ -372,6 +373,7 @@ export async function leaf_rpc_websocket_out(topic, url){
     } catch(err){
       return sock_error_log('failed connection '+url+': '+err);
     }
+    console.log('leaf connected');
     return {connected: true};
   });
 }
@@ -379,7 +381,7 @@ export async function leaf_rpc_websocket_out(topic, url){
 // WebSocket-compatible adapter for a plain TCP or TLS socket.
 // Reads JSON messages terminated by \r, sends JSON+\r.
 // Used as ws_ctor in rpc_websocket for tcp:/ssl: URLs.
-class tcp_ws extends EventEmitter {
+class rpc_tcp extends EventEmitter {
   readyState = 0; // CONNECTING
   websocket_fix = 'tcp'; // prevent websocket_fix() from touching this
   binaryType = null; // unused, satisfies rpc_websocket.connect()
@@ -404,10 +406,11 @@ class tcp_ws extends EventEmitter {
     sock.on('secureConnect', on_connect);
     sock.on('data', data=>{
       this._buf += data.toString('utf8');
-      let lines = this._buf.split('\r');
+      let lines = this._buf.split('\n');
       this._buf = lines.pop();
       for (let line of lines){
-        if (line.trim())
+        line = line.trim();
+        if (line)
           this.emit('message', {data: line});
       }
     });
@@ -421,7 +424,8 @@ class tcp_ws extends EventEmitter {
     return this.on('message', fn);
   }
   send(text){
-    this._sock.write(text+'\r');
+    assert(typeof text=='string');
+    this._sock.write(text+'\r\n');
   }
   close(){
     this._sock.destroy();
