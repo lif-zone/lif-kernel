@@ -24,15 +24,24 @@ export function leaf_ip_out(){
 const lifcoin_node_url = 'http://localhost:8432';
 const lifcoin_node_ws_url = url_http_to_ws(lifcoin_node_url);
 const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
+const liftest_node_url = 'http://localhost:18432';
+const liftest_node_ws_url = url_http_to_ws(lifcoin_node_url);
+const liftest_lif_kv_url = 'http://localhost:18432/lif_kv';
 async function leaf_lifcoin_lif_kv_out({msg, sock}){
   let {key} = msg.params;
   let m = {params: {url: lifcoin_lif_kv_url+qs_enc({key})}};
+  return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
+}
+async function leaf_liftest_lif_kv_out({msg, sock}){
+  let {key} = msg.params;
+  let m = {params: {url: liftest_lif_kv_url+qs_enc({key})}};
   return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
 }
 
 export function leaf_lifcoin_out(){
   // ws://localhost:8432/electrum
   leaf_rpc_websocket_out('lifcoin/electrum', lifcoin_node_ws_url+'/electrum');
+  leaf_rpc_websocket_out('lifcoin_test/electrum', liftest_node_ws_url+'/electrum');
   let electrum_servers = [
     //'wss://electrumx.nimiq.com:443/electrumx', // restricted CORS localhost:5000
     //'wss://bitcoinserver.nl:50004', // good
@@ -49,6 +58,7 @@ export function leaf_lifcoin_out(){
   for (let s of electrum_servers)
     leaf_rpc_websocket_out('bitcoin/electrum', s);
   lifnet_listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
+  lifnet_listen('lifcoin_test/lif_kv', leaf_liftest_lif_kv_out);
   lifnet_listen('lifcoin/node', leaf_lifcoin_node_out); // unused
 }
 
