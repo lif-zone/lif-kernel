@@ -1766,6 +1766,7 @@ function test_kernel(){
   t('@', '@');
   t('@1.2.3', '@1.2.3');
   t('@semver:=1.2.3', '@=1.2.3');
+  0 && t('@^147a849fbc1', '@147a849fbc1'); // XXX git ^commitid
   t = (date, v)=>assert_eq(v, npm_ver_lookup(pkg_ver, date));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
