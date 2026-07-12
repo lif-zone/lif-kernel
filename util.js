@@ -2252,6 +2252,12 @@ function test_util(){
   t('github:mochajs/mocha', 'git/github.com/mochajs/mocha');
   t('git://github.com/mochajs/mocha.git#4727d357ea',
     'git/github.com/mochajs/mocha@4727d357ea');
+  // XXX temporarily ignore ^. real fix should be in version lookup code.
+  // lookup newest release on branch
+  0 && t('git://github.com/mochajs/mocha.git#^4727d357ea',
+    'git/github.com/mochajs/mocha@4727d357ea');
+  0 && t('git://github.com/mochajs/mocha.git#=4727d357ea',
+    'git/github.com/mochajs/mocha@4727d357ea');
   t('git://github.com/mochajs/mocha.git/index.js#4727d357ea',
     'git/github.com/mochajs/mocha@4727d357ea/index.js');
   t('git://github.com/mochajs/mocha/dir/file.js',
