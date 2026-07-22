@@ -79,7 +79,11 @@
     "dns2": "3.0.0",
     "ws": "^8.20.0"
   },
+  "run": {
+    "lif-kernel": "./server.js"
+  },
   "scripts": {
+    "serve": "./server.js -p 4000",
     "lint": "eslint",
     "test": "mocha --reporter spec test/browser.js",
     "test-ci": "mocha --reporter mocha-multi-reporters --reporter-options configFile=test/mocharc.json test/browser.js"
