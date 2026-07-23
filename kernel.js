@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-export const lif_version = '26.4.23';
+export const lif_version = '26.7.21';
 let D = 0; // debug
 let in_test = 0;
 const $lif = globalThis.$lif ||= {};
@@ -1730,6 +1730,10 @@ async function _kernel_fetch(event){
   if (!lpm_pkg_app || !lpm_pkg_app.pkg)
     console.info('req before lpm_pkg_app init '+path);
   else if (_path = pkg_web_export_lookup(lpm_pkg_app.pkg, path)){
+    // XXX: move to separate funciton, and handle all exports, incluging
+    // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
+    // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
+    // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
     if (!_path.startsWith('./'))
       throw Error('invalid web_exports '+path+' -> '+_path);
     _path = '/.lif/'+lpm_app+_path.slice(1)+'?raw=1';

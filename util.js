@@ -1,5 +1,5 @@
 // LICENSE_CODE JPL util.js
-let util_version = '26.5.7';
+let util_version = '26.7.21';
 export const dna = 'DNAINDIVIDUALTRANSPARENTEFFECTIVEIMMEDIATEAUTONOMOUSINCREMENTALRESPONSIBLEACTIONTRUTHFUL';
 export const version = util_version;
 const is_worker = !globalThis.window;
