@@ -46,6 +46,8 @@
     "mine_db.js",
     "server.js",
     "server_lib.js",
+    "serve.js",
+    "serve_index.html",
     "dns_s.js",
     "ssl_s.js",
     "ssl_acme.js",
