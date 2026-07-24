@@ -61,6 +61,11 @@ let coi_enable = true;
 let g_opt = {};
 
 function res_send_file(res, _path){
+  let opt;
+  if (typeof _path=='object'){
+    opt = _path;
+    _path = opt.path;
+  }
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = ext2mime[ext]||'plain/text';
   let e = fs.statSync(_path, {throwIfNoEntry: false});
@@ -73,8 +78,13 @@ function res_send_file(res, _path){
     h['cross-origin-embedder-policy'] = 'require-corp';
     h['cross-origin-opener-policy'] = 'same-origin';
   }
-  let stream = fs.createReadStream(_path);
+  if (opt.tr_fn){
+    let _body = fs.readFileSync(_path, 'utf8');
+    let body = opt.tr_fn(_body);
+    return res_send(res, {body, ext});
+  }
   res.writeHead(200, h);
+  let stream = fs.createReadStream(_path);
   stream.pipe(res);
 }
 
@@ -92,27 +102,29 @@ function res_send(res, {body, ext}){
 }
 
 function map_uri({uri, opt: {map, root}}){
-  let _uri, _to;
+  let _uri, to;
   if (path_is_dir(uri))
     uri = path_join(uri, 'index.html');
   for (let f in map){
-    let to = map[f], v;
+    let _to = map[f], v;
     if (v=path_starts(uri, f)){
-      _to = to;
+      to = _to;
       _uri = v.rest;
       break;
     }
   }
   if (_uri==undefined)
     return;
-  if (path_starts(_to, '.', '..'))
-    _to = path_join(root, _to);
+  if (typeof to=='object')
+    return {uri, ...to};
+  if (path_starts(to, '.', '..'))
+    to = path_join(root, to);
   if (_uri)
-    _to = path_join(_to, _uri);
-  _to = path_dots(_to);
-  if (_to.endsWith('/'))
-    _to = path_join(_to, path_file(uri)||'index.html');
-  return _to;
+    to = path_join(to, _uri);
+  to = path_dots(to);
+  if (to.endsWith('/'))
+    to = path_join(to, path_file(uri)||'index.html');
+  return to;
 }
 function test_server(){
   let map = {
