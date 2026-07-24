@@ -62,9 +62,9 @@ let g_opt = {};
 
 function res_send_file(res, _path){
   let opt;
-  if (typeof _path=='object'){
+  if (_path.path){
     opt = _path;
-    _path = opt.path;
+    _path = _path.path;
   }
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = ext2mime[ext]||'plain/text';
@@ -78,7 +78,7 @@ function res_send_file(res, _path){
     h['cross-origin-embedder-policy'] = 'require-corp';
     h['cross-origin-opener-policy'] = 'same-origin';
   }
-  if (opt.tr_fn){
+  if (opt?.tr_fn){
     let _body = fs.readFileSync(_path, 'utf8');
     let body = opt.tr_fn(_body);
     return res_send(res, {body, ext});
@@ -115,7 +115,7 @@ function map_uri({uri, opt: {map, root}}){
   }
   if (_uri==undefined)
     return;
-  if (typeof to=='object')
+  if (to.path)
     return {uri, ...to};
   if (path_starts(to, '.', '..'))
     to = path_join(root, to);
