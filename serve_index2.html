@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <script type=module>
+      let lif;
+      let retry = +localStorage.getItem('lif.boot.retry')||0;
+      if (retry)
+        console.log('lif boot retry');
+      if (navigator.serviceWorker.controller && !retry || Date.now()-retry>10000){
+        setTimeout(async()=>{
+          if (lif)
+            return;
+          console.log('lif boot failed loading - unreegister sw');
+          let reg = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(reg.map(r=>r.update()));
+          await Promise.all(reg.map(r=>r.unregister()));
+          localStorage.setItem('lif.boot.retry', ''+Date.now());
+          window.location.reload(true);
+        }, 2000);
+      }
+      lif = (await import('/lif-kernel/boot.js')).default; // local dev
+      await lif.boot.boot_app({lif: {webapp: '__WEBAPP__'}});
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
+

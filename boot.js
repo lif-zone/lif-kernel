@@ -994,6 +994,7 @@ let boot_kernel = async()=>{
       kernel_opt.local_dev_enable = 1;
     const registration = await serviceWorker.register(
       '/.lif.kernel_sw.js'+qs_enc(kernel_opt));
+    slow.end();
     if (0){
       registration.update();
       // Listen for new service worker
@@ -1014,6 +1015,7 @@ let boot_kernel = async()=>{
     serviceWorker.addEventListener('statechange', ()=>{
       console.log('sw statechange', event);
     });
+    slow = eslow(1000, 'sw register ready'); // this is where it gets normally stuck
     const sw = await serviceWorker.ready;
     slow.end();
     // this boots the app if the SW has been installed before or
