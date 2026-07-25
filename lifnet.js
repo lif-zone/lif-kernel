@@ -6,7 +6,7 @@ import etask from './etask.js';
 import EventEmitter, {once} from './compat/events.js';
 let D = 0;
 
-let trunk_url_base = is_node ? 'http://localhost:4000' : location.origin;
+let trunk_url_base = is_node ? 'http://localhost:1842' : location.origin;
 let trunk_url_ws = url_http_to_ws(trunk_url_base)+'/.lif.net';
 let RETRY_MS = 1000;
 
