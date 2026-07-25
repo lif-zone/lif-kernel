@@ -1281,7 +1281,7 @@ E._generator = function(gen, ctor, opt, _this){
     opt.cancel = true;
   var done;
   return new Etask(opt, [function(){
-    this.generator = gen = gen||ctor.apply(this, opt.state0_args||[]);
+    this.generator = gen = gen||ctor.apply(this, opt.state0_args||[this]);
     this.generator_ctor = ctor;
     return {ret: undefined, err: undefined};
   }, function try_catch$loop(rv){

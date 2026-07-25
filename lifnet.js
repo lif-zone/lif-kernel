@@ -44,62 +44,93 @@ class Trunk_loopback extends EventEmitter {
   }
 }
 
+// throw to {error: ...}
+function T2E(fn){
+  try {
+    return fn();
+  } catch(error){
+    return {error};
+  }
+}
+
+function T2E_et(fn){
+  return etask(function*(){
+    try {
+      return yield fn();
+    } catch(error){
+      return {error};
+    }
+  });
+}
+
 class Trunk extends EventEmitter {
   status = 'offline';
-  rpc = null;
+  rpc;
   last = 0;
+  et_connect;
   constructor(lifnet, url){
     super();
     this.lifnet = lifnet;
     this.url = url;
   }
   start(){
-    this._connect();
-  }
-  async _connect(){
-    let delay = Math.max(this.last+RETRY_MS-Date.now(), 0);
-    if (delay)
-      await etask.sleep(delay);
-    if (this.status=='closed')
+    if (this.et_connect)
       return;
-    this.last = Date.now();
-    let rpc = this.rpc = new rpc_websocket({D: 1});
-    rpc.on('error', err=>console.error('lifnet trunk error', this.url, err));
-    D && console.log('lifnet connecting', this.url);
-    try {
-      await rpc.connect({url: this.url});
-      let ret = await rpc.call('version',
-        {name: this.lifnet.client_name, version: this.lifnet.client_version});
-      if (ret.error)
-        throw new Error('server version err: '+ret.error);
-      this.lifnet.server_version = ret;
-      ret = await rpc.call('rg_id', {rg_id: this.lifnet.rg_id});
-      if (ret.error)
-        throw new Error('rg_id err: '+ret.error);
-      for (let topic in this.lifnet.pub_t){
-        let t = this.lifnet.pub_t[topic];
-        rpc.call('topic_pub', {topic, data: t.data});
-      }
-      for (let method in this.lifnet.method_fn)
-        this._rpc_method_set(rpc, method);
-      rpc.on('close', ()=>{
-        if (this.status=='closed')
-          return;
-        this.status = 'offline';
-        this.emit('status', 'offline');
-        this.rpc = null;
-        D && console.log('lifnet trunk offline', this.url);
-        this._connect();
-      });
-      this.status = 'online';
-      this.emit('status', 'online');
-      D && console.log('lifnet trunk online', this.url);
-    } catch(e){
-      console.error('lifnet trunk connect '+this.url+': '+e);
-      this.rpc = null;
-      this._connect();
-    }
+    this.et_connect = this._connect_loop();
+    this.et_connect.on('finally', ()=>this.et_connect = null);
+    this.on('close', ()=>this.et_connect.return({error: 'close'}));
+    return this.et_connect;
   }
+  emit_status(status){
+    if (this.status==status)
+      return;
+    console.log('lifnet trunk '+this.url+' '+status);
+    this.status = status;
+    this.emit('status', status);
+  }
+  _connect_single(){ return etask(function*(et){
+    assert(!this.rpc);
+    et.on('finally', ()=>{
+      if (this.status=='closed')
+        return;
+      this.emit_status('offline');
+      this.rpc?.close();
+      this.rpc = null;
+    });
+    this.last = Date.now();
+    D && console.log('lifnet trunk connect attempt '+this.url);
+    let rpc = this.rpc = new rpc_websocket({D: 1});
+    rpc.on('error', err=>et.return({error: 'lifnet trunk error '+this.url+' '+err}));
+    rpc.on('close', ()=>et.return({error: 'closed'}));
+    let ret = yield T2E_et(()=>rpc.connect({url: this.url}));
+    if (ret?.error)
+      return ret;
+    ret = yield rpc.call('version',
+      {name: this.lifnet.client_name, version: this.lifnet.client_version});
+    if (ret?.error)
+      return {error: 'server version err: '+ret.error};
+    this.lifnet.server_version = ret;
+    ret = yield rpc.call('rg_id', {rg_id: this.lifnet.rg_id});
+    if (ret?.error)
+      return {error: 'rg_id err: '+ret.error};
+    for (let topic in this.lifnet.pub_t){
+      let t = this.lifnet.pub_t[topic];
+      rpc.call('topic_pub', {topic, data: t.data});
+    }
+    for (let method in this.lifnet.method_fn)
+      this._rpc_method_set(rpc, method);
+    this.emit_status('online');
+    yield etask.wait();
+   }.bind(this)); }
+  _connect_loop(){ return etask(function*(et){
+    for (;;){
+      this.last = Date.now();
+      yield this._connect_single();
+      let delay = Math.max(this.last+RETRY_MS-Date.now(), 0);
+      if (delay)
+        yield etask.sleep(delay);
+    }
+  }.bind(this)); }
   _rpc_method_set(rpc, method){
     let {fn, is_listen} = this.lifnet.method_fn[method];
     assert(fn);
@@ -175,6 +206,10 @@ export class Lifnet extends EventEmitter {
     trunk.on('status', ()=>this._status_update());
     trunk.start();
   }
+  _trunks_retry(){
+    for (let t of this._ws_trunks())
+      t.start();
+  }
   _ws_trunks(){
     return OV(this.trunk_t).filter(t=>t instanceof Trunk);
   }
@@ -189,6 +224,7 @@ export class Lifnet extends EventEmitter {
       console.error('failed trunk_connect: no trunks defined');
       return {error: 'no trunks'};
     }
+    this._trunks_retry();
     let status = await once(this, 'status');
     return status=='online' ? {ok: true} : {error: 'offline'};
   }
@@ -347,13 +383,19 @@ export async function lifnet_online({timeout}={}){
 }
 
 export async function lifnet_connect(topic, params, opt={}){
-  await lifnet_online({timeout: 1000});
-  let ret = await lifnet.topic_get(topic);
+  // XXX after all trunks fail, should not continue waiting 5 seconds
+  let ret = await lifnet_online({timeout: 5000});
+  if (ret?.error)
+    return ret;
+  ret = await lifnet.topic_get(topic);
   let addr = ret?.addr;
   if (!addr)
     return {error: 'lifnet error: failed get topic '+topic};
-  if (!addr.length)
+  if (!addr.length){
+    if (lifnet.status!='online')
+      return {error: 'lifnet offline'};
     return {error: 'no '+topic+' servers online'};
+  }
   let rg, sock, _error, res;
   for (let id of addr){
     let _rg = g_rg[id] ||= {id};
