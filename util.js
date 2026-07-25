@@ -340,7 +340,8 @@ export class rpc_base extends EventEmitter {
     super();
     if (opt.D)
       this.D = 1;
-    this.D && console.log('rpc>>connect');
+    this.p = opt.pre||'rpc';
+    this.D && console.log(this.p+'>>connect');
     if (opt.is_json)
       this.is_json = opt.is_json;
   }
@@ -398,7 +399,7 @@ export class rpc_base extends EventEmitter {
     }
     slow.end();
     this.D && console.log(
-      'rpc>< '+(res.error!==undefined ? 'error ' : '')+method, res);
+      this.p+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
     return res;
   }
   async notify(method, params, opt){
@@ -432,7 +433,7 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: unexpected msg id', msg);
     delete this.req[id];
     if (this.D || 'error' in msg){
-      console.log('rpc> '+(msg.error ? 'err ' : '')+req.request.method,
+      console.log(this.p+'> '+(msg.error ? 'err ' : '')+req.request.method,
         req.request.params ?? '', msg.error||msg.result);
     }
     req.wait.return(msg);
@@ -458,11 +459,12 @@ export class rpc_base extends EventEmitter {
     } catch(err){ CE(err);
       console.error(err);
       res = {error: ''+err};
+    } finally {
+      slow.end();
     }
-    slow.end();
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log('rpc< '+(res.error ? 'err ' : '')+method, params,
+      console.log(this.p+'< '+(res.error ? 'err ' : '')+method, params,
         res.error||res.result);
     }
     await this.send(res, opt);
@@ -527,7 +529,7 @@ export class rpc_base extends EventEmitter {
     for (let [id, fn] of OE(this.id_fn))
       delete this.id_fn[id];
     if (this.D)
-      console.log('rpc>!close');
+      console.log(this.p+'>! close');
     this.emit('close');
   }
   method(method, fn){

@@ -23,7 +23,7 @@ export function rpc_methods_basic(rpc){
 }
 
 export function ws_trunk_connect(ws, opt={full: 1}){
-  let rpc = new rpc_websocket({D: 1});
+  let rpc = new rpc_websocket({D: 1, pre: 'c'});
   rpc.topics = {};
   rpc_methods_basic(rpc);
   rpc.accept({ws});

@@ -355,6 +355,10 @@ function lifnet_init(){
   return lifnet;
 }
 
+export function lifnet_client_name(opt={}){
+  if (opt.client_name)
+    lifnet.client_name = opt.client_name;
+}
 export function lifnet_get(){
   lifnet_init();
   return lifnet;
