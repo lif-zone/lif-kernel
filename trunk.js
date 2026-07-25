@@ -19,7 +19,11 @@ const PEER_RETRY_MS = 5000;
 
 export function rpc_methods_basic(rpc){
   rpc.method('ping', ()=>({pong: 1}));
-  rpc.method('version', ()=>({name: 'lif-kernel', version: util_version}));
+  rpc.method('version', ({name})=>{
+    if (name)
+      rpc.pre = name;
+    return {name: 'lif-trunk', version: util_version};
+  });
 }
 
 export function ws_trunk_connect(ws, opt={full: 1}){

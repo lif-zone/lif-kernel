@@ -99,7 +99,7 @@ class Trunk extends EventEmitter {
     });
     this.last = Date.now();
     D && console.log('lifnet trunk connect attempt '+this.url);
-    let rpc = this.rpc = new rpc_websocket({D: 1});
+    let rpc = this.rpc = new rpc_websocket({D: 1, pre: this.lifnet.client_name});
     rpc.on('error', err=>et.return({error: 'lifnet trunk error '+this.url+' '+err}));
     rpc.on('close', ()=>et.return({error: 'closed'}));
     let ret = yield T2E_et(()=>rpc.connect({url: this.url}));

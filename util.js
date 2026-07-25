@@ -340,13 +340,16 @@ export class rpc_base extends EventEmitter {
     super();
     if (opt.D)
       this.D = 1;
-    this.p = opt.pre||'rpc';
-    this.D && console.log(this.p+'>>connect');
+    this.pre = opt.pre||'rpc';
+    this.D && console.log(this.pre+'>>connect');
     if (opt.is_json)
       this.is_json = opt.is_json;
   }
   id_get(){
     return this.id++;
+  }
+  set_client_name(client_name){
+    this.client_name = client_name;
   }
   async wait_open(){
     return await this._wait_open;
@@ -399,7 +402,7 @@ export class rpc_base extends EventEmitter {
     }
     slow.end();
     this.D && console.log(
-      this.p+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
+      this.pre+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
     return res;
   }
   async notify(method, params, opt){
@@ -433,7 +436,7 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: unexpected msg id', msg);
     delete this.req[id];
     if (this.D || 'error' in msg){
-      console.log(this.p+'> '+(msg.error ? 'err ' : '')+req.request.method,
+      console.log(this.pre+'> '+(msg.error ? 'err ' : '')+req.request.method,
         req.request.params ?? '', msg.error||msg.result);
     }
     req.wait.return(msg);
@@ -444,6 +447,7 @@ export class rpc_base extends EventEmitter {
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
+    this.D && console.log(this.pre+'> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
@@ -464,7 +468,7 @@ export class rpc_base extends EventEmitter {
     }
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log(this.p+'< '+(res.error ? 'err ' : '')+method, params,
+      console.log(this.pre+'< '+(res.error ? 'err ' : '')+method, params,
         res.error||res.result);
     }
     await this.send(res, opt);
@@ -529,7 +533,7 @@ export class rpc_base extends EventEmitter {
     for (let [id, fn] of OE(this.id_fn))
       delete this.id_fn[id];
     if (this.D)
-      console.log(this.p+'>! close');
+      console.log(this.pre+'>! close');
     this.emit('close');
   }
   method(method, fn){
