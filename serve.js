@@ -9,4 +9,5 @@ map['/lif-kernel'] = 'node_modules/lif-kernel';
 map['/index.html'] = {path: 'node_modules/lif-kernel/serve_index.html',
   tr_fn: s=>s.replace(/__WEBAPP__/g, '/'+pkg.name+'/')};
 map['/'+pkg.name] = '.';
-server({map, root});
+let peers = ['ws://localhost:1842/.lif.net'];
+server({map, root, peers});

@@ -85,7 +85,7 @@
     "lif-kernel": "./server.js"
   },
   "scripts": {
-    "serve": "./server.js -p 4000",
+    "serve": "node ./server.js -p 1842",
     "lint": "eslint",
     "test": "mocha --reporter spec test/browser.js",
     "test-ci": "mocha --reporter mocha-multi-reporters --reporter-options configFile=test/mocharc.json test/browser.js"
