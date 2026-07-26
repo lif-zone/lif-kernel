@@ -600,6 +600,11 @@ export class rpc_sock extends rpc_base {
     assert(!this.rpc, 'sock already connected/accepted');
     this.is_connect = true;
     this.rpc = rpc;
+    if (this.rpc.state=='close'){
+      this.close();
+      return {error: 'rpc closed'};
+    }
+    this.rpc.on('close', ()=>this.close());
     this._id = this.rpc.id_get();
     this.set_events();
     console.log('rpc_sock connect '+method);
