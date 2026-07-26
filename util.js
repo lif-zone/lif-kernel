@@ -513,7 +513,7 @@ export class rpc_base extends EventEmitter {
   emit_error(err){
     if (str.is(this.state, 'error', 'close'))
       return;
-    console.error('rpc error: '+err);
+    this.D && console.log(this.pre+'>! error: '+err);
     this.state = 'error';
     this.error = err || 'rpc error';
     this._wait_open.throw('error');
@@ -523,7 +523,7 @@ export class rpc_base extends EventEmitter {
   emit_close(){
     if (this.state=='close')
       return;
-    console.warn('rpc closed');
+    this.D && console.log(this.pre+'>! close');
     this.state = 'close';
     this._wait_open.throw('close');
     for (let [id, req] of OE(this.req)){
@@ -534,8 +534,6 @@ export class rpc_base extends EventEmitter {
       fn({close: true});
       delete this.id_fn[id];
     }
-    if (this.D)
-      console.log(this.pre+'>! close');
     this.emit('close');
   }
   method(method, fn){
@@ -577,7 +575,7 @@ export class rpc_sock extends rpc_base {
   is_connect;
   req = {};
   send(msg, opt){
-    if (this.states=='close')
+    if (this.state=='close')
       return void console.log(this.pre+': send() after close', msg);
     msg = {...msg, id: this._id, seq: msg.id};
     this.rpc.send(msg, opt);
@@ -633,6 +631,7 @@ export class rpc_sock extends rpc_base {
       let sock = new rpc_sock({D: rpc.D, pre: rpc.pre+':'+method});
       rpc.listen_req[method] ||= [];
       rpc.listen_req[method].push(sock);
+      sock.on('error', ()=>{});
       sock.accept({rpc, msg});
       let res;
       try {
