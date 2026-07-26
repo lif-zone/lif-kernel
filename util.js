@@ -450,6 +450,8 @@ export class rpc_base extends EventEmitter {
       if (!method_fn)
         throw 'unsupported method '+method;
       let ret = await method_fn(msg);
+      if (ret===rpc_base.sym_filter)
+        return;
       if (ret && 'error' in ret){
         assert(ret.error, 'invalid false error val: '+ret.error);
         res = ret;
@@ -602,6 +604,7 @@ export class rpc_sock extends rpc_base {
     this.rpc = rpc;
     this._id = this.rpc.id_get();
     this.set_events();
+    console.log('rpc_sock connect '+method);
     return await this._call(method, params);
   }
   accept({rpc, msg}){
@@ -641,8 +644,8 @@ export class rpc_sock extends rpc_base {
       }
       if ('error' in res)
         sock.emit_error(res.error);
-      res.seq = msg.seq;
-      return res;
+      await sock.send({...res, id: msg.seq});
+      return rpc_base.sym_filter;
     });
   }
   close(){
