@@ -494,7 +494,7 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: invalid empty msg');
     let fn;
     if (msg.id!=null && (fn=this.id_fn[msg.id])){
-      let ret = fn(msg, opt);
+      let ret = fn({msg, opt});
       if (ret!==rpc_base.sym_filter)
         return ret;
     }
@@ -561,6 +561,8 @@ export class rpc_base extends EventEmitter {
       delete this.id_fn[id];
       return;
     }
+    if (this.state=='close')
+      return void fn({close: true});
     this.id_fn[id] = fn;
   }
   close(){
@@ -581,9 +583,9 @@ export class rpc_sock extends rpc_base {
     this.rpc.send(msg, opt);
   }
   set_events(){
-    this.rpc.on_id(this._id, (msg, opt, close)=>{
+    this.rpc.on_id(this._id, ({msg, opt, close})=>{
       if (close){
-        console.log(this.pre+': parent close closing id', msg.id);
+        console.log(this.pre+': parent close closing id', this._id);
         return this.emit_close();
       }
       let _msg = {...msg, id: msg.seq};
@@ -604,7 +606,6 @@ export class rpc_sock extends rpc_base {
       this.close();
       return {error: 'rpc closed'};
     }
-    this.rpc.on('close', ()=>this.close());
     this._id = this.rpc.id_get();
     this.set_events();
     console.log('rpc_sock connect '+method);
