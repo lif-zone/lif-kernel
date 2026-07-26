@@ -100,7 +100,8 @@ class Trunk extends EventEmitter {
     this.last = Date.now();
     D && console.log('lifnet trunk connect attempt '+this.url);
     let rpc = this.rpc = new rpc_websocket({D: 1, pre: this.lifnet.client_name});
-    rpc.on('error', err=>et.return({error: 'lifnet trunk error '+this.url+' '+err}));
+    rpc.on('error', err=>et.return(
+      {error: 'lifnet trunk error '+this.url+' '+err}));
     rpc.on('close', ()=>et.return({error: 'closed'}));
     let ret = yield T2E_et(()=>rpc.connect({url: this.url}));
     if (ret?.error)
@@ -185,7 +186,7 @@ export class Lifnet extends EventEmitter {
   status = 'offline';
   constructor({url, client_name, client_version}={}){
     super();
-    this.client_name = client_name||'lifnet-leaf';
+    this.client_name = client_name||'client';
     this.client_version = client_version||util_version;
     this.trunk_t.loopback = new Trunk_loopback(this);
     if (url)
@@ -357,7 +358,7 @@ function lifnet_init(){
   return lifnet;
 }
 
-export function lifnet_client_name(opt={}){
+export function lifnet_set(opt={}){
   if (opt.client_name)
     lifnet.client_name = opt.client_name;
 }

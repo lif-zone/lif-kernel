@@ -12,7 +12,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
 import {ws_trunk_connect, rpc_methods_lifnet_trunk, trunk_peer_add} from './trunk.js';
-import {lifnet_connect, lifnet_call, lifnet_client_name} from './lifnet.js';
+import {lifnet_connect, lifnet_call, lifnet_set} from './lifnet.js';
 const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';
@@ -264,7 +264,7 @@ async function run(opt){
     g_opt.web = true;
     g_opt.lifnet_trunk  = true;
   }
-  lifnet_client_name({client_name:
+  lifnet_set({client_name:
     g_opt.lifnet_trunk
     ? (g_opt.peers?.length ? 'tpeer'+g_opt.port : 'tmain'+g_opt.port)
     : 'leaf'});
