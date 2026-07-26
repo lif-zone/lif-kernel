@@ -451,7 +451,7 @@ export class rpc_base extends EventEmitter {
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
-        throw 'rpc unsupported method '+method;
+        throw 'unsupported method '+method;
       let ret = await method_fn(msg);
       if (ret && 'error' in ret){
         assert(ret.error, 'invalid false error val: '+ret.error);
@@ -530,8 +530,10 @@ export class rpc_base extends EventEmitter {
       delete this.req[id];
       req.wait.throw('close');
     }
-    for (let [id, fn] of OE(this.id_fn))
+    for (let [id, fn] of OE(this.id_fn)){
+      fn({close: true});
       delete this.id_fn[id];
+    }
     if (this.D)
       console.log(this.pre+'>! close');
     this.emit('close');
@@ -575,19 +577,25 @@ export class rpc_sock extends rpc_base {
   is_connect;
   req = {};
   send(msg, opt){
+    if (this.states=='close')
+      return void console.log(this.pre+'> send() after close', msg);
     msg = {...msg, id: this._id, seq: msg.id};
     this.rpc.send(msg, opt);
   }
   set_events(){
-    this.rpc.on_id(this._id, (msg, opt)=>{
-      msg = {...msg, id: msg.seq};
-      delete msg.seq;
-      if (msg.state=='close')
+    this.rpc.on_id(this._id, (msg, opt, close)=>{
+      if (close){
+        console.log(this.pre+': parent close closing id', msg.id);
         return this.emit_close();
-      this.emit_msg(msg, opt);
+      }
+      let _msg = {...msg, id: msg.seq};
+      delete msg.seq;
+      this.emit_msg(_msg, opt);
+      if (msg.state=='close'){
+        this.D && console.log(this.pre+': msg close closing id', msg.id);
+        return this.emit_close();
+      }
     });
-    this.rpc.on('error', err=>this.emit_error(err));
-    this.rpc.on('close', err=>this.emit_close());
     this.emit_connect();
   }
   async connect(rpc, method, params){
@@ -621,7 +629,7 @@ export class rpc_sock extends rpc_base {
         return {error: 'seq listen: missing msg.seq'};
       if (msg.id==null)
         return {error: 'seq listen: missing msg.id'};
-      let sock = new rpc_sock({D: rpc.D});
+      let sock = new rpc_sock({D: rpc.D, pre: rpc.pre+':'+method});
       rpc.listen_req[method] ||= [];
       rpc.listen_req[method].push(sock);
       sock.accept({rpc, msg});
@@ -703,12 +711,16 @@ export class rpc_websocket extends rpc_base {
     }
   }
   send(msg, opt){
+    if (this.state=='close')
+      return void console.error(this.pre+': send after close');
     // protect against undefined in JSON making property disappear
     msg = {...msg};
     if ('error' in msg && msg.error===undefined)
       msg.error = null;
     if ('result' in msg && msg.result===undefined)
       msg.result = null;
+    if (this.ws.readyState!=1)
+      console.error(this.pre+': ws send close state', this.ws.readyState);
     this.ws.send((opt?.bin ? ' ' : '')+JSON.stringify(msg));
     if (opt?.bin){
       assert(opt.bin instanceof ArrayBuffer, 'invalid websocket bin');
