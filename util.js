@@ -436,10 +436,6 @@ export class rpc_base extends EventEmitter {
     if (!(req = this.req[id]))
       return console.error('rpc: unexpected msg id', msg);
     delete this.req[id];
-    if (this.D || 'error' in msg){
-      console.log(this.pre+'>< '+(msg.error ? 'err ' : '')+req.request.method,
-        msg.error||msg.result);
-    }
     req.wait.return(msg);
   }
   async _emit_call(msg, opt){
@@ -448,7 +444,7 @@ export class rpc_base extends EventEmitter {
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
-    this.D && console.log(this.pre+'>> '+method, params);
+    this.D && console.log(this.pre+'<> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
@@ -469,7 +465,7 @@ export class rpc_base extends EventEmitter {
     }
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log(this.pre+'<< '+(res.error ? 'err ' : '')+method, params,
+      console.log(this.pre+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
     await this.send(res, opt);
@@ -479,6 +475,7 @@ export class rpc_base extends EventEmitter {
     let method_fn = this.method_fn[method] || this.method_fn[''];
     if (!method_fn)
       return console.error('rpc: invalid cmd', method);
+    this.D && console.log(this.pre+'<= '+method, params);
     let slow = eslow('rpc notify '+method);
     try {
       await method_fn(msg);

@@ -244,10 +244,12 @@ export class Lifnet extends EventEmitter {
     let sock = new rpc_sock();
     this.base_methods(sock);
     let wait = (async()=>{
-      let trunk = rg_id==this.rg_id ? this.trunk_t.loopback : this._trunk_online();
+      let trunk = rg_id==this.rg_id ? this.trunk_t.loopback
+        : this._trunk_online();
       if (!trunk)
         return {error: 'no trunk online'};
-      let ret = await sock.connect(trunk.rpc, 'rconnect', {rg_id, method, params});
+      let ret = await sock.connect(trunk.rpc, 'rconnect',
+        {rg_id, method, params});
       if (ret?.error){
         console.warn('failed connect', ret);
         return ret;
