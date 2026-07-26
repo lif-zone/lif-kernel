@@ -388,6 +388,7 @@ export class rpc_base extends EventEmitter {
       if (!await this._wait_open)
         throw Error('rpc not open');
       await this.send(request, opt);
+      this.D && console.log(this.pre+'>> '+method, params);
       let ret = await req.wait;
       if ('error' in ret){
         assert(ret.error, 'invalid false error val: '+ret.error);
@@ -401,7 +402,7 @@ export class rpc_base extends EventEmitter {
       res = {error: ''+err};
     }
     slow.end();
-    this.D && console.log(
+    0 && this.D && console.log(
       this.pre+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
     return res;
   }
@@ -436,8 +437,8 @@ export class rpc_base extends EventEmitter {
       return console.error('rpc: unexpected msg id', msg);
     delete this.req[id];
     if (this.D || 'error' in msg){
-      console.log(this.pre+'> '+(msg.error ? 'err ' : '')+req.request.method,
-        req.request.params ?? '', msg.error||msg.result);
+      console.log(this.pre+'>< '+(msg.error ? 'err ' : '')+req.request.method,
+        msg.error||msg.result);
     }
     req.wait.return(msg);
   }
@@ -447,7 +448,7 @@ export class rpc_base extends EventEmitter {
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
-    this.D && console.log(this.pre+'> '+method, params);
+    this.D && console.log(this.pre+'>> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
@@ -468,7 +469,7 @@ export class rpc_base extends EventEmitter {
     }
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log(this.pre+'< '+(res.error ? 'err ' : '')+method, params,
+      console.log(this.pre+'<< '+(res.error ? 'err ' : '')+method, params,
         res.error||res.result);
     }
     await this.send(res, opt);
@@ -578,7 +579,7 @@ export class rpc_sock extends rpc_base {
   req = {};
   send(msg, opt){
     if (this.states=='close')
-      return void console.log(this.pre+'> send() after close', msg);
+      return void console.log(this.pre+': send() after close', msg);
     msg = {...msg, id: this._id, seq: msg.id};
     this.rpc.send(msg, opt);
   }
