@@ -577,14 +577,14 @@ rpc_base.sym_filter = Symbol('filter');
 // - rpc call: (with responce)
 //   ab> {id: 18, method: 'calc', params: '6x9'}
 //   ab< {id: 18, result: '42'} // or error: 'ITSH'
-// - rpc call: (no responce)
+// - rpc notify: (no responce)
 //   ab> {method: 'info', params: 'sixnine'}
 // - rpc_sock call sock: (bidir socket)
 //   ab> {id: 18, seq: 0, method: 'calc', params: '6x9'}
 //   ab< {id: 18, seq: 0, result: 'thinking'}
-//   ab< {id: 18, seq: 1, method: 'update', params: 'thinking'}
-//   ab> {id: 18, seq: 1, result: 'well?'}
-//   ab< {id: 18, seq: 2, close: true, method: 'calc_done: '42?'}
+//   ab< {id: 18, seq: 0, method: 'update', params: 'thinking'} // seq 0 collision bug
+//   ab> {id: 18, seq: 0, result: 'well?'}
+//   ab< {id: 18, seq: 1, close: true, method: 'calc_done', params: '42?'}
 // XXX: currently there is a bug in implementation of rpc_sock that msg.id
 // initiated from each side are not unique, thus they get mixed up.
 // also a problem is that you cannot put an rpc_sock in an rpc_sock.
@@ -594,16 +594,16 @@ rpc_base.sym_filter = Symbol('filter');
 // - rpc_sock call sock: (bidir socket)
 //   ab> {id: [{c: 18}, 0], method: 'calc', params: '6x9'}
 //   ab< {id: [{c: 18}, 0], result: 'thinking'}
-//   ab< {id: [{c: 18}, 1], method: 'update', params: 'thinking'}
-//   ab> {id: [{c: 18}, 1], result: 'well?'}
-//   ab< {id: [{c: 18}, 2], close: true, method: 'calc_done', params: '42?'}
+//   ab< {id: [{c: 18}, 0], method: 'update', params: 'thinking'}
+//   ab> {id: [{c: 18}, 0], result: 'well?'}
+//   ab< {id: [{c: 18}, 1], close: true, method: 'calc_done', params: '42?'}
 //   which allows in-between to have the server also initiate a sock,
 //   re-using the same id without any problems:
 //   ab< {id: [{s: 18}, 0], method: 'stats'}
 //   ab> {id: [{s: 18}, 0], result: 'thinking'}
-//   ab> {id: [{s: 18}, 1], method: 'update', params: 'reached beach 6'}
-//   ab< {id: [{s: 18}, 1], result: 'shalom and thanks for the feed!'}
-//   ab> {id: [{s: 18}, 2], close: true, method: 'calc_done, params: '48'}
+//   ab> {id: [{s: 18}, 0], method: 'update', params: 'reached beach 6'}
+//   ab< {id: [{s: 18}, 0], result: 'shalom and thanks for the feed!'}
+//   ab> {id: [{s: 18}, 1], close: true, method: 'calc_done', params: '48'}
 // - and it allows rpc_sock over rpc_sock:
 //   ab> {id: [{c: 18}, 0], method: 'mine', params: 'forty'}
 //   ab< {id: [{c: 18}, 0], result: 'ok'}
@@ -611,6 +611,8 @@ rpc_base.sym_filter = Symbol('filter');
 //   ab< {id: [{c: 18}, {c: 1}, 0], result: 'added and two'}
 //   ab> {id: [{c: 18}, {c: 1}, 1], method: 'sub mine', params: 'rich lif'}
 //   ab< {id: [{c: 18}, {c: 1}, 1], close: true, result: '10 18'}
+// - to send a notify: (no responce)
+//   ab> {id: [{c: 18}, {c: 1}], method: 'mark'}
 export class rpc_sock extends rpc_base {
   rpc;
   _id;
