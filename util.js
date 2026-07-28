@@ -388,7 +388,7 @@ export class rpc_base extends EventEmitter {
       if (!await this._wait_open)
         throw Error('rpc not open');
       await this.send(request, opt);
-      this.D && console.log(this.pre+'>> '+method, params);
+      this.D && console.log(this.pre+id+'>> '+method, params);
       let ret = await req.wait;
       if ('error' in ret){
         assert(ret.error, 'invalid false error val: '+ret.error);
@@ -403,7 +403,7 @@ export class rpc_base extends EventEmitter {
     }
     slow.end();
     0 && this.D && console.log(
-      this.pre+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
+      this.pre+id+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
     return res;
   }
   async notify(method, params, opt){
@@ -444,11 +444,13 @@ export class rpc_base extends EventEmitter {
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
-    this.D && console.log(this.pre+'<> '+method, params);
+    this.D && console.log(this.pre+id+'<> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
-      if (!method_fn)
+      if (!method_fn){
+        debugger;
         throw 'unsupported method '+method;
+      }
       let ret = await method_fn(msg);
       if (ret===rpc_base.sym_filter)
         return;
@@ -467,7 +469,7 @@ export class rpc_base extends EventEmitter {
     }
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log(this.pre+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
+      console.log(this.pre+id+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
     await this.send(res, opt);
@@ -589,7 +591,7 @@ export class rpc_sock extends rpc_base {
         return this.emit_close();
       }
       let _msg = {...msg, id: msg.seq};
-      delete msg.seq;
+      delete _msg.seq;
       this.emit_msg(_msg, opt);
       if (msg.state=='close'){
         this.D && console.log(this.pre+': msg close closing id', msg.id);
@@ -655,6 +657,7 @@ export class rpc_sock extends rpc_base {
   }
   close(){
     this.send({state: 'close'});
+    this.rpc.on_id(this._id);
     super.close();
   }
 }
