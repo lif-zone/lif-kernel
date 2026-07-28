@@ -573,6 +573,44 @@ export class rpc_base extends EventEmitter {
 }
 rpc_base.sym_filter = Symbol('filter');
 
+// rpc messages today:
+// - rpc call: (with responce)
+//   ab> {id: 18, method: 'calc', params: '6x9'}
+//   ab< {id: 18, result: '42'} // or error: 'ITSH'
+// - rpc call: (no responce)
+//   ab> {method: 'info', params: 'sixnine'}
+// - rpc_sock call sock: (bidir socket)
+//   ab> {id: 18, seq: 0, method: 'calc', params: '6x9'}
+//   ab< {id: 18, seq: 0, result: 'thinking'}
+//   ab< {id: 18, seq: 1, method: 'update', params: 'thinking'}
+//   ab> {id: 18, seq: 1, result: 'well?'}
+//   ab< {id: 18, seq: 2, close: true, method: 'calc_done: '42?'}
+// XXX: currently there is a bug in implementation of rpc_sock that msg.id
+// initiated from each side are not unique, thus they get mixed up.
+// also a problem is that you cannot put an rpc_sock in an rpc_sock.
+// solution: the side openng the sock (that sends {seq: 0, method: '...'}
+// its requests will be marked as 'c' (client) and the responder as
+// 's' (server)
+// - rpc_sock call sock: (bidir socket)
+//   ab> {id: [{c: 18}, 0], method: 'calc', params: '6x9'}
+//   ab< {id: [{c: 18}, 0], result: 'thinking'}
+//   ab< {id: [{c: 18}, 1], method: 'update', params: 'thinking'}
+//   ab> {id: [{c: 18}, 1], result: 'well?'}
+//   ab< {id: [{c: 18}, 2], close: true, method: 'calc_done', params: '42?'}
+//   which allows in-between to have the server also initiate a sock,
+//   re-using the same id without any problems:
+//   ab< {id: [{s: 18}, 0], method: 'stats'}
+//   ab> {id: [{s: 18}, 0], result: 'thinking'}
+//   ab> {id: [{s: 18}, 1], method: 'update', params: 'reached beach 6'}
+//   ab< {id: [{s: 18}, 1], result: 'shalom and thanks for the feed!'}
+//   ab> {id: [{s: 18}, 2], close: true, method: 'calc_done, params: '48'}
+// - and it allows rpc_sock over rpc_sock:
+//   ab> {id: [{c: 18}, 0], method: 'mine', params: 'forty'}
+//   ab< {id: [{c: 18}, 0], result: 'ok'}
+//   ab> {id: [{c: 18}, {c: 1}, 0], method: 'sub mine', params: 'and'}
+//   ab< {id: [{c: 18}, {c: 1}, 0], result: 'added and two'}
+//   ab> {id: [{c: 18}, {c: 1}, 1], method: 'sub mine', params: 'rich lif'}
+//   ab< {id: [{c: 18}, {c: 1}, 1], close: true, result: '10 18'}
 export class rpc_sock extends rpc_base {
   rpc;
   _id;
