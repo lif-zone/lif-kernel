@@ -612,7 +612,8 @@ rpc_base.sym_filter = Symbol('filter');
 //   ab> {id: [{c: 18}, {c: 1}, 1], method: 'sub mine', params: 'rich lif'}
 //   ab< {id: [{c: 18}, {c: 1}, 1], close: true, result: '10 18'}
 // - to send a notify: (no responce)
-//   ab> {id: [{c: 18}, {c: 1}], method: 'mark'}
+//   ab> {id: [{c: 18}, {c: 1}], method: 'mark deep sock'}
+//   ab> {id: [{c: 18}], method: 'mark'}
 export class rpc_sock extends rpc_base {
   rpc;
   _id;
