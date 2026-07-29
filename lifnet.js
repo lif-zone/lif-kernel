@@ -242,7 +242,7 @@ export class Lifnet extends EventEmitter {
     }
   }
   connect(rg_id, method, params){
-    let sock = new rpc_sock();
+    let sock = new rpc_sock({D: 1, pre: 'rg'+rg_id+':'+method});
     this.base_methods(sock);
     let wait = (async()=>{
       let trunk = rg_id==this.rg_id ? this.trunk_t.loopback

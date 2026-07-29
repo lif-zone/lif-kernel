@@ -70,3 +70,18 @@ Fixed two issues:
 1. trunk_peer_connect → trunk_peer_add(url): sync, fires _peer_connect in background with retry (PEER_RETRY_MS=5s), same pattern as lifnet.js trunk_connect. Added peer_introduce gossip for self-forming mesh.
 2. topic_get only checked local topics. Added peer_topics map (topic→{rg_id:trunk_id}), gossip via peer_topic_add/remove on topic_pub/unpub, peer_hello now exchanges topic snapshots. topic_get merges local+remote. Peer disconnect cleans peer_topics.
 Added --peer flag to server_lib.js for CLI seeding.
+
+---
+USER:
+implement the rpc_sock fix: use [{c: id}, seq] array ids instead of separate id/seq fields, with c/s tagging to prevent id collisions between sides, enabling nested rpc_sock
+
+CLAUDE:
+Implemented the rpc_sock protocol fix in util.js:
+- rpc_base.emit_msg: handle array ids by routing on JSON.stringify(msg.id[0]) key
+- rpc_sock.send: build wire id by prepending this._id — null→[...this._id], array→[...this._id,...inner], number→[...this._id, N]
+- rpc_sock.emit_close (new override): deregisters from parent via rpc.on_id(JSON.stringify(this._id[0])) before calling super
+- rpc_sock.set_events: registers with JSON.stringify key; strips first element; rest=[]→notify/close, rest=[N]→leaf seq, rest=[{},...]→nested array
+- rpc_sock.connect: this._id = [{c: this.rpc.id_get()}]
+- rpc_sock.accept: this._id = [msg.id[0]]
+- rpc_sock.listen: validates Array.isArray(msg.id) && length>=2, extracts seq = msg.id[last]
+- rpc_sock.close: sends {close: true} as notify (no seq), relies on emit_close for deregistration

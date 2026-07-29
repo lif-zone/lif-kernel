@@ -336,6 +336,7 @@ export class rpc_base extends EventEmitter {
   jsonrpc;
   D = 0;
   is_json = false;
+  is_connect;
   constructor(opt={}){
     super();
     if (opt.D)
@@ -344,6 +345,8 @@ export class rpc_base extends EventEmitter {
     this.D && console.log(this.pre+'>>connect');
     if (opt.is_json)
       this.is_json = opt.is_json;
+    if (opt.is_connect!=undefined)
+      this.is_connect = opt.is_connect;
   }
   id_get(){
     return this.id++;
@@ -444,13 +447,11 @@ export class rpc_base extends EventEmitter {
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
-    this.D && console.log(this.pre+id+'<> '+method, params);
+    this.D && console.log(this.pre+JSON.stringify(id)+'<> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
-      if (!method_fn){
-        debugger;
+      if (!method_fn)
         throw 'unsupported method '+method;
-      }
       let ret = await method_fn(msg);
       if (ret===rpc_base.sym_filter)
         return;
@@ -495,7 +496,14 @@ export class rpc_base extends EventEmitter {
     if (!msg)
       return console.error('rpc: invalid empty msg');
     let fn;
-    if (msg.id!=null && (fn=this.id_fn[msg.id])){
+    if (Array.isArray(msg.id)){
+      let key = JSON.stringify(msg.id[0]);
+      if (fn=this.id_fn[key]){
+        let ret = fn({msg, opt});
+        if (ret!==rpc_base.sym_filter)
+          return ret;
+      }
+    } else if (msg.id!=null && (fn=this.id_fn[msg.id])){
       let ret = fn({msg, opt});
       if (ret!==rpc_base.sym_filter)
         return ret;
@@ -617,27 +625,50 @@ rpc_base.sym_filter = Symbol('filter');
 export class rpc_sock extends rpc_base {
   rpc;
   _id;
-  is_connect;
   req = {};
   send(msg, opt){
     if (this.state=='close')
       return void console.log(this.pre+': send() after close', msg);
-    msg = {...msg, id: this._id, seq: msg.id};
+    let inner = msg.id;
+    let id;
+    if (inner==null)
+      id = [...this._id];
+    else if (Array.isArray(inner))
+      id = [...this._id, ...inner];
+    else
+      id = [...this._id, inner];
+    msg = {...msg, id};
     this.rpc.send(msg, opt);
   }
+  emit_close(){
+    if (this._id && this.rpc)
+      this.rpc.on_id(JSON.stringify(this._id[0]));
+    super.emit_close();
+  }
   set_events(){
-    this.rpc.on_id(this._id, ({msg, opt, close})=>{
+    let key = JSON.stringify(this._id[0]);
+    this.rpc.on_id(key, ({msg, opt, close})=>{
       if (close){
-        console.log(this.pre+': parent close closing id', this._id);
+        this.D && console.log(this.pre+': parent close closing id', this._id);
         return this.emit_close();
       }
-      let _msg = {...msg, id: msg.seq};
-      delete _msg.seq;
-      this.emit_msg(_msg, opt);
-      if (msg.state=='close'){
-        this.D && console.log(this.pre+': msg close closing id', msg.id);
-        return this.emit_close();
-      }
+      let rest = msg.id.slice(1);
+      let inner_id;
+      if (!rest.length)
+        inner_id = null;
+      else if (rest.length==1 && typeof rest[0]=='number')
+        inner_id = rest[0];
+      else
+        inner_id = rest;
+      let _msg = {...msg};
+      if (inner_id==null)
+        delete _msg.id;
+      else
+        _msg.id = inner_id;
+      if (inner_id!=null || _msg.method!=null)
+        this.emit_msg(_msg, opt);
+      if (msg.close)
+        this.emit_close();
     });
     this.emit_connect();
   }
@@ -649,17 +680,16 @@ export class rpc_sock extends rpc_base {
       this.close();
       return {error: 'rpc closed'};
     }
-    this._id = this.rpc.id_get();
+    this._id = [{[this.rpc.is_connect ? 'c' : 's']: this.rpc.id_get()}];
     this.set_events();
     console.log('rpc_sock connect '+method);
     return await this._call(method, params);
   }
   accept({rpc, msg}){
     assert(!this.rpc, 'sock already connected/accepted');
-    this.is_connect = true;
     this.is_connect = false;
     this.rpc = rpc;
-    this._id = msg.id;
+    this._id = [msg.id[0]];
     this.set_events();
   }
   static listen_close(rpc, method){
@@ -673,10 +703,11 @@ export class rpc_sock extends rpc_base {
     if (!fn)
       return rpc_sock.listen_close(rpc, method);
     rpc._method(method, async(msg)=>{
-      if (msg.seq==null)
-        return {error: 'seq listen: missing msg.seq'};
-      if (msg.id==null)
-        return {error: 'seq listen: missing msg.id'};
+      if (!Array.isArray(msg.id) || msg.id.length < 2)
+        return {error: 'sock listen: invalid msg.id'};
+      let seq = msg.id[msg.id.length-1];
+      if (typeof seq!='number')
+        return {error: 'sock listen: invalid seq in msg.id'};
       let sock = new rpc_sock({D: rpc.D, pre: rpc.pre+':'+method});
       rpc.listen_req[method] ||= [];
       rpc.listen_req[method].push(sock);
@@ -692,13 +723,13 @@ export class rpc_sock extends rpc_base {
       }
       if ('error' in res)
         sock.emit_error(res.error);
-      await sock.send({...res, id: msg.seq});
+      await sock.send({...res, id: seq});
       return rpc_base.sym_filter;
     });
   }
   close(){
-    this.send({state: 'close'});
-    this.rpc.on_id(this._id);
+    if (this._id)
+      this.send({close: true});
     super.close();
   }
 }
@@ -725,12 +756,14 @@ export class ipc_postmessage extends rpc_base {
     this.emit_connect();
   }
   connect(controller){
+    this.is_connect = true;
     this.ports = new MessageChannel();
     controller.postMessage({connect: true}, [this.ports.port2]);
     this.port = this.ports.port1;
     this.set_events();
   }
   accept(event){
+    this.is_connect = false;
     if (!event.data?.connect)
       return;
     this.port = event.ports[0];
@@ -822,6 +855,7 @@ export class rpc_websocket extends rpc_base {
     this.ws.on('close', ()=>this.emit_close());
   }
   async connect(opt){
+    this.is_connect = true;
     if (opt.url){
       this.url = opt.url;
       this.ws = new this.ws_ctor(this.url);
@@ -833,6 +867,7 @@ export class rpc_websocket extends rpc_base {
     return await this.wait_open();
   }
   accept(opt){
+    this.is_connect = false;
     assert(is_node);
     this.is_ws_npm = true;
     this.connected = true;
@@ -867,7 +902,9 @@ export function rpc_sock_pipe(c, s){
   }
 }
 
-export function sock_pair(c=new rpc_sock(), s=new rpc_sock()){
+export function sock_pair(c, s){
+  c ||= new rpc_sock({is_connect: true});
+  s ||= new rpc_sock({is_connect: false});
   for (let [_c, _s] of [[c, s], [s, c]]){
     _c.send = msg=>_s.emit_msg(msg);
     _c.on('error', ()=>{});
