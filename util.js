@@ -390,7 +390,7 @@ export class rpc_base extends EventEmitter {
     try {
       if (!await this._wait_open)
         throw Error('rpc not open');
-      await this.send(request, opt);
+      this.send(request, opt);
       this.D && console.log(this.pre+id+'>> '+method, params);
       let ret = await req.wait;
       if ('error' in ret){
@@ -409,28 +409,14 @@ export class rpc_base extends EventEmitter {
       this.pre+id+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
     return res;
   }
-  async notify(method, params, opt){
+  notify(method, params, opt){
     assert(typeof method=='string', 'invalid method type');
     const request = {method};
     if (params)
       request.params = params;
     if (this.jsonrpc)
       request.jsonrpc = this.jsonrpc;
-    let res;
-    let slow = eslow(5000, 'rpc '+method);
-    try {
-      if (!await this._wait_open){
-        if (opt?.no_fail)
-          return;
-        throw Error('rpc not open');
-      }
-      await this.send(request, opt);
-    } catch(err){
-      console.error('rpc failed notify', err, request);
-      res = {error: ''+err};
-    }
-    slow.end();
-    return res;
+    return this.send(request, opt);
   }
   async _emit_res(msg, opt){
     let {id} = msg, req;
@@ -473,7 +459,7 @@ export class rpc_base extends EventEmitter {
       console.log(this.pre+id+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
-    await this.send(res, opt);
+    this.send(res, opt);
   }
   async _emit_notify(msg, opt){
     let {method, params} = msg;
@@ -723,7 +709,7 @@ export class rpc_sock extends rpc_base {
       }
       if ('error' in res)
         sock.emit_error(res.error);
-      await sock.send({...res, id: seq});
+      sock.send({...res, id: seq});
       return rpc_base.sym_filter;
     });
   }
@@ -781,9 +767,9 @@ export class rpc_websocket extends rpc_base {
   ws;
   bin_wait = false;
   bin_msg;
-  connected = false;
   is_ws_npm = false;
   ws_ctor = WebSocket;
+  send_q = [];
   constructor(opt={}){
     super({...opt, is_json: true});
     if (opt.jsonrpc)
@@ -804,11 +790,27 @@ export class rpc_websocket extends rpc_base {
       msg.result = null;
     if (this.ws.readyState!=1)
       console.error(this.pre+': ws send close state', this.ws.readyState);
-    this.ws.send((opt?.bin ? ' ' : '')+JSON.stringify(msg));
+    let send_q = {msg: (opt?.bin ? ' ' : '')+JSON.stringify(msg)};
     if (opt?.bin){
       assert(opt.bin instanceof ArrayBuffer, 'invalid websocket bin');
-      this.ws.send(opt.bin);
+      send_q.bin = opt.bin;
     }
+    if (this.state!='open'){
+      this.send_q.push(send_q);
+      return;
+    }
+    this.send_msg(send_q);
+  }
+  send_msg(send_q){
+    this.ws.send(send_q.msg);
+    if (send_q.bin)
+      this.ws.send(send_q.bin);
+  }
+  emit_connect(){
+    for (let send_q of this.send_q)
+      this.send_msg(send_q);
+    this.send_q = null;
+    super.emit_connect();
   }
   set_events(){
     this.ws.on('open', ()=>{
@@ -845,10 +847,9 @@ export class rpc_websocket extends rpc_base {
     };
     websocket_fix(this.ws);
     this.ws.on_message(on_message);
-    this.ws.on('open', ()=>this.connected = true);
     this.ws.on('error', err=>{
       let _err = this.is_ws_npm ? ''+err :
-        !this.connected ? 'failed ws connect '+this.url :
+        this.state!='open' ? 'failed ws connect '+this.url :
         'ws error '+err.message;
       this.emit_error(_err);
     });
@@ -870,7 +871,6 @@ export class rpc_websocket extends rpc_base {
     this.is_connect = false;
     assert(is_node);
     this.is_ws_npm = true;
-    this.connected = true;
     this.ws = opt.ws;
     this.set_events();
     this.emit_connect();
