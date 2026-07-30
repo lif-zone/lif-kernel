@@ -799,16 +799,16 @@ export class rpc_websocket extends rpc_base {
       this.send_q.push(send_q);
       return;
     }
-    this.send_msg(send_q);
+    this._send_msg(send_q);
   }
-  send_msg(send_q){
+  _send_msg(send_q){
     this.ws.send(send_q.msg);
     if (send_q.bin)
       this.ws.send(send_q.bin);
   }
   emit_connect(){
     for (let send_q of this.send_q)
-      this.send_msg(send_q);
+      this._send_msg(send_q);
     this.send_q = null;
     super.emit_connect();
   }
