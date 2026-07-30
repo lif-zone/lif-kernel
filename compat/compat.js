@@ -4,6 +4,15 @@ export const xerr = function(){ console.log(...arguments); };
 xerr.debug = function(){};
 xerr.is = function(){ return false; };
 xerr.L = {DEBUG: 0};
+xerr.is_typeerror = err=>err instanceof TypeError ||
+  err instanceof ReferenceError;
+xerr.on_exception = function(err){
+  if (xerr.is_typeerror(err)){
+    console.error(err);
+    debugger; // eslint-disable-line no-debugger
+  }
+  return err;
+};
 
 export const is_node = globalThis.process?.versions?.node!==undefined;
 
