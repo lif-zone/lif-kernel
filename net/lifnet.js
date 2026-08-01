@@ -61,15 +61,73 @@ function T2E_et(fn){
   });
 }
 
-class Trunk_remote extends EventEmitter {
+class Trunk extends EventEmitter {
   status = 'offline';
   rpc;
+  constructor(lifnet){
+    super();
+    this.lifnet = lifnet;
+  }
+  emit_status(status){
+    if (this.status==status)
+      return;
+    this.status = status;
+    this.emit('status', status);
+  }
+  _rpc_method_set(rpc, method){
+    let {fn, is_listen} = this.lifnet.method_fn[method];
+    assert(fn);
+    if (is_listen){
+      rpc_sock.listen(rpc, method, ({msg, sock})=>{
+        this.lifnet.base_methods(sock);
+        return fn({msg, sock});
+      });
+    } else
+      rpc._method(method, fn);
+  }
+  _rpc_method_del(rpc, method){
+    let {is_listen} = this.lifnet.method_fn[method];
+    if (is_listen)
+      rpc_sock.listen(rpc, method);
+    else
+      rpc._method(method);
+  }
+  async trunk_call(method, params){
+    if (this.status!='online')
+      return {error: 'offline'};
+    return await this.rpc.call(method, params);
+  }
+  async topic_pub(topic, data){
+    return await this.trunk_call('topic_pub', {topic, data});
+  }
+  async topic_unpub(topic){
+    return await this.trunk_call('topic_unpub', {topic});
+  }
+  async topic_get(topic){
+    let ret = await this.trunk_call('topic_get', {topic});
+    if (ret.error)
+      return [];
+    return ret.addr||[];
+  }
+  close(){
+    this.status = 'closed';
+    this.rpc?.close();
+    this.rpc = null;
+  }
+}
+
+class Trunk_remote extends Trunk {
   last = 0;
   et_connect;
   constructor(lifnet, url){
-    super();
-    this.lifnet = lifnet;
+    super(lifnet);
     this.url = url;
+  }
+  emit_status(status){
+    if (this.status==status)
+      return;
+    console.log('lifnet trunk '+this.url+' '+status);
+    super.emit_status(status);
   }
   start(){
     if (this.et_connect)
@@ -78,13 +136,6 @@ class Trunk_remote extends EventEmitter {
     this.et_connect.on('finally', ()=>this.et_connect = null);
     this.on('close', ()=>this.et_connect.return({error: 'close'}));
     return this.et_connect;
-  }
-  emit_status(status){
-    if (this.status==status)
-      return;
-    console.log('lifnet trunk '+this.url+' '+status);
-    this.status = status;
-    this.emit('status', status);
   }
   _connect_single(){ return etask(function*(et){
     assert(!this.rpc);
@@ -130,51 +181,11 @@ class Trunk_remote extends EventEmitter {
         yield etask.sleep(delay);
     }
   }.bind(this)); }
-  _rpc_method_set(rpc, method){
-    let {fn, is_listen} = this.lifnet.method_fn[method];
-    assert(fn);
-    if (is_listen){
-      rpc_sock.listen(rpc, method, ({msg, sock})=>{
-        this.lifnet.base_methods(sock);
-        return fn({msg, sock});
-      });
-    } else
-      rpc._method(method, fn);
-  }
-  _rpc_method_del(rpc, method){
-    let {is_listen} = this.lifnet.method_fn[method];
-    if (is_listen)
-      rpc_sock.listen(rpc, method);
-    else
-      rpc._method(method);
-  }
-  async trunk_call(method, params){
-    if (this.status!='online')
-      return {error: 'offline'};
-    return await this.rpc.call(method, params);
-  }
-  async topic_pub(topic, data){
-    return await this.trunk_call('topic_pub', {topic, data});
-  }
-  async topic_unpub(topic){
-    return await this.trunk_call('topic_unpub', {topic});
-  }
-  async topic_get(topic){
-    let ret = await this.trunk_call('topic_get', {topic});
-    if (ret.error)
-      return [];
-    return ret.addr||[];
-  }
-  close(){
-    this.status = 'closed';
-    this.rpc?.close();
-    this.rpc = null;
-  }
 }
 
-class Trunk_local extends Trunk_remote {
+class Trunk_local extends Trunk {
   constructor(lifnet, rpc){
-    super(lifnet, 'local');
+    super(lifnet);
     this.rpc = rpc;
   }
   async start(){
@@ -239,7 +250,7 @@ export class Lifnet extends EventEmitter {
       t.start();
   }
   _ws_trunks(){
-    return OV(this.trunk_t).filter(t=>t instanceof Trunk_remote);
+    return OV(this.trunk_t).filter(t=>t instanceof Trunk);
   }
   _trunk_online(){
     return this._ws_trunks().find(t=>t.status=='online');
