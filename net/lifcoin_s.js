@@ -2,12 +2,12 @@
 import process from 'process';
 import {fileURLToPath} from 'url';
 import path from 'path';
-import './browser_env.js';
-import {url_http_to_ws, qs_enc} from './util.js';
+import '../compat/browser_env.js';
+import {url_http_to_ws, qs_enc} from '../util.js';
 import {lifnet_connect, lifnet_listen, lifnet_set} from './lifnet.js';
 import {leaf_rpc_websocket_out, leaf_fetch_out, leaf_websocket_out,
   leaf_http_out, leaf_tcp_out, leaf_dns_out, leaf_lifcoin_node_out,
-} from './leaf_out.js';
+} from './out_s.js';
 
 function node_is_main(mod_self){
   return path.resolve(process.argv[1])==fileURLToPath(mod_self);

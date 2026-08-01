@@ -3,16 +3,16 @@ import https from 'https';
 import process from 'process';
 import fs from 'fs';
 import path from 'path';
-import {ext2mime} from './mime_db.js';
-import './browser_env.js';
+import {ext2mime} from '../mime_db.js';
+import '../compat/browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
   path_file, path_is_dir, str, rpc_websocket, version as util_version,
   rpc_sock_pipe, OA, url_http_to_ws, websocket_pipe,
-} from './util.js';
+} from '../util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_connect, rpc_methods_lifnet_trunk, trunk_peer_add} from './trunk.js';
-import {lifnet_connect, lifnet_call, lifnet_set} from './lifnet.js';
+import {ws_trunk_connect, rpc_methods_lifnet_trunk, trunk_peer_add} from '../net/trunk.js';
+import {lifnet_connect, lifnet_call, lifnet_set} from '../net/lifnet.js';
 const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';

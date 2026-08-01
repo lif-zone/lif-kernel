@@ -44,19 +44,19 @@
     "kernel.js",
     "mime_db.js",
     "mine_db.js",
-    "server.js",
-    "server_lib.js",
-    "serve.js",
+    "web/server.js",
+    "web/server_lib.js",
+    "web/serve.js",
     "serve_index.html",
-    "dns_s.js",
-    "ssl_s.js",
-    "ssl_acme.js",
+    "web/dns_s.js",
+    "web/ssl_s.js",
+    "web/ssl_acme.js",
     "hi.html",
     "hi.js",
-    "browser_env.js",
-    "lifnet.js",
-    "leaf_out.js",
-    "trunk.js",
+    "compat/browser_env.js",
+    "net/lifnet.js",
+    "net/out_s.js",
+    "net/trunk.js",
     "lif-kernel.service",
     "test/test_lib.js"
   ],
@@ -69,8 +69,8 @@
     "./net": "./compat/net.js",
     "./util.js": "./util.js",
     "./etask": "./etask.js",
-    "./server_lib.js": "./server_lib.js",
-    "./lifnet": "./lifnet.js",
+    "./web/server_lib.js": "./web/server_lib.js",
+    "./lifnet": "./net/lifnet.js",
     "./test/test_lib.js": "./test/test_lib.js",
     "./compat/node_env.js": "./compat/node_env.js"
   },
@@ -82,12 +82,12 @@
     "ws": "^8.20.0"
   },
   "run": {
-    "lif-kernel": "./server.js"
+    "lif-kernel": "./web/server.js"
   },
   "scripts": {
-    "serve": "node ./server.js -p 1842",
-    "serve-prod": "node ./server.js -s",
-    "serve_leaf": "node ./leaf_lifcoin.js",
+    "serve": "node ./web/server.js -p 1842",
+    "serve-prod": "node ./web/server.js -s",
+    "serve-lifcoin": "node ./net/lifcoin_s.js",
     "lint": "eslint",
     "test": "mocha --reporter spec test/browser.js",
     "test-ci": "mocha --reporter mocha-multi-reporters --reporter-options configFile=test/mocharc.json test/browser.js"

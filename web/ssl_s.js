@@ -1,8 +1,8 @@
 import fs from 'fs';
 import os from 'os';
 import tls from 'tls';
-import './browser_env.js';
-import {esleep} from './util.js';
+import '../compat/browser_env.js';
+import {esleep} from '../util.js';
 import x509 from '@peculiar/x509';
 import dns_s from './dns_s.js';
 import acme from './ssl_acme.js';
