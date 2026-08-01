@@ -31,7 +31,7 @@ const ssl_dir = '/var/lif/ssl';
 let acme_cert_key, acme_account_key;
 
 // XXX: copy from date.js
-function pad(num, size){ return ('000'+num).slice(-size); }
+function pad(num, size){ return (''+num).padStart(size, '0'); }
 function to_sql_ms(d){
   d = d||new Date();
   if (isNaN(d))
@@ -206,8 +206,9 @@ export async function do_ssl(opt){
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
   dns_s.set_domains({
+    'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
-    'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}
+    'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   });
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);

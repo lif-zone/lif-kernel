@@ -14,6 +14,8 @@ const DEF_TTL_MINIMUM = 60;
 const E = {};
 export default E;
 
+function pad(num, size){ return (''+num).padStart(size, '0'); }
+
 function get_our_domain(name){
   if (!E.domains)
     return;
@@ -119,8 +121,7 @@ function res_type_soa(name){
     return ret;
   let ns = info.ns[0]+'.'+name;
   let d = new Date();
-  let serial = d.getFullYear()+(''+d.getMonth()+1).padStart(2, 0)+
-    (''+d.getDate()).padStart(2, 0);
+  let serial = d.getFullYear()+pad(d.getMonth()+1, 2)+pad(d.getDate(), 2);
   ret = [{name, type, class: c, ttl: E.ttl,
     primary: ns, admin: ns, serial, refresh: 900, retry: 900,
     expiration: 1800, minimum: 60}];
