@@ -86,6 +86,7 @@
   },
   "scripts": {
     "serve": "node ./server.js -p 1842",
+    "serve-prod": "node ./server.js -s -l",
     "serve_leaf": "node ./leaf_lifcoin.js",
     "lint": "eslint",
     "test": "mocha --reporter spec test/browser.js",
