@@ -6,8 +6,6 @@ import etask from '../etask.js';
 import EventEmitter, {once} from '../compat/events.js';
 let D = 0;
 
-let trunk_url_base = is_node ? 'http://localhost:1842' : location.origin;
-let trunk_url_ws = url_http_to_ws(trunk_url_base)+'/.lif.net';
 let RETRY_MS = 1000;
 
 class Trunk_loopback extends EventEmitter {
@@ -354,7 +352,10 @@ function lifnet_init(){
   if (lifnet_inited)
     return lifnet;
   lifnet_inited = true;
-  lifnet.trunk_add(trunk_url_ws);
+  if (is_node)
+    lifnet.trunk_add('ws://localhost:1842/.lif.net');
+  else
+    lifnet.trunk_add(url_http_to_ws(location.origin+'/.lif.net'));
   return lifnet;
 }
 
