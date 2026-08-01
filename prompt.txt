@@ -139,3 +139,34 @@ Renamed across lifnet.js, trunk.js, server_lib.js:
 - trunk_local() → trunk_router()
 - lifnet_init_local() → lifnet_init_router()
 - trunk_add_local() → trunk_add_router()
+
+---
+USER:
+rename Trunk_uplink/Trunk_router → Trunk_uplink/Trunk_route, then Trunk_route → Trunk_router, then rename trunk_add() → trunk_uplink_add()
+
+CLAUDE:
+Final naming across lifnet.js, trunk.js, server_lib.js:
+- Trunk_uplink (leaf default gateway, connects via WebSocket to remote trunk)
+- Trunk_router (in-process connection to local trunk routing table)
+- trunk_router(), lifnet_init_router(), trunk_add_router()
+- trunk_add(url) → trunk_uplink_add(url)
+
+---
+USER:
+when a Trunk_router connects to itself (same rg_id) disconnect gracefully. also clean up stale XXX comments in rpc_sock_rconnect
+
+CLAUDE:
+- trunk.js _peer_connect: after peer_hello, if ret.trunk_id==g_rg_id → console.log('disconnecting from self') + rpc.close() + return (no retry)
+- trunk.js rpc_sock_rconnect: removed stale XXX comments from loopback/localhost throws
+
+---
+USER:
+rename Trunk_remote→Trunk_uplink, Trunk_local→Trunk_router, and all related functions
+
+CLAUDE:
+Renamed across lifnet.js, trunk.js, server_lib.js:
+- Trunk_remote → Trunk_uplink
+- Trunk_local → Trunk_router
+- trunk_local() → trunk_router()
+- lifnet_init_local() → lifnet_init_router()
+- trunk_add_local() → trunk_add_router()

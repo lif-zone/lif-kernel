@@ -230,7 +230,7 @@ export function trunk_peer_add(url){
 
 async function _peer_connect(url){
   let entry = peer_urls[url];
-  if (!entry)
+  if (!entry || entry.self)
     return;
   let delay = Math.max(entry.last + PEER_RETRY_MS - Date.now(), 0);
   if (delay)
@@ -253,6 +253,7 @@ async function _peer_connect(url){
       throw new Error(ret.error);
     if (ret.trunk_id==g_rg_id){
       console.log('trunk peer '+url+': disconnecting from self');
+      entry.self = true;
       rpc.close();
       return;
     }
