@@ -11,7 +11,7 @@ const DEF_TTL_RETRY = 900;
 const DEF_TTL_EXPIRATION = 1800;
 const DEF_TTL_MINIMUM = 60;
 
-const Packet_TYPE_HTTPS = 54; // missing from dns2
+const Packet_TYPE_HTTPS = 65; // missing from dns2
 
 const E = {};
 export default E;
