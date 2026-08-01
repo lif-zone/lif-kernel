@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import server from './server_lib.js';
-let root = import.meta.dirname;
+let root = import.meta.dirname+'/..';
 let map = {};
 map['/lif-kernel'] = '.';
 // local dev
