@@ -170,6 +170,9 @@ function create_dns_server(ips){
           case Packet.TYPE.ANY: res.answers = res_type_any(name); break;
           case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
           case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
+          case Packet.TYPE.CNAME: break; // silently ignore
+          case Packet.TYPE.AAAA: break; // silently ignore
+          case Packet.TYPE.DNSKEY: break; // silently ignore
           // XXX TODO
           default: console.error('dns_s: unsupported type %s', type);
           }
