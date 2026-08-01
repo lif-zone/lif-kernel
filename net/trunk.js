@@ -47,9 +47,9 @@ export async function rpc_sock_rconnect({msg, sock}){
   if (typeof rg_id!='string')
     throw 'invalid id';
   if (rg_id==rpc.rg_id)
-    throw 'loopback not supported'; // XXX add loopback sock
+    throw 'loopback not valid in rconnect';
   if (rg_id==g_rg_id)
-    throw 'localhost not yet supported'; // XXX add localhost sock
+    throw 'localhost not valid in rconnect';
   let c = {rpc, sock};
   let br_id = g_br_id++;
   let rg = rg_conn[rg_id];
@@ -251,6 +251,11 @@ async function _peer_connect(url){
     });
     if (ret.error)
       throw new Error(ret.error);
+    if (ret.trunk_id==g_rg_id){
+      console.log('trunk peer '+url+': disconnecting from self');
+      rpc.close();
+      return;
+    }
     rpc.trunk_id = ret.trunk_id;
     peer_conn[ret.trunk_id] = rpc;
     for (let rg_id of (ret.rg_ids||[]))

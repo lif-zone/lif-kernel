@@ -193,7 +193,7 @@ class Trunk_router extends Trunk {
       return;
     let ret = await this.rpc.call('rg_id', {rg_id: this.lifnet.rg_id});
     if (ret?.error)
-      return console.error('trunk_local rg_id err: '+ret.error);
+      return console.error('trunk_router rg_id err: '+ret.error);
     for (let topic in this.lifnet.pub_t){
       let t = this.lifnet.pub_t[topic];
       this.rpc.call('topic_pub', {topic, data: t.data});
