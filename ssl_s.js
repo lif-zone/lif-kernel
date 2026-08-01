@@ -44,7 +44,11 @@ function to_sql_ms(d){
 }
 function to_sql(d){ return to_sql_ms(d).replace(/( 00:00:00)?....$/, ''); }
 
+// make the log cleaner by ignoring requests by scanners
+let ignore_domains = ['doh.pub'];
 export function sni_cb(server_name, cb){
+  if (ignore_domains.includes(server_name))
+    return cb('domain ignored '+server_name, null);
   console.log('XXX sni_cb %s', server_name);
   let domain = dns_s.get_our_domain(server_name);
   if (!domain){
