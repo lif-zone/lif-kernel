@@ -19,7 +19,7 @@ const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';
 const lifcoin_electrum_ws_url = 'ws://localhost:8432/electrum';
-function http_pipe_lif_kv(req, res){ // XXX obsolete
+function http_pipe_lif_kv(req, res){ // obsolete
   let url = new URL(req.url, 'http://x');
   let key = url.searchParams.get('key');
   let lif_kv_url = lifcoin_node_url+'/lif_kv'+qs_enc({key});
@@ -41,7 +41,7 @@ async function lifnet_lif_kv_handler(req, res){
   res_send(res, {body: result.body, ext: 'json'});
 }
 
-async function rpc_websocket_pipe_lif(ws, topic){
+async function rpc_websocket_pipe_lif(ws, topic){ // obsolete
   let c = new rpc_websocket({D: 1, jsonrpc: '2.0'});
   c.accept({ws});
   let {sock: s, error} = await lifnet_connect(topic);
@@ -180,7 +180,7 @@ function ws_upgrade_accept(req, socket, head){
   let fn;
   if (uri=='/.lif.net' && g_opt.lifnet_trunk)
     fn = ws_on_trunk_connect;
-  else if (uri=='/.lif.net/electrum')
+  else if (uri=='/.lif.net/electrum') // obsolete
     fn = ws=>rpc_websocket_pipe_lif(ws, 'lifcoin/electrum');
   else if (uri=='/.lif.net/electrum-proxy') // obsolete
     fn = ws=>websocket_pipe(ws, new WebSocket(lifcoin_electrum_ws_url));
@@ -218,8 +218,6 @@ async function start_web(){
     map['/lif-kernel'] = lif_kernel = import.meta.dirname;
   if (!map['/.lif.kernel_sw.js'])
     map['/.lif.kernel_sw.js'] = lif_kernel+'/lif_kernel_sw.js';
-  if (!map['/index.html']) // XXX remove
-    map['/index.html'] = lif_kernel+'/index.html';
   if (!map['/favicon.ico'])
     map['/favicon.ico'] = lif_kernel+'/favicon.ico';
   console.log(map);
