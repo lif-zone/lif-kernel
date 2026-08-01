@@ -96,3 +96,34 @@ Added to lif-kernel/dns_s.js:
 - res_type_caa(name): hand-encodes CAA RDATA per RFC 6844 ([flags:1][tag_len:1][tag:N][value]) using dns2's raw resource.data fallback for unknown types. Reads E.caa_issuers (defaults to ['letsencrypt.org']).
 - Added case TYPE_CAA in switch
 - Added res_type_caa to res_type_any
+
+---
+USER:
+I want to be able to run lif-kernel from any package with 'npx lif-kernel serve -p 1234'. what do I need to add?
+
+CLAUDE:
+Added bin/lif-kernel.js entry point and wired it in package.json:
+- bin/lif-kernel.js: parses 'serve' command, strips it from argv, imports web/serve.js
+- package.json: added "bin": {"lif-kernel": "./bin/lif-kernel.js"} and "bin/lif-kernel.js" to files array
+
+---
+USER:
+add in-process fast path for same-process lifnet<->trunk routing to avoid TCP loopback
+
+CLAUDE:
+Added Trunk_local to lifnet.js and trunk_local() to trunk.js:
+- trunk.js: added sock_pair to imports; trunk_local() creates sock_pair, calls rpc_methods_basic+rpc_methods_lifnet_trunk on server end, returns client end
+- lifnet.js: Trunk_local extends Trunk_remote — constructor takes pre-built rpc, start() calls rg_id/topic_pub/method registration then emits 'online'. Added lifnet.trunk_add_local(rpc) and exported lifnet_init_local(rpc) which sets lifnet_inited=true and calls trunk_add_local
+- server_lib.js: imports trunk_local and lifnet_init_local; calls lifnet_init_local(trunk_local()) in run() when lifnet_trunk enabled, before start_web()
+
+---
+USER:
+refactor: extract Trunk base class with shared methods, Trunk_remote extends Trunk (WebSocket reconnect logic), Trunk_local extends Trunk (just start()). rename old Trunk to Trunk_remote.
+
+CLAUDE:
+Refactored lifnet.js:
+- Trunk (base): emit_status, _rpc_method_set, _rpc_method_del, trunk_call, topic_pub, topic_unpub, topic_get, close
+- Trunk_remote extends Trunk: adds url, last, et_connect, overrides emit_status (logs url, calls super), start/_connect_single/_connect_loop
+- Trunk_local extends Trunk: constructor sets this.rpc, start() does rg_id+topics+methods+emit_status('online')
+- _ws_trunks() now uses instanceof Trunk (catches both subclasses)
+- Fixed Trunk_remote.emit_status to call super.emit_status instead of duplicating body
