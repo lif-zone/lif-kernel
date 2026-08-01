@@ -27,6 +27,7 @@ function get_our_domain(name){
 
 function is_our_domain(name){ return !!get_our_domain(name); }
 
+E.caa_issuers = ['letsencrypt.org'];
 E.is_our_domain = is_our_domain;
 E.get_our_domain = get_our_domain;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
@@ -68,6 +69,7 @@ function res_type_any(name){
     ret = ret.concat(ret_ns);
     ret = ret.concat(res_type_mx(name));
     ret = ret.concat(res_type_txt(name));
+    ret = ret.concat(res_type_caa(name));
     return ret;
 }
 
@@ -89,6 +91,24 @@ function res_type_mx(name){
   let type = Packet.TYPE.MX, c = Packet.CLASS.IN;
   return [{name, type, class: c, ttl: E.ttl,
       exchange: 'mail5.holaspark.com', priority: 10}];
+}
+
+// CAA is optional for security that letsencrypt.org and others first request
+// this, and if exists, they make sure they are listed.
+function res_type_caa(name){
+  // CAA RDATA: [flags:1][tag_len:1][tag:N][value:rest] — RFC 6844
+  // dns2 has no CAA encoder so we pass raw rdata via resource.data
+  let c = Packet.CLASS.IN;
+  return E.caa_issuers.map(issuer=>{
+    let tag = Buffer.from('issue', 'ascii');
+    let val = Buffer.from(issuer, 'ascii');
+    let data = Buffer.alloc(2 + tag.length + val.length);
+    data[0] = 0; // flags
+    data[1] = tag.length;
+    tag.copy(data, 2);
+    val.copy(data, 2 + tag.length);
+    return {name, type: Paclet.TYPE.CAA, class: c, ttl: E.ttl, data};
+  });
 }
 
 function res_type_soa(name){
@@ -173,7 +193,7 @@ function create_dns_server(ips){
           case Packet.TYPE.CNAME: break; // silently ignore
           case Packet.TYPE.AAAA: break; // silently ignore
           case Packet.TYPE.DNSKEY: break; // silently ignore
-          case Packet.TYPE.CAA: break; // silently ignore
+          case Packet.TYPE.CAA: res.answers = res_type_caa(name); break;
           // XXX TODO
           default: console.error('dns_s: unsupported type %s', type);
           }

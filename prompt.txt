@@ -85,3 +85,14 @@ Implemented the rpc_sock protocol fix in util.js:
 - rpc_sock.accept: this._id = [msg.id[0]]
 - rpc_sock.listen: validates Array.isArray(msg.id) && length>=2, extracts seq = msg.id[last]
 - rpc_sock.close: sends {close: true} as notify (no seq), relies on emit_close for deregistration
+
+---
+USER:
+dns_s.js getting 'unsupported type 257' (CAA). add CAA support to answer letsencrypt queries.
+
+CLAUDE:
+Added to /home/derry/lif-kernel/dns_s.js:
+- TYPE_CAA=257 const (dns2 doesn't define Packet.TYPE.CAA)
+- res_type_caa(name): hand-encodes CAA RDATA per RFC 6844 ([flags:1][tag_len:1][tag:N][value]) using dns2's raw resource.data fallback for unknown types. Reads E.caa_issuers (defaults to ['letsencrypt.org']).
+- Added case TYPE_CAA in switch
+- Added res_type_caa to res_type_any
