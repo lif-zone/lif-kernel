@@ -11,6 +11,8 @@ const DEF_TTL_RETRY = 900;
 const DEF_TTL_EXPIRATION = 1800;
 const DEF_TTL_MINIMUM = 60;
 
+const Packet_TYPE_HTTPS = 54; // missing from dns2
+
 const E = {};
 export default E;
 
@@ -196,6 +198,7 @@ function create_dns_server(ips){
           case Packet.TYPE.AAAA: break; // silently ignore
           case Packet.TYPE.DNSKEY: break; // silently ignore
           case Packet.TYPE.CAA: res.answers = res_type_caa(name); break;
+          case Packet_TYPE_HTTPS: break; // silently ignore
           // XXX TODO
           default: console.error('dns_s: unsupported type %s', type);
           }
