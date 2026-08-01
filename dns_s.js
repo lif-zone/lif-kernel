@@ -107,7 +107,7 @@ function res_type_caa(name){
     data[1] = tag.length;
     tag.copy(data, 2);
     val.copy(data, 2 + tag.length);
-    return {name, type: Paclet.TYPE.CAA, class: c, ttl: E.ttl, data};
+    return {name, type: Packet.TYPE.CAA, class: c, ttl: E.ttl, data};
   });
 }
 
