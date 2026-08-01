@@ -27,7 +27,7 @@ export function rpc_methods_basic(rpc){
 }
 
 export function ws_trunk_accept(ws, opt={full: 1}){
-  let rpc = new rpc_websocket({D: 1, pre: 'c'});
+  let rpc = new rpc_websocket({D: 1, pre: 'trunk_s'});
   rpc.topics = {};
   rpc_methods_basic(rpc);
   rpc.accept({ws});
