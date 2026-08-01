@@ -26,7 +26,7 @@ export function rpc_methods_basic(rpc){
   });
 }
 
-export function trunk_local(){
+export function trunk_router(){
   let [c, s] = sock_pair();
   rpc_methods_basic(s);
   rpc_methods_lifnet_trunk(s);

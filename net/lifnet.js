@@ -116,7 +116,7 @@ class Trunk extends EventEmitter {
   }
 }
 
-class Trunk_remote extends Trunk {
+class Trunk_uplink extends Trunk {
   last = 0;
   et_connect;
   constructor(lifnet, url){
@@ -183,7 +183,7 @@ class Trunk_remote extends Trunk {
   }.bind(this)); }
 }
 
-class Trunk_local extends Trunk {
+class Trunk_router extends Trunk {
   constructor(lifnet, rpc){
     super(lifnet);
     this.rpc = rpc;
@@ -232,15 +232,15 @@ export class Lifnet extends EventEmitter {
   trunk_add(url){
     if (this.trunk_t[url])
       return;
-    let trunk = new Trunk_remote(this, url);
+    let trunk = new Trunk_uplink(this, url);
     this.trunk_t[url] = trunk;
     trunk.on('status', ()=>this._status_update());
     trunk.start();
   }
-  trunk_add_local(rpc){
+  trunk_add_router(rpc){
     if (this.trunk_t.local)
       return;
-    let trunk = new Trunk_local(this, rpc);
+    let trunk = new Trunk_router(this, rpc);
     this.trunk_t.local = trunk;
     trunk.on('status', ()=>this._status_update());
     trunk.start();
@@ -399,9 +399,9 @@ function lifnet_init(){
   return lifnet;
 }
 
-export function lifnet_init_local(rpc){
+export function lifnet_init_router(rpc){
   lifnet_inited = true;
-  lifnet.trunk_add_local(rpc);
+  lifnet.trunk_add_router(rpc);
 }
 export function lifnet_set(opt={}){
   if (opt.client_name)

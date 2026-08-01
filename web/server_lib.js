@@ -11,9 +11,9 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 } from '../util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add, trunk_local,
+import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add, trunk_router,
 } from '../net/trunk.js';
-import {lifnet_connect, lifnet_call, lifnet_set, lifnet_init_local,
+import {lifnet_connect, lifnet_call, lifnet_set, lifnet_init_router,
 } from '../net/lifnet.js';
 const efs = fs.promises;
 
@@ -271,7 +271,7 @@ async function run(opt){
     ? (g_opt.peers?.length ? 'tpeer'+g_opt.port : 'tmain'+g_opt.port)
     : 'leaf'});
   if (g_opt.lifnet_trunk)
-    lifnet_init_local(trunk_local());
+    lifnet_init_router(trunk_router());
   start_web();
   for (let url of (g_opt.peers||[]))
     trunk_peer_add(url);

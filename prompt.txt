@@ -127,3 +127,15 @@ Refactored lifnet.js:
 - Trunk_local extends Trunk: constructor sets this.rpc, start() does rg_id+topics+methods+emit_status('online')
 - _ws_trunks() now uses instanceof Trunk (catches both subclasses)
 - Fixed Trunk_remote.emit_status to call super.emit_status instead of duplicating body
+
+---
+USER:
+rename Trunk_remote→Trunk_uplink, Trunk_local→Trunk_router, and all related functions
+
+CLAUDE:
+Renamed across lifnet.js, trunk.js, server_lib.js:
+- Trunk_remote → Trunk_uplink
+- Trunk_local → Trunk_router
+- trunk_local() → trunk_router()
+- lifnet_init_local() → lifnet_init_router()
+- trunk_add_local() → trunk_add_router()
