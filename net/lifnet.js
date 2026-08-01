@@ -220,7 +220,7 @@ export class Lifnet extends EventEmitter {
     this.client_version = client_version||util_version;
     this.trunk_t.loopback = new Trunk_loopback(this);
     if (url)
-      this.trunk_add(url);
+      this.trunk_uplink_add(url);
     this.base_methods();
   }
   _status_update(){
@@ -229,7 +229,7 @@ export class Lifnet extends EventEmitter {
     if (prev!=this.status)
       this.emit('status', this.status);
   }
-  trunk_add(url){
+  trunk_uplink_add(url){
     if (this.trunk_t[url])
       return;
     let trunk = new Trunk_uplink(this, url);
@@ -392,10 +392,11 @@ function lifnet_init(){
   if (lifnet_inited)
     return lifnet;
   lifnet_inited = true;
-  if (is_node)
-    lifnet.trunk_add('ws://localhost:1842/.lif.net');
-  else
-    lifnet.trunk_add(url_http_to_ws(location.origin+'/.lif.net'));
+  if (is_node){
+    lifnet.trunk_uplink_add('ws://localhost:1842/.lif.net');
+    lifnet.trunk_uplink_add('wss://pub.site/.lif.net');
+  } else
+    lifnet.trunk_uplink_add(url_http_to_ws(location.origin+'/.lif.net'));
   return lifnet;
 }
 
