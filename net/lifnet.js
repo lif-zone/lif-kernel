@@ -1,9 +1,9 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
 import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
   is_node, url_http_to_ws, ewait, OA, sock_pair, rpc_sock_pipe, OV,
-} from './util.js';
-import etask from './etask.js';
-import EventEmitter, {once} from './compat/events.js';
+} from '../util.js';
+import etask from '../etask.js';
+import EventEmitter, {once} from '../compat/events.js';
 let D = 0;
 
 let trunk_url_base = is_node ? 'http://localhost:1842' : location.origin;

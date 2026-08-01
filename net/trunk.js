@@ -3,8 +3,8 @@
 let lif_rg_version = '26.7.21';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
   rpc_sock, assert, rpc_sock_pipe, OV,
-} from './util.js';
-import etask from './etask.js';
+} from '../util.js';
+import etask from '../etask.js';
 
 const topics = {};       // topic → {rg_id: rpc} (locally published)
 const peer_topics = {};  // topic → {rg_id: trunk_id} (published on peer trunks)

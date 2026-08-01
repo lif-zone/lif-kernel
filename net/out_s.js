@@ -4,7 +4,7 @@ let lif_rg_version = '26.7.21';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
   rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
   websocket_fix, sock_error_log, str,
-} from './util.js';
+} from '../util.js';
 import {WebSocket as ws_WebSocket} from 'ws';
 import {once, EventEmitter} from 'events';
 import tls from 'tls';
