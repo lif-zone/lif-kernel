@@ -2,7 +2,7 @@
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '26.7.21';
 import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_sock, assert, rpc_sock_pipe, OV,
+  rpc_sock, assert, rpc_sock_pipe, OV, sock_pair,
 } from '../util.js';
 import etask from '../etask.js';
 
@@ -24,6 +24,13 @@ export function rpc_methods_basic(rpc){
       rpc.pre = name;
     return {name: 'lif-trunk', version: util_version};
   });
+}
+
+export function trunk_local(){
+  let [c, s] = sock_pair();
+  rpc_methods_basic(s);
+  rpc_methods_lifnet_trunk(s);
+  return c;
 }
 
 export function ws_trunk_accept(ws, opt={full: 1}){

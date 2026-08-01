@@ -61,7 +61,7 @@ function T2E_et(fn){
   });
 }
 
-class Trunk extends EventEmitter {
+class Trunk_remote extends EventEmitter {
   status = 'offline';
   rpc;
   last = 0;
@@ -172,6 +172,27 @@ class Trunk extends EventEmitter {
   }
 }
 
+class Trunk_local extends Trunk_remote {
+  constructor(lifnet, rpc){
+    super(lifnet, 'local');
+    this.rpc = rpc;
+  }
+  async start(){
+    if (this.status=='online')
+      return;
+    let ret = await this.rpc.call('rg_id', {rg_id: this.lifnet.rg_id});
+    if (ret?.error)
+      return console.error('trunk_local rg_id err: '+ret.error);
+    for (let topic in this.lifnet.pub_t){
+      let t = this.lifnet.pub_t[topic];
+      this.rpc.call('topic_pub', {topic, data: t.data});
+    }
+    for (let method in this.lifnet.method_fn)
+      this._rpc_method_set(this.rpc, method);
+    this.emit_status('online');
+  }
+}
+
 export class Lifnet extends EventEmitter {
   method_fn = {};
   trunk_t = {};
@@ -200,8 +221,16 @@ export class Lifnet extends EventEmitter {
   trunk_add(url){
     if (this.trunk_t[url])
       return;
-    let trunk = new Trunk(this, url);
+    let trunk = new Trunk_remote(this, url);
     this.trunk_t[url] = trunk;
+    trunk.on('status', ()=>this._status_update());
+    trunk.start();
+  }
+  trunk_add_local(rpc){
+    if (this.trunk_t.local)
+      return;
+    let trunk = new Trunk_local(this, rpc);
+    this.trunk_t.local = trunk;
     trunk.on('status', ()=>this._status_update());
     trunk.start();
   }
@@ -210,7 +239,7 @@ export class Lifnet extends EventEmitter {
       t.start();
   }
   _ws_trunks(){
-    return OV(this.trunk_t).filter(t=>t instanceof Trunk);
+    return OV(this.trunk_t).filter(t=>t instanceof Trunk_remote);
   }
   _trunk_online(){
     return this._ws_trunks().find(t=>t.status=='online');
@@ -359,6 +388,10 @@ function lifnet_init(){
   return lifnet;
 }
 
+export function lifnet_init_local(rpc){
+  lifnet_inited = true;
+  lifnet.trunk_add_local(rpc);
+}
 export function lifnet_set(opt={}){
   if (opt.client_name)
     lifnet.client_name = opt.client_name;

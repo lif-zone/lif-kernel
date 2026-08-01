@@ -11,8 +11,10 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 } from '../util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add} from '../net/trunk.js';
-import {lifnet_connect, lifnet_call, lifnet_set} from '../net/lifnet.js';
+import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add, trunk_local,
+} from '../net/trunk.js';
+import {lifnet_connect, lifnet_call, lifnet_set, lifnet_init_local,
+} from '../net/lifnet.js';
 const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';
@@ -268,6 +270,8 @@ async function run(opt){
     g_opt.lifnet_trunk
     ? (g_opt.peers?.length ? 'tpeer'+g_opt.port : 'tmain'+g_opt.port)
     : 'leaf'});
+  if (g_opt.lifnet_trunk)
+    lifnet_init_local(trunk_local());
   start_web();
   for (let url of (g_opt.peers||[]))
     trunk_peer_add(url);
