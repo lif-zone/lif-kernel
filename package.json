@@ -59,7 +59,8 @@
     "hi.js",
     "compat/browser_env.js",
     "net/lifnet.js",
-    "net/out_s.js",
+    "net/tcpip_s.js",
+    "net/tcpip.js",
     "net/trunk.js",
     "lif-kernel.service",
     "test/test_lib.js"
