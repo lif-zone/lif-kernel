@@ -32,12 +32,12 @@ E.is_our_domain = is_our_domain;
 E.get_our_domain = get_our_domain;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
-    E.txt[name.toLowerCase()] = val;
-    E.domains[name.toLowerCase()] = {txt: val};
+  E.txt[name.toLowerCase()] = val;
+  E.domains[name.toLowerCase()] = {txt: val};
 };
 E.rm_txt = (name, val)=>{
-    delete E.txt[name.toLowerCase()];
-    delete E.domains[name.toLowerCase()];
+  delete E.txt[name.toLowerCase()];
+  delete E.domains[name.toLowerCase()];
 };
 // XXX: need caching
 function res_type_a(name){
@@ -56,32 +56,32 @@ function res_type_ns(name){
   let ret = [];
   let info = get_our_domain(name);
   if (!info || !info.ns)
-      return ret;
+    return ret;
   info.ns.forEach(ns=>ret.push({name, type, class: c, ttl: E.ttl,
-      ns: ns+'.'+name}));
+    ns: ns+'.'+name}));
   return ret;
 }
 
 function res_type_any(name){
-    let ret = res_type_a(name);
-    ret = ret.concat(res_type_soa(name));
-    let ret_ns = res_type_ns(name);
-    ret = ret.concat(ret_ns);
-    ret = ret.concat(res_type_mx(name));
-    ret = ret.concat(res_type_txt(name));
-    ret = ret.concat(res_type_caa(name));
-    return ret;
+  let ret = res_type_a(name);
+  ret = ret.concat(res_type_soa(name));
+  let ret_ns = res_type_ns(name);
+  ret = ret.concat(ret_ns);
+  ret = ret.concat(res_type_mx(name));
+  ret = ret.concat(res_type_txt(name));
+  ret = ret.concat(res_type_caa(name));
+  return ret;
 }
 
 function res_type_txt(name){
   let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
   let data = E.txt[name.toLowerCase()];
   let ret = [{name, type, class: c, ttl: E.ttl, data:
-      'v=spf1 a mx ptr ip4:212.235.66.0/24 ip4:54.243.35.14 '+
-      'ip4:35.153.220.251 ip4:172.30.15.32 ip4:54.86.72.44 '+
-      'ip4:172.30.13.27 ip4:34.196.25.123 ip4:172.30.0.178 '+
-      'ip4:34.192.171.195 include:amazonses.com '+
-      'include:_spf.google.com -all'}];
+    'v=spf1 a mx ptr ip4:212.235.66.0/24 ip4:54.243.35.14 '+
+    'ip4:35.153.220.251 ip4:172.30.15.32 ip4:54.86.72.44 '+
+    'ip4:172.30.13.27 ip4:34.196.25.123 ip4:172.30.0.178 '+
+    'ip4:34.192.171.195 include:amazonses.com '+
+    'include:_spf.google.com -all'}];
   if (data) // XXX: allow to set ttl per TXT
     ret.push({name, type, class: c, ttl: 5, data});
   return ret;
@@ -90,7 +90,7 @@ function res_type_txt(name){
 function res_type_mx(name){
   let type = Packet.TYPE.MX, c = Packet.CLASS.IN;
   return [{name, type, class: c, ttl: E.ttl,
-      exchange: 'mail5.holaspark.com', priority: 10}];
+    exchange: 'mail5.holaspark.com', priority: 10}];
 }
 
 // CAA is optional for security that letsencrypt.org and others first request
@@ -116,11 +116,11 @@ function res_type_soa(name){
   let ret = [];
   let info = get_our_domain(name);
   if (!info || !info.ns)
-      return ret;
+    return ret;
   let ns = info.ns[0]+'.'+name;
   let d = new Date();
-  let serial = d.getFullYear()+String(d.getMonth()+1).padStart(2, 0)+
-    String(d.getDate()).padStart(2, 0);
+  let serial = d.getFullYear()+(''+d.getMonth()+1).padStart(2, 0)+
+    (''+d.getDate()).padStart(2, 0);
   ret = [{name, type, class: c, ttl: E.ttl,
     primary: ns, admin: ns, serial, refresh: 900, retry: 900,
     expiration: 1800, minimum: 60}];
@@ -140,26 +140,26 @@ function res_type_soa(name){
 }
 
 E.set_domains = domains=>{
-    console.log('dns_s: set domains %s',
-        domains ? Object.keys(domains).join(', ') : 'none');
-    E.domains = {};
-    if (!domains)
-        return;
-    for (let name in domains){
-        let o = domains[name];
-        o = E.domains[name] = Object.assign({name}, o);
-        if (o.ip && !Array.isArray(o.ip))
-            o.ip = [o.ip];
-        if (o.ns && !Array.isArray(o.ns))
-            o.ns = [o.ns];
-        if (o.ns){
-            for (let i=0; i<o.ns.length; i++){
-                let ns_name = o.ns[i]+'.'+name;
-                if (!domains[ns_name])
-                  E.domains[ns_name] = {name: ns_name, ip: o.ip};
-            }
-        }
+  console.log('dns_s: set domains %s',
+    domains ? Object.keys(domains).join(', ') : 'none');
+  E.domains = {};
+  if (!domains)
+    return;
+  for (let name in domains){
+    let o = domains[name];
+    o = E.domains[name] = Object.assign({name}, o);
+    if (o.ip && !Array.isArray(o.ip))
+      o.ip = [o.ip];
+    if (o.ns && !Array.isArray(o.ns))
+      o.ns = [o.ns];
+    if (o.ns){
+      for (let i=0; i<o.ns.length; i++){
+        let ns_name = o.ns[i]+'.'+name;
+        if (!domains[ns_name])
+          E.domains[ns_name] = {name: ns_name, ip: o.ip};
+      }
     }
+  }
 };
 
 function create_dns_server(ips){
@@ -229,7 +229,7 @@ E.start = opt=>{
 
 E.stop = ()=>{
   if (!E.servers)
-      return;
+    return;
   for (let server of E.servers)
     server.close();
   E.servers = undefined;
