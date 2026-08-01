@@ -23,7 +23,11 @@
       "buffer": "6.0.3"
     }
   },
+  "bin": {
+    "lif-kernel": "./bin/lif-kernel.js"
+  },
   "files": [
+    "bin/lif-kernel.js",
     "compat/compat.js",
     "compat/assert.js",
     "compat/querystring.js",
