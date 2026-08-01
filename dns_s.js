@@ -98,6 +98,7 @@ function res_type_mx(name){
 // CAA is optional for security that letsencrypt.org and others first request
 // this, and if exists, they make sure they are listed.
 function res_type_caa(name){
+  return []; // disable caa - its not really needed.
   // CAA RDATA: [flags:1][tag_len:1][tag:N][value:rest] — RFC 6844
   // dns2 has no CAA encoder so we pass raw rdata via resource.data
   let c = Packet.CLASS.IN;
