@@ -91,7 +91,7 @@ USER:
 dns_s.js getting 'unsupported type 257' (CAA). add CAA support to answer letsencrypt queries.
 
 CLAUDE:
-Added to /home/derry/lif-kernel/dns_s.js:
+Added to lif-kernel/dns_s.js:
 - TYPE_CAA=257 const (dns2 doesn't define Packet.TYPE.CAA)
 - res_type_caa(name): hand-encodes CAA RDATA per RFC 6844 ([flags:1][tag_len:1][tag:N][value]) using dns2's raw resource.data fallback for unknown types. Reads E.caa_issuers (defaults to ['letsencrypt.org']).
 - Added case TYPE_CAA in switch
