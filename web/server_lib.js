@@ -11,7 +11,7 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 } from '../util.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_connect, rpc_methods_lifnet_trunk, trunk_peer_add} from '../net/trunk.js';
+import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add} from '../net/trunk.js';
 import {lifnet_connect, lifnet_call, lifnet_set} from '../net/lifnet.js';
 const efs = fs.promises;
 
@@ -49,7 +49,7 @@ async function rpc_websocket_pipe_lif(ws, topic){
 }
 
 function ws_on_trunk_connect(ws){
-  let rpc = ws_trunk_connect(ws);
+  let rpc = ws_trunk_accept(ws);
   rpc_methods_lifnet_trunk(rpc);
 }
 
