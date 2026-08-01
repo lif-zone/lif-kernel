@@ -231,7 +231,7 @@ async function _peer_connect(url){
   if (!peer_urls[url])
     return;
   entry.last = Date.now();
-  let rpc = new rpc_websocket({D: 1});
+  let rpc = new rpc_websocket({D: 1, pre: 'trunk_c'});
   rpc_methods_basic(rpc);
   rpc_methods_lifnet_trunk(rpc);
   rpc.on('error', ()=>{});
