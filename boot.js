@@ -1108,6 +1108,9 @@ let boot_app = async(boot_pkg)=>{
     webapp = res.webapp;
   }
   // load app
+  // TODO: add support for apps missing package.json main- > /index.html
+  // Such packages will try to show /index.html -> /index.md -> /README.md
+  // also: check /favicon.ico existance
   let ext = _path_ext(webapp);
   let ret;
   try {
