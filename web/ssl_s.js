@@ -209,7 +209,8 @@ export async function do_ssl(opt){
   acme.init({dns_s});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
-  // to purchase: web.city site.space web.center
+  // to purchase: web.city 600$/y, site.space 3.5K, web.center, web.site 1M
+  //   lif.net 12K, theguide.org 3.5K
   // to add: site.center
   dns_s.set_domains({
     'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
