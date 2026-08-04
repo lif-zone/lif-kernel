@@ -210,11 +210,14 @@ export async function do_ssl(opt){
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
   // to purchase: web.city 600$/y, site.space 3.5K, web.center, web.site 1M
-  //   lif.net 12K, theguide.org 3.5K
-  // to add: site.center
+  //   lif.net 12K, theguide.org 3.5K, lif.io 6.5K, lif.live 300/y
   dns_s.set_domains({
+    'lifnet.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'lif.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
+    'lifnet.io': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
+    'lifnet.net': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
+    'lifsite.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'site.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'bright.life': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'zon.life': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
