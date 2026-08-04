@@ -215,6 +215,7 @@ export async function do_ssl(opt){
   dns_s.set_domains({
     'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'lif.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
+    'site.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'bright.life': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'zon.life': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     // 'lif.zone': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
