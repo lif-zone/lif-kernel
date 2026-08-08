@@ -21,10 +21,6 @@ export const hosts = {
   'lif-coin': 'git://github.com/lif-zone/lif-coin@latest',
   'lif-coin-local': '/lif-coin/',
   'wallet': 'git://github.com/lif-zone/lif-wallet@latest',
-  'wallet2': 'git://github.com/lif-zone/lif-wallet@latest',
-  'wallet3': 'git://github.com/lif-zone/lif-wallet@latest',
   'wallet-local': '/lif-wallet/',
-  'wallet-local2': '/lif-wallet/',
-  'wallet-local3': '/lif-wallet/',
 };
 
