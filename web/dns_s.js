@@ -22,23 +22,38 @@ function pad(num, size){ return (''+num).padStart(size, '0'); }
 function str_starts(s, start){
   return s.startsWith(start) ? {start, rest: s.slice(start.length)} : null;
 }
+function OE(o){ return o ? Object.entries(o) : []; }
+const OA = Object.assign;
+const OV = Object.values;
+const OK = Object.keys;
 
-function get_raw_ip_domain(name_part){
+E.hosts = {};
+function get_raw_ip_domain(host){
   let v;
-  if (!(v=str_starts(name_part, 'ip--')))
+  if (!(v=str_starts(host, 'ip--')))
     return;
   let ip = v.rest.replace(/-/g, '.');
   if (!net.isIPv4(ip))
     return;
-  return {ssl: true, ip: [ip], ns: ['ns1', 'ns2']};
+  return {ssl: true, ip: [ip]};
 }
+function get_host_of_domain(host){
+  let v;
+  if (!(v = E.hosts[host]))
+    return;
+  return {ssl: true, ip: [v.ip]};
+}
+E.domains = {};
 function get_our_domain(name){
   let v;
-  let domains = E.domains||[];
+  let domains = E.domains||{};
   name = name.toLowerCase();
   let parts = name.split('.');
+  let host = parts[0];
   let parent = parts.slice(1).join('.');
-  if (v=get_raw_ip_domain(parts[0]))
+  if (v=get_host_of_domain(host))
+    return v;
+  if (v=get_raw_ip_domain(host))
     return v;
   if (v=domains[name])
     return v;
@@ -46,19 +61,18 @@ function get_our_domain(name){
     return v;
 }
 
-function is_our_domain(name){ return !!get_our_domain(name); }
-
 E.caa_issuers = ['letsencrypt.org'];
-E.is_our_domain = is_our_domain;
 E.get_our_domain = get_our_domain;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
-  E.txt[name.toLowerCase()] = val;
-  E.domains[name.toLowerCase()] = {txt: val};
+  name = name.toLowerCase();
+  E.txt[name] = val;
+  E.domains[name] = {txt: val};
 };
 E.rm_txt = (name, val)=>{
-  delete E.txt[name.toLowerCase()];
-  delete E.domains[name.toLowerCase()];
+  name = name.toLowerCase();
+  delete E.txt[name];
+  delete E.domains[name];
 };
 // XXX: need caching
 function res_type_a(name){
@@ -162,13 +176,10 @@ function res_type_soa(name){
 
 E.set_domains = domains=>{
   console.log('dns_s: set domains %s',
-    domains ? Object.keys(domains).join(', ') : 'none');
+    domains ? OK(domains).join(', ') : 'none');
   E.domains = {};
-  if (!domains)
-    return;
-  for (let name in domains){
-    let o = domains[name];
-    o = E.domains[name] = Object.assign({name}, o);
+  for (let [name, o] of OE(domains)){
+    o = E.domains[name] = OA({name}, o);
     if (o.ip && !Array.isArray(o.ip))
       o.ip = [o.ip];
     if (o.ns && !Array.isArray(o.ns))
@@ -181,6 +192,11 @@ E.set_domains = domains=>{
       }
     }
   }
+};
+
+E.set_hosts = hosts=>{
+  console.log('dns_s: set hosts %s', hosts);
+  E.hosts = hosts;
 };
 
 function create_dns_server(ips){
@@ -198,7 +214,7 @@ function create_dns_server(ips){
             return send(res);
           }
           let [query] = req.questions, {name, type} = query;
-          if (!is_our_domain(name)){
+          if (!get_our_domain(name)){
             console.log('dns query SKIP %s', name);
             return send(res);
           }
