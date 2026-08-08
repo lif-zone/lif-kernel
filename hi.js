@@ -1,35 +1,11 @@
 // LICENSE_CODE JPL hi world!
 import {OE, html_elm, str, qs_append, qs_enc} from './util.js';
 import lif from './boot.js';
-
-let webapp_index = {
-  '': '*demo_index', // special handling for built-in demo_index
-  'basic': 'git://github.com/lif-zone/lif-basic@main//main.tsx',
-  'basic-npm': 'npm:lif-basic@1.3.0/main.tsx',
-  'basic-local': '/lif-basic//main.tsx',
-  'play': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play.html',
-  'play-npm': 'npm:lif-basic@1.3.0/play.html',
-  'play-local': '/lif-basic//play.html',
-  'play2': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play2.tsx',
-  'play2-npm': 'npm:lif-basic@1.3.0/play2.tsx',
-  'play2-local': '/lif-basic//play2.tsx',
-  'play3': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play3.js',
-  'play3-npm': 'npm:lif-basic@1.3.0/play3.js',
-  'play3-local': '/lif-basic//play3.js',
-  'play4': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play4.html',
-  'play4-npm': 'npm:lif-basic@1.3.0/play4.html',
-  'play4-local': '/lif-basic//play4.html',
-  'os': 'git://github.com/lif-zone/lif-os@main/pages/lif_main.tsx',
-  'os-local': '/lif-os//pages/lif_main.tsx',
-  'lif-coin': 'git://github.com/lif-zone/lif-coin@latest',
-  'lif-coin-local': '/lif-coin/',
-  'wallet': 'git://github.com/lif-zone/lif-wallet@latest',
-  'wallet-local': '/lif-wallet/',
-};
+import hosts from './hosts.js';
 
 function demo_index(){
   let body = document.querySelector('body');
-  for (let [k, v] of OE(webapp_index)){
+  for (let [k, v] of OE(hosts)){
     let p = html_elm('p');
     let e = html_elm('a', {href: '/?'+v});
     e.innerText = k;
@@ -117,7 +93,7 @@ function webapp_default(){
     webapp = e[0];
   if (v=q.get('webapp'))
     webapp = v;
-  if (v=webapp_index[webapp||''])
+  if (v=hosts[webapp||''])
     webapp = v;
   if (webapp)
     return webapp;
@@ -127,11 +103,11 @@ async function webapp_resolve(){
   let v, sub;
   if (sub = sub_dns()){
     let name = sub;
-    let val = await lif_kv_get('dns/'+name);
-    if (val && val.site)
-      return {site: val.site};
-    if (v = webapp_index[name])
+    if (v = hosts[name])
       return {site: v};
+    v = await lif_kv_get('dns/'+name);
+    if (v && v.site)
+      return {site: v.site};
     return {page: ()=>page_domain_not_found(sub)};
   }
   if (v = webapp_default())

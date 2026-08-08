@@ -1,0 +1,30 @@
+// the lifnet reserved hardcoded hosts: /etc/hosts
+export const hosts = {
+  '': '*demo_index', // special handling for built-in demo_index
+  'basic': 'git://github.com/lif-zone/lif-basic@main//main.tsx',
+  'basic-npm': 'npm:lif-basic@1.3.0/main.tsx',
+  'basic-local': '/lif-basic//main.tsx',
+  'play': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play.html',
+  'play-npm': 'npm:lif-basic@1.3.0/play.html',
+  'play-local': '/lif-basic//play.html',
+  'play2': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play2.tsx',
+  'play2-npm': 'npm:lif-basic@1.3.0/play2.tsx',
+  'play2-local': '/lif-basic//play2.tsx',
+  'play3': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play3.js',
+  'play3-npm': 'npm:lif-basic@1.3.0/play3.js',
+  'play3-local': '/lif-basic//play3.js',
+  'play4': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play4.html',
+  'play4-npm': 'npm:lif-basic@1.3.0/play4.html',
+  'play4-local': '/lif-basic//play4.html',
+  'os': 'git://github.com/lif-zone/lif-os@main/pages/lif_main.tsx',
+  'os-local': '/lif-os//pages/lif_main.tsx',
+  'lif-coin': 'git://github.com/lif-zone/lif-coin@latest',
+  'lif-coin-local': '/lif-coin/',
+  'wallet': 'git://github.com/lif-zone/lif-wallet@latest',
+  'wallet2': 'git://github.com/lif-zone/lif-wallet@latest',
+  'wallet3': 'git://github.com/lif-zone/lif-wallet@latest',
+  'wallet-local': '/lif-wallet/',
+  'wallet-local2': '/lif-wallet/',
+  'wallet-local3': '/lif-wallet/',
+};
+
