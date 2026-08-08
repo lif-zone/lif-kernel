@@ -1,7 +1,7 @@
 // LICENSE_CODE JPL hi world!
 import {OE, html_elm, str, qs_append, qs_enc} from './util.js';
 import lif from './boot.js';
-import hosts from './hosts.js';
+import {hosts} from './hosts.js';
 
 function demo_index(){
   let body = document.querySelector('body');
