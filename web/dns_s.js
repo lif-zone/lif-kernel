@@ -48,7 +48,6 @@ E.domains = {};
 function get_our_domain(name){
   let v;
   let domains = E.domains||{};
-  name = name.toLowerCase();
   let parts = name.split('.');
   let host = parts[0];
   let parent = parts.slice(1).join('.');
@@ -66,54 +65,49 @@ function get_our_domain(name){
 
 E.caa_issuers = ['letsencrypt.org'];
 E.get_our_domain = get_our_domain;
-E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
+E.get_txt = (name, val)=>E.txt[name];
 E.set_txt = (name, val)=>{
-  name = name.toLowerCase();
   E.txt[name] = val;
   E.domains[name] = {txt: val};
 };
 E.rm_txt = (name, val)=>{
-  name = name.toLowerCase();
   delete E.txt[name];
   delete E.domains[name];
 };
 // XXX: need caching
-function res_type_a(name){
+function res_type_a(name, info){
   let type = Packet.TYPE.A, c = Packet.CLASS.IN;
   let ret = [];
-  let info = get_our_domain(name);
-  if (!info || !info.ip)
+  if (!info.ip)
       return ret;
   let ips = info.ip;
   ips.forEach(ip=>ret.push({name, type, class: c, ttl: E.ttl, address: ip}));
   return ret;
 }
 
-function res_type_ns(name){
+function res_type_ns(name, info){
   let type = Packet.TYPE.NS, c = Packet.CLASS.IN;
   let ret = [];
-  let info = get_our_domain(name);
-  if (!info || !info.ns)
+  if (!info.ns)
     return ret;
   info.ns.forEach(ns=>ret.push({name, type, class: c, ttl: E.ttl,
     ns: ns+'.'+name}));
   return ret;
 }
 
-function res_type_any(name){
-  let ret = res_type_a(name);
-  ret = ret.concat(res_type_soa(name));
-  let ret_ns = res_type_ns(name);
-  ret = ret.concat(ret_ns);
-  ret = ret.concat(res_type_mx(name));
-  ret = ret.concat(res_type_txt(name));
-  ret = ret.concat(res_type_caa(name));
+function res_type_any(name, info){
+  let ret = res_type_a(name, info);
+  ret = ret.concat(res_type_soa(name, info));
+  ret = ret.concat(res_type_ns(name, info));
+  ret = ret.concat(res_type_mx(name, info));
+  ret = ret.concat(res_type_txt(name, info));
+  ret = ret.concat(res_type_caa(name, info));
   return ret;
 }
 
-function res_type_txt(name){
+function res_type_txt(name, info){
   let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
-  let data = E.txt[name.toLowerCase()];
+  let data = E.txt[name];
   let ret = [{name, type, class: c, ttl: E.ttl, data:
     'v=spf1 a mx ptr ip4:212.235.66.0/24 ip4:54.243.35.14 '+
     'ip4:35.153.220.251 ip4:172.30.15.32 ip4:54.86.72.44 '+
@@ -125,7 +119,7 @@ function res_type_txt(name){
   return ret;
 }
 
-function res_type_mx(name){
+function res_type_mx(name, info){
   let type = Packet.TYPE.MX, c = Packet.CLASS.IN;
   return [{name, type, class: c, ttl: E.ttl,
     exchange: 'mail5.holaspark.com', priority: 10}];
@@ -150,11 +144,10 @@ function res_type_caa(name){
   });
 }
 
-function res_type_soa(name){
+function res_type_soa(name, info){
   let type = Packet.TYPE.SOA, c = Packet.CLASS.IN;
   let ret = [];
-  let info = get_our_domain(name);
-  if (!info || !info.ns)
+  if (!info.ns)
     return ret;
   let ns = info.ns[0]+'.'+name;
   let d = new Date();
@@ -209,25 +202,27 @@ function dns_server_handler(req, send, rinfo){
       res.header.rcode = 0x4; // not implemented
       return send(res);
     }
-    let [query] = req.questions, {name, type} = query;
-    let v;
-    if (!(v=get_our_domain(name))){
+    let [query] = req.questions;
+    let {name, type} = query;
+    name = name.toLowerCase();
+    let info = get_our_domain(name);
+    if (!info){
       console.log('dns query SKIP not ours %s', name);
       return send(res);
     }
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
     switch (type){
-    case Packet.TYPE.A: res.answers = res_type_a(name); break;
-    case Packet.TYPE.NS: res.answers = res_type_ns(name); break;
-    case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
-    case Packet.TYPE.ANY: res.answers = res_type_any(name); break;
-    case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
-    case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
+    case Packet.TYPE.A: res.answers = res_type_a(name, info); break;
+    case Packet.TYPE.NS: res.answers = res_type_ns(name, info); break;
+    case Packet.TYPE.SOA: res.answers = res_type_soa(name, info); break;
+    case Packet.TYPE.ANY: res.answers = res_type_any(name, info); break;
+    case Packet.TYPE.TXT: res.answers = res_type_txt(name, info); break;
+    case Packet.TYPE.MX: res.answers = res_type_mx(name, info); break;
     case Packet.TYPE.CNAME: break; // silently ignore
     case Packet.TYPE.AAAA: break; // silently ignore
     case Packet.TYPE.DNSKEY: break; // silently ignore
-    case Packet.TYPE.CAA: res.answers = res_type_caa(name); break;
+    case Packet.TYPE.CAA: res.answers = res_type_caa(name, info); break;
     case Packet_TYPE_HTTPS: break; // silently ignore
     case Packet_TYPE_SPF: break; // silently ignore
     // XXX TODO
