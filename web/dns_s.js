@@ -33,7 +33,6 @@ function get_our_domain(name){
   let domains = E.domains||[];
   name = name.toLowerCase();
   let parts = name.split('.');
-  let part = part[0];
   let parent = parts.slice(1).join('.');
   if (v=get_raw_ip_domain(parts[0]))
     return v;
