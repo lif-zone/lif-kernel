@@ -73,9 +73,14 @@ function get_acme_cert_files(domain){
 
 async function load_cert(domain, opt){
   let file_cert = opt.cert, file_key = opt.key, cert, key;
+  try {
   cert = await efs.readFile(file_cert);
+  } catch(err){
+    return void console.log(`cert not found ${file_cert}`);
+  }
   key = await efs.readFile(file_key);
   await set_cert(domain, file_cert, file_key, cert, key);
+  return true;
 }
 
 const ssl_cert = {};
