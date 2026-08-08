@@ -29,7 +29,7 @@ function get_raw_ip_domain(name_part){
   let ip = v.rest.replace(/-/g, '.');
   if (!net.isIPv4(ip))
     return;
-  return {ssl: true, ip, ns: ['ns1', 'ns2']};
+  return {ssl: true, ip: [ip], ns: ['ns1', 'ns2']};
 }
 function get_our_domain(name){
   let v;
