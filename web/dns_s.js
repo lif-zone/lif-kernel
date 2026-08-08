@@ -19,7 +19,7 @@ export default E;
 
 function pad(num, size){ return (''+num).padStart(size, '0'); }
 
-function get_ip_domain(name_part){
+function get_raw_ip_domain(name_part){
   let v;
   if (!(v=name_part.startsWith('ip--')))
     return;
@@ -35,7 +35,7 @@ function get_our_domain(name){
   let parts = name.split('.');
   let part = part[0];
   let parent = parts.slice(1).join('.');
-  if (v=get_ip_domain(parts[0]))
+  if (v=get_raw_ip_domain(parts[0]))
     return v;
   if (v=domains[name])
     return v;
