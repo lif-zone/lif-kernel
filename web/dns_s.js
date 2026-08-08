@@ -32,7 +32,7 @@ function get_raw_ip_domain(host){
   let v;
   if (!(v=str_starts(host, 'ip--')))
     return;
-  let ip = v.rest.replace(/-/g, '.');
+  let ip = v.rest.replaceAll('-', '.');
   if (!net.isIPv4(ip))
     return;
   return {ssl: true, ip: [ip]};
