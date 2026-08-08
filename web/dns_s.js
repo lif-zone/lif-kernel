@@ -2,6 +2,7 @@
 'use strict'; /*jslint node:true*/
 // local testing port 5d: dig @localhost -p 54 test.com A
 import dns2 from 'dns2';
+import net from 'net';
 const {Packet} = dns2;
 // based: dig @8.8.8.8 google.com SOA
 const DEF_PORT = 53;
@@ -18,15 +19,28 @@ export default E;
 
 function pad(num, size){ return (''+num).padStart(size, '0'); }
 
-function get_our_domain(name){
-  if (!E.domains)
+function get_ip_domain(name_part){
+  let v;
+  if (!(v=name_part.startsWith('ip--')))
     return;
+  let ip = v.slice(4).replace(/-/g, '.');
+  if (!net.isIPv4(ip))
+    return;
+  return {ssl: true, ip, ns: ['ns1', 'ns2']};
+}
+function get_our_domain(name){
+  let v;
+  let domains = E.domains||[];
   name = name.toLowerCase();
-  if (E.domains[name])
-    return E.domains[name];
-  let parent = name.split('.').slice(1).join('.');
-  if (E.domains[parent])
-    return E.domains[parent];
+  let parts = name.split('.');
+  let part = part[0];
+  let parent = parts.slice(1).join('.');
+  if (v=get_ip_domain(parts[0]))
+    return v;
+  if (v=domains[name])
+    return v;
+  if (v=domains[parent])
+    return v;
 }
 
 function is_our_domain(name){ return !!get_our_domain(name); }
