@@ -41,6 +41,7 @@ function get_host_of_domain(host){
   let v;
   if (!(v = E.hosts[host]))
     return;
+  console.log('found host', v);
   return {ssl: true, ip: [v.ip]};
 }
 E.domains = {};
@@ -57,8 +58,10 @@ function get_our_domain(name){
     return v;
   if (v=domains[name])
     return v;
-  if (v=domains[parent])
+  if (v=domains[parent]){
+    // XXX: remove ns1 ns2, since its a sub-domain
     return v;
+  }
 }
 
 E.caa_issuers = ['letsencrypt.org'];
