@@ -41,7 +41,6 @@ function get_host_of_domain(host){
   let v;
   if (!(v = E.hosts[host]))
     return;
-  console.log('found host', v);
   return {ssl: true, ip: [v.ip]};
 }
 E.domains = {};
@@ -207,9 +206,10 @@ function dns_server_handler(req, send, rinfo){
     name = name.toLowerCase();
     let info = get_our_domain(name);
     if (!info){
-      console.log('dns query SKIP not ours %s', name);
+      console.log('dns '+name+' ERR not found');
       return send(res);
     }
+    console.log('dns '+name+' '+info.ip?.[0]);
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
     switch (type){
