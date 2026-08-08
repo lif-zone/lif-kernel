@@ -18,12 +18,15 @@ const E = {};
 export default E;
 
 function pad(num, size){ return (''+num).padStart(size, '0'); }
+function str_starts(s, start){
+  return s.startsWith(start) ? {start, rest: s.slice(start.length)} : null;
+}
 
 function get_raw_ip_domain(name_part){
   let v;
-  if (!(v=name_part.startsWith('ip--')))
+  if (!(v=str_starts(name_part, 'ip--')))
     return;
-  let ip = v.slice(4).replace(/-/g, '.');
+  let ip = v.rest.replace(/-/g, '.');
   if (!net.isIPv4(ip))
     return;
   return {ssl: true, ip, ns: ['ns1', 'ns2']};
