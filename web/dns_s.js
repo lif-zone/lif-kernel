@@ -202,6 +202,41 @@ E.set_hosts = hosts=>{
   E.hosts = hosts;
 };
 
+function dns_server_handler(req, send, rinfo){
+  try {
+    let res = Packet.createResponseFromRequest(req);
+    if (req.questions.length!=1){
+      res.header.rcode = 0x4; // not implemented
+      return send(res);
+    }
+    let [query] = req.questions, {name, type} = query;
+    let v;
+    if (!(v=get_our_domain(name))){
+      console.log('dns query SKIP not ours %s', name);
+      return send(res);
+    }
+    // https://tools.ietf.org/html/rfc1035#section-4.1.1
+    res.header.aa = 1; // set authoritive answer
+    switch (type){
+    case Packet.TYPE.A: res.answers = res_type_a(name); break;
+    case Packet.TYPE.NS: res.answers = res_type_ns(name); break;
+    case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
+    case Packet.TYPE.ANY: res.answers = res_type_any(name); break;
+    case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
+    case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
+    case Packet.TYPE.CNAME: break; // silently ignore
+    case Packet.TYPE.AAAA: break; // silently ignore
+    case Packet.TYPE.DNSKEY: break; // silently ignore
+    case Packet.TYPE.CAA: res.answers = res_type_caa(name); break;
+    case Packet_TYPE_HTTPS: break; // silently ignore
+    case Packet_TYPE_SPF: break; // silently ignore
+    // XXX TODO
+    default: console.error('dns_s: unsupported type %s', type);
+    }
+    send(res);
+  } catch(err){ console.error('dns_s: error %s', err.stack||err); }
+}
+
 function create_dns_server(ips){
   if (E.servers)
     throw new Error('dns_s: already started servers');
@@ -209,40 +244,7 @@ function create_dns_server(ips){
   for (let {address, port} of ips){
     port = port||DEF_PORT;
     let server = dns2.createServer({udp: !E.noudp, tcp: !E.notcp,
-      handle: (req, send, rinfo)=>{
-        try {
-          let res = Packet.createResponseFromRequest(req);
-          if (req.questions.length!=1){
-            res.header.rcode = 0x4; // not implemented
-            return send(res);
-          }
-          let [query] = req.questions, {name, type} = query;
-          if (!get_our_domain(name)){
-            console.log('dns query SKIP %s', name);
-            return send(res);
-          }
-          // https://tools.ietf.org/html/rfc1035#section-4.1.1
-          res.header.aa = 1; // set authoritive answer
-          switch (type){
-          case Packet.TYPE.A: res.answers = res_type_a(name); break;
-          case Packet.TYPE.NS: res.answers = res_type_ns(name); break;
-          case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
-          case Packet.TYPE.ANY: res.answers = res_type_any(name); break;
-          case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
-          case Packet.TYPE.MX: res.answers = res_type_mx(name); break;
-          case Packet.TYPE.CNAME: break; // silently ignore
-          case Packet.TYPE.AAAA: break; // silently ignore
-          case Packet.TYPE.DNSKEY: break; // silently ignore
-          case Packet.TYPE.CAA: res.answers = res_type_caa(name); break;
-          case Packet_TYPE_HTTPS: break; // silently ignore
-          case Packet_TYPE_SPF: break; // silently ignore
-          // XXX TODO
-          default: console.error('dns_s: unsupported type %s', type);
-          }
-          send(res);
-        } catch(err){ console.error('dns_s: error %s', err.stack||err); }
-      }
-    });
+      handle: dns_server_handler});
     server.on('close', ()=>console.log('dns_s: closed'));
     server.on('error', err=>console.error('dns_s: error', err));
     console.log('dns_s: listen on %s udp+tcp ports %s', address, port);
