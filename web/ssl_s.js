@@ -55,7 +55,7 @@ export function sni_cb(server_name, cb){
   let domain = dns_s.get_our_domain(server_name);
   if (!domain){
     let err = 'domain not handled '+server_name;
-    console.error('server: %s', err);
+    console.error('sni: %s', err);
     return cb(err, null);
   }
   let ctx = ssl_cert[domain.name]?.ctx;

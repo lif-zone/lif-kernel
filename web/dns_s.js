@@ -3,8 +3,7 @@
 // local testing port 5d: dig @localhost -p 54 test.com A
 import dns2 from 'dns2';
 import net from 'net';
-let D = process.env.D;
-console.log('D', D);
+let D = +process.env.D || 0;
 const {Packet} = dns2;
 // based: dig @8.8.8.8 google.com SOA
 const DEF_PORT = 53;
@@ -214,10 +213,10 @@ function dns_server_handler(req, send, rinfo){
     name = name.toLowerCase();
     let info = get_our_domain(name);
     if (!info){
-      console.log('dns '+name+' ERR not found');
+      D>=1 && console.log('dns '+name+' not handled');
       return send(res);
     }
-    if (D || name.includes('acme'))
+    if (D>=2 || name.includes('acme'))
       console.log('dns '+name, info.ip?.[0] || info);
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
