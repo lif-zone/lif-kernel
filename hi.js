@@ -105,11 +105,18 @@ async function webapp_resolve(){
     let name = sub;
     if (v = hosts[name])
       return {site: v};
-    v = await lif_kv_get('dns/'+name);
-    if (v && v.site)
+    let name_prefix = name.split('--')[0];
+    if (v = hosts[name_prefix])
+      return {site: v};
+    v = await lif_kv_get('dns/'+name_prefix);
+    if (v?.site)
       return {site: v.site};
     return {page: ()=>page_domain_not_found(sub)};
   }
+  // XXX in the future, if ?webapp=github:... then lookup in localStorage,
+  // assign to existing or new webapp--1 webapp--2... and redirect
+  // (or maybe tmp--1.lifnet.com/?webapp=github:... tmp--2...)
+  // if in development mode - dont redirect: allow playground on parent domain
   if (v = webapp_default())
     return {site: v};
   return {page: ()=>page_not_found()};
