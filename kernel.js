@@ -1923,6 +1923,7 @@ function test_kernel(){
   t('npm/gpeer', 'npm/gpeer@13.0.1');
   t('npm/gpeer2', 'npm/gpeer2@14.0.1');
   t('npm/optional', 'npm/optional@1.0.0');
+  t('npm/glob2', 'npm/glob2@15.0.0');
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
