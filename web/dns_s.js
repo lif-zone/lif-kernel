@@ -48,18 +48,21 @@ function get_our_domain(name){
   let v;
   let domains = E.domains||{};
   let parts = name.split('.');
-  let host = parts[0];
   let parent = parts.slice(1).join('.');
-  if (v=get_host_of_domain(host))
-    return v;
-  if (v=get_raw_ip_domain(host))
-    return v;
   if (v=domains[name])
     return v;
-  if (v=domains[parent]){
-    // XXX: remove ns1 ns2, since its a sub-domain
+  // sub-domain: validate its ours
+  if (!(v=domains[parent]))
+    return;
+  // handle sub-domain
+  let host = parts[0];
+  let host_part = host.split('--')[0];
+  if (v=get_host_of_domain(host))
     return v;
-  }
+  if (v=get_host_of_domain(host_part))
+    return v;
+  if (v=get_raw_ip_domain(host))
+    return v; // XXX: remove ns1 ns2, since its a sub-domain
 }
 
 E.caa_issuers = ['letsencrypt.org'];
