@@ -9,6 +9,7 @@ import dns_s from './dns_s.js';
 import acme from './ssl_acme.js';
 import {hosts, domains} from './hosts.js';
 const efs = fs.promises;
+let D = +process.env.D || 0;
 
 // DNS Setup
 // #web: godaddy setup:
@@ -55,7 +56,7 @@ export function sni_cb(server_name, cb){
   let domain = dns_s.get_our_domain(server_name);
   if (!domain){
     let err = 'domain not handled '+server_name;
-    console.error('sni: %s', err);
+    D>=1 && console.error('sni: %s', err);
     return cb(err, null);
   }
   let ctx = ssl_cert[domain.name]?.ctx;
