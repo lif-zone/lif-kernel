@@ -52,13 +52,13 @@ let ignore_domains = ['doh.pub'];
 export function sni_cb(server_name, cb){
   if (ignore_domains.includes(server_name))
     return cb('domain ignored '+server_name, null);
-  console.log('XXX sni_cb %s', server_name);
   let domain = dns_s.get_our_domain(server_name);
   if (!domain){
     let err = 'domain not handled '+server_name;
     D>=1 && console.error('sni: %s', err);
     return cb(err, null);
   }
+  console.log('sni_cb %s', server_name);
   let ctx = ssl_cert[domain.name]?.ctx;
   if (!ctx){
     let err = 'failed to get ssl ctx for '+server_name;
