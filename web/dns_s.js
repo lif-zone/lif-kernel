@@ -228,7 +228,7 @@ function dns_server_handler(req, send, rinfo){
     case Packet.TYPE.NS: res.answers = res_type_ns(name, info); break;
     case Packet.TYPE.SOA: res.answers = res_type_soa(name, info); break;
     case Packet.TYPE.ANY: res.answers = res_type_any(name, info); break;
-    case Packet.TYPE.TXT: res.answers = res_type_txt(name, info); break;
+    case Packet.TYPE.TXT: console.log('X1'); res.answers = res_type_txt(name, info); break;
     case Packet.TYPE.MX: res.answers = res_type_mx(name, info); break;
     case Packet.TYPE.CNAME: break; // silently ignore
     case Packet.TYPE.AAAA: break; // silently ignore
