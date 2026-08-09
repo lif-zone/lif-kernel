@@ -1813,7 +1813,8 @@ function test_kernel(){
   t('2024-04-01700:00:00.000Z', '@3.2.2-experimental-2');
   let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
     lif: {
-      dependencies: {over: '2.0.0'},
+      dependencies: {over: '2.0.0', optional: '^1.0.1'},
+      optionalDependencies: {optional: '1.0.0'},
       overrides: {overg: '2.0.0'},
     },
     dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
@@ -1842,42 +1843,62 @@ function test_kernel(){
   t('npm/glb', {over: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
   t('npm/overg', {over: 'npm/overg@2.0.0'});
-  lpm_pkg = {lmod: 'npm/self@1.2.3', pkg: {lif: {dependencies: {
-    mod: '/MOD',
-    mod2: '.lif/local/MOD/',
-    http1: 'http://localhost:3000/MOD',
-    http2: '.lif/http/localhost:3000/MOD/',
-    react: '18.3.1',
-    reactok: 'npm:react@18.3.1',
-    reactbad: 'react@18.3.1', // currently not supported in NPM
-    dir: './DIR',
-    GIT: 'git://github.com/user/repo@v1',
-    over: '99.9.9',
-    glob2: '99.9.9',
-  }, peerDependencies: {
-    peer: '>=1.0.0',
-    gpeer: '99.9.9',
-    gpeerdev: '96.9.9',
-    gpeer2: '14.0.1',
-  }, devDependencies: {
-    dev: '2.0.0',
-    peer: '2.0.0',
-    gpeerdev: '97.9.9',
-    gmod: '99.9.9',
-  }, overrides: {
-    gmod: '21.0.0',
-    glob2: '15.0.0',
-  }}}, parent: {lmod: 'npm/par', pkg: {dependencies: {
-    peer: '1.1.1',
-    gparent: '99.9.9',
-    gparent2: '99.9.9',
-    gpeer: '13.0.1',
-    gpeerdev: '13.0.1',
-  }, overrides: {
-    over: '18.0.0',
-    glob2: '99.9.9',
-    gparent: '22.0.0',
-  }}}};
+  t('npm/optional', {optional: 'npm/optional@1.0.0',
+    reg: 'npm/optional@1.0.1'});
+  lpm_pkg = {lmod: 'npm/self@1.2.3',
+    pkg: {lif: {
+      dependencies: {
+        mod: '/MOD',
+        mod2: '.lif/local/MOD/',
+        http1: 'http://localhost:3000/MOD',
+        http2: '.lif/http/localhost:3000/MOD/',
+        react: '18.3.1',
+        reactok: 'npm:react@18.3.1',
+        reactbad: 'react@18.3.1', // currently not supported in NPM
+        dir: './DIR',
+        GIT: 'git://github.com/user/repo@v1',
+        over: '99.9.9',
+        glob2: '99.9.9',
+        optional: '1.0.1',
+      },
+      peerDependencies: {
+        peer: '>=1.0.0',
+        gpeer: '99.9.9',
+        gpeerdev: '96.9.9',
+        gpeer2: '14.0.1',
+      },
+      devDependencies: {
+        dev: '2.0.0',
+        peer: '2.0.0',
+        gpeerdev: '97.9.9',
+        gmod: '99.9.9',
+      },
+      optionalDependencies: {
+        glob2: '14.0.0',
+        optional: '1.0.0',
+      },
+      overrides: {
+        gmod: '21.0.0',
+        glob2: '15.0.0',
+      },
+    }},
+    parent: {lmod: 'npm/par',
+      pkg: {
+        dependencies: {
+          peer: '1.1.1',
+          gparent: '99.9.9',
+          gparent2: '99.9.9',
+          gpeer: '13.0.1',
+          gpeerdev: '13.0.1',
+        },
+        overrides: {
+          over: '18.0.0',
+          glob2: '99.9.9',
+          gparent: '22.0.0',
+        },
+      },
+    },
+  };
   t = (imp, v)=>{
     in_test = 1;
     assert_eq(v, lpm_dep_lookup({lpm_pkg, imp}));
@@ -1901,6 +1922,7 @@ function test_kernel(){
   t('npm/gparent2');
   t('npm/gpeer', 'npm/gpeer@13.0.1');
   t('npm/gpeer2', 'npm/gpeer2@14.0.1');
+  t('npm/optional', 'npm/optional@1.0.0');
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
