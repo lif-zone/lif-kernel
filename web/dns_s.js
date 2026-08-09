@@ -4,6 +4,7 @@
 import dns2 from 'dns2';
 import net from 'net';
 let D = process.env.D;
+console.log('D', D);
 const {Packet} = dns2;
 // based: dig @8.8.8.8 google.com SOA
 const DEF_PORT = 53;
