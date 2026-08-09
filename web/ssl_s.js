@@ -7,7 +7,7 @@ import {esleep} from '../util.js';
 import x509 from '@peculiar/x509';
 import dns_s from './dns_s.js';
 import acme from './ssl_acme.js';
-import hosts from './hosts.js';
+import {hosts, domains} from './hosts.js';
 const efs = fs.promises;
 
 // DNS Setup
@@ -216,8 +216,8 @@ export async function do_ssl(opt){
   acme.init({dns_s});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
-  dns_s.set_domains(hosts.domains);
-  dns_s.set_hosts(hosts.hosts);
+  dns_s.set_domains(domains);
+  dns_s.set_hosts(hosts);
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);
   return {sport};
