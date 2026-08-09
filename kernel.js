@@ -596,6 +596,9 @@ function lpm_dep_lookup({lpm_pkg, imp}){
     return l.over;
   if (par.over)
     return par.over;
+  // lookup optionalDependencies: current
+  if (l.optional)
+    return l.optional;
   // lookup dependencies (regular imports): current
   if (l.reg)
     return l.reg;
@@ -606,6 +609,7 @@ function lpm_dep_lookup({lpm_pkg, imp}){
     return l.peer;
   }
   // lookup devDependencies: current
+  // XXX move before peer
   if (l.dev)
     return l.dev;
   return ret_err('imp missing');
@@ -795,12 +799,14 @@ function pkg_dep_lookup({lpm_pkg, imp}){
   let found = {};
   found.over = get_imp(pkg.lif?.overrides);
   found.over ||= get_imp(pkg.overrides);
+  found.optional = get_imp(pkg.lif?.optionalDependencies);
+  found.optional ||= get_imp(pkg.optionalDependencies);
   found.reg = get_imp(pkg.lif?.dependencies);
   found.reg ||= get_imp(pkg.dependencies);
-  found.peer = get_imp(pkg.lif?.peerDependencies, true);
-  found.peer ||= get_imp(pkg.peerDependencies, true);
   found.dev = get_imp(pkg.lif?.devDependencies);
   found.dev ||= get_imp(pkg.devDependencies);
+  found.peer = get_imp(pkg.lif?.peerDependencies, true);
+  found.peer ||= get_imp(pkg.peerDependencies, true);
   return found;
 }
 
@@ -1819,10 +1825,11 @@ function test_kernel(){
     in_test = 1;
     let res = pkg_dep_lookup({lpm_pkg, imp});
     in_test = 0;
-    assert.eq(v.reg, res.reg);
-    assert.eq(v.peer, res.peer);
-    assert.eq(v.dev, res.dev);
     assert.eq(v.over, res.over);
+    assert.eq(v.optional, res.optional);
+    assert.eq(v.reg, res.reg);
+    assert.eq(v.dev, res.dev);
+    assert.eq(v.peer, res.peer);
   };
   t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
   t('npm/loc/file.js', {reg: 'local/loc//file.js'});

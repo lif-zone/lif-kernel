@@ -1351,7 +1351,7 @@ export const url_parse = Tf(T_url_parse);
 // ipns/NAME/PATH
 // bitcoin/BLOCK
 // lifcoin/BLOCK
-// bittorent/IH/PATH
+// bittorrent/IH/PATH
 //  magnet:?xt=urn:btih:IH 
 //
 // try to support this one day:
@@ -1432,7 +1432,7 @@ export function T_lpm_parse(lpm){
       l.ver_type = 'name';
     l.lmod = l.reg+'/'+l.host+'/'+l.name+l.ver;
     break; }
-  case 'bittorent':
+  case 'bittorrent':
     l.infohash = next('InfoHash');
     break;
   case 'lifcoin':
@@ -1477,7 +1477,7 @@ export function T_lpm_str(l){
     return l.reg+'/'+l.name+l.ver+l.submod+l.path;
   case 'git':
     return l.reg+'/'+l.host+'/'+l.name+l.ver+l.submod+l.path;
-  case 'bittorent':
+  case 'bittorrent':
     return l.reg+'/'+l.infohash+l.submod+l.path;
   case 'lifcoin':
     return l.reg+'/'+l.blockid+l.submod+l.path;
@@ -1746,7 +1746,7 @@ export function lpm_is_perm(u){
     // XXX need to validate ver string is final '4.2.1' not '^4.2.1',
     // not expr semver:.., not 'latest'
     return !!l.ver;
-  case 'bittorent':
+  case 'bittorrent':
     return true;
   case 'lifcoin':
     return true;

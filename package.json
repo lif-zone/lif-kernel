@@ -21,6 +21,16 @@
     "dependencies": {
       "events": "./compat/events.js",
       "buffer": "6.0.3"
+    },
+    "optionalDependencies": {
+      "Sefaria-Project": "github:Sefaria/Sefaria-Project",
+      "Sefaria-Export": "github:Sefaria/Sefaria-Export",
+      "bhsa": "github:ETCBC/bhsa",
+      "bible_databases": "github:scrollmapper/bible_databases",
+      "thiagobodruk-bible": "thiagobodruk/bible",
+      "bible-corpus": "github:christos-c/bible-corpus",
+      "ebible": "github:BibleNLP/ebible",
+      "gratis-bible": "github:gratis-bible/bible"
     }
   },
   "bin": {
