@@ -120,6 +120,8 @@ function res_type_txt(name, info){
     'ip4:172.30.13.27 ip4:34.196.25.123 ip4:172.30.0.178 '+
     'ip4:34.192.171.195 include:amazonses.com '+
     'include:_spf.google.com -all'}];
+  if (name.includes('acme'))
+    ret = [];
   if (data) // XXX: allow to set ttl per TXT
     ret.push({name, type, class: c, ttl: 5, data});
   return ret;
@@ -228,7 +230,7 @@ function dns_server_handler(req, send, rinfo){
     case Packet.TYPE.NS: res.answers = res_type_ns(name, info); break;
     case Packet.TYPE.SOA: res.answers = res_type_soa(name, info); break;
     case Packet.TYPE.ANY: res.answers = res_type_any(name, info); break;
-    case Packet.TYPE.TXT: console.log('X1'); res.answers = res_type_txt(name, info); break;
+    case Packet.TYPE.TXT: res.answers = res_type_txt(name, info); break;
     case Packet.TYPE.MX: res.answers = res_type_mx(name, info); break;
     case Packet.TYPE.CNAME: break; // silently ignore
     case Packet.TYPE.AAAA: break; // silently ignore
