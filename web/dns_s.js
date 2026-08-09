@@ -68,12 +68,14 @@ function get_our_domain(name){
 
 E.caa_issuers = ['letsencrypt.org'];
 E.get_our_domain = get_our_domain;
-E.get_txt = (name, val)=>E.txt[name];
+E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
+  name = name.toLowerCase();
   E.txt[name] = val;
   E.domains[name] = {txt: val};
 };
 E.rm_txt = (name, val)=>{
+  name = name.toLowerCase();
   delete E.txt[name];
   delete E.domains[name];
 };
