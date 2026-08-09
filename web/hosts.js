@@ -6,7 +6,6 @@
 export const domains = {
   'lifnet.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
-  /*
   'lifcoin.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'lif.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'site.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
@@ -20,7 +19,6 @@ export const domains = {
   'lif.zone': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}, // not activated
   'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
-  */
 };
 
 export const hosts = {
