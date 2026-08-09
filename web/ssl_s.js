@@ -219,8 +219,9 @@ export async function do_ssl(opt){
   //   holacoin.com 5K holawallet.com 3.5K
   dns_s.set_domains({
     'lifnet.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
-    'lifcoin.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
+    /*
+    'lifcoin.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'lif.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'site.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'bright.life': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
@@ -233,6 +234,7 @@ export async function do_ssl(opt){
     'lif.zone': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}, // not activated
     'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
     'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
+    */
   });
   dns_s.set_hosts({
     'lifcoin-node-1': {ip: '50.7.176.34'},
