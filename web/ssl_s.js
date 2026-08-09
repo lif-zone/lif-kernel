@@ -234,6 +234,8 @@ export async function do_ssl(opt){
   dns_s.set_hosts({
     'lifcoin-node-1': {ip: '50.7.176.34'},
     'lifcoin-node-2': {ip: '216.227.189.4'},
+    'ns1': {ip: '50.7.176.34'},
+    'ns2': {ip: '216.227.189.4'},
   });
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);
