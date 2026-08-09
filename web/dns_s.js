@@ -45,14 +45,14 @@ function get_host_of_domain(host){
 }
 E.domains = {};
 function get_our_domain(name){
-  let v;
+  let v, _v;
   let domains = E.domains||{};
   let parts = name.split('.');
   let parent = parts.slice(1).join('.');
-  if (v=domains[name])
+  if (v=domains[name]) // parent domain
     return v;
   // sub-domain: validate its ours
-  if (!(v=domains[parent]))
+  if (!(_v=domains[parent]))
     return;
   // handle sub-domain
   let host = parts[0];
@@ -63,6 +63,7 @@ function get_our_domain(name){
     return v;
   if (v=get_raw_ip_domain(host))
     return v; // XXX: remove ns1 ns2, since its a sub-domain
+  return _v;
 }
 
 E.caa_issuers = ['letsencrypt.org'];
