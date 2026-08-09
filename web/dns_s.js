@@ -217,7 +217,8 @@ function dns_server_handler(req, send, rinfo){
       console.log('dns '+name+' ERR not found');
       return send(res);
     }
-    D && console.log('dns '+name, info.ip?.[0] || info);
+    if (D || name.includes('acme'))
+      console.log('dns '+name, info.ip?.[0] || info);
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
     switch (type){
