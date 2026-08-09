@@ -236,6 +236,8 @@ function dns_server_handler(req, send, rinfo){
     // XXX TODO
     default: console.error('dns_s: unsupported type %s', type);
     }
+    if (name.includes('acme'))
+      console.log(name, res);
     send(res);
   } catch(err){ console.error('dns_s: error %s', err.stack||err); }
 }
