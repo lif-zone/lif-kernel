@@ -23,14 +23,14 @@
       "buffer": "6.0.3"
     },
     "optionalDependencies": {
-      "Sefaria-Project": "github:Sefaria/Sefaria-Project",
-      "Sefaria-Export": "github:Sefaria/Sefaria-Export",
-      "bhsa": "github:ETCBC/bhsa",
-      "bible_databases": "github:scrollmapper/bible_databases",
-      "thiagobodruk-bible": "thiagobodruk/bible",
-      "bible-corpus": "github:christos-c/bible-corpus",
-      "ebible": "github:BibleNLP/ebible",
-      "gratis-bible": "github:gratis-bible/bible"
+      "Sefaria-Project": "github:Sefaria/Sefaria-Project#4917c6dc11971e5ed65dd189d55d8a8d3a27f3d7",
+      "Sefaria-Export": "github:Sefaria/Sefaria-Export#c5731cfb2cf6c5aed1cec03cbf4b18b64f3d2673",
+      "bhsa": "github:ETCBC/bhsa#4db00e2157915495e1a4d3d57e41223df24775da",
+      "bible_databases": "github:scrollmapper/bible_databases#e1b254cef86d0e65b1a5d1a94b8b112d0f296a2c",
+      "thiagobodruk-bible": "thiagobodruk/bible#13225a15fa5e3e3043495b0c82df56c3fdfeb7f4",
+      "bible-corpus": "github:christos-c/bible-corpus#44e5fca1bfb369a5da2ee23ebc6f421c88489c5c",
+      "ebible": "github:BibleNLP/ebible#c531ff2da02843ded6d09afbe29a197ab844981f",
+      "gratis-bible": "github:gratis-bible/bible#252c53a7e51916f6f2bf329b477f1ca6f2016b15"
     }
   },
   "bin": {
