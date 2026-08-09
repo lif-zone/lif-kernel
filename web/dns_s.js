@@ -211,12 +211,13 @@ function dns_server_handler(req, send, rinfo){
     let [query] = req.questions;
     let {name, type} = query;
     name = name.toLowerCase();
+    let _D = name.include('acme');
     let info = get_our_domain(name);
     if (!info){
-      D>=1 && console.log('dns '+name+' not handled');
+      (D>=1 || _D) && console.log('dns '+name+' not handled');
       return send(res);
     }
-    if (D>=2 || name.includes('acme'))
+    if (D>=2 || _D)
       console.log('dns '+name, info.ip?.[0] || info);
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
@@ -236,7 +237,7 @@ function dns_server_handler(req, send, rinfo){
     // XXX TODO
     default: console.error('dns_s: unsupported type %s', type);
     }
-    if (name.includes('acme'))
+    if (_D)
       console.log(name, res);
     send(res);
   } catch(err){ console.error('dns_s: error %s', err.stack||err); }
