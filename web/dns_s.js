@@ -211,7 +211,7 @@ function dns_server_handler(req, send, rinfo){
     let [query] = req.questions;
     let {name, type} = query;
     name = name.toLowerCase();
-    let _D = name.include('acme');
+    let _D = name.includes('acme');
     let info = get_our_domain(name);
     if (!info){
       (D>=1 || _D) && console.log('dns '+name+' not handled');
