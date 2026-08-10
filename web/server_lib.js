@@ -192,24 +192,36 @@ function ws_upgrade_accept(req, socket, head){
   return wss.handleUpgrade(req, socket, head, fn);
 }
 
+function http_redirect_https(req, res){
+  const host = req.headers.host;
+  res.writeHead(301, {Location: `https://${host}${req.url}`});
+  res.end();
+}
+
 let server;
 let sserver;
 async function server_init({port, ssl}){
-  server = http.createServer(http_listener);
-  sserver = https.createServer({SNICallback: sni_cb}, http_listener);
-  // WebSocket
-  server.on('upgrade', ws_upgrade_accept);
-  sserver.on('upgrade', ws_upgrade_accept);
-  server.listen(port, ()=>{
-    console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
-  });
   if (ssl){
+    // production: ssl 433 and http 80 redirect to https
+    sserver = https.createServer({SNICallback: sni_cb}, http_listener);
     let {sport} = await do_ssl();
     sserver.listen(sport, ()=>{
-      console.log(`Serving SSL ${g_opt.root} on https://localhost:${sport}`);
+      console.log(`Serving SSL ${g_opt.root} on https://DOMAIN:${sport}`);
     });
-  } else 
+    sserver.on('upgrade', ws_upgrade_accept);
+    server = http.createServer(http_redirect_https);
+    server.listen(80, ()=>{
+      console.log('Service http://DOMAIN (port 80) redirect https://DOMAIN');
+    });
+  } else {
+    // localhost development - no ssl
     console.log('SSL: off (-s to enable auto cert generation)');
+    server = http.createServer(http_listener);
+    server.on('upgrade', ws_upgrade_accept);
+    server.listen(port, ()=>{
+      console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
+    });
+  }
 }
 
 async function start_web(){
