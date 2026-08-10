@@ -30,7 +30,7 @@ const MS = {
   WEEK: 7*24*3600*1000,
   MONTH: 30*24*3600*1000,
 };
-const ssl_dir = '/var/lif/ssl';
+const ssl_dir = process.env.HOME+'/lif.ssl';
 let acme_cert_key, acme_account_key;
 
 // XXX: copy from date.js
@@ -69,7 +69,6 @@ export function sni_cb(server_name, cb){
 }
 
 function get_acme_cert_files(domain){
-  domain = domain.replace(/\./g, '_');
   return {cert: ssl_dir+'/acme_star_'+domain+'.crt',
     key: ssl_dir+'/acme_star_'+domain+'.key'};
 }
