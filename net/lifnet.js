@@ -394,7 +394,7 @@ function lifnet_init(){
   lifnet_inited = true;
   if (is_node){
     lifnet.trunk_uplink_add('ws://localhost:1842/.lif.net');
-    lifnet.trunk_uplink_add('wss://pub.site/.lif.net');
+    lifnet.trunk_uplink_add('wss://lifnet.net/.lif.net');
   } else
     lifnet.trunk_uplink_add(url_http_to_ws(location.origin+'/.lif.net'));
   return lifnet;
