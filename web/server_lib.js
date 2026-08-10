@@ -218,7 +218,7 @@ async function server_init({port, ssl}){
   // localhost: local lif server, and dev server
   server = http.createServer(http_listener);
   server.on('upgrade', ws_upgrade_accept);
-  server.listen(port, '127,0.0.1', ()=>{
+  server.listen(port, '127.0.0.1', ()=>{
     console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
   });
 }
