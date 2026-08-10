@@ -16,7 +16,7 @@ export const domains = {
   'zon.life': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'lifcoin.org': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'lif-coin.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
-  'lif.zone': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}, // not activated
+  //'lif.zone': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']}, // not activated
   'arik.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'venao.center': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
 };
