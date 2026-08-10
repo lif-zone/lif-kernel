@@ -9,5 +9,5 @@ map['/lif-os'] = '../lif-os';
 map['/lif-coin'] = '../lif-coin';
 map['/lif-net'] = '../lif-net';
 map['/lif-wallet'] = '../lif-wallet';
-let peers = ['https://pub.site/.lif.net'];
+let peers = ['https://lifnet.net/.lif.net'];
 server({map, root, peers});
