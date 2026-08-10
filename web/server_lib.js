@@ -209,19 +209,18 @@ async function server_init({port, ssl}){
       console.log(`Serving SSL ${g_opt.root} on https://DOMAIN:${sport}`);
     });
     sserver.on('upgrade', ws_upgrade_accept);
-    server = http.createServer(http_redirect_https);
-    server.listen(80, ()=>{
+    let server_redir = http.createServer(http_redirect_https);
+    server_redir.listen(80, ()=>{
       console.log('Service http://DOMAIN (port 80) redirect https://DOMAIN');
     });
-  } else {
-    // localhost development - no ssl
+  } else
     console.log('SSL: off (-s to enable auto cert generation)');
-    server = http.createServer(http_listener);
-    server.on('upgrade', ws_upgrade_accept);
-    server.listen(port, ()=>{
-      console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
-    });
-  }
+  // localhost: local lif server, and dev server
+  server = http.createServer(http_listener);
+  server.on('upgrade', ws_upgrade_accept);
+  server.listen(port, '127,0.0.1', ()=>{
+    console.log(`Serving ${g_opt.root} on http://localhost:${port}`);
+  });
 }
 
 async function start_web(){
@@ -245,7 +244,7 @@ async function run(opt){
   OA(g_opt, opt);
   let map = g_opt.map = {...opt?.map||{}};
   g_opt.root = opt.root||process.cwd();
-  g_opt.port = 3000;
+  g_opt.port = opt.port||1842;
   argv.shift();
   argv.shift();
   while ((a=argv[0])!=undefined){
