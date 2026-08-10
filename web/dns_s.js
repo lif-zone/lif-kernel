@@ -46,6 +46,7 @@ function get_host_of_domain(host){
 }
 E.domains = {};
 function get_our_domain(name){
+  name = name.toLowerCase();
   let v, _v;
   let domains = E.domains||{};
   let parts = name.split('.');
@@ -113,18 +114,15 @@ function res_type_any(name, info){
 
 function res_type_txt(name, info){
   let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
-  let data = E.txt[name];
-  let ret = [{name, type, class: c, ttl: E.ttl, data:
+  let data = E.txt[name.toLowerCase()];
+  if (data) // XXX: allow to set ttl per TXT
+    return [{name, type, class: c, ttl: 5, data}];
+  return [{name, type, class: c, ttl: E.ttl, data:
     'v=spf1 a mx ptr ip4:212.235.66.0/24 ip4:54.243.35.14 '+
     'ip4:35.153.220.251 ip4:172.30.15.32 ip4:54.86.72.44 '+
     'ip4:172.30.13.27 ip4:34.196.25.123 ip4:172.30.0.178 '+
     'ip4:34.192.171.195 include:amazonses.com '+
     'include:_spf.google.com -all'}];
-  if (name.includes('acme'))
-    ret = [];
-  if (data) // XXX: allow to set ttl per TXT
-    ret.push({name, type, class: c, ttl: 5, data});
-  return ret;
 }
 
 function res_type_mx(name, info){
@@ -212,8 +210,7 @@ function dns_server_handler(req, send, rinfo){
     }
     let [query] = req.questions;
     let {name, type} = query;
-    name = name.toLowerCase();
-    let acme = name.includes('acme');
+    let acme = name.toLowerCase().startsWith('_acme-challenge');
     let info = get_our_domain(name);
     if (!info){
       (D>=1 || acme) && console.log('dns '+name+' not handled');
