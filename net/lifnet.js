@@ -4,7 +4,7 @@ import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
 } from '../util.js';
 import etask from '../etask.js';
 import EventEmitter, {once} from '../compat/events.js';
-let D = 0;
+let D = 1;
 
 let RETRY_MS = 1000;
 

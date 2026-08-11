@@ -2,7 +2,7 @@
 
 // to purchase: web.city 600$/y, site.space 3.5K, web.center, web.site 1M
 //   lif.net 12K, theguide.org 3.5K, lif.io 6.5K, lif.live 300/y
-//   holacoin.com 5K holawallet.com 3.5K
+//   holacoin.com 5K holawallet.com 3.5K net.center 9.5K
 export const domains = {
   'lifnet.com': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
   'pub.site': {ssl: true, ip: '50.7.176.34', ns: ['ns1', 'ns2']},
