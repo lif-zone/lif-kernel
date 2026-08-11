@@ -218,7 +218,7 @@ export async function do_ssl(opt){
   acme_cert_key = await get_acme_cert_key();
   if (!wan_ips.length)
     console.error('no wan ip/interfaces found');
-  for (let ip in wan_ips){
+  for (let ip of wan_ips){
     let host = hosts_get(ip.address);
     if (!host){
       console.error('no host for wan ip found: '+ip.address);
