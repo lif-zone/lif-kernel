@@ -7,7 +7,7 @@ import {esleep} from '../util.js';
 import x509 from '@peculiar/x509';
 import dns_s from './dns_s.js';
 import acme from './ssl_acme.js';
-import {hosts, domains} from './hosts.js';
+import {hosts_get} from './hosts.js';
 const efs = fs.promises;
 let D = +process.env.D || 0;
 
@@ -209,15 +209,23 @@ export async function do_ssl(opt){
   let wan_ips = get_wan_ips();
   let dns_s_opt = {ips: []};
   let sport = opt?.sport||443;
-  for (let o of wan_ips)
-    dns_s_opt.ips.push({address: o.address, port: 53});
+  for (let ip of wan_ips)
+    dns_s_opt.ips.push({address: ip.address, port: 53});
   dns_s.start(dns_s_opt);
   console.log('service DNS port 53');
   acme.init({dns_s});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
-  dns_s.set_domains(domains);
-  dns_s.set_hosts(hosts);
+  for (let ip in wan_ips){
+    let host = hosts_get(ip.address);
+    if (!host){
+      console.error('no host '+ip.address+' found');
+      continue;
+    }
+    // XXX today multi-ip hosts get overritten instead of appended
+    dns_s.set_domains(host.domains);
+    dns_s.set_hosts(host.hosts);
+  }
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);
   return {sport};
