@@ -1,8 +1,7 @@
 // LICENSE_CODE ZON
 'use strict'; /*jslint node:true*/
 import acme from 'acme-client';
-const E = {};
-export default E;
+export const E = {};
 const email = 'lif.zone.main@gmail.com';
 E.TIMEOUT = 60*1000;
 
