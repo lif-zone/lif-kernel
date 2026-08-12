@@ -1,14 +1,21 @@
 // LICENSE_CODE ZON JPL JEM GPL
 
+function ip_array(ips){
+  if (Array.isArray(ips))
+    return ips;
+  return ips.split(/\w+/g).filterOut(ip=>!ip);
+}
 function add_domains_hosts({ip, domains, hosts}){
-  let ips = Array.isArray(ip) ? ip : [ip];
+  let ips = ip_array(ip);
   for (let ip of ips){
     let _host = host[ip] ||= {domains: {}};
     for (let d of domains){
-      let _d = _host.domains[d] = {ssl: true, ip, ns: ['ns1', 'ns2'],
+      let _d = _host.domains[d] = {ssl: true,
+        ip: [ip],
+        ns: ['ns1', 'ns2'],
         hosts: {}};
       for (let h of hosts)
-        _d.hosts[h] = {ip};
+        _d.hosts[h] = {ip: [ip]};
     }
   }
 }
@@ -18,9 +25,9 @@ const host = {
     domains: {
       'my-domain.com': {
         ssl: true,
-        ip: '1.2.3.4',
+        ip: ['1.2.3.4'],
         ns: ['ns1', 'ns2'],
-        hosts: {ns1: {ip: '1.2.3.4'}, ns2: {ip: '1.2.3.4'}},
+        hosts: {ns1: {ip: ['1.2.3.4']}, ns2: {ip: ['1.2.3.4']}},
       },
     },
   },
