@@ -12,7 +12,7 @@ function add_domains_hosts({ip, domains, hosts}){
     for (let d of domains){
       let _d = _host.domains[d] = {ssl: true,
         ip: [ip],
-        ns: ['ns1', 'ns2'],
+        ns: ['ns1.'+d, 'ns2.'+d],
         hosts: {}};
       for (let h of hosts)
         _d.hosts[h] = {ip: [ip]};
@@ -26,7 +26,7 @@ const host = {
       'my-domain.com': {
         ssl: true,
         ip: ['1.2.3.4'],
-        ns: ['ns1', 'ns2'],
+        ns: ['ns1.my-domain.com', 'ns2.my-domain.com'],
         hosts: {ns1: {ip: ['1.2.3.4']}, ns2: {ip: ['1.2.3.4']}},
       },
     },

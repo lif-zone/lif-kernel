@@ -104,8 +104,7 @@ function res_type_ns(name, info){
   let ret = [];
   if (!info.ns)
     return ret;
-  info.ns.forEach(ns=>ret.push({name, type, class: c, ttl: E.ttl,
-    ns: ns+'.'+name}));
+  info.ns.forEach(ns=>ret.push({name, type, class: c, ttl: E.ttl, ns}));
   return ret;
 }
 
