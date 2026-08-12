@@ -6,8 +6,8 @@ import '../compat/browser_env.js';
 import {esleep} from '../util.js';
 import x509 from '@peculiar/x509';
 import {E as dns_s, domain_lookup, start as dns_s_start, set_domains,
-} from './dns_s.js';
-import acme from './ssl_acme.js';
+  set_txt, rm_txt} from './dns_s.js';
+import {E as acme, request_cert, init as acme_init} from './ssl_acme.js';
 import {hosts_get} from './hosts.js';
 const efs = fs.promises;
 let D = +process.env.D || 0;
@@ -164,8 +164,8 @@ const _acme_check_if_need_ssl = async()=>{
         console.log('ssl: cert %s will expire soon, renew', name);
       }
       try {
-        console.log('ssl: requet_cert %s', name);
-        cert = await acme.requet_cert({domain: name,
+        console.log('ssl: request_cert %s', name);
+        cert = await request_cert({domain: name,
           account_key: acme_account_key, cert_key: acme_cert_key});
       } catch(err){
         console.error('ssl: failed issue acme cert %s %s', name, err);
@@ -214,7 +214,7 @@ export async function do_ssl(opt){
     dns_s_opt.ips.push({address: ip.address, port: 53});
   dns_s_start(dns_s_opt);
   console.log('service DNS port 53');
-  acme.init({dns_s});
+  acme_init({set_txt, rm_txt});
   acme_account_key = await get_acme_account_key();
   acme_cert_key = await get_acme_cert_key();
   if (!wan_ips.length)
