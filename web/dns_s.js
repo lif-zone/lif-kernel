@@ -51,8 +51,10 @@ function get_our_domain(name){
   let domains = E.domains||{};
   let parts = name.split('.');
   let parent = parts.slice(1).join('.');
-  if (v=domains[name]) // parent domain
+  if (v=domains[name]){ // parent domain
+    console.log('A0', name);
     return v;
+  }
   // sub-domain: validate its ours
   if (!(_v=domains[parent]))
     return;
@@ -60,9 +62,9 @@ function get_our_domain(name){
   let ns = _v.ns;
   let host = parts[0];
   let host_part = host.split('--')[0];
-  console.log('A0', name, _v);
+  console.log('A1', name, _v);
   if (v=get_host_of_domain(host)){
-    console.log('A1', name, ns, {ns, ...v});
+    console.log('A2', name, ns, {ns, ...v});
     return {ns, ...v};
   }
   if (v=get_host_of_domain(host_part))
