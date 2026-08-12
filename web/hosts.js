@@ -3,23 +3,23 @@
 function add_domains_hosts({ip, domains, hosts}){
   let ips = Array.isArray(ip) ? ip : [ip];
   for (let ip of ips){
-    let _host = host[ip] ||= {domains: {}, hosts: {}};
-    for (let d of domains)
-      _host.domains[d] = {ssl: true, ip, ns: ['ns1', 'ns2']};
-    for (let h of hosts)
-      _host.hosts[h] = {ip};
+    let _host = host[ip] ||= {domains: {}};
+    for (let d of domains){
+      let _d = _host.domains[d] = {ssl: true, ip, ns: ['ns1', 'ns2'],
+        hosts: {}};
+      for (let h of hosts)
+        _d.hosts[h] = {ip};
+    }
   }
 }
 
 const host = {
   '1.2.3.4': { // example hosting - 
-    hosts: {
-      'ns1': {ip: '1.2.3.4'},
-      'ns2': {ip: '1.2.3.4'},
-    },
     domains: {
-      'my-domain.com': {ssl: true, ip: '1.2.3.4', ns: ['ns1', 'ns2']},
-    }
+      'my-domain.com': {ssl: true, ip: '1.2.3.4', ns: ['ns1', 'ns2'],
+        hosts: {ns1: {ip: '1.2.3.4'}, ns2: {ip: '1.2.3.4'}}
+      },
+    },
   },
 };
 // to purchase: web.city 600$/y, site.space 3.5K, web.center, web.site 1M

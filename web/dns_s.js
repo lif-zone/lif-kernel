@@ -200,11 +200,6 @@ E.set_domains = domains=>{
   }
 };
 
-E.set_hosts = hosts=>{
-  console.log('dns_s: set hosts %s', hosts);
-  E.hosts = hosts;
-};
-
 function dns_server_handler(req, send, rinfo){
   try {
     let res = Packet.createResponseFromRequest(req);
