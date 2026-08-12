@@ -222,6 +222,7 @@ function dns_server_handler(req, send, rinfo){
       console.log('dns '+name, info.ip?.[0] || info);
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
+    res.authorities = res_type_soa(name, info);
     switch (type){
     case Packet.TYPE.A: res.answers = res_type_a(name, info); break;
     case Packet.TYPE.NS: res.answers = res_type_ns(name, info); break;
@@ -230,7 +231,7 @@ function dns_server_handler(req, send, rinfo){
     case Packet.TYPE.TXT: res.answers = res_type_txt(name, info); break;
     case Packet.TYPE.MX: res.answers = res_type_mx(name, info); break;
     case Packet.TYPE.CNAME: break; // silently ignore
-    case Packet.TYPE.AAAA: res.authorities = res_type_soa(name, info); break;
+    case Packet.TYPE.AAAA: break;
     case Packet.TYPE.DNSKEY: break; // silently ignore
     case Packet.TYPE.CAA: res.answers = res_type_caa(name, info); break;
     case Packet_TYPE_HTTPS: break; // silently ignore
