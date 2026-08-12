@@ -57,15 +57,15 @@ function domain_lookup(name){
   if (!(p_v=E.domains[parent]))
     return;
   // handle sub-domain
-  let ns = p_v.ns;
+  let soa = p_v.soa;
   let host = parts[0];
   let host_part = host.split('--')[0];
   if (v=get_host_of_domain(host))
-    return {ns, ...v};
+    return {soa, ...v};
   if (v=get_host_of_domain(host_part))
-    return {ns, ...v};
+    return {soa, ...v};
   if (v=get_raw_ip_domain(host))
-    return {ns, ...v};
+    return {soa, ...v};
   return p_v;
 }
 
