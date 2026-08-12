@@ -52,7 +52,7 @@ function get_our_domain(name){
   let parts = name.split('.');
   let parent = parts.slice(1).join('.');
   if (v=domains[name]){ // parent domain
-    console.log('A0', name);
+    console.log('A0', name, v);
     return v;
   }
   // sub-domain: validate its ours
