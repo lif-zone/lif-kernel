@@ -5,7 +5,8 @@ import tls from 'tls';
 import '../compat/browser_env.js';
 import {esleep} from '../util.js';
 import x509 from '@peculiar/x509';
-import dns_s from './dns_s.js';
+import {E as dns_s, domain_lookup, start as dns_s_start, set_domains,
+} from './dns_s.js';
 import acme from './ssl_acme.js';
 import {hosts_get} from './hosts.js';
 const efs = fs.promises;
@@ -52,7 +53,7 @@ let ignore_domains = ['doh.pub'];
 export function sni_cb(server_name, cb){
   if (ignore_domains.includes(server_name))
     return cb('domain ignored '+server_name, null);
-  let domain = dns_s.domain_lookup(server_name);
+  let domain = domain_lookup(server_name);
   if (!domain){
     let err = 'domain not handled '+server_name;
     D>=1 && console.error('sni: %s', err);
@@ -211,7 +212,7 @@ export async function do_ssl(opt){
   let sport = opt?.sport||443;
   for (let ip of wan_ips)
     dns_s_opt.ips.push({address: ip.address, port: 53});
-  dns_s.start(dns_s_opt);
+  dns_s_start(dns_s_opt);
   console.log('service DNS port 53');
   acme.init({dns_s});
   acme_account_key = await get_acme_account_key();
@@ -225,7 +226,7 @@ export async function do_ssl(opt){
       continue;
     }
     // XXX today multi-ip hosts get overritten instead of appended
-    dns_s.set_domains(host.domains);
+    set_domains(host.domains);
   }
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);

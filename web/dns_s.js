@@ -16,8 +16,7 @@ const DEF_TTL_MINIMUM = 60;
 const Packet_TYPE_HTTPS = 65; // missing from dns2
 const Packet_TYPE_SPF = 99; // deprecated
 
-const E = {};
-export default E;
+export const E = {};
 
 function pad(num, size){ return (''+num).padStart(size, '0'); }
 function str_starts(s, start){
@@ -45,7 +44,7 @@ function get_host_of_domain(host){
   return {ssl: true, ip: [v.ip]};
 }
 
-function domain_lookup(name){
+export function domain_lookup(name){
   name = name.toLowerCase();
   let v, p_v;
   let parts = name.split('.');
@@ -70,21 +69,22 @@ function domain_lookup(name){
 }
 
 E.domains = {};
-E.set_domains = function (domains){
+export function set_domains(domains){
   E.domains = domains;
-};
+}
 E.caa_issuers = ['letsencrypt.org'];
-E.domain_lookup = domain_lookup;
-E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
-E.set_txt = (name, val)=>{
+export function get_txt(name, val){
+  E.txt[name.toLowerCase()];
+}
+export function set_txt(name, val){
   name = name.toLowerCase();
   E.txt[name] = val;
-};
-E.rm_txt = (name, val)=>{
+}
+export function rm_txt(name, val){
   name = name.toLowerCase();
   delete E.txt[name];
   delete E.domains[name];
-};
+}
 // XXX: need caching
 function res_type_a(name, info){
   let type = Packet.TYPE.A, c = Packet.CLASS.IN;
@@ -222,7 +222,7 @@ function create_dns_server(ips){
   }
 }
 
-E.start = opt=>{
+export function start(opt){
   if (E.servers)
     throw new Error('dns_s: already started');
   opt = opt||{};
@@ -237,13 +237,13 @@ E.start = opt=>{
   E.notcp = opt.notcp;
   E.noudp = opt.noudp;
   create_dns_server(ips);
-};
+}
 
-E.stop = ()=>{
+export function stop(){
   if (!E.servers)
     return;
   for (let server of E.servers)
     server.close();
   E.servers = undefined;
-};
+}
 
