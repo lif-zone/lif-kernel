@@ -57,14 +57,15 @@ function get_our_domain(name){
   if (!(_v=domains[parent]))
     return;
   // handle sub-domain
+  let ns = _v.ns;
   let host = parts[0];
   let host_part = host.split('--')[0];
   if (v=get_host_of_domain(host))
-    return v;
+    return {ns, ...v};
   if (v=get_host_of_domain(host_part))
-    return v;
+    return {ns, ...v};
   if (v=get_raw_ip_domain(host))
-    return v; // XXX: remove ns1 ns2, since its a sub-domain
+    return {ns, ...v};
   return _v;
 }
 
