@@ -44,23 +44,23 @@ function get_host_of_domain(host){
     return;
   return {ssl: true, ip: [v.ip]};
 }
-function get_our_domain(name){
+
+function domain_lookup(name){
   name = name.toLowerCase();
-  let v, _v;
+  let v, p_v;
   let parts = name.split('.');
   let parent = parts.slice(1).join('.');
-  if (v=E.domains[name]){ // parent domain
-    console.log('A0', name, v);
+  // parent domain?
+  if (v=E.domains[name])
     return v;
-  }
-  // sub-domain: validate its ours
-  if (!(_v=E.domains[parent]))
+  // sub-domain?
+  if (!(p_v=E.domains[parent]))
     return;
   // handle sub-domain
-  let ns = _v.ns;
+  let ns = p_v.ns;
   let host = parts[0];
   let host_part = host.split('--')[0];
-  console.log('A1', name, _v);
+  console.log('A1', name, p_v);
   if (v=get_host_of_domain(host)){
     console.log('A2', name, ns, {ns, ...v});
     return {ns, ...v};
@@ -69,7 +69,7 @@ function get_our_domain(name){
     return {ns, ...v};
   if (v=get_raw_ip_domain(host))
     return {ns, ...v};
-  return _v;
+  return p_v;
 }
 
 E.domains = {};
@@ -77,7 +77,7 @@ E.set_domains = function (domains){
   E.domains = domains;
 };
 E.caa_issuers = ['letsencrypt.org'];
-E.get_our_domain = get_our_domain;
+E.domain_lookup = domain_lookup;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
   name = name.toLowerCase();
@@ -187,7 +187,7 @@ function dns_server_handler(req, send, rinfo){
     let [query] = req.questions;
     let {name, type} = query;
     let acme = name.toLowerCase().startsWith('_acme-challenge');
-    let info = get_our_domain(name);
+    let info = domain_lookup(name);
     if (!info){
       (D>=1 || acme) && console.log('dns '+name+' not handled');
       return send(res);

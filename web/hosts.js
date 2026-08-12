@@ -16,8 +16,11 @@ function add_domains_hosts({ip, domains, hosts}){
 const host = {
   '1.2.3.4': { // example hosting - 
     domains: {
-      'my-domain.com': {ssl: true, ip: '1.2.3.4', ns: ['ns1', 'ns2'],
-        hosts: {ns1: {ip: '1.2.3.4'}, ns2: {ip: '1.2.3.4'}}
+      'my-domain.com': {
+        ssl: true,
+        ip: '1.2.3.4',
+        ns: ['ns1', 'ns2'],
+        hosts: {ns1: {ip: '1.2.3.4'}, ns2: {ip: '1.2.3.4'}},
       },
     },
   },
