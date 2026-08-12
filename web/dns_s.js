@@ -44,19 +44,17 @@ function get_host_of_domain(host){
     return;
   return {ssl: true, ip: [v.ip]};
 }
-E.domains = {};
 function get_our_domain(name){
   name = name.toLowerCase();
   let v, _v;
-  let domains = E.domains||{};
   let parts = name.split('.');
   let parent = parts.slice(1).join('.');
-  if (v=domains[name]){ // parent domain
+  if (v=E.domains[name]){ // parent domain
     console.log('A0', name, v);
     return v;
   }
   // sub-domain: validate its ours
-  if (!(_v=domains[parent]))
+  if (!(_v=E.domains[parent]))
     return;
   // handle sub-domain
   let ns = _v.ns;
@@ -74,13 +72,16 @@ function get_our_domain(name){
   return _v;
 }
 
+E.domains = {};
+E.set_domains = function (domains){
+  E.domains = domains;
+};
 E.caa_issuers = ['letsencrypt.org'];
 E.get_our_domain = get_our_domain;
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>{
   name = name.toLowerCase();
   E.txt[name] = val;
-  E.domains[name] = {txt: val};
 };
 E.rm_txt = (name, val)=>{
   name = name.toLowerCase();
@@ -123,12 +124,6 @@ function res_type_txt(name, info){
   let data = E.txt[name.toLowerCase()];
   if (data) // XXX: allow to set ttl per TXT
     return [{name, type, class: c, ttl: 5, data}];
-  return [{name, type, class: c, ttl: E.ttl, data:
-    'v=spf1 a mx ptr ip4:212.235.66.0/24 ip4:54.243.35.14 '+
-    'ip4:35.153.220.251 ip4:172.30.15.32 ip4:54.86.72.44 '+
-    'ip4:172.30.13.27 ip4:34.196.25.123 ip4:172.30.0.178 '+
-    'ip4:34.192.171.195 include:amazonses.com '+
-    'include:_spf.google.com -all'}];
 }
 
 function res_type_mx(name, info){
@@ -181,26 +176,6 @@ function res_type_soa(name, info){
     expiration: 1800, minimum: 60}];
 */
 }
-
-E.set_domains = domains=>{
-  console.log('dns_s: set domains %s',
-    domains ? OK(domains).join(', ') : 'none');
-  E.domains = {};
-  for (let [name, o] of OE(domains)){
-    o = E.domains[name] = OA({name}, o);
-    if (o.ip && !Array.isArray(o.ip))
-      o.ip = [o.ip];
-    if (o.ns && !Array.isArray(o.ns))
-      o.ns = [o.ns];
-    if (o.ns){
-      for (let i=0; i<o.ns.length; i++){
-        let ns_name = o.ns[i]+'.'+name;
-        if (!domains[ns_name])
-          E.domains[ns_name] = {name: ns_name, ip: o.ip};
-      }
-    }
-  }
-};
 
 function dns_server_handler(req, send, rinfo){
   try {
