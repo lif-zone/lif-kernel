@@ -10,10 +10,13 @@ function add_domains_hosts({ip, domains, hosts}){
   for (let ip of ips){
     let _host = host[ip] ||= {domains: {}};
     for (let d of domains){
-      let _d = _host.domains[d] = {ssl: true,
+      let _d = _host.domains[d] = {
+        ssl: true,
+        soa: {name: d, primary: 'ns1.'+d, admin: 'admin.'+d},
         ip: [ip],
         ns: ['ns1.'+d, 'ns2.'+d],
-        hosts: {}};
+        hosts: {},
+      };
       for (let h of hosts)
         _d.hosts[h] = {ip: [ip]};
     }
@@ -24,6 +27,8 @@ const host = {
   '1.2.3.4': { // example hosting - 
     domains: {
       'my-domain.com': {
+        soa: {name: 'my-domain.com', primary: 'ns1.my-domain.com',
+          admin: 'admin.my-domain.com'},
         ssl: true,
         ip: ['1.2.3.4'],
         ns: ['ns1.my-domain.com', 'ns2.my-domain.com'],

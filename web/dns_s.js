@@ -60,11 +60,8 @@ function domain_lookup(name){
   let ns = p_v.ns;
   let host = parts[0];
   let host_part = host.split('--')[0];
-  console.log('A1', name, p_v);
-  if (v=get_host_of_domain(host)){
-    console.log('A2', name, ns, {ns, ...v});
+  if (v=get_host_of_domain(host))
     return {ns, ...v};
-  }
   if (v=get_host_of_domain(host_part))
     return {ns, ...v};
   if (v=get_raw_ip_domain(host))
@@ -151,29 +148,17 @@ function res_type_caa(name){
 }
 
 function res_type_soa(name, info){
-  let type = Packet.TYPE.SOA, c = Packet.CLASS.IN;
-  let ret = [];
-  if (!info.ns)
-    return ret;
-  let ns = info.ns[0];
-  let d = new Date();
-  let serial = d.getFullYear()+pad(d.getMonth()+1, 2)+pad(d.getDate(), 2);
-  ret = [{name, type, class: c, ttl: E.ttl,
-    primary: ns, admin: ns, serial, refresh: 900, retry: 900,
-    expiration: 1800, minimum: 60}];
-  return ret;
-/*
   // http://tools.ietf.org/html/rfc1035#section-3.3.13
   let type = Packet.TYPE.SOA, c = Packet.CLASS.IN;
-  let o = E.res_cache[name] = E.res_cache[name]||{};
-  if (o[type])
-    return o[type];
-  let ns = 'ns1.'+name;
-  let serial = date.strftime('%Y%m%d00', new Date());
-  return o[type] = [{name, type, class: c, ttl: E.ttl,
-    primary: ns, admin: ns, serial, refresh: 900, retry: 900,
+  let ret = [];
+  if (!info.soa)
+    return ret;
+  let d = new Date();
+  let serial = d.getFullYear()+pad(d.getMonth()+1, 2)+pad(d.getDate(), 2);
+  ret = [{...info.soa, type, class: c, ttl: E.ttl,
+    serial, refresh: 900, retry: 900,
     expiration: 1800, minimum: 60}];
-*/
+  return ret;
 }
 
 function dns_server_handler(req, send, rinfo){
