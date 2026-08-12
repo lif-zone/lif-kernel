@@ -230,7 +230,7 @@ function dns_server_handler(req, send, rinfo){
     case Packet.TYPE.TXT: res.answers = res_type_txt(name, info); break;
     case Packet.TYPE.MX: res.answers = res_type_mx(name, info); break;
     case Packet.TYPE.CNAME: break; // silently ignore
-    case Packet.TYPE.AAAA: res.answers = res_type_soa(name, info); break;
+    case Packet.TYPE.AAAA: res.authorities = res_type_soa(name, info); break;
     case Packet.TYPE.DNSKEY: break; // silently ignore
     case Packet.TYPE.CAA: res.answers = res_type_caa(name, info); break;
     case Packet_TYPE_HTTPS: break; // silently ignore
