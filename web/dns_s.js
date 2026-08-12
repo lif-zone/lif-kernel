@@ -51,7 +51,7 @@ export function domain_lookup(name){
   let parent = parts.slice(1).join('.');
   // parent domain?
   if (v=E.domains[name])
-    return v;
+    return {name, ...v};
   // sub-domain?
   if (!(p_v=E.domains[parent]))
     return;
@@ -60,11 +60,11 @@ export function domain_lookup(name){
   let host = parts[0];
   let host_part = host.split('--')[0];
   if (v=get_host_of_domain(host))
-    return {soa, ...v};
+    return {soa, name, ...v};
   if (v=get_host_of_domain(host_part))
-    return {soa, ...v};
+    return {soa, name, ...v};
   if (v=get_raw_ip_domain(host))
-    return {soa, ...v};
+    return {soa, name, ...v};
   return p_v;
 }
 
