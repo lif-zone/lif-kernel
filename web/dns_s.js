@@ -60,8 +60,11 @@ function get_our_domain(name){
   let ns = _v.ns;
   let host = parts[0];
   let host_part = host.split('--')[0];
-  if (v=get_host_of_domain(host))
+  console.log('A0', name, _v);
+  if (v=get_host_of_domain(host)){
+    console.log('A1', name, ns, {ns, ...v});
     return {ns, ...v};
+  }
   if (v=get_host_of_domain(host_part))
     return {ns, ...v};
   if (v=get_raw_ip_domain(host))
