@@ -155,7 +155,7 @@ function res_type_soa(name, info){
   let ret = [];
   if (!info.ns)
     return ret;
-  let ns = info.ns[0]+'.'+name;
+  let ns = info.ns[0];
   let d = new Date();
   let serial = d.getFullYear()+pad(d.getMonth()+1, 2)+pad(d.getDate(), 2);
   ret = [{name, type, class: c, ttl: E.ttl,
