@@ -3,7 +3,7 @@
 function add_domains_hosts({ip, domains, hosts}){
   let ips = Array.isArray(ip) ? ip : [ip];
   for (let ip of ips){
-    let _host = host[ip] = {};
+    let _host = host[ip] ||= {domains: {}, hosts: {}};
     for (let d of domains)
       _host.domains[d] = {ssl: true, ip, ns: ['ns1', 'ns2']};
     for (let h of hosts)
