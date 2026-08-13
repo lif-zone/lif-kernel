@@ -605,15 +605,15 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   // lookup dependencies (regular imports): current
   if (l.reg)
     return l.reg;
-  // lookup devDependencies: current
-  if (l.dev)
-    return l.dev;
   // lookup parent peer/global imports (peerDependencies, overrides)
   if (l.peer){
     if (par.reg)
       return par.reg;
     return l.peer;
   }
+  // lookup devDependencies: current
+  if (l.dev)
+    return l.dev;
   return ret_err('imp missing');
 }
 
@@ -1925,7 +1925,7 @@ function test_kernel(){
   t('npm/gpeer2', 'npm/gpeer2@14.0.1');
   t('npm/optional', 'npm/optional@1.0.0');
   t('npm/glob2', 'npm/glob2@15.0.0');
-  t('npm/gpeerdev', 'npm/gpeerdev@97.9.9');
+  t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
   t = (pkg, imp, v)=>assert_eq(v, lpm_dep_lookup({lpm_pkg: {pkg}, imp}));
