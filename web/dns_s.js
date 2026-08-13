@@ -44,11 +44,17 @@ function get_host_of_domain(host){
   return {ssl: true, ip: [v.ip]};
 }
 
+export function domain_parent(domain){
+  let parts = name.split('.');
+  let host = parts[0];
+  let parent = parts.slice(1).join('.');
+  return {host, parent, domain};
+}
+
 export function domain_lookup(name){
   name = name.toLowerCase();
   let v, p_v;
-  let parts = name.split('.');
-  let parent = parts.slice(1).join('.');
+  let {host, parent} = domain_parent(name);
   // parent domain?
   if (v=E.domains[name])
     return {name, ...v};
@@ -57,7 +63,6 @@ export function domain_lookup(name){
     return;
   // handle sub-domain
   let soa = p_v.soa;
-  let host = parts[0];
   let host_part = host.split('--')[0];
   if (v=get_host_of_domain(host))
     return {soa, name, ...v};

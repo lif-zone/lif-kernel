@@ -6,7 +6,7 @@ import '../compat/browser_env.js';
 import {esleep} from '../util.js';
 import x509 from '@peculiar/x509';
 import {E as dns_s, domain_lookup, start as dns_s_start, set_domains,
-  set_txt, rm_txt} from './dns_s.js';
+  set_txt, rm_txt, domain_parent} from './dns_s.js';
 import {E as acme, request_cert, init as acme_init} from './ssl_acme.js';
 import {hosts_get} from './hosts.js';
 const efs = fs.promises;
@@ -60,6 +60,7 @@ export function sni_cb(server_name, cb){
     return cb(err, null);
   }
   console.log('sni_cb %s', server_name);
+  let {parent} = domain_parent(domain.name);
   let ctx = ssl_cert[domain.name]?.ctx;
   if (!ctx){
     let err = 'failed to get ssl ctx for '+server_name;
