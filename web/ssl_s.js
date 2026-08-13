@@ -227,6 +227,7 @@ export async function do_ssl(opt){
     }
     // XXX today multi-ip hosts get overritten instead of appended
     set_domains(host.domains);
+    console.log('dns+ssl serving ip '+ip.address, host);
   }
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);
