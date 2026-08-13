@@ -9,6 +9,7 @@ function add_domains_hosts({ip, domains, hosts}){
   let ips = qw(ip);
   domains = qw(domains);
   hosts = qw(hosts);
+  console.log('all', ip, domains, hosts);
   for (let ip of ips){
     let _host = host[ip] ||= {domains: {}};
     for (let d of domains){
