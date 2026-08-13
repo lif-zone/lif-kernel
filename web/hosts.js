@@ -41,7 +41,7 @@ const host = {
 //   lif.net 12K, theguide.org 3.5K, lif.io 6.5K, lif.live 300/y
 //   holacoin.com 5K holawallet.com 3.5K net.center 9.5K
 // ns1.lif.site ns2.lif.site 50.7.177.142
-add_domains_hosts({ip: ['50.7.176.34', '50.7.177.142'],
+add_domains_hosts({ip: ['50.7.177.142'],
   domains: [
     'lif.site', 'lifnet.net', 'lifnet.com',
     'pub.site', 'lifcoin.com', 'site.center',
@@ -51,9 +51,17 @@ add_domains_hosts({ip: ['50.7.176.34', '50.7.177.142'],
   hosts: ['lifcoin-node-1', 'ns1', 'ns2'],
 });
 // ns1.zon.life ns2.zon.life 216.227.189.196
-add_domains_hosts({ip: ['216.227.189.4', '216.227.189.196 '],
+add_domains_hosts({ip: ['216.227.189.196'],
   domains: ['zon.life', 'lif-coin.com', 'bright.life'],
   hosts: ['lifcoin-node-1', 'ns1', 'ns2'],
+});
+add_domains_hosts({ip: ['50.7.176.34'],
+  domains: ['arik.center', 'venao.center'],
+  hosts: ['ns1', 'ns2'],
+});
+add_domains_hosts({ip: ['216.227.189.4'],
+  domains: [],
+  hosts: [],
 });
 
 export function hosts_get(ip){
