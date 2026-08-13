@@ -1,9 +1,9 @@
 // LICENSE_CODE ZON JPL JEM GPL
 
-function ip_array(ips){
-  if (Array.isArray(ips))
-    return ips;
-  return ips.split(/\w+/g).filter(ip=>ip);
+function qw(words){
+  if (Array.isArray(words))
+    return words;
+  return words.split(/\W+/g).filter(w=>w);
 }
 function add_domains_hosts({ip, domains, hosts}){
   let ips = ip_array(ip);
