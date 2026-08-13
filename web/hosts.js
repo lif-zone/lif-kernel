@@ -3,13 +3,12 @@
 function qw(words){
   if (Array.isArray(words))
     return words;
-  return words.split(/\W+/g).filter(w=>w);
+  return words.split(/\s+/g).filter(w=>w);
 }
 function add_domains_hosts({ip, domains, hosts}){
   let ips = qw(ip);
   domains = qw(domains);
   hosts = qw(hosts);
-  console.log('all', ips, domains, hosts);
   for (let ip of ips){
     let _host = host[ip] ||= {domains: {}};
     for (let d of domains){
@@ -62,7 +61,6 @@ add_domains_hosts({ip: '216.227.189.4',
   domains: [],
   hosts: [],
 });
-console.log('finale', host);
 
 export function hosts_get(ip){
   return host[ip];
