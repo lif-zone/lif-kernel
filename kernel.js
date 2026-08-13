@@ -123,6 +123,9 @@ function sha256_hex(v){
 // https://registry.npmjs.com/lif-kernel/latest
 // https://registry.npmmirror.com/lif-kernel
 // https://registry.yarnpkg.com/lif-kernel
+// NPM filelist:
+// https://data.jsdelivr.com/v1/packages/npm/lif-kernel@1.0.6
+// https://unpkg.com/lif-kernel@1.0.6/?meta
 // NPM content:
 // https://unpkg.com/lif-kernel@1.0.6/boot.js
 // https://unpkg.com/lif-kernel@latest/boot.js
