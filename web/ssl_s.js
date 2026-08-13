@@ -142,11 +142,9 @@ const set_cert = async(domain, file_cert, file_key, cert, key)=>{
 
 const _acme_check_if_need_ssl = async()=>{
   try {
-    console.log('ssl: acme_check_if_need_ssl %O', dns_s.domains);
+    console.log('ssl: acme_check_if_need_ssl');
     let queue = [];
-    if (!dns_s.domains)
-      return;
-    for (let name in dns_s.domains){
+    for (let name in dns_s.domains||{}){
       if (dns_s.domains[name].ssl)
         queue.push(name);
     }
@@ -227,7 +225,7 @@ export async function do_ssl(opt){
     }
     // XXX today multi-ip hosts get overritten instead of appended
     set_domains(host.domains);
-    console.log('dns+ssl serving ip '+ip.address, host);
+    console.log('dns+ssl serving ip '+ip.address+' %O', host.domains);
   }
   acme_check_if_need_ssl(); // background: dont wait
   console.log('SSL: auto '+ssl_dir);
