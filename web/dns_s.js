@@ -188,6 +188,8 @@ function dns_server_handler(req, send, rinfo){
     // https://tools.ietf.org/html/rfc1035#section-4.1.1
     res.header.aa = 1; // set authoritive answer
     res.authorities = res_type_soa(name, info);
+    res.answers = [];
+    res.additionals = [];
     switch (type){
     case Packet.TYPE.A: res.answers = res_type_a(name, info); break;
     case Packet.TYPE.NS: res.answers = res_type_ns(name, info); break;
