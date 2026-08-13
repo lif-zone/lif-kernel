@@ -45,7 +45,7 @@ function get_host_of_domain(host){
 }
 
 export function domain_parent(domain){
-  let parts = name.split('.');
+  let parts = domain.split('.');
   let host = parts[0];
   let parent = parts.slice(1).join('.');
   return {host, parent, domain};

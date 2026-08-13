@@ -61,7 +61,7 @@ export function sni_cb(server_name, cb){
   }
   console.log('sni_cb %s', server_name);
   let {parent} = domain_parent(domain.name);
-  let ctx = ssl_cert[domain.name]?.ctx;
+  let ctx = ssl_cert[domain.name]?.ctx || ssl_cert[parent]?.ctx;
   if (!ctx){
     let err = 'failed to get ssl ctx for '+server_name;
     console.error('server: %s', err);
