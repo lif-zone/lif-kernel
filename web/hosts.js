@@ -62,6 +62,7 @@ add_domains_hosts({ip: '216.227.189.4',
   domains: [],
   hosts: [],
 });
+console.log('finale', host);
 
 export function hosts_get(ip){
   return host[ip];
