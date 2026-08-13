@@ -45,7 +45,7 @@ const host = {
 // ns1.lif.site ns2.lif.site 50.7.177.142
 add_domains_hosts({ip: '50.7.177.142',
   domains: `lif.site lifnet.net lifnet.com pub.site lifcoin.com site.center
-    lifsite.com lifnet.io lifcoin.org arik.center venao.center`,
+    lifsite.com lifnet.io lifcoin.org`,
   hosts: 'lifcoin-node-1 ns1 ns2',
 });
 // ns1.zon.life ns2.zon.life 216.227.189.196
