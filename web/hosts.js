@@ -3,7 +3,7 @@
 function ip_array(ips){
   if (Array.isArray(ips))
     return ips;
-  return ips.split(/\w+/g).filterOut(ip=>!ip);
+  return ips.split(/\w+/g).filter(ip=>ip);
 }
 function add_domains_hosts({ip, domains, hosts}){
   let ips = ip_array(ip);
