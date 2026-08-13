@@ -6,9 +6,9 @@ function qw(words){
   return words.split(/\W+/g).filter(w=>w);
 }
 function add_domains_hosts({ip, domains, hosts}){
-  let ips = ip_array(ip);
-  domains = ip_array(domains);
-  hosts = ip_array(hosts);
+  let ips = qw(ip);
+  domains = qw(domains);
+  hosts = qw(hosts);
   for (let ip of ips){
     let _host = host[ip] ||= {domains: {}};
     for (let d of domains){
