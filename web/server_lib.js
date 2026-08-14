@@ -193,7 +193,7 @@ function http_listener(req, res){
     return lifnet_lif_kv_handler(req, res);
   if (uri=='/.lif.net/lif_kv-proxy') // obsolete
     return http_pipe_lif_kv(req, res);
-  if (uri=='/lif-explorer/') // temp solutio
+  if (uri.startsWith('/lif-explorer/')) // temp solutio
     return http_pipe_lif_explorer(req, res);
   let path = map_uri({uri, opt: g_opt});
   if (!path)
