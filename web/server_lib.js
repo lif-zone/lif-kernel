@@ -197,10 +197,9 @@ function http_listener(req, res){
     return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
   if (v=str.starts(req.url, '/blockstream/'))
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
-  let path = map_uri({uri, opt: g_opt});
-  if (!path)
-    return res_err(res, 404, 'no map found');
-  return res_send_file(res, path);
+  if (v=map_uri({uri, opt: g_opt}))
+    return res_send_file(res, v);
+  return res_err(res, 404, 'no map found');
 }
 
 function ws_upgrade_accept(req, socket, head){
