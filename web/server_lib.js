@@ -32,6 +32,30 @@ function http_pipe_lif_kv(req, res){ // obsolete
   });
 }
 
+function http_pipe_lif_explorer(req, res){ // temp proxy
+  const url = new URL(`http://localhost:1806${req.url}`);
+  const options = {
+    hostname: url.hostname,
+    port: url.port,
+    path: url.pathname + url.search,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: url.host, // important – overwrite the original host
+    },
+  };
+  const _req = http.request(options, _res=>{
+    res.writeHead(_res.statusCode, _res.headers);
+    _res.pipe(res);
+  });
+  _req.on('error', err=>{
+    console.error('Proxy error:', err);
+    res.writeHead(502);
+    res.end('Bad Gateway');
+  });
+  req.pipe(_req);
+}
+
 async function lifnet_lif_kv_handler(req, res){
   let url = new URL(req.url, 'http://x');
   let key = url.searchParams.get('key');
@@ -169,6 +193,8 @@ function http_listener(req, res){
     return lifnet_lif_kv_handler(req, res);
   if (uri=='/.lif.net/lif_kv-proxy') // obsolete
     return http_pipe_lif_kv(req, res);
+  if (uri=='/lif-explorer/') // temp solutio
+    return http_pipe_lif_explorer(req, res);
   let path = map_uri({uri, opt: g_opt});
   if (!path)
     return res_err(res, 404, 'no map found');
