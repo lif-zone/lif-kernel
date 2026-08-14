@@ -125,6 +125,7 @@ function res_type_txt(name, info){
   let data = E.txt[name.toLowerCase()];
   if (data) // XXX: allow to set ttl per TXT
     return [{name, type, class: c, ttl: 5, data}];
+  return [];
 }
 
 function res_type_mx(name, info){
