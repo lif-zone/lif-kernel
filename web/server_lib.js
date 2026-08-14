@@ -32,8 +32,8 @@ function http_pipe_lif_kv(req, res){ // obsolete
   });
 }
 
-function http_pipe_lif_explorer(req, res){ // temp proxy
-  const url = new URL(`http://localhost:1806${req.url}`);
+function http_pipe({req, res, url}){
+  url = new URL(url);
   const options = {
     hostname: url.hostname,
     port: url.port,
@@ -49,9 +49,9 @@ function http_pipe_lif_explorer(req, res){ // temp proxy
     _res.pipe(res);
   });
   _req.on('error', err=>{
-    console.error('Proxy error:', err);
+    console.error('Proxy error http_pipe:', err);
     res.writeHead(502);
-    res.end('Bad Gateway');
+    res.end('Bad Gateway http_pipe');
   });
   req.pipe(_req);
 }
@@ -180,7 +180,7 @@ function test_server(){
 test_server();
 
 function http_listener(req, res){
-  let url;
+  let url, v;
   try {
     url = new URL(req.url, 'http://x');
   } catch(err){
@@ -193,8 +193,10 @@ function http_listener(req, res){
     return lifnet_lif_kv_handler(req, res);
   if (uri=='/.lif.net/lif_kv-proxy') // obsolete
     return http_pipe_lif_kv(req, res);
-  if (uri.startsWith('/lif-explorer/')) // temp solutio
-    return http_pipe_lif_explorer(req, res);
+  if (v=str.starts(url, '/lif-explorer/'))
+    return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
+  if (v=str.starts(url, '/blockstream/'))
+    return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   let path = map_uri({uri, opt: g_opt});
   if (!path)
     return res_err(res, 404, 'no map found');
