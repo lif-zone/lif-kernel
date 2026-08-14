@@ -22,7 +22,7 @@ export const hosts = {
   'lif-coin-local': '/lif-coin/',
   'wallet': 'git://github.com/lif-zone/lif-wallet@latest',
   'wallet-local': '/lif-wallet/',
-  'lif-explorer': 'git://github.com/lif-zone/lif-explorer@latest',
-  'lif-explorer-local': '/lif-explorer/',
+  'explorer': 'git://github.com/lif-zone/lif-explorer@latest',
+  'explorer-local': '/lif-explorer/',
 };
 
