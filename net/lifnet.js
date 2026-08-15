@@ -453,8 +453,12 @@ export async function lifnet_online({timeout}={}){
 }
 
 export async function lifnet_connect(topic, params, opt={}){
+  let timeout = 5000;
+  if (opt.timeout!=null)
+    timeout = opt.timeout;
+  assert(typeof topic=='string', 'invalid topic '+topic);
   // XXX after all trunks fail, should not continue waiting 5 seconds
-  let ret = await lifnet_online({timeout: 5000});
+  let ret = await lifnet_online({timeout});
   if (ret?.error)
     return ret;
   ret = await lifnet.topic_get(topic);
