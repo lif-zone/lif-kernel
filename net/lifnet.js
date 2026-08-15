@@ -7,6 +7,7 @@ import EventEmitter, {once} from '../compat/events.js';
 let D = 1;
 
 let RETRY_MS = 1000;
+let RETRY_REST_MS = 60000;
 
 class Trunk_loopback extends EventEmitter {
   status = 'online';
@@ -119,6 +120,8 @@ class Trunk extends EventEmitter {
 class Trunk_uplink extends Trunk {
   last = 0;
   et_connect;
+  retry_ms = RETRY_MS;
+  _sleep_et;
   constructor(lifnet, url){
     super(lifnet);
     this.url = url;
@@ -176,11 +179,19 @@ class Trunk_uplink extends Trunk {
     for (;;){
       this.last = Date.now();
       yield this._connect_single();
-      let delay = Math.max(this.last+RETRY_MS-Date.now(), 0);
-      if (delay)
-        yield etask.sleep(delay);
+      let delay = Math.max(this.last+this.retry_ms-Date.now(), 0);
+      if (delay){
+        this._sleep_et = etask.sleep(delay);
+        yield this._sleep_et;
+        this._sleep_et = null;
+      }
     }
   }.bind(this)); }
+  set_aggressive(v){
+    this.retry_ms = v ? RETRY_MS : RETRY_REST_MS;
+    if (v)
+      this._sleep_et?.return();
+  }
 }
 
 class Trunk_router extends Trunk {
@@ -226,8 +237,14 @@ export class Lifnet extends EventEmitter {
   _status_update(){
     let prev = this.status;
     this.status = this._trunk_online() ? 'online' : 'offline';
-    if (prev!=this.status)
-      this.emit('status', this.status);
+    if (prev==this.status)
+      return;
+    this.emit('status', this.status);
+    let aggressive = this.status=='offline';
+    for (let t of this._ws_trunks()){
+      if (t.status!='online')
+        t.set_aggressive?.(aggressive);
+    }
   }
   trunk_uplink_add(url){
     if (this.trunk_t[url])
