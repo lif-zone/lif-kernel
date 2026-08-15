@@ -84,8 +84,24 @@ function res_err(res, code, msg){
   res.writeHead(code, msg, {'cache-control': 'no-cache'})
   .end(''+code+' '+msg);
 }
-let coi_enable = true;
+let coi_enable = true; // for shared-array-buffer
+let cors_enable = true; // to be used by other domains
 let g_opt = {};
+
+function headers_set({h, ctype}){
+  h['content-type'] = ctype;
+  h['cache-control'] = 'no-cache'; // for dev/debug
+  if (coi_enable){
+    h['cross-origin-embedder-policy'] = 'require-corp';
+    h['cross-origin-opener-policy'] = 'same-origin';
+  }
+  if (cors_enable){
+    h['access-control-allow-headers'] = '*';
+    h['access-control-allow-methods'] = 'GET,HEAD,OPTIONS';
+    h['access-control-allow-origin'] = '*';
+    h['access-control-expose-headers'] = '*';
+  }
+}
 
 function res_send_file(res, _path){
   let opt;
@@ -99,12 +115,7 @@ function res_send_file(res, _path){
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
   let h = {};
-  h['content-type'] = ctype;
-  h['cache-control'] = 'no-cache'; // for dev/debug
-  if (coi_enable){
-    h['cross-origin-embedder-policy'] = 'require-corp';
-    h['cross-origin-opener-policy'] = 'same-origin';
-  }
+  headers_set({h, ctype});
   if (opt?.tr_fn){
     let _body = fs.readFileSync(_path, 'utf8');
     let body = opt.tr_fn(_body);
@@ -118,12 +129,7 @@ function res_send_file(res, _path){
 function res_send(res, {body, ext}){
   let ctype = ext2mime[ext]||'plain/text';
   let h = {};
-  h['content-type'] = ctype;
-  h['cache-control'] = 'no-cache'; // for dev/debug
-  if (coi_enable){
-    h['cross-origin-embedder-policy'] = 'require-corp';
-    h['cross-origin-opener-policy'] = 'same-origin';
-  }
+  headers_set({h, ctype});
   res.writeHead(200, h);
   res.end(body);
 }
