@@ -678,6 +678,14 @@ E.prototype.alarm = function(ms, cb){
     this.once('sig_alarm', cb);
 };
 
+E.prototype.once = function(event, cb){
+  if (cb)
+    return EventEmitter.prototype.once.call(event, cb);
+  // XXX missing unit-test for this case. also - the best place to support
+  // this is in EventEmitter.prototype.once - no cb: return Promise
+  return EventEmitter.once(event);
+}
+
 function Etask_wait(et, op, timeout){
   this.timeout = timeout;
   this.et = et;
