@@ -174,7 +174,8 @@ function Etask(opt, states){
     this._next_run();
   return this;
 }
-inherits(Etask, events.EventEmitter);
+const EventEmitter = events.EventEmitter;
+inherits(Etask, EventEmitter);
 
 E.prototype._root_remove = function(){
   assert(!this.parent, 'cannot remove from root when has parent');
@@ -684,7 +685,7 @@ E.prototype.once = function(event, cb){
   // XXX missing unit-test for this case. also - the best place to support
   // this is in EventEmitter.prototype.once - no cb: return Promise
   return EventEmitter.once(event);
-}
+};
 
 function Etask_wait(et, op, timeout){
   this.timeout = timeout;
