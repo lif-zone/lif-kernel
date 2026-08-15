@@ -161,6 +161,16 @@ CLAUDE:
 
 ---
 USER:
+decouple Trunk retry logic from lifnet. lifnet should be 'above' and control trunks via set_aggressive(bool): aggressive=1s retry, rest=60s retry. trunks should not know about lifnet status.
+
+CLAUDE:
+- Added RETRY_REST_MS=60000 to lifnet.js
+- Trunk_uplink: added retry_ms=RETRY_MS, _sleep_et fields; _connect_loop uses this.retry_ms and tracks sleep in _sleep_et; added set_aggressive(v) which sets retry_ms and cancels _sleep_et if switching to aggressive
+- Removed the previous lifnet-status-aware once() hack from _connect_loop
+- Lifnet._status_update: when status changes, calls set_aggressive?.(aggressive) on all non-online trunks — aggressive when offline, rest when online
+
+---
+USER:
 rename Trunk_remote→Trunk_uplink, Trunk_local→Trunk_router, and all related functions
 
 CLAUDE:
