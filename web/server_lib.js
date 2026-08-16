@@ -205,6 +205,8 @@ function http_listener(req, res){
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   if (v=map_uri({uri, opt: g_opt}))
     return res_send_file(res, v);
+  if (str.starts(uri, '/.lif/', '/.lif./'))
+    return res_err(res, 404, 'no map found');
   let dest = req.headers['sec-fetch-dest'];
   let mode = req.headers['sec-fetch-mode'];
   let lif_kernel = g_opt.map['/lif-kernel'];
