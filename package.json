@@ -1,6 +1,6 @@
 {
   "name": "lif-kernel",
-  "version": "2026.8.17",
+  "version": "2026.8.20-r1",
   "description": "kernel hi דבר חי",
   "author": {
     "name": "Hi PC! kernel: A Human-Inteligence Public-Computer kernel",
@@ -59,7 +59,8 @@
     "index.html",
     "kernel.js",
     "mime_db.js",
-    "mine_db.js",
+    "net/lifcoin_s.js",
+    "web/hosts.js",
     "web/server.js",
     "web/server_lib.js",
     "web/serve.js",
@@ -87,6 +88,8 @@
     "./net": "./compat/net.js",
     "./util.js": "./util.js",
     "./etask": "./etask.js",
+    "./sha256.js": "./sha256.js",
+    "./sha256lif.js": "./sha256lif.js",
     "./web/server_lib.js": "./web/server_lib.js",
     "./lifnet": "./net/lifnet.js",
     "./test/test_lib.js": "./test/test_lib.js",
