@@ -36,7 +36,7 @@
     }
   },
   "bin": {
-    "lif-kernel": "./bin/lif-kernel.js"
+    "lif-kernel": "bin/lif-kernel.js"
   },
   "files": [
     "bin/lif-kernel.js",
