@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import process from 'process';
 
 let cmd = process.argv[2];
