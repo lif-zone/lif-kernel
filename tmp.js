@@ -1,4 +1,4 @@
-import lif from './boot.js';
+let lif = globalThis.$lif;
 
 async function tmp_webapp_resolve(){
   let q = new URLSearchParams(location.search);
