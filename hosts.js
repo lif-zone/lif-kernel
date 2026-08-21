@@ -24,6 +24,6 @@ export const hosts = {
   'wallet-local': '/lif-wallet/',
   'explorer': 'git://github.com/lif-zone/lif-explorer@latest',
   'explorer-local': '/lif-explorer/',
-  'tmp': 'git://github.com/lif-zone/lif-kernel@main//tmp.js',
+  'tmp': 'git://github.com/lif-zone/lif-kernel@main/tmp.js',
 };
 
