@@ -11,8 +11,8 @@ async function input_webapp(){
   const e = html_elm_frag(`
     <h1>Enter LIF site: <input><button>GO</button></h1>
     <h2>
-      git example: git://github.com/lif-zone/lif-basic
-      npm example: npm:lif-basic@1.3.0
+      git example: git://github.com/lif-zone/lif-basic<br>
+      npm example: npm:lif-basic@1.3.0<br>
     </h2>
   `);
   for (let c; c = e[0];)

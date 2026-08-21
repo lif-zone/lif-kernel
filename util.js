@@ -1975,6 +1975,18 @@ export function export_path_match(path, match, to){
 }
 
 // https://webpack.js.org/guides/package-exports/
+// check works with https://app.unpkg.com/rxjs@7.8.2/files/package.json
+// "exports": {
+//    ".": {
+//      "types": "./dist/types/index.d.ts",
+//    },
+//    "./ajax": {
+//      "types": "./dist/types/ajax/index.d.ts",
+//    },
+//    "./internal/*": {
+//      "types": "./dist/types/internal/*.d.ts",
+//    },
+// }
 export function pkg_export_lookup(pkg, path){
   let file = path.replace(/^\//, '') || '.';
 
