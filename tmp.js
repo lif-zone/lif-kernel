@@ -10,7 +10,7 @@ async function tmp_webapp_resolve(){
     webapp = v;
     localStorage.setItem('tmp_webapp', webapp);
   } else if (ls)
-    webapp = v;
+    webapp = ls;
   else
     console.error('ask user to enter webapp');
   if (!webapp)
