@@ -3,13 +3,16 @@ import lif from './boot.js';
 async function tmp_webapp_resolve(){
   let q = new URLSearchParams(location.search);
   let v, webapp;
+  let ls = localStorage.getItem('tmp_webapp');
   if (v=q.get('webapp')){
+    if (ls)
+      console.warn('changing webapp '+ls+' -> '+v);
     webapp = v;
     localStorage.setItem('tmp_webapp', webapp);
-  } else if (v=localStorage.getItem('tmp_webapp'))
+  } else if (ls)
     webapp = v;
   else
-    console.log('ask user to enter webapp');
+    console.error('ask user to enter webapp');
   if (!webapp)
     return;
   return await lif.boot.boot_app({lif: {webapp}});
