@@ -9,7 +9,7 @@ function html_elm_frag(html){
 async function input_webapp(){
   let body = document.querySelector('body');
   const e = html_elm_frag(`
-    <h1>Enter LIF site: <input></h1>
+    <h1>Enter LIF site: <input><button>GO</button></h1>
     <h2>
       git example: git://github.com/lif-zone/lif-basic
       npm example: npm:lif-basic@1.3.0
@@ -17,6 +17,17 @@ async function input_webapp(){
   `);
   for (let c; c = e[0];)
     body.appendChild(c);
+  const input = body.querySelector('input');
+  const btn = body.querySelector('button');
+  const go = ()=>{
+    const val = input.value.trim();
+    if (!val)
+      return;
+    localStorage.setItem('tmp_webapp', val);
+    window.location.reload();
+  };
+  btn.addEventListener('click', go);
+  input.addEventListener('keydown', e=>{ if (e.key=='Enter') go(); });
 }
 
 let clean_url = false;
