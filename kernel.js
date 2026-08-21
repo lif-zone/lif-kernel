@@ -13,7 +13,7 @@ const {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   npm_browser_parse,
   uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
-  pkg_exports_lookup, export_path_match, str_to_buf,
+  pkg_exports_lookup, export_path_match, str_to_buf, pkg_transform_type,
   eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
   ewait, Donce} = util;
 const {qw} = str;
@@ -1491,33 +1491,13 @@ async function tr_tsx_to_js_cache({tsx, type, h_tsx}){
   return {js, h_js};
 }
 
-// XXX move to util.js next to pkg_exports_lookup(), and split to:
-// pkg_transform_lookup() and pkg_transform_type()
-function glob_match(pattern, path){
-  let re = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*\//g, '(?:.+/)?')
-    .replace(/\*/g, '[^/]*');
-  return new RegExp('^'+re+'$').test(path);
-}
-
-function pkg_transform_type(pkg, lmod, pkg_lmod){
-  let transform = pkg.lif?.transform;
-  if (!transform)
-    return;
-  let rel = '.'+lmod.slice(pkg_lmod.length);
-  for (let [pattern, attrs] of OE(transform)){
-    if (glob_match(pattern, rel) && attrs?.type)
-      return attrs.type.replace(/^\./, '');
-  }
-}
-
 async function file_tsx_to_js(f){
   if (f.js)
     return f.js;
   let type = _path_ext(f.lmod);
+  let path = T_lpm_parse(f.lmod).path;
   let v;
-  if (v=pkg_transform_type(f.lpm_pkg.pkg, f.lmod, f.lpm_pkg.lmod))
+  if (v=pkg_transform_type(f.lpm_pkg.pkg, path))
     type = v;
   if (str.is(type, 'jsx', 'ts', 'tsx')){
     ({js: f.js, h_js: f.h_js} = await tr_tsx_to_js_cache({

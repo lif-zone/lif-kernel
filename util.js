@@ -2073,6 +2073,34 @@ export function pkg_exports_lookup(pkg, path){
   return '/'+f;
 }
 
+// XXX merge glob_match with pkg_exports_lookup() file matching
+function glob_match(pattern, path){
+  let re = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*\//g, '(?:.+/)?')
+    .replace(/\*/g, '[^/]*');
+  return new RegExp('^'+re+'$').test(path);
+}
+
+// XXX add unit-tests
+export function pkg_transform_lookup(pkg, path){
+  let transform = pkg.lif?.transform;
+  if (!transform)
+    return;
+  let rel = '.'+path;
+  for (let [pattern, tr] of OE(transform)){
+    if (glob_match(pattern, rel))
+      return tr;
+  }
+}
+
+export function pkg_transform_type(pkg, path){
+  let tr = pkg_transform_lookup(pkg, path);
+  if (!tr?.type)
+    return;
+  return tr.type.replace(/^\./, '');
+}
+
 // useful debugging script: stop on first time
 //{ if (file.includes('getProto') && match.includes('getPro') && !self._x_) {self._x_=1; debugger;} }
 export function _debugger(stop){
