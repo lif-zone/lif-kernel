@@ -1296,7 +1296,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     // same module, empty ver and base completes it? use base to complete ver
     let _imp = lpm_ver_from_base(imp, lmod_self);
     if (_imp && _imp!=imp)
-      return {lpm_pkg: {redirect: imp}};
+      return {lpm_pkg: {redirect: _imp}};
     // different modules: load pkg, and lookup imports.
     lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
     if (lpm_self.not_exist)
