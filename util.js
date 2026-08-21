@@ -1987,7 +1987,7 @@ export function export_path_match(path, match, to){
 //      "types": "./dist/types/internal/*.d.ts",
 //    },
 // }
-export function pkg_export_lookup(pkg, path){
+export function pkg_exports_lookup(pkg, path){
   let file = path.replace(/^\//, '') || '.';
 
   function check_val(res, dst){
@@ -2628,7 +2628,7 @@ function test_util(){
   t('esm/file.js', './esm');
   t('esm/file.js', './file.js');
   t('file.js', './file.jss');
-  t = (pkg, file, v)=>assert_obj(v, pkg_export_lookup(pkg, file));
+  t = (pkg, file, v)=>assert_obj(v, pkg_exports_lookup(pkg, file));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
   t({exports: {'.': './exp'}}, '/exp');

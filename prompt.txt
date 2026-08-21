@@ -180,3 +180,12 @@ Renamed across lifnet.js, trunk.js, server_lib.js:
 - trunk_local() → trunk_router()
 - lifnet_init_local() → lifnet_init_router()
 - trunk_add_local() → trunk_add_router()
+---
+USER:
+in lif-kernel/kernel.js add support for parse lif: {transform: {'./**/*.js': {ext: '.jsx'}}} - this tells it that for transformational purposes, to handle this file as-if it has the jsx extension in its name.
+
+CLAUDE:
+Added two helper functions and modified file_tsx_to_js in kernel.js:
+- glob_match(pattern, path): converts glob to regex (handles **/ and *)
+- pkg_transform_ext(pkg, lmod, pkg_lmod): looks up lif.transform in package.json, computes relative path, matches patterns, returns override ext
+- file_tsx_to_js: calls pkg_transform_ext to override type before Babel transform decision
