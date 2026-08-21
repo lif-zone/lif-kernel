@@ -71,6 +71,7 @@
     "hi.html",
     "hi.js",
     "hosts.js",
+    "tmp.js",
     "compat/browser_env.js",
     "net/lifnet.js",
     "net/tcpip_s.js",
