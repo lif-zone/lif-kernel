@@ -736,7 +736,6 @@ function mjs_import_amd(path, q){
   js += `let exports = await globalThis.$lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export const __esModule = false;\n`;
-  js += `if (exports.__esModule==true && exports.default) exports = exports.default;\n`;
   js += `export default exports;\n`;
   return js;
 }
