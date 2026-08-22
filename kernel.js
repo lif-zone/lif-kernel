@@ -2065,8 +2065,8 @@ function test_kernel(){
       {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
-  t(`export function a(){}`, {type: 'mjs', export_default: true});
-  t(`export const a = 180;`, {type: 'mjs', export_default: true});
+  t(`export function a(){}`, {type: 'mjs'});
+  t(`export const a = 180;`, {type: 'mjs'});
   t(`export default 180;`, {type: 'mjs', export_default: true});
   // double space between await and import, to prevent tr import_module
   t(`let a = await  import("a");`,
