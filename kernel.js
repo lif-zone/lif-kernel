@@ -1625,8 +1625,9 @@ function response_redirect({redirect, cache}){
 }
 
 async function send_res({err, not_exist, redirect, body, ext, path}){
+  path ||= '';
   if (err && body==undefined){
-    console.error('req '+(path??'')+': '+err);
+    console.error('req '+path+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
   }
   if (not_exist){
