@@ -1727,7 +1727,7 @@ async function _kernel_fetch(event){
     function add(res, root){
       for (let pkg of OV(root)){
         res[pkg.id] = {id: pkg.id};
-        add(res[id], pkg.child);
+        add(res[pkg.id], pkg.child);
       }
     }
     console.log(res);
