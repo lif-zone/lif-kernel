@@ -1625,7 +1625,6 @@ function response_redirect({redirect, cache}){
 }
 
 async function send_res({err, not_exist, redirect, body, ext, path}){
-  path ||= '';
   if (err && body==undefined){
     console.error('req '+path+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
@@ -1732,7 +1731,7 @@ async function _kernel_fetch(event){
       }
     }
     console.log(res);
-    return send_res({body: json(res)});
+    return send_res({body: json(res), ext: 'json', path});
   }
   if (v=str.starts(path, '/.lif/')){
     if (!lpm_pkg_app)
