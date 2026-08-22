@@ -460,6 +460,30 @@ function tr_js_to_ast(js){
           imported: imported.length ? imported : null});
       }
     }
+    function _handle_export_source(path){
+      let n = path.node;
+      if (n.source.type=='StringLiteral'){
+        let s = n.source;
+        let v = s.value;
+        let {type} = ast_get_scope_type(path, {try: 1});
+        let imported = [];
+        n.specifiers?.forEach(spec=>{
+          if (spec.type=='ExportSpecifier')
+            imported.push(spec.exported.name);
+          if (spec.type=='ExportNamespaceSpecifier'){
+            let bind = path.scope.getBinding(spec.local.name);
+            bind.referencePaths.forEach(ref=>{
+              let cont = ref.container;
+              if (cont.type=='MemberExpression')
+                imported.push(cont.property.name);
+            });
+          }
+        });
+        imported = array_unique(imported).sort();
+        ast.imports.push({module: v, start: s.start, end: s.end, type,
+          imported: imported.length ? imported : null});
+      }
+    }
     function handle_import_source(path){
       has.import = true;
       _handle_import_source(path);
@@ -467,7 +491,7 @@ function tr_js_to_ast(js){
     function handle_export_source(path){
       has.export = true;
       if (path.node.source)
-        _handle_import_source(path);
+        _handle_export_source(path);
     }
     function keep_comment(path){
       let comment = path.node.leadingComments?.[0];
@@ -2018,12 +2042,31 @@ function test_kernel(){
     {type: 'mjs', imports: [
       {type: 'program', imported: null, module: 'lif', start: 7, end: 12}]
     });
+  t(`import a from "lif";`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
+    });
   t(`import {a, b} from "lif";`,
     {type: 'mjs', imports: [
-      {imported: ['a', 'b'], module: 'lif', start: 19, end: 24,
-        type: "program"}]
+      {type: 'program', imported: ['a', 'b'], module: 'lif', start: 19,
+        end: 24}]
+    });
+  t(`export {a, b} from "lif";`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['a', 'b'], module: 'lif', start: 19,
+        end: 24}]
+    });
+  t(`import * as a from "lif";`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
+    });
+  t(`export * from "lif";`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
+  t(`export function a(){}`, {type: 'mjs', export_default: true});
+  t(`export const a = 180;`, {type: 'mjs', export_default: true});
   t(`export default 180;`, {type: 'mjs', export_default: true});
   // double space between await and import, to prevent tr import_module
   t(`let a = await  import("a");`,
