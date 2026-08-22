@@ -1,5 +1,5 @@
 // LIF bootloader worker: assistance for sync operations
-let boot_worker_version = '26.7.21';
+let boot_worker_version = '2026.8.23';
 let D = 0;
 
 // mem debug tracking of last 10 states, without slowing down with console.log

@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-let sw_boot_version = '26.7.21';
+let sw_boot_version = '2026.8.23';
 let $lif = globalThis.$lif ||= {};
 let D = 0; // debug
 

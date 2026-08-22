@@ -1,5 +1,5 @@
 // LIF bootloader: Boot the kernel and then load the application
-let lif_version = '26.7.21';
+let lif_version = '2026.8.23';
 let D = localStorage.getItem('lif_boot_D'); // Debug
 
 import {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
