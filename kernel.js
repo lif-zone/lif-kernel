@@ -1422,7 +1422,7 @@ async function cache_store_init(){
   let cs = cache_store;
   if (!cs.enable || cs.inited)
     return;
-  cs.cache = await caches.open('lif-cache-v1');
+  cs.cache = await caches.open('lif-cache-v2');
   cs.inited = true;
 }
 await cache_store_init();
