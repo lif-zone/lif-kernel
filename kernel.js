@@ -1450,7 +1450,7 @@ let ctype_binary = path=>{
 function lpm_redirect({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
-  if (l && !lpm_ver_missing(l))
+  if (0 && l && !lpm_ver_missing(l))
     q.delete('mod_self');
   let redirect = '/.lif/'+f.redirect+qs_enc(q);
   D && console.log('lpm_redirect '+lmod+' -> '+f.redirect, qs+' -> '+q);
