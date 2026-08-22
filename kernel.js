@@ -5,7 +5,7 @@ let in_test = 0;
 const $lif = globalThis.$lif ||= {};
 
 const util = (await import('./util.js')).default;
-const {ipc_postmessage, str, OE, OA, assert, ecache, json_cp,
+const {ipc_postmessage, str, OE, OA, OV, assert, ecache, json_cp,
   _path_ext, path_dir, path_file,
   path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
