@@ -46,7 +46,7 @@ function db_upgrade(db, table, opt){
 
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kernel', 16, {
+    db = await idb.openDB('lif-kernel', 17, {
       upgrade(db, old_ver, new_ver){
         console.log('upgrade cache db '+old_ver+' -> '+new_ver);
         db_upgrade(db, 'js_to_meta', {keyPath: ['h_js']});
