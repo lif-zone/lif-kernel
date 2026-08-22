@@ -1722,12 +1722,12 @@ async function _kernel_fetch(event){
     if (lpm_pkg_root)
       res.root_id = lpm_pkg_root.id;
     res.root = {id: res.root_id};
-    add(res.root, lpm_pkg_root);
+    add(res.root, lpm_pkg_root.child);
     let lpm_self = lpm_pkg_app || lpm_pkg_root;
     function add(res, root){
       for (let [id, pkg] of OE(root)){
         res[id] = {id: pkg.id};
-        add(res[id], pkg);
+        add(res[id], pkg.child);
       }
     }
     console.log(res);
