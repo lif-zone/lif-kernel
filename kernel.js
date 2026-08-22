@@ -1626,7 +1626,7 @@ function response_redirect({redirect, cache}){
 
 async function send_res({err, not_exist, redirect, body, ext, path}){
   if (err && body==undefined){
-    console.error('parse '+path+': '+err);
+    console.error('req '+(path??'')+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
   }
   if (not_exist){
@@ -1726,7 +1726,7 @@ async function _kernel_fetch(event){
     let lpm_self = lpm_pkg_app || lpm_pkg_root;
     function add(res, root){
       for (let pkg of OV(root)){
-        res[pkg.id] = {id: pkg.id};
+        res[pkg.id] = {};
         add(res[pkg.id], pkg.child);
       }
     }
@@ -1734,11 +1734,8 @@ async function _kernel_fetch(event){
     return send_res({body: json(res)});
   }
   if (v=str.starts(path, '/.lif/')){
-    if (!lpm_pkg_app){
-      let err;
-      console.erro(err='no webapp while loading '+path);
-      return send_res({err});
-    }
+    if (!lpm_pkg_app)
+      return send_res({err: 'no webapp while loading', path});
     let lmod = v.rest;
     log.imp = lmod;
     let slow = eslow('app_init');
