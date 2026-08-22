@@ -1701,7 +1701,44 @@ async function _kernel_fetch(event){
   // LIF+local GET requests
   // LIF requests
   let v;
-  if (lpm_pkg_app && (v = str.starts(path, '/.lif/'))){
+  if (path=='/.lif/cache_clear'){ // clear cache command
+    function cc(table){
+      for (let [k, v] of OE(table)){
+        if (str.starts(k, 'local/'))
+          delete table[k];
+      }
+    }
+    cc(lpm_pkg_t);
+    cc(lpm_pkg_ver_t);
+    cc(lpm_file_t);
+    cc(reg_file_t);
+    return send_res({body: json({ok: true, msg: 'cache cleared'}),
+      ext: 'json', path});
+  }
+  if (path=='/.lif/modules'){ // show modules
+    let res = {};
+    if (lpm_pkg_app)
+      res.app_id = lpm_pkg_app.id;
+    if (lpm_pkg_root)
+      res.root_id = lpm_pkg_root.id;
+    res.root = {id: res.root_id};
+    add(res.root, lpm_pkg_root);
+    let lpm_self = lpm_pkg_app || lpm_pkg_root;
+    function add(res, root){
+      for (let [id, pkg] of OE(root)){
+        res[id] = {id: pkg.id};
+        add(res[id], pkg);
+      }
+    }
+    console.log(res);
+    return send_res({body: json(res)});
+  }
+  if (v=str.starts(path, '/.lif/')){
+    if (!lpm_pkg_app){
+      let err;
+      console.erro(err='no webapp while loading '+path);
+      return send_res({err});
+    }
     let lmod = v.rest;
     log.imp = lmod;
     let slow = eslow('app_init');
@@ -1720,20 +1757,6 @@ async function _kernel_fetch(event){
     response = await send_res({...res, path});
     await cache_store_set(request, response);
     return response;
-  }
-  if (path=='/cc'){ // clear cache command
-    function cc(table){
-      for (let [k, v] of OE(table)){
-        if (str.starts(k, 'local/'))
-          delete table[k];
-      }
-    }
-    cc(lpm_pkg_t);
-    cc(lpm_pkg_ver_t);
-    cc(lpm_file_t);
-    cc(reg_file_t);
-    return send_res({body: json({ok: true, msg: 'cache cleared'}),
-      ext: 'json', path});
   }
   // lif-kernel passthrough for local dev
   if (path=='/' || path_starts(url, lif_kernel_base))
