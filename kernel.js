@@ -438,51 +438,39 @@ function tr_js_to_ast(js){
     let has = ast.has = {};
     function _handle_import_source(path){
       let n = path.node;
-      if (n.source.type=='StringLiteral'){
-        let s = n.source;
-        let v = s.value;
-        let {type} = ast_get_scope_type(path, {try: 1});
-        let imported = [];
-        n.specifiers?.forEach(spec=>{
-          if (spec.type=='ImportSpecifier')
-            imported.push(spec.imported.name);
-          if (spec.type=='ImportNamespaceSpecifier'){
-            let bind = path.scope.getBinding(spec.local.name);
-            bind.referencePaths.forEach(ref=>{
-              let cont = ref.container;
-              if (cont.type=='MemberExpression')
-                imported.push(cont.property.name);
-            });
-          }
-        });
-        imported = array_unique(imported).sort();
-        ast.imports.push({module: v, start: s.start, end: s.end, type,
-          imported: imported.length ? imported : null});
-      }
+      let s = n.source;
+      if (s.type!='StringLiteral')
+        return;
+      let v = s.value;
+      let {type} = ast_get_scope_type(path, {try: 1});
+      let imported = [];
+      n.specifiers?.forEach(spec=>{
+        if (spec.type=='ImportSpecifier')
+          imported.push(spec.imported.name);
+        if (spec.type=='ImportNamespaceSpecifier')
+          ; // unused spec.local.name
+      });
+      imported = array_unique(imported).sort();
+      ast.imports.push({module: v, start: s.start, end: s.end, type,
+        imported: imported.length ? imported : null});
     }
     function _handle_export_source(path){
       let n = path.node;
-      if (n.source.type=='StringLiteral'){
-        let s = n.source;
-        let v = s.value;
-        let {type} = ast_get_scope_type(path, {try: 1});
-        let imported = [];
-        n.specifiers?.forEach(spec=>{
-          if (spec.type=='ExportSpecifier')
-            imported.push(spec.exported.name);
-          if (spec.type=='ExportNamespaceSpecifier'){
-            let bind = path.scope.getBinding(spec.local.name);
-            bind.referencePaths.forEach(ref=>{
-              let cont = ref.container;
-              if (cont.type=='MemberExpression')
-                imported.push(cont.property.name);
-            });
-          }
-        });
-        imported = array_unique(imported).sort();
-        ast.imports.push({module: v, start: s.start, end: s.end, type,
-          imported: imported.length ? imported : null});
-      }
+      let s = n.source;
+      if (s.type!='StringLiteral')
+        return;
+      let v = s.value;
+      let {type} = ast_get_scope_type(path, {try: 1});
+      let imported = [];
+      n.specifiers?.forEach(spec=>{
+        if (spec.type=='ExportSpecifier')
+          imported.push(spec.exported.name);
+        if (spec.type=='ExportNamespaceSpecifier')
+          ; // unused spec.exported.name
+      });
+      imported = array_unique(imported).sort();
+      ast.imports.push({module: v, start: s.start, end: s.end, type,
+        imported: imported.length ? imported : null});
     }
     function handle_import_source(path){
       has.import = true;
@@ -2056,13 +2044,17 @@ function test_kernel(){
       {type: 'program', imported: ['a', 'b'], module: 'lif', start: 19,
         end: 24}]
     });
+  t(`export * from "lif";`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
+    });
   t(`import * as a from "lif";`,
     {type: 'mjs', imports: [
       {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
     });
-  t(`export * from "lif";`,
+  t(`export * as a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
+      {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
   t(`export function a(){}`, {type: 'mjs'});
