@@ -1987,6 +1987,33 @@ export function export_path_match(path, match, to){
 //      "types": "./dist/types/internal/*.d.ts",
 //    },
 // }
+// only single * allowed in exports
+// exports_glob does reverse lookup: checks if path matches dst, and if so,
+// it looks up the relative src file for it.
+export function export_path_match2(path, match, tr){
+  if (path==match)
+    return tr;
+  let m = match.split('*');
+  if (m.length==1)
+    return;
+  if (m.length>2)
+    return void console.warn('exports invalid match '+match);
+  if (path.length<m[0].length+m[1].length)
+    return;
+  if (!path.startsWith(m[0]) || !path.endsWith(m[1]))
+    return;
+  // validate the '*' does not include '/'
+  let replace = path.slice(m[0].length, -m[1].length||undefined);
+  let t = tr.split('*');
+  // match replacement can be a directory only in special case where '*'
+  // is at the end of both match and tr
+  if (replace.includes('/') && (m[1] || t[1]))
+    return;
+  if (t.length!=2)
+    return void console.warn('exports invalid tr '+tr);
+  return t[0]+replace+t[1];
+}
+
 export function pkg_exports_lookup(pkg, path){
   let file = path.replace(/^\//, '') || '.';
 
@@ -2656,6 +2683,24 @@ function test_util(){
   t('esm/file.js', './esm');
   t('esm/file.js', './file.js');
   t('file.js', './file.jss');
+  t = (path, match, tr, v)=>assert_obj(v, export_path_match2(path, match, tr));
+  t('./file', './file', './file', './file');
+  t('.', '.', '.', '.');
+  t('.', './abc', './def', undefined);
+  t('file', 'f', 'd', undefined);
+  t('.', '.', './index.js', './index.js');
+  t('./file', './file', './file.js', './file.js');
+  t('.', './f', './d', undefined);
+  t('./abc/file.js', './abc/*', './def/*', './def/file.js');
+  t('./abc/dir/file.js', './abc/*', './def/*', './def/dir/file.js');
+  t('./abc/file.js', './abc/*.js', './def/*', './def/file');
+  t('./abc/dir/file.js', './abc/*.js', './def/*', undefined);
+  t('./abc/file.js', './abc/*', './def/*.js', './def/file.js.js');
+  t('./abc/dir/file.js', './abc/*', './def/*.js', undefined);
+  t('./abc/file.js', './*/file.js', './def/*.js', './def/abc.js');
+  t('./abc/xxx/file.js', './*/file.js', './def/*.js', undefined);
+  t('./abc/file.js', './*/file.js', './def/*', './def/abc');
+  t('./abc/xxx/file.js', './*/file.js', './def/*', undefined);
   t = (pkg, file, v)=>assert_obj(v, pkg_exports_lookup(pkg, file));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
