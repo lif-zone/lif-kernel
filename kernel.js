@@ -1784,7 +1784,7 @@ async function _kernel_fetch(event){
       D && console.log('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }
-    console.error('invalid web_exports '+path+' -> '+_path);
+    console.error('web_exports redirect partial implementation '+path+' -> '+_path);
     let lmod = npm_to_lpm(_path);
     return Response.redirect('/.lif/'+lmod);
   }
