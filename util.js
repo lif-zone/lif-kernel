@@ -2105,9 +2105,7 @@ export function _pkg_exports_lookup(pkg, file){
 export function pkg_exports_lookup(pkg, path){
   let file = path2rel(path);
   let tr = _pkg_exports_lookup(pkg, file);
-  if (!tr)
-    return;
-  return rel2path(tr);
+  return tr && rel2path(tr);
 }
 
 // XXX merge glob_match with pkg_exports_lookup() file matching
@@ -2711,39 +2709,40 @@ function test_util(){
   t('./abc/xxx/file.js', './*/file.js', './def/*.js', undefined);
   t('./abc/file.js', './*/file.js', './def/*', './def/abc');
   t('./abc/xxx/file.js', './*/file.js', './def/*', undefined);
-  t = (pkg, file, v)=>assert_obj(v, pkg_exports_lookup(pkg, file));
+  t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
+  t({exports: {'.': './exp'}}, '.', './exp');
+  t({exports: {'.': './exp'}}, './exp');
+  t({exports: {'.': './exp'}}, './package.json', './package.json');
+  t({main: './Main', exports: {'.': './exp'}}, '.', './exp');
+  t({main: './Main'}, '.', './Main');
+  t({main: './Main'}, './Main');
+  t({main: './Main', module: './Mod'}, './Mod');
+  t({main: './Main', exports: './Exp'}, './Exp');
+  t({exports: {'.': {server: './ser', default: './def'}}}, '.', './def');
+  t({exports: {'.': {default: './def', import: './imp', module: './mod'}}},
+    '.', './mod');
+  t({exports: {'.': {default: './def'}}, default: './Def'}, '.', './def');
+  t({exports: {'.': {default: './def'}}, import: './Imp'}, '.', './def');
+  t({exports: {'.': {import: './imp'}}, module: './Mod'}, '.', './imp');
+  t({exports: {'.': {require: './req'}}}, '.', './req');
+  t({exports: {'.': './exp'}}, './a');
+  t({exports: {'./a': './b'}}, './a', './b');
+  t({exports: {'./a': {default: './Def', import: './Imp'}}}, './a', './Imp');
+  t({exports: {'a': './b'}}, './a', './b');
+  t({exports: {'./a/*': './b/*'}}, './a/A', './b/A');
+  t({exports: {'./a/*.js': './b/*.esm'}}, './a/A'); // * allowed only at end
+  t({exports: {'./a/*': './b/*.esm'}}, './a/A', './b/A.esm');
+  t({exports: {'./a/*': './b/*.esm'}}, './a/A', './b/A.esm');
+  t({exports: {'./a/*': './b/*.esm'}}, './a/A', './b/A.esm');
+  t({browser: './br'}, '.', './br');
+  t({browser: './br', exports: './ex'}, '.', './ex');
+  t({browser: {'./a' : './br'}}, './a', './br');
+  t({browser: {'./a' : {default: './Def',  import: './Imp'}}}, './a', './Imp');
+  t = (pkg, file, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
   t({exports: {'.': './exp'}}, '/exp');
   t({exports: {'.': './exp'}}, '/package.json', '/package.json');
-  t({main: './Main', exports: {'.': './exp'}}, '', '/exp');
-  t({main: './Main'}, '', '/Main');
-  t({main: './Main'}, '/', '/Main');
-  t({main: './Main'}, '/Main');
-  //t({main: './Main'}, '/Main');
-  //t({main: '././Main'}, '/Main');
-  t({main: './Main', module: './Mod'}, '/Mod');
-  t({main: './Main', exports: './Exp'}, '/Exp');
-  t({exports: {'.': {server: './ser', default: './def'}}}, '', '/def');
-  t({exports: {'.': {default: './def', import: './imp', module: './mod'}}},
-    '', '/mod');
-  t({exports: {'.': {default: './def'}}, default: './Def'}, '', '/def');
-  t({exports: {'.': {default: './def'}}, import: './Imp'}, '', '/def');
-  t({exports: {'.': {import: './imp'}}, module: './Mod'}, '', '/imp');
-  t({exports: {'.': {require: './req'}}}, '', '/req');
-  t({exports: {'.': './exp'}}, '/a');
-  t({exports: {'./a': './b'}}, '/a', '/b');
-  t({exports: {'./a': {default: './Def', import: './Imp'}}}, '/a', '/Imp');
-  t({exports: {'a': './b'}}, '/a', '/b');
-  t({exports: {'./a/*': './b/*'}}, '/a/A', '/b/A');
-  t({exports: {'./a/*.js': './b/*.esm'}}, '/a/A'); // * allowed only at end
-  t({exports: {'./a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
-  t({exports: {'./a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
-  t({exports: {'./a/*': './b/*.esm'}}, '/a/A', '/b/A.esm');
-  t({browser: './br'}, '', '/br');
-  t({browser: './br', exports: './ex'}, '', '/ex');
-  t({browser: {'./a' : './br'}}, '/a', '/br');
-  t({browser: {'./a' : {default: './Def',  import: './Imp'}}}, '/a', '/Imp');
   let scr = Scroll('0123456789abcdef');
   t = v=>assert_eq(v, scr.out());
   scr.splice(3, 5, 'ABCD');
