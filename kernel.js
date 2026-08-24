@@ -1984,24 +1984,24 @@ function test_kernel(){
   t = (pkg, uri, v)=>assert_obj(v, pkg_web_export_lookup(pkg, uri));
   pkg = {web_exports: {
     '/dir': '/dir',
-    '/d1/d2/': './other/',
+    '/d1/d2/*': '/other/*',
     '/d1/file': '/d1/d2/d3',
     '/d1/dd': '/',
-    '/': '/public/',
+    '/*': '/public/*',
   }};
   t(pkg, '/file', '/public/file');
   t(pkg, '/dir/file', '/public/dir/file');
   t(pkg, '/dir', '/dir');
-  t(pkg, '/dir/', '/public/dir/');
-  t(pkg, '/d1/d2/file', './other/file');
+  t(pkg, '/dir/*', '/public/dir/*');
+  t(pkg, '/d1/d2/file', '/other/file');
   t(pkg, '/d1/dd/file', '/public/d1/dd/file');
   t(pkg, '/d1/dd', '/');
-  delete pkg.web_exports['/'];
+  delete pkg.web_exports['/*'];
   t(pkg, '/file', undefined);
   t(pkg, '/dir/file', undefined);
   t(pkg, '/dir', '/dir');
   t(pkg, '/dir/', undefined);
-  t(pkg, '/d1/d2/file', './other/file');
+  t(pkg, '/d1/d2/file', '/other/file');
   t(pkg, '/d1/dd/file', undefined);
   t(pkg, '/d1/dd', '/');
   t = (js, v)=>{

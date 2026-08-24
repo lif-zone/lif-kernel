@@ -14,7 +14,7 @@
   },
   "lif": {
     "web_exports": {
-      "/style.css": "./style.css"
+      "./style.css": "./style.css"
     },
     "webapp": "./main.tsx"
   },

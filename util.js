@@ -1950,30 +1950,6 @@ export function semver_ver_guess(semver_range){
   D && console.log('invalid op: '+op);
 }
 
-export function export_path_match(path, match, to){
-  let ret_val = typeof to=='string' ? null : to || true;
-  if (!to)
-    to = match;
-  let v, f = path, m = match;
-  while (v=str.starts(path, './'))
-    path = v.rest;
-  while (v=str.starts(match, './'))
-    match = v.rest;
-  if (match.endsWith('/')){
-    if (!(v = str.starts(path, match)))
-      return;
-    return ret_val || to+v.rest;
-  }
-  if (match.endsWith('*')){
-    let re = match_glob_to_regex(match);
-    if (!(v = path.match(re)))
-      return;
-    return ret_val || to.replace('*', v[1]);
-  }
-  if (path==match)
-    return ret_val || to;
-}
-
 // https://webpack.js.org/guides/package-exports/
 // check works with https://app.unpkg.com/rxjs@7.8.2/files/package.json
 // "exports": {
@@ -1990,9 +1966,9 @@ export function export_path_match(path, match, to){
 // only single * allowed in exports
 // exports_glob does reverse lookup: checks if path matches dst, and if so,
 // it looks up the relative src file for it.
-export function export_path_match2(path, match, tr){
+export function export_path_match(path, match, tr){
   if (path==match)
-    return tr;
+    return tr||true;
   let m = match.split('*');
   if (m.length==1)
     return;
@@ -2002,6 +1978,8 @@ export function export_path_match2(path, match, tr){
     return;
   if (!path.startsWith(m[0]) || !path.endsWith(m[1]))
     return;
+  if (!tr)
+    return true;
   // validate the '*' does not include '/'
   let replace = path.slice(m[0].length, -m[1].length||undefined);
   let t = tr.split('*');
@@ -2020,6 +1998,12 @@ export function path2rel(path){
 export function rel2path(rel){
   return rel=='.' ? '/' : rel.slice(1);
 }
+export function pkg_exports_lookup(pkg, path){
+  let file = path2rel(path);
+  let tr = _pkg_exports_lookup(pkg, file);
+  return tr && rel2path(tr);
+}
+
 export function _pkg_exports_lookup(pkg, file){
   function check_val(res, dst){
     let v;
@@ -2055,7 +2039,7 @@ export function _pkg_exports_lookup(pkg, file){
       parse_val(res, v.require);
   }
   function parse_section(val){
-    let res = [], tr;
+    let res = [];
     for (let [match, v] of OE(val)){
       if (typeof v=='string'
         ? !(v = export_path_match(file, match, v))
@@ -2100,12 +2084,6 @@ export function _pkg_exports_lookup(pkg, file){
   if (f!=file) // redirect
     D && console.log('export_lookup redirect '+file+' -> '+f);
   return f;
-}
-
-export function pkg_exports_lookup(pkg, path){
-  let file = path2rel(path);
-  let tr = _pkg_exports_lookup(pkg, file);
-  return tr && rel2path(tr);
 }
 
 // XXX merge glob_match with pkg_exports_lookup() file matching
@@ -2676,22 +2654,6 @@ function test_util(){
   t('1.2.3', '1.3.04', 1);
   t('1.2.3', '1.3.x', 1);
   t = (path, match, tr, v)=>assert_obj(v, export_path_match(path, match, tr));
-  t('file', 'file', null, true);
-  t('file', 'file', {x: 1}, {x: 1});
-  t('file', 'f', undefined);
-  t('.', '.', 'index.js', 'index.js');
-  t('esm/file.js', './esm/*', './esm/*', './esm/file.js');
-  t('file', './file', './file.js', './file.js');
-  t('dir/index.js', './dir/*', './dir/*', './dir/index.js');
-  t('file.js', './*', './*', './file.js');
-  t('.', '.', './index.js', './index.js');
-  t('esm/file.js', './esm/*', './esm/X*', './esm/Xfile.js');
-  t = (path, match, v)=>assert_eq(v, export_path_match(path, match));
-  t('esm/file.js', './esm/', true);
-  t('esm/file.js', './esm');
-  t('esm/file.js', './file.js');
-  t('file.js', './file.jss');
-  t = (path, match, tr, v)=>assert_obj(v, export_path_match2(path, match, tr));
   t('./file', './file', './file', './file');
   t('.', '.', '.', '.');
   t('.', './abc', './def', undefined);
@@ -2709,7 +2671,17 @@ function test_util(){
   t('./abc/xxx/file.js', './*/file.js', './def/*.js', undefined);
   t('./abc/file.js', './*/file.js', './def/*', './def/abc');
   t('./abc/xxx/file.js', './*/file.js', './def/*', undefined);
-  t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
+  t = (path, match, v)=>assert_eq(v, export_path_match(path, match));
+  t('./esm/file.js', './esm/*', true);
+  t('./esm/file.js', './esm/*.js', true);
+  t('./esm/file.js', './esm/*.css');
+  t('./esm/file.js', './esm');
+  t('./esm/file.js', './file.js');
+  t('./esm/file.js', './*/file.js', true);
+  t('./file.js', './file.jss');
+  t = (pkg, file, v)=>{
+    assert_obj(v, _pkg_exports_lookup(pkg, file));
+  };
   t({exports: {'.': './exp'}}, '.', './exp');
   t({exports: {'.': './exp'}}, './exp');
   t({exports: {'.': './exp'}}, './package.json', './package.json');
@@ -2728,7 +2700,7 @@ function test_util(){
   t({exports: {'.': './exp'}}, './a');
   t({exports: {'./a': './b'}}, './a', './b');
   t({exports: {'./a': {default: './Def', import: './Imp'}}}, './a', './Imp');
-  t({exports: {'a': './b'}}, './a', './b');
+  t({exports: {'./a': './b'}}, './a', './b');
   t({exports: {'./a/*': './b/*'}}, './a/A', './b/A');
   t({exports: {'./a/*.js': './b/*.esm'}}, './a/A'); // * allowed only at end
   t({exports: {'./a/*': './b/*.esm'}}, './a/A', './b/A.esm');
@@ -2738,7 +2710,7 @@ function test_util(){
   t({browser: './br', exports: './ex'}, '.', './ex');
   t({browser: {'./a' : './br'}}, './a', './br');
   t({browser: {'./a' : {default: './Def',  import: './Imp'}}}, './a', './Imp');
-  t = (pkg, file, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
+  t = (pkg, path, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
   t({exports: {'.': './exp'}}, '/exp');
