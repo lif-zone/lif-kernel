@@ -2008,6 +2008,15 @@ export function pkg_exports_lookup(pkg, path){
   return tr && rel2path(tr);
 }
 
+function export_file_fixup(file){
+  if (!file)
+    return;
+  if (file.startsWith('./'))
+    return file.length>2 ? file : undefined;
+  if (file[0]=='/' || file[0]=='.')
+    return; // invalid
+  return './'+file;
+}
 export function _pkg_exports_lookup(pkg, file){
   function check_val(res, dst){
     let v;
@@ -2064,18 +2073,23 @@ export function _pkg_exports_lookup(pkg, file){
   }
   function parse_pkg(){
     let exports = pkg.exports, v;
-    if (typeof exports=='string')
-      exports = {'.': exports};
-    if (v = parse_section(exports))
-      return v;
+    if (exports){
+      if (typeof exports=='string')
+        exports = {'.': exports};
+      if (v = parse_section(exports))
+        return v;
+      return;
+    }
     if (file=='.'){
-      return check_val([], pkg.browser) ||
+      v = check_val([], pkg.browser) ||
         check_val([], pkg.module) ||
         check_val([], pkg.main) ||
-        check_val([], 'index.js');
-    }
-    if (v = parse_section(pkg.browser))
-      return v;
+        check_val([], './index.js');
+    } else
+      v = parse_section(pkg.browser);
+    if (!v)
+      return;
+    return export_file_fixup(v);
   }
 
   // start package.json lookup
@@ -2690,8 +2704,15 @@ function test_util(){
   t('.', '/');
   t('./', '/');
   t('./abc', '/abc');
+  t = (file, fix)=>assert_eq(fix, export_file_fixup(file));
+  t(undefined, undefined);
+  t('.', undefined);
+  t('./', undefined);
+  t('/abc', undefined);
+  t('./abc', './abc');
+  t('abc', './abc');
   t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
-  //t({}, '.', './index.js');
+  t({}, '.', './index.js');
   t({exports: {'.': './exp'}}, '.', './exp');
   t({exports: {'.': './exp'}}, './exp');
   t({exports: {'.': './exp'}}, './package.json', './package.json');
