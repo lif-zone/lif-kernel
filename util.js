@@ -1993,9 +1993,13 @@ export function export_path_match(path, match, tr){
 }
 
 export function path2rel(path){
+  if (path[0] && path[0]!='/')
+    throw Error('invalid path '+path);
   return !path || path=='/' ? '.' : '.'+path;
 }
 export function rel2path(rel){
+  if (rel[0]!='.' || (rel[1] && rel[1]!='/'))
+    throw Error('invalid rel path '+rel);
   return rel=='.' ? '/' : rel.slice(1);
 }
 export function pkg_exports_lookup(pkg, path){
@@ -2679,9 +2683,15 @@ function test_util(){
   t('./esm/file.js', './file.js');
   t('./esm/file.js', './*/file.js', true);
   t('./file.js', './file.jss');
-  t = (pkg, file, v)=>{
-    assert_obj(v, _pkg_exports_lookup(pkg, file));
-  };
+  t = (path, file)=>assert_eq(file, path2rel(path));
+  t('', '.');
+  t('/abc', './abc');
+  t = (file, path)=>assert_eq(path, rel2path(file));
+  t('.', '/');
+  t('./', '/');
+  t('./abc', '/abc');
+  t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
+  //t({}, '.', './index.js');
   t({exports: {'.': './exp'}}, '.', './exp');
   t({exports: {'.': './exp'}}, './exp');
   t({exports: {'.': './exp'}}, './package.json', './package.json');
