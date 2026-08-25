@@ -2719,7 +2719,9 @@ function test_util(){
   t({main: './Main', exports: {'.': './exp'}}, '.', './exp');
   t({main: './Main'}, '.', './Main');
   t({main: './Main'}, './Main');
+  t({main: 'Main'}, './Main');
   t({main: './Main', module: './Mod'}, './Mod');
+  t({main: './Main', module: 'Mod'}, './Mod');
   t({main: './Main', exports: './Exp'}, './Exp');
   t({exports: {'.': {server: './ser', default: './def'}}}, '.', './def');
   t({exports: {'.': {default: './def', import: './imp', module: './mod'}}},
@@ -2738,6 +2740,7 @@ function test_util(){
   t({exports: {'./a/*': './b/*.esm'}}, './a/A', './b/A.esm');
   t({exports: {'./a/*': './b/*.esm'}}, './a/A', './b/A.esm');
   t({browser: './br'}, '.', './br');
+  t({browser: 'br'}, '.', './br');
   t({browser: './br', exports: './ex'}, '.', './ex');
   t({browser: {'./a' : './br'}}, './a', './br');
   t({browser: {'./a' : {default: './Def',  import: './Imp'}}}, './a', './Imp');
