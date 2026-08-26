@@ -4,12 +4,13 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import js from '@eslint/js';
 import json from '@eslint/json';
-
 export default [{
   plugins: {},
   languageOptions: {
     globals: {
-      ...globals.browser,
+      // import restricted from "confusing-browser-globals";
+      // rules: {"no-restricted-globals": ["error", ...restricted]}
+      ...globals.browser, // XXX: remove name, status, event, length...
       ...globals.node,
       ...globals.mocha,
     },

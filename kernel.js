@@ -44,16 +44,17 @@ function db_upgrade(db, table, opt){
   }
 }
 
+let cache_ver = 18;
 async function db_open(){
   if (!db){
-    db = await idb.openDB('lif-kernel', 17, {
+    db = await idb.openDB('lif-kernel', cache_ver, {
       upgrade(db, old_ver, new_ver){
+        let opt = {del_create: true};
         console.log('upgrade cache db '+old_ver+' -> '+new_ver);
-        db_upgrade(db, 'js_to_meta', {keyPath: ['h_js']});
-        db_upgrade(db, 'tsx_to_js',
-          {keyPath: ['h_tsx'], del_create: old_ver<13});
-        db_upgrade(db, 'lpm_file', {keyPath: ['lmod']});
-        db_upgrade(db, 'lpm_ver', {keyPath: ['lmod']});
+        db_upgrade(db, 'js_to_meta', {keyPath: ['h_js'], ...opt});
+        db_upgrade(db, 'tsx_to_js', {keyPath: ['h_tsx'], ...opt});
+        db_upgrade(db, 'lpm_file', {keyPath: ['lmod'], ...opt});
+        db_upgrade(db, 'lpm_ver', {keyPath: ['lmod'], ...opt});
       }
     });
   }
@@ -438,31 +439,6 @@ function tr_js_to_ast(js){
     let has = ast.has = {};
     function _handle_import_source(path){
       let n = path.node;
-      if (n.source.type=='StringLiteral'){
-        let s = n.source;
-        let v = s.value;
-        let {type} = ast_get_scope_type(path, {try: 1});
-        let imported = [];
-        n.specifiers?.forEach(spec=>{
-          if (spec.type=='ImportSpecifier')
-            imported.push(spec.imported.name);
-          if (spec.type=='ImportNamespaceSpecifier'){
-            let bind = path.scope.getBinding(spec.local.name);
-            bind.referencePaths.forEach(ref=>{
-              let cont = ref.container;
-              if (cont.type=='MemberExpression')
-                imported.push(cont.property.name);
-            });
-          }
-        });
-        imported = array_unique(imported).sort();
-        ast.imports.push({module: v, start: s.start, end: s.end, type,
-          imported: imported.length ? imported : null});
-      }
-    }
-    if (0){
-    function _handle_import_source(path){
-      let n = path.node;
       let s = n.source;
       if (s.type!='StringLiteral')
         return;
@@ -485,7 +461,6 @@ function tr_js_to_ast(js){
       ast.imports.push({module: v, start: s.start, end: s.end, type,
         imported: imported.length ? imported : null});
     }
-    }
     function _handle_export_source(path){
       let n = path.node;
       let s = n.source;
@@ -498,13 +473,26 @@ function tr_js_to_ast(js){
         if (spec.type=='ExportSpecifier')
           imported.push(spec.exported.name);
         if (spec.type=='ExportNamespaceSpecifier'){
-          let bind = path.scope.getBinding(spec.exported.name);
-          if (!bind)
-            return;
-          bind.referencePaths.forEach(ref=>{
-            let cont = ref.container;
-            if (cont.type=='MemberExpression')
-              imported.push(cont.property.name);
+          // bind is null: bind = path.scope.getBinding(spec.exported.name);
+          // there is a bug in babeljs that it does not bind named re-exports
+          // so need to manually find the uses of these identifiers
+          // and make sure they are not shadowed
+          debugger;
+          let name = spec.exported.name;
+          path.scope.getProgramParent().path.traverse({
+            Identifier(refPath){
+              if (refPath.node.name!==name)
+                return;
+              if (!refPath.isReferencedIdentifier())
+                return;
+              if (refPath.scope.getBinding(name))
+                return; // shadowed
+              if (refPath.parentPath.isExportNamespaceSpecifier())
+                return;
+              let cont = refPath.container;
+              if (cont.type=='MemberExpression')
+                imported.push(cont.property.name);
+            },
           });
         }
       });
@@ -1462,7 +1450,7 @@ async function cache_store_init(){
   let cs = cache_store;
   if (!cs.enable || cs.inited)
     return;
-  cs.cache = await caches.open('lif-cache-v2');
+  cs.cache = await globalThis.caches.open('lif-cache-v'+cache_ver);
   cs.inited = true;
 }
 await cache_store_init();
@@ -2098,6 +2086,14 @@ function test_kernel(){
   t(`export * as a from "lif";`,
     {type: 'mjs', imports: [
       {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
+    });
+  t(`import * as a from "lif"; let b = a.A || a.AA;`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['A', 'AA'], module: 'lif', start: 19, end: 24}]
+    });
+  t(`export * as a from "lif"; let b = a.A || a.AA;`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['A', 'AA'], module: 'lif', start: 19, end: 24}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
   t(`export function a(){}`, {type: 'mjs'});
