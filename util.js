@@ -257,7 +257,7 @@ export function assert_obj(exp, res){
     return;
   if (typeof exp=='object'){
     assert(typeof res=='object', 'exp', exp, 'res', res);
-    if (exp===null)
+    if (!exp || !res)
       return assert_eq(exp, res);
     for (let i in exp)
       assert_obj(exp[i], res[i]);
