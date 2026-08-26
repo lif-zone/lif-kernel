@@ -735,7 +735,7 @@ function mjs_import_cjs(path, q){
   }
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export const __esModule = false;\n`;
-  js += `if (exports.__esModule && exports.default) exports = exports.default;\n`;
+  js += `if (!exports.__esModule && exports.default) exports = exports.default;\n`;
   js += `export default exports;\n`;
   return js;
 }
