@@ -499,6 +499,8 @@ function tr_js_to_ast(js){
           imported.push(spec.exported.name);
         if (spec.type=='ExportNamespaceSpecifier'){
           let bind = path.scope.getBinding(spec.exported.name);
+          if (!bind)
+            return;
           bind.referencePaths.forEach(ref=>{
             let cont = ref.container;
             if (cont.type=='MemberExpression')
