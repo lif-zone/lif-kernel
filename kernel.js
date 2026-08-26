@@ -477,7 +477,6 @@ function tr_js_to_ast(js){
           // there is a bug in babeljs that it does not bind named re-exports
           // so need to manually find the uses of these identifiers
           // and make sure they are not shadowed
-          debugger;
           let name = spec.exported.name;
           path.scope.getProgramParent().path.traverse({
             Identifier(refPath){
