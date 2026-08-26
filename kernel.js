@@ -1790,8 +1790,8 @@ async function _kernel_fetch(event){
     // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
     // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
     // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
-    if (_path.startsWith('./')){
-      _path = '/.lif/'+lpm_app+_path.slice(1)+'?raw=1';
+    if (_path.startsWith('/')){
+      _path = '/.lif/'+lpm_app+_path+'?raw=1';
       D && console.log('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }
