@@ -2105,7 +2105,7 @@ export function pkg_exports_lookup(pkg, path){
   return tr && rel2path(tr);
 }
 
-export function _pkg_web_exports_lookup(pkg, file){
+export function pkg_web_exports_lookup(pkg, file){
   function lookup(exports){
     if (!exports)
       return;
@@ -2120,11 +2120,6 @@ export function _pkg_web_exports_lookup(pkg, file){
     return v;
   if (v=lookup(pkg.web_exports))
     return v;
-}
-export function pkg_web_exports_lookup(pkg, path){
-  let file = path2rel(path);
-  let tr = _pkg_web_exports_lookup(pkg, file);
-  return tr && rel2path(tr);
 }
 
 // XXX merge glob_match with pkg_exports_lookup() file matching
@@ -2772,7 +2767,7 @@ function test_util(){
   t({exports: {'.': './exp'}}, '/', '/exp');
   t({exports: {'.': './exp'}}, '/exp');
   t({exports: {'.': './exp'}}, '/package.json', '/package.json');
-  t = (pkg, file, v)=>assert_obj(v, _pkg_web_exports_lookup(pkg, file));
+  t = (pkg, file, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, file));
   t({web_exports: {'./abc': './def'}}, './abc', './def');
   t({web_exports: {'./abc': './def'}}, './abc/x');
   t({web_exports: {'./abc/*': './def/*'}}, './abc');
@@ -2782,9 +2777,7 @@ function test_util(){
   t({web_exports: {'./abc/*/test': './def/*'}}, './abc/x/y/test');
   t({web_exports: {'./abc/*.js': './def/*.css'}}, './abc/x.js', './def/x.css');
   t({web_exports: {'./abc/*.js': './def/*.css'}}, './abc/x/y.js');
-  t = (pkg, path, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, path));
-  t({web_exports: {'./abc': './def'}}, '/abc', '/def');
-  t = (pkg, uri, v)=>assert_obj(v, _pkg_web_exports_lookup(pkg, uri));
+  t = (pkg, uri, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, uri));
   let pkg = {web_exports: {
     './dir': './dir',
     './d1/d2/*': './other/*',
