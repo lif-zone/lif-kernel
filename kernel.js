@@ -13,7 +13,8 @@ const {ipc_postmessage, str, OE, OA, OV, assert, ecache, json_cp,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   npm_browser_parse,
   uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
-  pkg_exports_lookup, export_path_match, str_to_buf, pkg_transform_type,
+  pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
+  pkg_transform_type, str_to_buf,
   eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
   ewait, Donce} = util;
 const {qw} = str;
@@ -850,23 +851,6 @@ function pkg_dep_lookup({lpm_pkg, imp}){
   found.peer = get_imp(pkg.lif?.peerDependencies, true);
   found.peer ||= get_imp(pkg.peerDependencies, true);
   return found;
-}
-
-function pkg_web_export_lookup(pkg, path){
-  function lookup(exports){
-    if (!exports)
-      return;
-    for (let [match, to] of OE(exports)){
-      let v;
-      if (v=export_path_match(path, match, to))
-        return v;
-    }
-  }
-  let v;
-  if (v=lookup(pkg.lif?.web_exports))
-    return v;
-  if (v=lookup(pkg.web_exports))
-    return v;
 }
 
 function pkg_alt_get(pkg, file){
@@ -1801,7 +1785,7 @@ async function _kernel_fetch(event){
   let _path;
   if (!lpm_pkg_app || !lpm_pkg_app.pkg)
     console.info('req before lpm_pkg_app init '+path);
-  else if (_path = pkg_web_export_lookup(lpm_pkg_app.pkg, path)){
+  else if (_path = pkg_web_exports_lookup(lpm_pkg_app.pkg, path)){
     // XXX: move to separate funciton, and handle all exports, incluging
     // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
     // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
@@ -2008,29 +1992,6 @@ function test_kernel(){
   t('a/file.ico', ['.xjs'], undefined);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
   // check 'package.json' is not modified, even if pkg is null
-  t = (pkg, uri, v)=>assert_obj(v, pkg_web_export_lookup(pkg, uri));
-  pkg = {web_exports: {
-    '/dir': '/dir',
-    '/d1/d2/*': '/other/*',
-    '/d1/file': '/d1/d2/d3',
-    '/d1/dd': '/',
-    '/*': '/public/*',
-  }};
-  t(pkg, '/file', '/public/file');
-  t(pkg, '/dir/file', '/public/dir/file');
-  t(pkg, '/dir', '/dir');
-  t(pkg, '/dir/*', '/public/dir/*');
-  t(pkg, '/d1/d2/file', '/other/file');
-  t(pkg, '/d1/dd/file', '/public/d1/dd/file');
-  t(pkg, '/d1/dd', '/');
-  delete pkg.web_exports['/*'];
-  t(pkg, '/file', undefined);
-  t(pkg, '/dir/file', undefined);
-  t(pkg, '/dir', '/dir');
-  t(pkg, '/dir/', undefined);
-  t(pkg, '/d1/d2/file', '/other/file');
-  t(pkg, '/d1/dd/file', undefined);
-  t(pkg, '/d1/dd', '/');
   t = (js, v)=>{
     let node = parser.parse(js, {sourceType: 'script'});
     let ret;

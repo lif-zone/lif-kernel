@@ -2004,12 +2004,6 @@ export function rel2path(rel){
     throw Error('invalid rel path '+rel);
   return rel=='.' ? '/' : rel.slice(1);
 }
-export function pkg_exports_lookup(pkg, path){
-  let file = path2rel(path);
-  let tr = _pkg_exports_lookup(pkg, file);
-  return tr && rel2path(tr);
-}
-
 function export_file_fixup(file){
   if (!file)
     return;
@@ -2104,6 +2098,33 @@ export function _pkg_exports_lookup(pkg, file){
   if (f!=file) // redirect
     D && console.log('export_lookup redirect '+file+' -> '+f);
   return f;
+}
+export function pkg_exports_lookup(pkg, path){
+  let file = path2rel(path);
+  let tr = _pkg_exports_lookup(pkg, file);
+  return tr && rel2path(tr);
+}
+
+export function _pkg_web_exports_lookup(pkg, file){
+  function lookup(exports){
+    if (!exports)
+      return;
+    for (let [match, tr] of OE(exports)){
+      let v;
+      if (v=export_path_match(file, match, tr))
+        return v;
+    }
+  }
+  let v;
+  if (v=lookup(pkg.lif?.web_exports))
+    return v;
+  if (v=lookup(pkg.web_exports))
+    return v;
+}
+export function pkg_web_exports_lookup(pkg, path){
+  let file = path2rel(path);
+  let tr = _pkg_web_exports_lookup(pkg, file);
+  return tr && rel2path(tr);
 }
 
 // XXX merge glob_match with pkg_exports_lookup() file matching
@@ -2751,6 +2772,41 @@ function test_util(){
   t({exports: {'.': './exp'}}, '/', '/exp');
   t({exports: {'.': './exp'}}, '/exp');
   t({exports: {'.': './exp'}}, '/package.json', '/package.json');
+  t = (pkg, file, v)=>assert_obj(v, _pkg_web_exports_lookup(pkg, file));
+  t({web_exports: {'./abc': './def'}}, './abc', './def');
+  t({web_exports: {'./abc': './def'}}, './abc/x');
+  t({web_exports: {'./abc/*': './def/*'}}, './abc');
+  t({web_exports: {'./abc/*': './def/*'}}, './abc/x', './def/x');
+  t({web_exports: {'./abc/*': './def/*'}}, './abc/x/y', './def/x/y');
+  t({web_exports: {'./abc/*/test': './def/*'}}, './abc/x/test', './def/x');
+  t({web_exports: {'./abc/*/test': './def/*'}}, './abc/x/y/test');
+  t({web_exports: {'./abc/*.js': './def/*.css'}}, './abc/x.js', './def/x.css');
+  t({web_exports: {'./abc/*.js': './def/*.css'}}, './abc/x/y.js');
+  t = (pkg, path, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, path));
+  t({web_exports: {'./abc': './def'}}, '/abc', '/def');
+  t = (pkg, uri, v)=>assert_obj(v, _pkg_web_exports_lookup(pkg, uri));
+  let pkg = {web_exports: {
+    './dir': './dir',
+    './d1/d2/*': './other/*',
+    './d1/file': './d1/d2/d3',
+    './d1/dd': './',
+    './*': './public/*',
+  }};
+  t(pkg, './file', './public/file');
+  t(pkg, './dir/file', './public/dir/file');
+  t(pkg, './dir', './dir');
+  t(pkg, './dir/*', './public/dir/*');
+  t(pkg, './d1/d2/file', './other/file');
+  t(pkg, './d1/dd/file', './public/d1/dd/file');
+  t(pkg, './d1/dd', './');
+  delete pkg.web_exports['./*'];
+  t(pkg, './file', undefined);
+  t(pkg, './dir/file', undefined);
+  t(pkg, './dir', './dir');
+  t(pkg, './dir/', undefined);
+  t(pkg, './d1/d2/file', './other/file');
+  t(pkg, './d1/dd/file', undefined);
+  t(pkg, './d1/dd', './');
   let scr = Scroll('0123456789abcdef');
   t = v=>assert_eq(v, scr.out());
   scr.splice(3, 5, 'ABCD');
