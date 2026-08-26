@@ -438,6 +438,31 @@ function tr_js_to_ast(js){
     let has = ast.has = {};
     function _handle_import_source(path){
       let n = path.node;
+      if (n.source.type=='StringLiteral'){
+        let s = n.source;
+        let v = s.value;
+        let {type} = ast_get_scope_type(path, {try: 1});
+        let imported = [];
+        n.specifiers?.forEach(spec=>{
+          if (spec.type=='ImportSpecifier')
+            imported.push(spec.imported.name);
+          if (spec.type=='ImportNamespaceSpecifier'){
+            let bind = path.scope.getBinding(spec.local.name);
+            bind.referencePaths.forEach(ref=>{
+              let cont = ref.container;
+              if (cont.type=='MemberExpression')
+                imported.push(cont.property.name);
+            });
+          }
+        });
+        imported = array_unique(imported).sort();
+        ast.imports.push({module: v, start: s.start, end: s.end, type,
+          imported: imported.length ? imported : null});
+      }
+    }
+    if (0){
+    function _handle_import_source(path){
+      let n = path.node;
       let s = n.source;
       if (s.type!='StringLiteral')
         return;
@@ -447,12 +472,19 @@ function tr_js_to_ast(js){
       n.specifiers?.forEach(spec=>{
         if (spec.type=='ImportSpecifier')
           imported.push(spec.imported.name);
-        if (spec.type=='ImportNamespaceSpecifier')
-          ; // unused spec.local.name
+        if (spec.type=='ImportNamespaceSpecifier'){
+          let bind = path.scope.getBinding(spec.local.name);
+          bind.referencePaths.forEach(ref=>{
+            let cont = ref.container;
+            if (cont.type=='MemberExpression')
+              imported.push(cont.property.name);
+          });
+        }
       });
       imported = array_unique(imported).sort();
       ast.imports.push({module: v, start: s.start, end: s.end, type,
         imported: imported.length ? imported : null});
+    }
     }
     function _handle_export_source(path){
       let n = path.node;
@@ -465,8 +497,14 @@ function tr_js_to_ast(js){
       n.specifiers?.forEach(spec=>{
         if (spec.type=='ExportSpecifier')
           imported.push(spec.exported.name);
-        if (spec.type=='ExportNamespaceSpecifier')
-          ; // unused spec.exported.name
+        if (spec.type=='ExportNamespaceSpecifier'){
+          let bind = path.scope.getBinding(spec.exported.name);
+          bind.referencePaths.forEach(ref=>{
+            let cont = ref.container;
+            if (cont.type=='MemberExpression')
+              imported.push(cont.property.name);
+          });
+        }
       });
       imported = array_unique(imported).sort();
       ast.imports.push({module: v, start: s.start, end: s.end, type,
