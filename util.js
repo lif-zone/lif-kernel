@@ -2098,11 +2098,20 @@ export function pkg_web_exports_lookup(pkg, file){
   function lookup(exports){
     if (!exports)
       return;
-    for (let [match, tr] of OE(exports)){
+    let tr = exports[file];
+    if (tr)
+      return tr;
+    let best = '';
+    for (let [match, _tr] of OE(exports)){
       let v;
-      if (v=export_path_match(file, match, tr))
-        return v;
+      if (match.length<=best.length || !match.includes('*'))
+        continue;
+      if (!(v=export_path_match(file, match, _tr)))
+        continue;
+      best = match;
+      tr = v;
     }
+    return tr;
   }
   let v;
   if (v=lookup(pkg.lif?.web_exports))
