@@ -2789,6 +2789,7 @@ function test_util(){
     './d1/file': './d1/d2/d3',
     './d1/dd': './',
     './*': './public/*',
+    './abc/*.js': './def/*.esm',
   }};
   t(pkg, './file', './public/file');
   t(pkg, './dir/file', './public/dir/file');
@@ -2797,6 +2798,7 @@ function test_util(){
   t(pkg, './d1/d2/file', './other/file');
   t(pkg, './d1/dd/file', './public/d1/dd/file');
   t(pkg, './d1/dd', './');
+  t(pkg, './abc/x.js', './def/x.esm');
   delete pkg.web_exports['./*'];
   t(pkg, './file', undefined);
   t(pkg, './dir/file', undefined);
