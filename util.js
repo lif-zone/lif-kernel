@@ -1990,7 +1990,7 @@ export function export_path_match(path, match, tr){
   if (replace.includes('/') && (m[1] || t[1]))
     return;
   if (t.length!=2)
-    return void console.warn('exports invalid tr '+tr);
+    return void console.warn('exports invalid target '+tr);
   return t[0]+replace+t[1];
 }
 
@@ -2014,73 +2014,62 @@ function export_file_fixup(file){
   return './'+file;
 }
 export function _pkg_exports_lookup(pkg, file){
-  function check_val(res, dst){
-    let v;
+  function check_val(dst){
     if (typeof dst!='string')
       return;
-    if (!dst.includes('*')){
-      res.push(v = dst);
-      return v;
-    }
-    let dfile = path_file(dst);
-    let ddir = path_dir(dst);
-    if (ddir.includes('*') || dfile!='*')
-      throw Error('module('+pkg.name+' dst match * ('+dst+') unsupported');
-    res.push(v = dst.slice(0, -1)+dfile);
-    return v;
+    return dst;
   }
-  function parse_val(res, v){
-    if (typeof v=='string')
-      return check_val(res, v);
-    if (typeof v!='object')
+  function parse_target(tr){
+    if (typeof tr=='string')
+      return check_val(tr);
+    if (!tr || typeof tr!='object')
       return;
-    if (Array.isArray(v)){
-      for (let e of v){
-        if (parse_val(e))
-          return;
+    if (Array.isArray(tr)){
+      for (let e of tr){
+        let v;
+        if (v=parse_target(e))
+          return v;
       }
       return;
     }
-    return parse_val(res, v.browser) ||
-      parse_val(res, v.module) ||
-      parse_val(res, v.import) ||
-      parse_val(res, v.default) ||
-      parse_val(res, v.require);
+    return parse_target(tr.browser) ||
+      parse_target(tr.module) ||
+      parse_target(tr.import) ||
+      parse_target(tr.default) ||
+      parse_target(tr.require);
   }
-  function parse_section(val){
-    let res = [];
-    for (let [match, v] of OE(val)){
-      if (typeof v=='string'
-        ? !(v = export_path_match(file, match, v))
-        : !export_path_match(file, match))
-      {
+  function parse_section(sec){
+    if (!sec)
+      return;
+    let tr = sec[file];
+    if (tr)
+      return parse_target(tr);
+    let best = '';
+    for (let [match, _tr] of OE(sec)){
+      if (match.length<=best.length || !match.includes('*'))
         continue;
-      }
-      parse_val(res, v);
+      if (!export_path_match(file, match))
+        continue;
+      best = match;
+      tr = _tr;
     }
-    let best = res[0];
-    if (!best)
+    let _tr = parse_target(tr);
+    if (!_tr)
       return;
-    res.forEach(r=>{
-      if (r.length > best.length)
-        best = r;
-    });
-    return best;
+    return export_path_match(file, best, _tr);
   }
   function parse_pkg(){
     let exports = pkg.exports, v;
     if (exports){
       if (typeof exports=='string')
         exports = {'.': exports};
-      if (v = parse_section(exports))
-        return v;
-      return;
+      return parse_section(exports);
     }
     if (file=='.'){
-      v = check_val([], pkg.browser) ||
-        check_val([], pkg.module) ||
-        check_val([], pkg.main) ||
-        check_val([], './index.js');
+      v = check_val(pkg.browser) ||
+        check_val(pkg.module) ||
+        check_val(pkg.main) ||
+        check_val('./index.js');
     } else
       v = parse_section(pkg.browser);
     if (!v)
@@ -2762,6 +2751,10 @@ function test_util(){
   t({browser: './br', exports: './ex'}, '.', './ex');
   t({browser: {'./a' : './br'}}, './a', './br');
   t({browser: {'./a' : {default: './Def',  import: './Imp'}}}, './a', './Imp');
+  t({exports: {'./a': ['./b']}}, './a', './b');
+  t({exports: {'./a': ['./b']}}, './a', './b');
+  t({exports: {'./a': [{default: './c'}, './b']}}, './a', './c');
+  t({exports: {'./a': [{default: null}, null, './b']}}, './a', './b');
   t = (pkg, path, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
