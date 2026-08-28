@@ -1767,7 +1767,7 @@ async function _kernel_fetch(event){
     if (q.get('meta')){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod});
       if (meta.err)
-        console.error('parse '+url+': '+res.err);
+        console.error('parse '+url+': '+meta.err);
       return send_res({body: json(meta), ext: 'json', path});
     }
     let response = await cache_store_get(request);
