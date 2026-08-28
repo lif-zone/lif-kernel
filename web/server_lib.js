@@ -208,9 +208,9 @@ function http_listener(req, res){
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'no map found');
   let dest = req.headers['sec-fetch-dest'];
-  let mode = req.headers['sec-fetch-mode'];
+  //let mode = req.headers['sec-fetch-mode'];
   let lif_kernel = g_opt.map['/lif-kernel'];
-  if (dest=='document' || mode=='navigate') // SPA
+  if (dest=='document' || dest=='iframe' || dest=='frame') // SPA
     return res_send_file(res, lif_kernel+'/index.html');
   return res_err(res, 404, 'no map found');
 }
