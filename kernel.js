@@ -762,8 +762,8 @@ function mjs_import_cjs(path, q){
     js += `$lif_message.q.forEach(e=>globalThis.dispatchEvent(e)); `;
   }
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
-  js += `export const __esModule = false;\n`;
-  js += `if (!exports.__esModule && exports.default) exports = exports.default;\n`;
+  //js += `export const __esModule = false;\n`;
+  js += `if (exports.__esModule && exports.default) exports = exports.default;\n`;
   js += `export default exports;\n`;
   return js;
 }
