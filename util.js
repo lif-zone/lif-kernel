@@ -2755,6 +2755,9 @@ function test_util(){
   t({exports: {'./a': ['./b']}}, './a', './b');
   t({exports: {'./a': [{default: './c'}, './b']}}, './a', './c');
   t({exports: {'./a': [{default: null}, null, './b']}}, './a', './b');
+  t({exports: {'./a*': './1*', './ab*': './2*'}}, './abc', './2c');
+  t({exports: {'./ab*': './1*', './a*': './2*'}}, './abc', './1c');
+  t({exports: {'./*': './B*', './abc': './A'}}, './abc', './A');
   t = (pkg, path, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
