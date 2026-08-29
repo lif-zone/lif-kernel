@@ -2087,10 +2087,11 @@ export function _pkg_exports_lookup(pkg, file){
       return;
     return export_file_fixup(v);
   }
-
   // start package.json lookup
   if (file=='./package.json')
     return file;
+  if (file=='./')
+    file = '.';
   let v;
   let f = parse_pkg();
   if (!f)
@@ -2745,8 +2746,10 @@ function test_util(){
   t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
   t({}, '.', './index.js');
   t({exports: {'.': './exp'}}, '.', './exp');
+  t({exports: {'.': './exp'}}, './', './exp');
   t({exports: {'.': './exp'}}, './exp');
   t({exports: {'.': './exp'}}, './package.json', './package.json');
+  t({exports: {'./package.json': './x'}}, './package.json', './package.json');
   t({exports: {'.': './exp'}, lif: {exports: {'.': './abc'}}}, '.', './abc');
   t({main: './Main', exports: {'.': './exp'}}, '.', './exp');
   t({main: './Main', exports: {'./x': './exp'}}, '.');

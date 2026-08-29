@@ -13,7 +13,7 @@ const {ipc_postmessage, str, OE, OA, OV, assert, ecache, json_cp,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
   npm_browser_parse,
   uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
-  pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
+  _pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
   pkg_transform_type, str_to_buf,
   eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
   ewait, Donce} = util;
@@ -1169,11 +1169,11 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   if (lpm_pkg.redirect)
     return OA(f, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
   let path = T_lpm_parse(lmod).path;
-  let _path = pkg_exports_lookup(pkg, path);
-  if (_path && _path!=path){
+  let _path = _pkg_exports_lookup(pkg, '.'+path);
+  if (_path && _path!='.'+path){
     let _uri;
-    if (_path[0]=='/')
-      _uri = T_lpm_lmod(lmod)+_path;
+    if (_path[0]=='.')
+      _uri = T_lpm_lmod(lmod)+_path.slice(1);
     else
       _uri = T_npm_to_lpm(_path);
     D && console.log('redirect export '+lmod+' -> '+_uri);
