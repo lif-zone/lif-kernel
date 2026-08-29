@@ -2767,6 +2767,7 @@ function test_util(){
   t({exports: {'./a*': './1*', './ab*': './2*'}}, './abc', './2c');
   t({exports: {'./ab*': './1*', './a*': './2*'}}, './abc', './1c');
   t({exports: {'./*': './B*', './abc': './A'}}, './abc', './A');
+  t({exports: {'./dir/*': 'npm:mod/*'}}, './dir/a/b', 'npm:mod/a/b');
   t = (pkg, path, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
   t({exports: {'.': './exp'}}, '', '/exp');
   t({exports: {'.': './exp'}}, '/', '/exp');
@@ -2782,6 +2783,7 @@ function test_util(){
   t({web_exports: {'./abc/*/test': './def/*'}}, './abc/x/y/test');
   t({web_exports: {'./abc/*.js': './def/*.css'}}, './abc/x.js', './def/x.css');
   t({web_exports: {'./abc/*.js': './def/*.css'}}, './abc/x/y.js');
+  t({web_exports: {'./dir/*': 'npm:mod/*'}}, './dir/a/b', 'npm:mod/a/b');
   t = (pkg, uri, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, uri));
   let pkg = {web_exports: {
     './dir': './dir',
