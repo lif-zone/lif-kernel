@@ -1999,16 +1999,21 @@ export function path2rel(path){
     throw Error('invalid path '+path);
   return !path || path=='/' ? '.' : '.'+path;
 }
+let proto_re = /^[a-z][a-z0-9_+-]+:/;
 export function rel2path(rel){
-  if (rel[0]!='.' || (rel[1] && rel[1]!='/'))
-    throw Error('invalid rel path '+rel);
-  return rel=='.' ? '/' : rel.slice(1);
+  if (rel[0]=='.')
+    return rel=='.' ? '/' : rel.slice(1);
+  if (proto_re.test(rel))
+    return rel; 
+  console.warn('invalid export '+rel);
 }
 function export_file_fixup(file){
   if (!file)
     return;
   if (file.startsWith('./'))
     return file.length>2 ? file : undefined;
+  if (proto_re.test(file))
+    return file;
   if (file[0]=='/' || file[0]=='.')
     return; // invalid
   return './'+file;
@@ -2721,11 +2726,14 @@ function test_util(){
   t('./file.js', './file.jss');
   t = (path, file)=>assert_eq(file, path2rel(path));
   t('', '.');
+  t('/', '.');
   t('/abc', './abc');
   t = (file, path)=>assert_eq(path, rel2path(file));
   t('.', '/');
   t('./', '/');
   t('./abc', '/abc');
+  t('npm:mod/abc', 'npm:mod/abc');
+  t('github:user/repo/abc', 'github:user/repo/abc');
   t = (file, fix)=>assert_eq(fix, export_file_fixup(file));
   t(undefined, undefined);
   t('.', undefined);
@@ -2733,6 +2741,7 @@ function test_util(){
   t('/abc', undefined);
   t('./abc', './abc');
   t('abc', './abc');
+  t('npm:abc', 'npm:abc');
   t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
   t({}, '.', './index.js');
   t({exports: {'.': './exp'}}, '.', './exp');

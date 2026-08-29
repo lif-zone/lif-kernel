@@ -1171,7 +1171,11 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   let path = T_lpm_parse(lmod).path;
   let _path = pkg_exports_lookup(pkg, path);
   if (_path && _path!=path){
-    let _uri = T_lpm_lmod(lmod)+_path;
+    let _uri;
+    if (_path[0]=='/')
+      _uri = T_lpm_lmod(lmod)+_path;
+    else
+      _uri = T_npm_to_lpm(_path);
     D && console.log('redirect export '+lmod+' -> '+_uri);
     return OA(f, {redirect: _uri});
   }
