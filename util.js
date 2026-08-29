@@ -5,6 +5,7 @@ export const version = util_version;
 const is_worker = !globalThis.window;
 export const is_node = globalThis.process?.versions?.node!==undefined;
 let D = 0; // Debug
+let in_test = 0;
 
 const EventEmitter = (await import(is_node ? 'events' : './compat/events.js')).default;
 
@@ -1975,7 +1976,7 @@ export function export_path_match(path, match, tr){
   if (m.length==1)
     return;
   if (m.length>2)
-    return void console.warn('exports invalid match '+match);
+    return void !in_test && console.warn('exports invalid match '+match);
   if (path.length<m[0].length+m[1].length)
     return;
   if (!path.startsWith(m[0]) || !path.endsWith(m[1]))
@@ -1990,23 +1991,11 @@ export function export_path_match(path, match, tr){
   if (replace.includes('/') && (m[1] || t[1]))
     return;
   if (t.length!=2)
-    return void console.warn('exports invalid target '+tr);
+    return void !in_test && console.warn('exports invalid target '+tr);
   return t[0]+replace+t[1];
 }
 
-export function path2rel(path){
-  if (path[0] && path[0]!='/')
-    throw Error('invalid path '+path);
-  return !path || path=='/' ? '.' : '.'+path;
-}
 let proto_re = /^[a-z][a-z0-9_+-]+:/;
-export function rel2path(rel){
-  if (rel[0]=='.')
-    return rel=='.' ? '/' : rel.slice(1);
-  if (proto_re.test(rel))
-    return rel; 
-  console.warn('invalid export '+rel);
-}
 function export_file_fixup(file){
   if (!file)
     return;
@@ -2015,14 +2004,16 @@ function export_file_fixup(file){
   if (proto_re.test(file))
     return file;
   if (file[0]=='/' || file[0]=='.')
-    return; // invalid
+    return void !in_test && console.warn('invalid export '+file);
   return './'+file;
 }
-export function _pkg_exports_lookup(pkg, file){
+export function pkg_exports_lookup(pkg, file){
   function check_val(dst){
     if (typeof dst!='string')
       return;
-    return dst;
+    let v;
+    if (v=export_file_fixup(dst))
+      return v;
   }
   function parse_target(tr){
     if (typeof tr=='string')
@@ -2085,7 +2076,7 @@ export function _pkg_exports_lookup(pkg, file){
       v = parse_section(pkg.browser);
     if (!v)
       return;
-    return export_file_fixup(v);
+    return v;
   }
   // start package.json lookup
   if (file=='./package.json')
@@ -2099,11 +2090,6 @@ export function _pkg_exports_lookup(pkg, file){
   if (f!=file) // redirect
     D && console.log('export_lookup redirect '+file+' -> '+f);
   return f;
-}
-export function pkg_exports_lookup(pkg, path){
-  let file = path2rel(path);
-  let tr = _pkg_exports_lookup(pkg, file);
-  return tr && rel2path(tr);
 }
 
 export function pkg_web_exports_lookup(pkg, file){
@@ -2245,6 +2231,7 @@ export function html_stylesheet_add(href){
 }
 
 function test_util(){
+  in_test = 1;
   let t;
   t = (v, s, arr)=>assert_eq(v, str.is(s, ...arr));
   t(false, 'ab', ['']);
@@ -2725,16 +2712,6 @@ function test_util(){
   t('./esm/file.js', './file.js');
   t('./esm/file.js', './*/file.js', true);
   t('./file.js', './file.jss');
-  t = (path, file)=>assert_eq(file, path2rel(path));
-  t('', '.');
-  t('/', '.');
-  t('/abc', './abc');
-  t = (file, path)=>assert_eq(path, rel2path(file));
-  t('.', '/');
-  t('./', '/');
-  t('./abc', '/abc');
-  t('npm:mod/abc', 'npm:mod/abc');
-  t('github:user/repo/abc', 'github:user/repo/abc');
   t = (file, fix)=>assert_eq(fix, export_file_fixup(file));
   t(undefined, undefined);
   t('.', undefined);
@@ -2743,7 +2720,9 @@ function test_util(){
   t('./abc', './abc');
   t('abc', './abc');
   t('npm:abc', 'npm:abc');
-  t = (pkg, file, v)=>assert_obj(v, _pkg_exports_lookup(pkg, file));
+  t('npm:mod/abc', 'npm:mod/abc');
+  t('github:user/repo/abc', 'github:user/repo/abc');
+  t = (pkg, file, v)=>assert_obj(v, pkg_exports_lookup(pkg, file));
   t({}, '.', './index.js');
   t({exports: {'.': './exp'}}, '.', './exp');
   t({exports: {'.': './exp'}}, './', './exp');
@@ -2790,11 +2769,6 @@ function test_util(){
   t({exports: {'./ab*': './1*', './a*': './2*'}}, './abc', './1c');
   t({exports: {'./*': './B*', './abc': './A'}}, './abc', './A');
   t({exports: {'./dir/*': 'npm:mod/*'}}, './dir/a/b', 'npm:mod/a/b');
-  t = (pkg, path, v)=>assert_obj(v, pkg_exports_lookup(pkg, path));
-  t({exports: {'.': './exp'}}, '', '/exp');
-  t({exports: {'.': './exp'}}, '/', '/exp');
-  t({exports: {'.': './exp'}}, '/exp');
-  t({exports: {'.': './exp'}}, '/package.json', '/package.json');
   t = (pkg, file, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, file));
   t({web_exports: {'./abc': './def'}}, './abc', './def');
   t({web_exports: {'./abc': './def'}}, './abc/x');
@@ -2843,6 +2817,7 @@ function test_util(){
   scr.splice(7, 7, '-');
   scr.splice(8, 8, '-');
   t('012ABCD5-QW-  -89abcdef');
+  in_test = 0;
 }
 test_util();
 
