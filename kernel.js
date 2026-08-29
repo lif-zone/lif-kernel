@@ -1715,7 +1715,7 @@ async function _kernel_fetch(event){
   // root document only.
   if (str.is(request.cache, 'no-cache', 'reload') &&
     (request.mode=='navigate' || 
-    str.is(request.destination, 'document', 'iframe')))
+    str.is(request.destination, 'document', 'iframe', 'frame')))
   { 
     console.log('cache_refresh', request.cache, request.mode, 
       request.destination, url);
