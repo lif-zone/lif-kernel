@@ -1790,10 +1790,6 @@ async function _kernel_fetch(event){
   if (!lpm_pkg_app || !lpm_pkg_app.pkg)
     console.info('req before lpm_pkg_app init '+path);
   else if (_path = pkg_web_exports_lookup(lpm_pkg_app.pkg, '.'+path)){
-    // XXX: move to separate funciton, and handle all exports, incluging
-    // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
-    // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
-    // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
     if (_path.startsWith('./')){
       _path = '/.lif/'+lpm_app+_path.slice(1)+'?raw=1';
       D && console.log('redirect '+path+' -> '+_path);
@@ -1801,6 +1797,12 @@ async function _kernel_fetch(event){
     }
     let lmod = T_npm_to_lpm(_path);
     return Response.redirect('/.lif/'+lmod);
+  }
+  if (str.is(request.destination, 'document', 'iframe', 'frame')){
+    // XXX add support for handling SPA
+    // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
+    // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
+    // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
   }
   D && console.log('req default', url);
   let response = await fetch(request);
