@@ -2059,11 +2059,17 @@ export function _pkg_exports_lookup(pkg, file){
     return export_path_match(file, best, _tr);
   }
   function parse_pkg(){
-    let exports = pkg.exports, v;
-    if (exports){
-      if (typeof exports=='string')
-        exports = {'.': exports};
-      return parse_section(exports);
+    let sec, v;
+    if (sec=pkg.lif?.exports){
+      if (typeof sec=='string')
+        sec = {'.': sec};
+      if (v=parse_section(sec))
+        return v;
+    }
+    if (sec=pkg.exports){
+      if (typeof sec=='string')
+        sec = {'.': sec};
+      return parse_section(sec);
     }
     if (file=='.'){
       v = check_val(pkg.browser) ||
@@ -2732,7 +2738,11 @@ function test_util(){
   t({exports: {'.': './exp'}}, '.', './exp');
   t({exports: {'.': './exp'}}, './exp');
   t({exports: {'.': './exp'}}, './package.json', './package.json');
+  t({exports: {'.': './exp'}, lif: {exports: {'.': './abc'}}}, '.', './abc');
   t({main: './Main', exports: {'.': './exp'}}, '.', './exp');
+  t({main: './Main', exports: {'./x': './exp'}}, '.');
+  t({main: './Main', lif: {exports: {'.': './exp'}}}, '.', './exp');
+  t({main: './Main', lif: {exports: {'./x': './exp'}}}, '.', './Main');
   t({main: './Main'}, '.', './Main');
   t({main: './Main'}, './Main');
   t({main: 'Main'}, './Main');
