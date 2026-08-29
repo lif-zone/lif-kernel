@@ -453,7 +453,7 @@ function tr_js_to_ast(js){
           let bind = path.scope.getBinding(spec.local.name);
           bind.referencePaths.forEach(ref=>{
             let cont = ref.container;
-            if (cont.type=='MemberExpression')
+            if (cont.type=='MemberExpression' && !cont.computed)
               imported.push(cont.property.name);
           });
         }
@@ -490,7 +490,7 @@ function tr_js_to_ast(js){
               if (refPath.parentPath.isExportNamespaceSpecifier())
                 return;
               let cont = refPath.container;
-              if (cont.type=='MemberExpression')
+              if (cont.type=='MemberExpression' && !cont.computed)
                 imported.push(cont.property.name);
             },
           });
@@ -2050,13 +2050,16 @@ function test_kernel(){
     {type: 'mjs', imports: [
       {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
     });
-  t(`import * as a from "lif"; let b = a.A || a.AA;`,
+  // XXX in the future we may want to also include a['xx'] as a.xx
+  t(`import * as a from "lif"; let b = a.A || a.AA || a['xx'] || a[x]; let x;`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['A', 'AA'], module: 'lif', start: 19, end: 24}]
+      {type: 'program', imported: ['A', 'AA'], module: 'lif',
+        start: 19, end: 24}]
     });
-  t(`export * as a from "lif"; let b = a.A || a.AA;`,
+  t(`export * as a from "lif"; let b = a.A || a.AA || a['xx'] || a[x]; let x;`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['A', 'AA'], module: 'lif', start: 19, end: 24}]
+      {type: 'program', imported: ['A', 'AA'], module: 'lif',
+        start: 19, end: 24}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
   t(`export function a(){}`, {type: 'mjs'});
