@@ -23,13 +23,12 @@ globalThis.addEventListener('message', lif_worker.cb);
 
 // dynamic import() since util has await, which makes worker loose initial
 // postMessage
-let util = await import('./util.js');
-const {ipc_sync, eslow} = util;
+const {eslow} = await import('./util.js');
+const {ipc_sync} = await import('./ipc.js');
 
 let ipc = {read: null, write: null};
 
 console.log('boot_worker started '+boot_worker_version);
-//let {ipc_sync, eslow} = util;
 let json = JSON.stringify;
 globalThis.addEventListener("message", event=>{
   D && console.log('worker got message', event.data, event);

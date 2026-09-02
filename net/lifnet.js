@@ -1,7 +1,8 @@
 // TCP proxy client - browser side, tunnels TCP over rpc_sock via lif_rg tcp_connect
-import {rpc_sock, Buffer, assert, rpc_websocket, version as util_version,
-  is_node, url_http_to_ws, ewait, OA, sock_pair, rpc_sock_pipe, OV,
+import {Buffer, assert, version as util_version,
+  is_node, url_http_to_ws, ewait, OA, OV,
 } from '../util.js';
+import {rpc_sock, rpc_websocket, sock_pair, rpc_sock_pipe} from '../rpc.js';
 import etask from '../etask.js';
 import EventEmitter, {once} from '../compat/events.js';
 let D = 1;

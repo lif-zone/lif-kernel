@@ -2,14 +2,17 @@
 let lif_version = '2026.8.23';
 let D = globalThis.localStorage?.getItem('lif_boot_D'); // Debug
 
-import {ewait, esleep, eslow, ipc_postmessage, assert_eq, str, ipc_sync,
+import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
-  T_npm_to_lpm, npm_str,
-  T_npm_url_base, uri_enc, qs_enc, qs_append, qs_trim, url_uri_type,
-  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_norm,
-  json, json_cp, str_to_buf, lpm_is_perm,
+  uri_enc, qs_enc, qs_append, qs_trim, json, json_cp, str_to_buf,
   html_elm, _debugger, version as util_version,
 } from './util.js';
+import {
+  T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type,
+  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_norm, lpm_is_perm,
+} from './lpm.js';
+import {ipc_sync} from './ipc.js';
+import {ipc_postmessage} from './rpc.js';
 
 let lif = globalThis.$lif ||= {};
 assert(!lif.lif_loaded, 'lif already loaded');

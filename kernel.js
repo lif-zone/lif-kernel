@@ -4,28 +4,30 @@ let D = 0; // debug
 let in_test = 0;
 const $lif = globalThis.$lif ||= {};
 
-const util = (await import('./util.js')).default;
-const {ipc_postmessage, str, OE, OA, OV, assert, ecache, json_cp,
-  _path_ext, path_dir, path_file,
-  path_starts, qs_enc, lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
-  T_url_parse, url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
+const util = await import('./util.js');
+const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
+  _path_ext, path_dir, path_file, path_starts, qs_enc, uri_dec,
+  match_glob_to_regex, T_url_parse,
+  str_to_buf, eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
+} = util;
+const {ipc_postmessage} = await import('./rpc.js');
+const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
+  url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse,
-  npm_browser_parse,
-  uri_dec, match_glob_to_regex, semver_range_parse, semver_parse, semver_cmp,
+  T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse, npm_browser_parse,
+  semver_range_parse, semver_parse, semver_cmp,
   pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
-  pkg_transform_type, str_to_buf,
-  eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
-  ewait, Donce} = util;
+  pkg_transform_type,
+} = await import('./lpm.js');
 const {qw} = str;
 const clog = console.log.bind(console);
 const cerr = console.error.bind(console);
 const json = JSON.stringify;
 const kernel_cdn = 'https://unpkg.com/';
-const mime_db = (await import('./mime_db.js')).default;
-const sha256 = (await import('./sha256.js')).default;
-const Babel = (await import(kernel_cdn+'@babel/standalone@7.29.1/babel.js')).default;
-const idb = (await import(kernel_cdn+'idb@8.0.3/build/index.cjs')).default;
+const mime_db = await import('./mime_db.js');
+const sha256 = await import('./sha256.js');
+const Babel = await import(kernel_cdn+'@babel/standalone@7.29.1/babel.js');
+const idb = await import(kernel_cdn+'idb@8.0.3/build/index.cjs');
 
 let lif_kernel_base;
 

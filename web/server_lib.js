@@ -7,9 +7,9 @@ import path from 'path';
 import {ext2mime} from '../mime_db.js';
 import '../compat/browser_env.js';
 import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
-  path_file, path_is_dir, str, rpc_websocket, version as util_version,
-  rpc_sock_pipe, OA, url_http_to_ws, websocket_pipe,
+  path_file, path_is_dir, str, version as util_version, OA, url_http_to_ws,
 } from '../util.js';
+import {rpc_websocket, rpc_sock_pipe, websocket_pipe} from '../rpc.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
 import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add, trunk_router,
