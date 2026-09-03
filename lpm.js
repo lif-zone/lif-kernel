@@ -845,6 +845,35 @@ export function pkg_transform_type(pkg, path){
   return tr.type.replace(/^\./, '');
 }
 
+// https://docs.npmjs.com/cli/v11/configuring-npm/package-json
+export function pkg_dep_lookup({lmod, pkg, imp}){
+  let lmod_imp = T_lpm_lmod(imp);
+  let npm_imp = T_lpm_to_npm(lmod_imp);
+  function get_imp(deps, is_peer){
+    let d, v;
+    if (!(d = deps?.[npm_imp]))
+      return;
+    if (v = npm_dep_parse({mod_self: lmod, imp, dep: d, pkg_name: pkg.name}))
+      return v;
+    if (is_peer)
+      return d; // we dont currently use peer's version range
+    !in_test && console.warn('invalid import('+pkg.name+') format '+imp, d);
+    return '';
+  }
+  let found = {};
+  found.over = get_imp(pkg.lif?.overrides);
+  found.over ||= get_imp(pkg.overrides);
+  found.optional = get_imp(pkg.lif?.optionalDependencies);
+  found.optional ||= get_imp(pkg.optionalDependencies);
+  found.reg = get_imp(pkg.lif?.dependencies);
+  found.reg ||= get_imp(pkg.dependencies);
+  found.dev = get_imp(pkg.lif?.devDependencies);
+  found.dev ||= get_imp(pkg.devDependencies);
+  found.peer = get_imp(pkg.lif?.peerDependencies, true);
+  found.peer ||= get_imp(pkg.peerDependencies, true);
+  return found;
+}
+
 function test_util(){
   in_test = 1;
   let t = (url_uri, v)=>assert_obj(v, url_uri_type(url_uri));
@@ -1293,6 +1322,40 @@ function test_util(){
   t(pkg, './d1/d2/file', './other/file');
   t(pkg, './d1/dd/file', undefined);
   t(pkg, './d1/dd', './');
+  let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
+    lif: {
+      dependencies: {over: '2.0.0', optional: '^1.0.1'},
+      optionalDependencies: {optional: '1.0.0'},
+      overrides: {overg: '2.0.0'},
+    },
+    dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
+      dom: '>=18.3.1', os: '.lif/git/github.com/repo/mod', over: '1.0.0'},
+    peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
+    overrides: {glb: '1.2.0', overg: '1.0.0'},
+  }};
+  t = (imp, v)=>{
+    in_test = 1;
+    let res = pkg_dep_lookup({lmod: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
+    in_test = 0;
+    assert.eq(v.over, res.over);
+    assert.eq(v.optional, res.optional);
+    assert.eq(v.reg, res.reg);
+    assert.eq(v.dev, res.dev);
+    assert.eq(v.peer, res.peer);
+  };
+  t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
+  t('npm/loc/file.js', {reg: 'local/loc//file.js'});
+  t('npm/react', {reg: 'npm/react@18.3.1'});
+  t('npm/react/index.js', {reg: 'npm/react@18.3.1/index.js'});
+  t('npm/dom', {reg: ''});
+  t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
+  t('npm/dom_p', {peer: '>=18.3.1'});
+  t('npm/os/dir/index.js', {reg: 'git/github.com/repo/mod/dir/index.js'});
+  t('npm/glb', {over: 'npm/glb@1.2.0'});
+  t('npm/over', {reg: 'npm/over@2.0.0'});
+  t('npm/overg', {over: 'npm/overg@2.0.0'});
+  t('npm/optional', {optional: 'npm/optional@1.0.0',
+    reg: 'npm/optional@1.0.1'});
   in_test = 0;
 }
 test_util();

@@ -15,7 +15,7 @@ const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse, npm_browser_parse,
-  semver_range_parse, semver_parse, semver_cmp,
+  pkg_dep_lookup, semver_range_parse, semver_parse, semver_cmp,
   pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
   pkg_transform_type,
 } = await import('./lpm.js');
@@ -627,11 +627,11 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   let _imp = lpm_ver_from_base(imp, lpm_pkg.lmod);
   if (_imp)
     return _imp;
-  let l = pkg_dep_lookup({lpm_pkg, imp});
+  let l = pkg_dep_lookup({lmod: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let _l = pkg_dep_lookup({lpm_pkg: p, imp});
+    let _l = pkg_dep_lookup({lmod: p.lmod, pkg: p.pkg, imp});
     par.reg ||= _l.reg;
     par.dev ||= _l.dev;
     par.over ||= _l.over;
@@ -823,36 +823,6 @@ function pkg_browser_lookup({lpm_pkg, imp}){
     D && console.log('browser mod redir '+_imp+' -> '+v);
     return v;
   }
-}
-
-// https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-function pkg_dep_lookup({lpm_pkg, imp}){
-  let pkg = lpm_pkg.pkg;
-  let lmod = T_lpm_lmod(imp);
-  let npm = T_lpm_to_npm(lmod);
-  function get_imp(deps, is_peer){
-    let d, v;
-    if (!(d = deps?.[npm]))
-      return;
-    if (v = npm_dep_parse({mod_self: lpm_pkg.lmod, imp, dep: d, pkg_name: pkg.name}))
-      return v;
-    if (is_peer)
-      return d; // we dont currently use peer's version range
-    !in_test && console.warn('invalid import('+pkg.name+') format '+imp, d);
-    return '';
-  }
-  let found = {};
-  found.over = get_imp(pkg.lif?.overrides);
-  found.over ||= get_imp(pkg.overrides);
-  found.optional = get_imp(pkg.lif?.optionalDependencies);
-  found.optional ||= get_imp(pkg.optionalDependencies);
-  found.reg = get_imp(pkg.lif?.dependencies);
-  found.reg ||= get_imp(pkg.dependencies);
-  found.dev = get_imp(pkg.lif?.devDependencies);
-  found.dev ||= get_imp(pkg.devDependencies);
-  found.peer = get_imp(pkg.lif?.peerDependencies, true);
-  found.peer ||= get_imp(pkg.peerDependencies, true);
-  return found;
 }
 
 function pkg_alt_get(pkg, file){
@@ -1249,7 +1219,8 @@ async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v;
   // XXX should call pkg_browser_lookup()? not sure!
-  let lookup = pkg_dep_lookup({lpm_pkg: lpm_pkg_root, imp: lmod});
+  let lookup = pkg_dep_lookup({lmod: lpm_pkg_root.lmod, pkg: lpm_pkg_root.pkg,
+    imp: lmod});
   let _lmod = lookup.over || lookup.reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
@@ -1871,41 +1842,7 @@ function test_kernel(){
   t('2024-03-13T16:33:48.639Z', '@3.2.0-experimental');
   t('2024-03-13T16:33:48.638Z', '@3.2.0-experimental');
   t('2024-04-01700:00:00.000Z', '@3.2.2-experimental-2');
-  let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
-    lif: {
-      dependencies: {over: '2.0.0', optional: '^1.0.1'},
-      optionalDependencies: {optional: '1.0.0'},
-      overrides: {overg: '2.0.0'},
-    },
-    dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
-      dom: '>=18.3.1', os: '.lif/git/github.com/repo/mod', over: '1.0.0'},
-    peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
-    overrides: {glb: '1.2.0', overg: '1.0.0'},
-  }};
-  t = (imp, v)=>{
-    in_test = 1;
-    let res = pkg_dep_lookup({lpm_pkg, imp});
-    in_test = 0;
-    assert.eq(v.over, res.over);
-    assert.eq(v.optional, res.optional);
-    assert.eq(v.reg, res.reg);
-    assert.eq(v.dev, res.dev);
-    assert.eq(v.peer, res.peer);
-  };
-  t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
-  t('npm/loc/file.js', {reg: 'local/loc//file.js'});
-  t('npm/react', {reg: 'npm/react@18.3.1'});
-  t('npm/react/index.js', {reg: 'npm/react@18.3.1/index.js'});
-  t('npm/dom', {reg: ''});
-  t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
-  t('npm/dom_p', {peer: '>=18.3.1'});
-  t('npm/os/dir/index.js', {reg: 'git/github.com/repo/mod/dir/index.js'});
-  t('npm/glb', {over: 'npm/glb@1.2.0'});
-  t('npm/over', {reg: 'npm/over@2.0.0'});
-  t('npm/overg', {over: 'npm/overg@2.0.0'});
-  t('npm/optional', {optional: 'npm/optional@1.0.0',
-    reg: 'npm/optional@1.0.1'});
-  lpm_pkg = {lmod: 'npm/self@1.2.3',
+  let lpm_pkg = {lmod: 'npm/self@1.2.3',
     pkg: {lif: {
       dependencies: {
         mod: '/MOD',
