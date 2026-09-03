@@ -671,12 +671,31 @@ function tr_import_lpm({imp, imported, npm_self, pkg}){
   return v;
 }
 
+function tr_import_lpm2({imp, imported, npm_self, pkg}){
+  let v = passthrough_lmod({pkg, lmod: imp});
+  if (v)
+    return v;
+  v = npm_root_rel+'/.lif.imp/'+imp;
+  let q = {};
+  if (imported)
+    q.imported = imported.join(',');
+  v += qs_enc(q);
+  return v;
+}
+
+let do_imp = 0;
 function tr_mjs_import(f){
   let s = Scroll(f.js), v, _v;
   for (let d of f.meta.imports||[]){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
+      continue;
+    }
+    if (do_imp){
+      _v = tr_import_lpm2({imp: T_npm_to_lpm(imp), imported: d.imported,
+        npm_self: f.npm_uri, pkg: f.lpm_pkg.pkg});
+      s.splice(d.start, d.end, json(_v));
       continue;
     }
     if (!(v=lpm_import_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)}))){
