@@ -14,8 +14,8 @@ const {ipc_postmessage} = await import('./rpc.js');
 const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_dep_parse, npm_browser_parse,
-  pkg_dep_lookup, semver_range_parse, semver_parse, semver_cmp,
+  T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_import_parse, npm_browser_parse,
+  pkg_import_lookup, semver_range_parse, semver_parse, semver_cmp,
   pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
   pkg_transform_type,
 } = await import('./lpm.js');
@@ -611,11 +611,11 @@ function tr_js_to_ast(js){
   return ast;
 }
 
-function lpm_dep_lookup({lpm_pkg, imp}){
+function lpm_import_lookup({lpm_pkg, imp}){
   let D = 0;
   let u;
   let ret_err = err=>{
-    D && console.log('lpm_dep_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
+    D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
   };
   if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
@@ -626,11 +626,11 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   let _imp = lpm_ver_from_base(imp, lpm_pkg.lmod);
   if (_imp)
     return _imp;
-  let l = pkg_dep_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
+  let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let _l = pkg_dep_lookup({lmod_self: p.lmod, pkg: p.pkg, imp});
+    let _l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, imp});
     par.reg ||= _l.reg;
     par.dev ||= _l.dev;
     par.over ||= _l.over;
@@ -679,7 +679,7 @@ function tr_mjs_import(f){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
       continue;
     }
-    if (!(v=lpm_dep_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)}))){
+    if (!(v=lpm_import_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)}))){
       console.warn('import('+f.lmod+') missing: '+imp);
       v = npm_to_lpm(imp);
     }
@@ -1182,7 +1182,7 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v;
-  let lookup = pkg_dep_lookup({lmod_self: lpm_pkg_root.lmod,
+  let lookup = pkg_import_lookup({lmod_self: lpm_pkg_root.lmod,
     pkg: lpm_pkg_root.pkg, imp: lmod});
   let _lmod = lookup.over || lookup.reg;
   if (_lmod && _lmod!=lmod){
@@ -1271,7 +1271,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   } else
     lpm_self = lpm_pkg_root;
   // lookup for imports in parent
-  let _imp = lpm_dep_lookup({lpm_pkg: lpm_self, imp});
+  let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp});
   let lmod = _imp || imp;
   // load the module, even if redirect later, so its loaded with mod_self
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
@@ -1860,7 +1860,7 @@ function test_kernel(){
   };
   t = (imp, v)=>{
     in_test = 1;
-    assert_eq(v, lpm_dep_lookup({lpm_pkg, imp}));
+    assert_eq(v, lpm_import_lookup({lpm_pkg, imp}));
     in_test = 0;
   };
   t('npm/self/dir/main.tsx', 'npm/self@1.2.3/dir/main.tsx');
@@ -1886,7 +1886,7 @@ function test_kernel(){
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
-  t = (pkg, imp, v)=>assert_eq(v, lpm_dep_lookup({lpm_pkg: {pkg}, imp}));
+  t = (pkg, imp, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, imp}));
   t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
   t = (file, alt, v)=>assert_obj_f(v, pkg_alt_get({lif: {alt}}, file));

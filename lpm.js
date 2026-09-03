@@ -252,7 +252,7 @@ export function T_npm_browser_parse({lmod_self, imp, br}){
 export const npm_browser_parse = Tf(T_npm_browser_parse, '');
 
 // parse-package-name: package.json:dependencies
-export function T_npm_dep_parse({lmod_self, imp, dep, pkg_name}){
+export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
@@ -292,7 +292,7 @@ export function T_npm_dep_parse({lmod_self, imp, dep, pkg_name}){
   let ver = semver_ver_guess(d);
   return ver ? lmod+'@'+ver+path : undefined;
 }
-export const npm_dep_parse = Tf(T_npm_dep_parse, '');
+export const npm_import_parse = Tf(T_npm_import_parse, '');
 
 export const git_reg_t = {
   'github': 'github.com',
@@ -846,14 +846,14 @@ export function pkg_transform_type(pkg, path){
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-export function pkg_dep_lookup({lmod_self, pkg, imp}){
+export function pkg_import_lookup({lmod_self, pkg, imp}){
   let lmod_imp = T_lpm_lmod(imp);
   let npm_imp = T_lpm_to_npm(lmod_imp);
   function get_imp(deps, is_peer){
     let d, v;
     if (!(d = deps?.[npm_imp]))
       return;
-    if (v = npm_dep_parse({lmod_self, imp, dep: d, pkg_name: pkg.name}))
+    if (v = npm_import_parse({lmod_self, imp, dep: d, pkg_name: pkg.name}))
       return v;
     if (is_peer)
       return d; // we dont currently use peer's version range
@@ -951,7 +951,7 @@ function test_util(){
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
   t = (dep, v, opt={})=>assert_eq(v,
-    npm_dep_parse({lmod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
+    npm_import_parse({lmod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
@@ -1001,7 +1001,7 @@ function test_util(){
   t('user/repo'); // notice: in NPM this is github:user/repo
   t('user/repo#', 'git/github.com/user/repo');
   t = (imp, dep, v)=>
-    assert_eq(v, npm_dep_parse({lmod_self: 'npm/mod', imp, dep}));
+    assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
   t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
   t('npm/xxx', '/', 'local');
@@ -1335,7 +1335,8 @@ function test_util(){
   }};
   t = (imp, v)=>{
     in_test = 1;
-    let res = pkg_dep_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
+    let res = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg,
+      imp});
     in_test = 0;
     assert.eq(v.over, res.over);
     assert.eq(v.optional, res.optional);
