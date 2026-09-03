@@ -1,10 +1,12 @@
 // LIF Residential Gateway: a Hypernet between residences.
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '2026.8.23';
-import {assert_eq, rpc_websocket, version as util_version, date_time, CEL,
-  rpc_base, rpc_sock, ewait, assert, qs_enc, rpc_sock_pipe,
-  websocket_fix, sock_error_log, str,
+import {assert_eq, version as util_version, date_time, CEL,
+  ewait, assert, qs_enc, str,
 } from '../util.js';
+import {rpc_websocket, rpc_base, rpc_sock, rpc_sock_pipe,
+  websocket_fix, sock_error_log,
+} from '../rpc.js';
 import {WebSocket as ws_WebSocket} from 'ws';
 import {once, EventEmitter} from 'events';
 import tls from 'tls';
