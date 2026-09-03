@@ -1,7 +1,7 @@
 // the lifnet reserved hardcoded hosts: /etc/hosts
 export const hosts = {
   '': '*demo_index', // special handling for built-in demo_index
-  'basic': 'git://github.com/lif-zone/lif-basic@main//main.tsx',
+  'basic': 'git://github.com/lif-zone/lif-basic@main/main.tsx',
   'basic-npm': 'npm:lif-basic@1.3.0/main.tsx',
   'basic-local': '/lif-basic//main.tsx',
   'play': 'git://github.com/lif-zone/lif-kernel@main/lif-basic//play.html',
