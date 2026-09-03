@@ -14,8 +14,8 @@ const {ipc_postmessage} = await import('./rpc.js');
 const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
-  T_lpm_parse, T_lpm_str, lpm_ver_missing, npm_import_parse, npm_browser_parse,
-  pkg_import_lookup, semver_range_parse, semver_parse, semver_cmp,
+  T_lpm_parse, T_lpm_str, lpm_ver_missing,
+  pkg_import_lookup, semver_parse, semver_cmp,
   pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
   pkg_transform_type,
 } = await import('./lpm.js');
