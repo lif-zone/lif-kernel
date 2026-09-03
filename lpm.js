@@ -247,19 +247,19 @@ function git_to_lpm(url){
   return 'git/'+host+'/'+user+'/'+repo+ver+_path;
 }
 
-export function T_npm_browser_parse({mod_self, imp, br}){
+export function T_npm_browser_parse({lmod_self, imp, br}){
 }
 export const npm_browser_parse = Tf(T_npm_browser_parse, '');
 
 // parse-package-name: package.json:dependencies
-export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
+export function T_npm_dep_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
   if (d[0]=='/')
     return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
-    return mod_self+(v.rest?'/'+v.rest:'')+path;
+    return lmod_self+(v.rest?'/'+v.rest:'')+path;
   if (v=str.starts(d, 'https://github.com/', 'github:'))
     d = 'git://github.com/'+v.rest;
   if (v=str.starts(d, 'https://gitlab.com/', 'gitlab:'))
@@ -276,7 +276,7 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
     let _lmod = 'npm/'+v.rest+path;
     let u = lpm_parse(_lmod);
     if (u.name==pkg_name)
-      return mod_self+u.path;
+      return lmod_self+u.path;
     return _lmod;
   }
   if (v=str.starts(d, 'node:'))
@@ -287,7 +287,7 @@ export function T_npm_dep_parse({mod_self, imp, dep, pkg_name}){
     let file = v.rest;
     if (!(v=str.starts(file, './')))
       throw Error('only ./ files supported: '+dep);
-    return mod_self+'/'+v.rest;
+    return lmod_self+'/'+v.rest;
   }
   let ver = semver_ver_guess(d);
   return ver ? lmod+'@'+ver+path : undefined;
@@ -846,14 +846,14 @@ export function pkg_transform_type(pkg, path){
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-export function pkg_dep_lookup({lmod, pkg, imp}){
+export function pkg_dep_lookup({lmod_self, pkg, imp}){
   let lmod_imp = T_lpm_lmod(imp);
   let npm_imp = T_lpm_to_npm(lmod_imp);
   function get_imp(deps, is_peer){
     let d, v;
     if (!(d = deps?.[npm_imp]))
       return;
-    if (v = npm_dep_parse({mod_self: lmod, imp, dep: d, pkg_name: pkg.name}))
+    if (v = npm_dep_parse({lmod_self, imp, dep: d, pkg_name: pkg.name}))
       return v;
     if (is_peer)
       return d; // we dont currently use peer's version range
@@ -951,7 +951,7 @@ function test_util(){
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
   t = (dep, v, opt={})=>assert_eq(v,
-    npm_dep_parse({mod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
+    npm_dep_parse({lmod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
@@ -1001,7 +1001,7 @@ function test_util(){
   t('user/repo'); // notice: in NPM this is github:user/repo
   t('user/repo#', 'git/github.com/user/repo');
   t = (imp, dep, v)=>
-    assert_eq(v, npm_dep_parse({mod_self: 'npm/mod', imp, dep}));
+    assert_eq(v, npm_dep_parse({lmod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
   t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
   t('npm/xxx', '/', 'local');
@@ -1335,7 +1335,7 @@ function test_util(){
   }};
   t = (imp, v)=>{
     in_test = 1;
-    let res = pkg_dep_lookup({lmod: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
+    let res = pkg_dep_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
     in_test = 0;
     assert.eq(v.over, res.over);
     assert.eq(v.optional, res.optional);

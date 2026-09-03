@@ -627,11 +627,11 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   let _imp = lpm_ver_from_base(imp, lpm_pkg.lmod);
   if (_imp)
     return _imp;
-  let l = pkg_dep_lookup({lmod: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
+  let l = pkg_dep_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let _l = pkg_dep_lookup({lmod: p.lmod, pkg: p.pkg, imp});
+    let _l = pkg_dep_lookup({lmod_self: p.lmod, pkg: p.pkg, imp});
     par.reg ||= _l.reg;
     par.dev ||= _l.dev;
     par.over ||= _l.over;
@@ -1219,8 +1219,8 @@ async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v;
   // XXX should call pkg_browser_lookup()? not sure!
-  let lookup = pkg_dep_lookup({lmod: lpm_pkg_root.lmod, pkg: lpm_pkg_root.pkg,
-    imp: lmod});
+  let lookup = pkg_dep_lookup({lmod_self: lpm_pkg_root.lmod,
+    pkg: lpm_pkg_root.pkg, imp: lmod});
   let _lmod = lookup.over || lookup.reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
