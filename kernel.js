@@ -617,6 +617,7 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   let ret_err = err=>{
     D && console.log('lpm_dep_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
   };
+  // XXX - is pkg_browser_lookup needed?
   imp = pkg_browser_lookup({lpm_pkg, imp}) || imp;
   if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
@@ -790,10 +791,10 @@ function mjs_import_mjs(export_default, path){
   return js;
 }
 
-// - parent module resolution order: pkg_browser_lookup()
+// - importing module resolution order: pkg_browser_lookup()
 //   - "browser" section (string or ".")
 //   - "dependencies" section (& friends)
-// - child module resolution order: pkg_exports_lookup()
+// - exporting file resolution order: pkg_exports_lookup()
 //   - "exports" section (string or ".")
 //     may have "browser", "module" etc conditional sub sections
 //   - "browser" section (string or ".")
@@ -1218,7 +1219,6 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v;
-  // XXX should call pkg_browser_lookup()? not sure!
   let lookup = pkg_dep_lookup({lmod_self: lpm_pkg_root.lmod,
     pkg: lpm_pkg_root.pkg, imp: lmod});
   let _lmod = lookup.over || lookup.reg;
