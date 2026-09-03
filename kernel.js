@@ -617,8 +617,6 @@ function lpm_dep_lookup({lpm_pkg, imp}){
   let ret_err = err=>{
     D && console.log('lpm_dep_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
   };
-  // XXX - is pkg_browser_lookup needed?
-  imp = pkg_browser_lookup({lpm_pkg, imp}) || imp;
   if (!(u = lpm_parse(imp)))
     return ret_err('invalid lpm uri import');
   // no need to lookup final versioned imports and local imports
@@ -789,41 +787,6 @@ function mjs_import_mjs(export_default, path){
   if (export_default)
     js += `export {default} from ${_path};\n`;
   return js;
-}
-
-// - importing module resolution order: pkg_browser_lookup()
-//   - "browser" section (string or ".")
-//   - "dependencies" section (& friends)
-// - exporting file resolution order: pkg_exports_lookup()
-//   - "exports" section (string or ".")
-//     may have "browser", "module" etc conditional sub sections
-//   - "browser" section (string or ".")
-//   - "main"
-//   - index.js file
-function pkg_browser_lookup({lpm_pkg, imp}){
-  let pkg = lpm_pkg.pkg;
-  let lmod = T_lpm_lmod(imp);
-  let br = pkg.browser;
-  let _imp = imp;
-  if (!br)
-    return;
-  if (typeof br=='string')
-    return; // not relevant for parent;
-  let v;
-  if (!(v = str.starts(lmod, 'npm/')))
-    return;
-  let npm = v.rest;
-  if (v = br[npm]){
-    let _v;
-    if (_v = str.starts(v, './')){
-      v = lpm_pkg.lmod+'/'+_v.rest;
-      D && console.log('browser file redir '+_imp+' -> '+v);
-      return v;
-    }
-    v = 'npm/'+v+imp.slice(lmod.length);
-    D && console.log('browser mod redir '+_imp+' -> '+v);
-    return v;
-  }
 }
 
 function pkg_alt_get(pkg, file){
