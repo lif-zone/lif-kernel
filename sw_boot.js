@@ -115,11 +115,10 @@ function esm_kernel_tr(src){
       s = `${type} ${name} = exports.${name}`;
     else if (type=='default')
       s = `module.exports = ${name}`;
-    else if (type=='class' || type=='function' || type=='async function'
-      || type=='*function')
-    {
+    else if (type=='class')
       s = `const ${name} = exports.${name} = ${type} ${name}`;
-    }
+    else if (type=='function' || type=='async function' || type=='*function')
+      s = `exports.${name} = ${name}; ${type} ${name}`;
     return `${pre}${s}${rest}`;
   });
 }
@@ -201,11 +200,11 @@ function test_kernel(){
     'let mean = exports.mean = 42;\nlet life = exports.life = 18;');
   t('export const name = 42;', 'const name = exports.name = 42;');
   t('export class Life {', 'const Life = exports.Life = class Life {');
-  t('export function wc(s){', 'const wc = exports.wc = function wc(s){');
+  t('export function wc(s){', 'exports.wc = wc; function wc(s){');
   t('export async function strlen(',
-    'const strlen = exports.strlen = async function strlen(');
+    'exports.strlen = strlen; async function strlen(');
   t('export *function split_words(',
-    'const split_words = exports.split_words = *function split_words(');
+    'exports.split_words = split_words; *function split_words(');
 }
 test_kernel();
 kernel_boot();
