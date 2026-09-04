@@ -1205,9 +1205,9 @@ async function responce_tr_send({f, qs, lmod}){
   if (f.redirect)
     return lpm_redirect({f, qs, lmod});
   if (q.has('raw') || ctype_binary(lmod))
-    return {body: f.blob, ext};
+    return {body: f.blob, ext, cache: 1};
   if (str.is(ext, 'json', 'css', 'wasm'))
-    return {body: f.blob, ext};
+    return {body: f.blob, ext, cache: 1};
   ext = 'js';
   let js = await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
@@ -1225,7 +1225,7 @@ async function responce_tr_send({f, qs, lmod}){
       '/.lif/'+lmod+'?mjs=1'), ext};
   }
   if (q.get('mjs')==1 && (type=='mjs' || !type))
-    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext};
+    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext, cache: 1};
   if (type=='cjs' || type=='')
     return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
   if (type=='amd' || type=='')
@@ -1410,7 +1410,8 @@ async function _kernel_fetch(event){
       return response;
     let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
     response = await send_res({...res, path});
-    await cache_store_set(request, response);
+    if (res.cache)
+      await cache_store_set(request, response);
     return response;
   }
   // lif-kernel passthrough for local dev
