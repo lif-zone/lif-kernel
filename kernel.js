@@ -1336,6 +1336,9 @@ async function _kernel_fetch(event){
     mod: url+(ref && ref!=u.origin+'/' ? ' ref '+ref : ''),
     imp: url,
   };
+  let is_reload = str.is(request.cache, 'no-cache', 'reload') ||
+    request.mode=='navigate';
+  let is_doc = str.is(request.destination, 'document', 'iframe', 'frame');
   D && console.log('sw '+log.mod);
   // external and non GET requests
   if (external)
@@ -1350,8 +1353,7 @@ async function _kernel_fetch(event){
   // so use mode==navigate and destination==document/iframe to limit refresh to
   // root document only.
   if (str.is(request.cache, 'no-cache', 'reload') &&
-    (request.mode=='navigate' || 
-    str.is(request.destination, 'document', 'iframe', 'frame')))
+    (request.mode=='navigate' || is_doc))
   { 
     console.log('cache_refresh', request.cache, request.mode, 
       request.destination, url);
@@ -1430,7 +1432,7 @@ async function _kernel_fetch(event){
     let lmod = T_npm_to_lpm(_path);
     return Response.redirect('/.lif/'+lmod);
   }
-  if (str.is(request.destination, 'document', 'iframe', 'frame')){
+  if (is_doc && !is_reload){
     // XXX add support for handling SPA
     // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
     // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
