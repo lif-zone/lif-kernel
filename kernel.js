@@ -671,11 +671,13 @@ function tr_import_lpm({imp, imported, npm_self, pkg}){
   return v;
 }
 
-function tr_import_lpm2({imp, imported, npm_self, pkg}){
+function tr_import_lpm2({imp, imported, lmod_self, pkg}){
   let v = passthrough_lmod({pkg, lmod: imp});
   if (v)
     return v;
-  v = npm_root_rel+'/.lif.imp/'+imp;
+  let depth = lpm_parse(lmod_self).path.split('/').length-2;
+  let rel_root = !depth ? './' : '../'.repeat(depth);
+  v = rel_root+'.lif.imp/'+imp;
   let q = {};
   if (imported)
     q.imported = imported.join(',');
@@ -693,8 +695,8 @@ function tr_mjs_import(f){
       continue;
     }
     if (do_imp){
-      _v = tr_import_lpm2({imp: T_npm_to_lpm(imp), imported: d.imported,
-        npm_self: f.npm_uri, pkg: f.lpm_pkg.pkg});
+      _v = tr_import_lpm2({imp, imported: d.imported,
+        lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
       s.splice(d.start, d.end, json(_v));
       continue;
     }
