@@ -124,6 +124,12 @@ function esm_kernel_tr(src){
   });
 }
 
+const kernel_cdn = 'https://unpkg.com/';
+async function import_npm(npm){
+   return await import_module(kernel_cdn+npm);
+}
+globalThis.import_npm = import_npm;
+
 const json = JSON.stringify;
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_boot.lif_kernel_base = sw_q.get('lif_kernel_base');

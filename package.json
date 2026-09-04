@@ -94,6 +94,7 @@
     "./ipc.js": "./ipc.js",
     "./rpc.js": "./rpc.js",
     "./lpm.js": "./lpm.js",
+    "./ast.js": "./ast.js",
     "./etask": "./etask.js",
     "./sha256.js": "./sha256.js",
     "./sha256lif.js": "./sha256lif.js",
