@@ -1014,11 +1014,8 @@ async function lpm_file_resolve({log, imp, mod_self}){
   return lpm_file;
 }
 
-let coi_enable = true;
 let coi_set_headers = h=>{
-  if (!coi_enable)
-    return;
-  // COI: Cross-Origin-Isolation
+  // COI: Cross-Origin-Isolation, required for SharedArrayBuffer
   h['cross-origin-embedder-policy'] = 'require-corp';
   h['cross-origin-opener-policy'] = 'same-origin';
 };
@@ -1077,7 +1074,7 @@ let cache_store = {
   // cache-store 1st   2nd    3rd
   // enable      14.2s 8s     5.7s
   // disable     24s   10.5s  8s
-  enable: 1,
+  enable: enable_cache,
   inited: 0,
   cache: null,
 };
