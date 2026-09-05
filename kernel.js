@@ -364,7 +364,7 @@ function tr_import_lpm({imp, imported, npm_self, pkg}){
 }
 
 function tr_import_lpm2({imp, imported, lmod_self, pkg}){
-  let v = passthrough_lmod({pkg, lmod: imp});
+  let v = passthrough_lmod({pkg, lmod: T_npm_to_lpm(imp)});
   if (v)
     return v;
   let depth = lpm_parse(lmod_self).path.split('/').length-2;
@@ -999,6 +999,31 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   return {lpm_pkg, subdir};
 }
 
+async function lpm_import_get({log, imp, mod_self}){
+  D && console.log('lpm_import_get', imp, mod_self);
+  let lpm_pkg = await lpm_pkg_get({log, lmod: mod_self});
+  if (lpm_pkg.not_exist)
+    return lpm_pkg;
+  if (lpm_pkg.redirect)
+    throw Error('lpm_import_get redirect: '+mod_self+' -> '+lpm_pkg.redirect);
+  let v;
+  let lmod = T_npm_to_lpm(imp);
+  if (!(v=lpm_import_lookup({lpm_pkg, imp: lmod}))){
+    let ver = await lpm_ver_resolve({log, lmod, mod_self});
+    if (ver.not_exist){
+      console.error('import('+lpm_pkg.lmod+') missing: '+imp);
+      return {error: 'missing import'};
+    }
+    v = ver.redirect;
+  }
+  return {redirect: v};
+}
+
+async function lpm_export_get({log, exp, mod_self}){
+  D && console.log('lpm_export_get', exp, mod_self);
+  return {error: 'lpm_export_get not yet implemented'};
+}
+
 async function lpm_file_resolve({log, imp, mod_self}){
   D && console.log('lpm_file_resolve', imp, mod_self);
   let path = T_lpm_parse(imp).path;
@@ -1008,8 +1033,7 @@ async function lpm_file_resolve({log, imp, mod_self}){
     return {not_exist: true};
   if (lpm_pkg.redirect)
     return {redirect: lpm_pkg.redirect+path};
-  let u = T_lpm_parse(imp);
-  let lmod = lpm_pkg.lmod+(subdir||'')+u.path;
+  let lmod = lpm_pkg.lmod+(subdir||'')+path;
   let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg});
   return lpm_file;
 }
@@ -1299,7 +1323,14 @@ async function send_res({err, not_exist, redirect, body, ext, path}){
 }
 
 async function fetch_lpm_file({log, imp, mod_self, qs}){
-  let f = await lpm_file_resolve({log, imp, mod_self});
+  let f, v;
+  let u = T_lpm_parse(imp);
+  if (v=str.starts(u.path, '/.lif.imp/'))
+    f = await lpm_import_get({log, mod_self: u.lmod, imp: v.rest});
+  else if (v=str.starts(u.path, '/.lif.exp/'))
+    f = await lpm_export_get({log, mod_self: u.lmod, exp: v.rest});
+  else
+    f = await lpm_file_resolve({log, imp, mod_self});
   return await responce_tr_send({f, qs, lmod: imp});
 }
 
