@@ -600,9 +600,10 @@ export function semver_cmp(a, b){
   assert();
 }
 
-const semver_op_re_start = /^(\^|=|~|>=|<=|\|\|)/;
+const semver_op_re_start = /^(\^|=|~|>=|<=|\|\||-)/;
 export function T_semver_range_parse(semver_range){
-  let s = semver_range, m, range = [];
+  let or = [[]]; // top level OR set, lower level AND sets
+  let s = semver_range, m;
   function is(re){
     m = s.match(re);
     if (!m)
@@ -610,25 +611,35 @@ export function T_semver_range_parse(semver_range){
     s = s.slice(m[0].length);
     return true;
   }
-  is(/^ +/);
   while (s){
+    let and = or[or.length-1];
     let op, ver;
+    is(/^ +/);
+    if (!s)
+      break;
     if (is(semver_op_re_start))
       op = m[0];
     is(/^ +/);
     if (op=='||'){
-      range.push({op: '||', ver: ''});
+      or.push([]);
       continue;
     }
     if (!is(semver_re_start))
       throw Error('invalid semver_range '+semver_range);
     ver = m[0].replace(/^v/, '');
-    range.push({op: op||'', ver});
-    is(/^ +/);
+    if (op=='-'){
+      let a = and[and.length-1];
+      if (a?.op!='')
+        throw Error('invalid semver_range "-" '+semver_range);
+      a.op = op;
+      a.ver2 = ver;
+      continue;
+    }
+    and.push({op: op||'', ver});
   }
-  if (!range.length)
+  if (!or[or.length-1].length)
     throw Error('empty semver range');
-  return range;
+  return or;
 }
 export const semver_range_parse = Tf(T_semver_range_parse);
 
@@ -638,14 +649,19 @@ export function semver_ver_guess(semver_range){
     D && console.log('invalid semver_range: '+semver_range);
     return;
   }
-  let {op, ver} = range[0];
-  if (range.length>1)
-    D && console.log('ignoring multi-op imp: '+semver_range);
-  if (op=='>=')
-    return ver;
-  if (op=='^' || op=='=' || op=='' || op=='~')
-    return ver;
-  D && console.log('invalid op: '+op);
+  let max;
+  for (let or of range){
+    for (let and of or){
+      let op = and.op;
+      let ver;
+      if (op=='>=' || op=='^' || op=='=' || op=='' || op=='~')
+        ver = and.ver;
+      else if (op='-')
+        ver = and.ver2;
+      max ||= ver; // XXX just take the first version...
+    }
+  }
+  return max;
 }
 
 // https://webpack.js.org/guides/package-exports/
@@ -1167,22 +1183,25 @@ function test_util(){
     assert_obj_f(v, semver_range_parse(range));
     assert_obj(guess, semver_ver_guess(range));
   };
-  t('1.2.3', [{ver: '1.2.3'}], '1.2.3');
-  t('v1.2.3-ab', [{ver: '1.2.3-ab'}], '1.2.3-ab');
-  t('=1.2.3', [{ver: '1.2.3', op: '='}], '1.2.3');
-  t('~1.2.3', [{ver: '1.2.3', op: '~'}], '1.2.3');
-  t('1.2.3 >=v1.3.4', [{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}],
+  t('1.2.3', [[{ver: '1.2.3'}]], '1.2.3');
+  t('v1.2.3-ab', [[{ver: '1.2.3-ab'}]], '1.2.3-ab');
+  t('=1.2.3', [[{ver: '1.2.3', op: '='}]], '1.2.3');
+  t('~1.2.3', [[{ver: '1.2.3', op: '~'}]], '1.2.3');
+  t('1.2.3 >=v1.3.4', [[{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]],
     '1.2.3');
-  t(' = 1.2.3 >= 1.3.4 ', [{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}],
+  t(' = 1.2.3 >= 1.3.4 ', [[{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]],
     '1.2.3');
   t('=1.2.3 +1.3.4');
   t('=1.2.3 x.2.3');
-  t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
-    {op: '^', ver: '4.5.6'}], '1.2.3');
-  t('^1.2.3||^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
-    {op: '^', ver: '4.5.6'}], '1.2.3');
-  if (0)
-  t('1.2.3 - 1.3.4', [{op: '-', ver: '1.2.3', ver2: '1.3.4'}]);
+  t('^1.2.3 || ^4.5.6', [[{op: '^', ver: '1.2.3'}], [{op: '^', ver: '4.5.6'}]],
+    '1.2.3');
+  t('^1.2.3||^4.5.6', [[{op: '^', ver: '1.2.3'}], [{op: '^', ver: '4.5.6'}]],
+    '1.2.3');
+  t('1.2.3 - 1.3.4', [[{op: '-', ver: '1.2.3', ver2: '1.3.4'}]], '1.3.4');
+  t('2.2.2 1.2.3 - 1.3.4||3.3.3', [
+    [{op: '', ver: '2.2.2'}, {op: '-', ver: '1.2.3', ver2: '1.3.4'}],
+    [{op: '', ver: '3.3.3'}],
+  ], '2.2.2');
   t('  ');
   t = (a, b, v)=>assert_obj(v, semver_cmp_part(a, b));
   t('0', '1', -1);
