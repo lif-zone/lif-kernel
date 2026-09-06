@@ -642,7 +642,7 @@ export function semver_ver_guess(semver_range){
   if (range.length>1)
     D && console.log('ignoring multi-op imp: '+semver_range);
   if (op=='>=')
-    return;
+    return ver;
   if (op=='^' || op=='=' || op=='' || op=='~')
     return ver;
   D && console.log('invalid op: '+op);
@@ -951,6 +951,11 @@ function test_util(){
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
+  t('1.2.3', 'npm/xxx@1.2.3');
+  t('=1.2.3', 'npm/xxx@1.2.3');
+  t('~1.2.3', 'npm/xxx@1.2.3');
+  t('^1.2.3', 'npm/xxx@1.2.3');
+  t('>=1.2.3', 'npm/xxx@1.2.3');
   t('git://github.com/mochajs/mocha', 'git/github.com/mochajs/mocha');
   t('git+https://github.com/mochajs/mocha', 'git/github.com/mochajs/mocha');
   t('github:mochajs/mocha', 'git/github.com/mochajs/mocha');
@@ -1005,7 +1010,7 @@ function test_util(){
   t('npm/xxx/file', '/DIR', 'local/DIR//file');
   t('npm/react', '=18.3.1', 'npm/react@18.3.1');
   t('npm/react', '18.3.1', 'npm/react@18.3.1');
-  t('npm/react', '>=18.3.1');
+  t('npm/react', '>=18.3.1', 'npm/react@18.3.1');
   t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
   t('npm/loc/file.js', '/loc', 'local/loc//file.js');
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
@@ -1174,6 +1179,10 @@ function test_util(){
   t('=1.2.3 x.2.3');
   t('^1.2.3 || ^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
     {op: '^', ver: '4.5.6'}], '1.2.3');
+  t('^1.2.3||^4.5.6', [{op: '^', ver: '1.2.3'}, {op: '||', ver: ''},
+    {op: '^', ver: '4.5.6'}], '1.2.3');
+  if (0)
+  t('1.2.3 - 1.3.4', [{op: '-', ver: '1.2.3', ver2: '1.3.4'}]);
   t('  ');
   t = (a, b, v)=>assert_obj(v, semver_cmp_part(a, b));
   t('0', '1', -1);
@@ -1344,9 +1353,9 @@ function test_util(){
   t('npm/loc/file.js', {reg: 'local/loc//file.js'});
   t('npm/react', {reg: 'npm/react@18.3.1'});
   t('npm/react/index.js', {reg: 'npm/react@18.3.1/index.js'});
-  t('npm/dom', {reg: ''});
+  t('npm/dom', {reg: 'npm/dom@18.3.1'});
   t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
-  t('npm/dom_p', {peer: '>=18.3.1'});
+  t('npm/dom_p', {peer: 'npm/dom_p@18.3.1'});
   t('npm/os/dir/index.js', {reg: 'git/github.com/repo/mod/dir/index.js'});
   t('npm/glb', {over: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
