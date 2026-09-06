@@ -1202,6 +1202,7 @@ function test_util(){
     [{op: '', ver: '2.2.2'}, {op: '-', ver: '1.2.3', ver2: '1.3.4'}],
     [{op: '', ver: '3.3.3'}],
   ], '2.2.2');
+  // missing support for 1 1.2 1.x.x 1.X.X 1.*.*
   t('  ');
   t = (a, b, v)=>assert_obj(v, semver_cmp_part(a, b));
   t('0', '1', -1);
