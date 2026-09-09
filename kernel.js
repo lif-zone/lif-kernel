@@ -999,24 +999,24 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   return {lpm_pkg, subdir};
 }
 
-async function lpm_import_get({log, imp, mod_self}){
-  D && console.log('lpm_import_get', imp, mod_self);
-  let lpm_pkg = await lpm_pkg_get({log, lmod: mod_self});
+async function lpm_import_get({log, imp, lmod_self}){
+  D && console.log('lpm_import_get', imp, lmod_self);
+  let lpm_pkg = await lpm_pkg_get({log, lmod: lmod_self});
   if (lpm_pkg.not_exist)
     return lpm_pkg;
   if (lpm_pkg.redirect)
-    throw Error('lpm_import_get redirect: '+mod_self+' -> '+lpm_pkg.redirect);
+    throw Error('lpm_import_get redirect: '+lmod_self+' -> '+lpm_pkg.redirect);
   let v;
   let lmod = T_npm_to_lpm(imp);
   if (!(v=lpm_import_lookup({lpm_pkg, imp: lmod}))){
-    let ver = await lpm_ver_resolve({log, lmod, mod_self});
+    let ver = await lpm_ver_resolve({log, lmod, mod_self: lmod_self});
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
       return {error: 'missing import'};
     }
     v = ver.redirect;
   }
-  return {redirect: v, q: {mod_self}};
+  return {redirect: v, q: {mod_self: lpm_to_npm(lmod_self)}};
 }
 
 async function lpm_export_get({log, exp, mod_self}){
@@ -1330,7 +1330,7 @@ async function fetch_lpm_file({log, imp, mod_self, qs}){
   let f, v;
   let u = T_lpm_parse(imp);
   if (v=str.starts(u.path, '/.lif.imp/'))
-    f = await lpm_import_get({log, mod_self: u.lmod, imp: v.rest});
+    f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
   else if (v=str.starts(u.path, '/.lif.exp/'))
     f = await lpm_export_get({log, mod_self: u.lmod, exp: v.rest});
   else
