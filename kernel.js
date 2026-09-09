@@ -377,7 +377,7 @@ function tr_import_lpm2({imp, imported, lmod_self, pkg}){
   return v;
 }
 
-let do_imp = 0;
+let do_imp = 1;
 function tr_mjs_import(f){
   let s = Scroll(f.js), v, _v;
   for (let d of f.meta.imports||[]){
@@ -1016,7 +1016,7 @@ async function lpm_import_get({log, imp, mod_self}){
     }
     v = ver.redirect;
   }
-  return {redirect: v};
+  return {redirect: v, q: {mod_self}};
 }
 
 async function lpm_export_get({log, exp, mod_self}){
@@ -1149,6 +1149,10 @@ function lpm_redirect({f, qs, lmod}){
   let l = lpm_parse(f.redirect);
   if (0 && l && !lpm_ver_missing(l))
     q.delete('mod_self');
+  if (f.q){
+    for (let [k, v] of OE(f.q))
+      q.set(k, v);
+  }
   let redirect = '/.lif/'+f.redirect+qs_enc(q);
   D && console.log('lpm_redirect '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return {redirect};
