@@ -5,10 +5,10 @@ let D = globalThis.localStorage?.getItem('lif_boot_D'); // Debug
 import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   uri_enc, qs_enc, qs_append, qs_trim, json, json_cp, str_to_buf,
-  html_elm, _debugger, version as util_version,
+  html_elm, version as util_version,
 } from './util.js';
 import {
-  T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type,
+  T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type, lpm_imp_rel,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_norm, lpm_is_perm,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
@@ -117,18 +117,23 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-const npm_2url_opt = (url, mod_self, opt)=>{
-  let u = T_npm_url_base(url, mod_self);
+const npm_2url_opt = (imp, mod_self, opt)=>{
+  let u = T_npm_url_base(imp, mod_self);
   let q = {};
   if (u.is.blob)
-    return url;
+    return imp;
   let _url;
   if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
     u.path.startsWith('/.lif/'))
   {
     _url = u.path;
-  } else if (u.is.mod)
+  } else if (u.is.mod){
+    if (opt?.do_imp && mod_self){
+      let lpm = lpm_parse(mod_self.slice(6));
+      return '/.lif/'+lpm.lmod+'/.lif.imp/'+u.path;
+    }
     _url = '/.lif/'+T_npm_to_lpm(u.path);
+  }
   let is_lif = u.is.mod ||
     ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
     u.path.startsWith('/.lif/'));
@@ -217,23 +222,39 @@ function test(){
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t = (mod_self, url, opt, v)=>assert_eq(v, npm_2url_opt(url, mod_self, opt));
+  t = (mod_self, imp, opt, v)=>assert_eq(v, npm_2url_opt(imp, mod_self, opt));
   t('mod@1.2.3', './a/file.js', {},
     '/.lif/npm/mod@1.2.3/a/file.js?mod_self=mod@1.2.3');
+  t('/.lif/npm/mod@1.2.3/file', './a/file.js', {do_imp: 1},
+    '/.lif/npm/mod@1.2.3/a/file.js');
   t('/dir/dir2/file', './a/file.js', {},
     '/dir/dir2/a/file.js');
   t('.lif/local/other.js', './a/file.js', {worker: 1},
     '/.lif/local/a/file.js?worker=1&mod_self=.lif/local/other.js');
+  t('/.lif/local/other.js', './a/file.js', {worker: 1, do_imp: 1},
+    '/.lif/local/a/file.js?worker=1');
   t('.lif/local/mod/', './a/file.js', {type: 'module'},
     '/.lif/local/mod//a/file.js?mjs=1&mod_self=.lif/local/mod/');
+  t('/.lif/local/mod//x', './a/file.js', {type: 'module', do_imp: 1},
+    '/.lif/local/mod//a/file.js?mjs=1');
   t('react@1.2.3', 'mod/file.js', {},
     '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
+  t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {do_imp: 1},
+    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', {},
     '/.lif/npm/mod@4.5.6/file.js?mod_self=react@1.2.3');
+  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {do_imp: 1},
+    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
   t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
+  t('http://a.b/c', 'http:/x.y/z', {do_imp: 1}, 'http://x.y/z');
   t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', {do_imp: 1}, 'https://x.y/z');
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', {do_imp: 1}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', {do_imp: 1}, 'blob:https://x.y/z');
+  t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
+  t(null, 'lif-kernel/hi.js', {do_imp: 1}, '/.lif/npm/lif-kernel/hi.js');
 }
 test();
 
@@ -896,8 +917,9 @@ function import_esm_cjs(mod){
   return ret;
 }
 
-async function import_esm(mod_self, [imp, opt]){
-  let url = npm_2url_opt(imp, mod_self, opt);
+let do_imp = 1;
+async function import_esm(mod_self, [imp, opt={}]){
+  let url = npm_2url_opt(imp, mod_self, {do_imp, ...opt});
   url = url_expand(url);
   let slow;
   try {
@@ -919,7 +941,7 @@ async function import_esm(mod_self, [imp, opt]){
   }
 }
 // worker
-function importScripts_single(mod_self, [mod, opt]){
+function importScripts_single(mod_self, [mod, opt={}]){
   let url = npm_2url_opt(mod, mod_self, opt?.type=='script' ? {raw: 1} : {});
   let res = fetch_sync(url);
   if (res.status!=200)
@@ -1158,7 +1180,8 @@ if (!is_worker){
 }
 
 lif.boot = {
-  miani: 'ANKI YHVH ALOHYK:LA YHYH LK ALOHIM AJRIM EL PNY:LA TSA AT SM YHVH ALOHK LSVA:ZKOR AT YOM HSBT LQDSO:KBD AT AVIK VAT AMK:LA TRXJ:LA TNAF:LA TGNV:LA TENH BREK ED SQR:LA TJMD BYT REK:',
+  miani: 'ANKI IHUH ALUHIK:LA IHIH LK ALUHIM AhRIM EL PNI:LA TSA AT SM IHUH ALUHK LSUA:ZKUR AT IUM HSBT LQDSU:KBD AT AUIK UAT AMK:LA TRXh:LA TNAF:LA TGNU:LA TONH BROK OD SQR:LA ThMD BIT ROK:',
+  //     'ANKI YHVH ALOHYK:LA YHYH LK ALOHIM AJRIM EL PNY:LA TSA AT SM YHVH ALOHK LSVA:ZKOR AT YOM HSBT LQDSO:KBD AT AVIK VAT AMK:LA TRXJ:LA TNAF:LA TGNV:LA TENH BREK ED SQR:LA TJMD BYT REK:',
   //     'anki yhvh alohyk:la yhyh lk alohim ajrim el pny:la tsa at sm yhvh alohk lsva:zkor at yom hsbt lqdso:kbd at avik vat amk:la trxj:la tnaf:la tgnv:la tenh brek ed sqr:la tjmd byt rek:',
   //     'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
   //     'anki yeve alueyk:la yeye lk alueim ahrim ol pny:la tsa at sm yeve aluek lsva:zkur at yum hsbt lqdsu:kbd at avik vat amk:la trxh:la tnaf:la tgnv:la tone brok od sqr:la thmd byt rok:',

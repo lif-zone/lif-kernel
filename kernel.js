@@ -405,7 +405,7 @@ function tr_mjs_import(f){
 }
 
 function file_tr_mjs_worker(f, opt){
-  let uri_s = json(f.npm_uri);
+  let uri_s = json(do_imp ? '/.lif/'+f.lmod : f.npm_uri);
   // double space between await and import, to prevent tr import_module
   let js = `
     let lif_worker = {
@@ -432,13 +432,11 @@ function file_tr_mjs_worker(f, opt){
 }
 
 function file_tr_mjs(f, opt){
-  let uri_s = json(f.npm_uri);
+  let uri_s = json(do_imp ? '/.lif/'+f.lmod : f.npm_uri);
   let tr = tr_mjs_import(f);
   let slow = 0; // has problem with lif-kernel/util.js
   let log = 0, pre = '', post = '';
   let _import = f.meta.imports?.length;
-  if (f.npm_uri.includes(' mod_name '))
-    pre += `debugger; `;
   if (opt?.worker)
     return file_tr_mjs_worker(f, opt);
   if (f.meta.imports_dyn?.length)
@@ -460,7 +458,6 @@ function file_tr_mjs(f, opt){
 function mjs_import_cjs(path, q){
   let imported = q.get('imported')?.split(',');
   let mod_self = q.get('mod_self');
-  let uri_s = json(path);
   let js = '';
   if (q.get('worker')){
     // double space between await and import, to prevent tr import_module
