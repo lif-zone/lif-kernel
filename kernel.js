@@ -350,20 +350,7 @@ function lpm_import_lookup({lpm_pkg, imp}){
   return ret_err('imp missing');
 }
 
-function tr_import_lpm({imp, imported, npm_self, pkg}){
-  let v = passthrough_lmod({pkg, lmod: imp});
-  if (v)
-    return v;
-  v = '/.lif/'+imp;
-  let q = {};
-  if (imported)
-    q.imported = imported.join(',');
-  q.mod_self = npm_self;
-  v += qs_enc(q);
-  return v;
-}
-
-function tr_import_lpm2({imp, imported, lmod_self, pkg}){
+function tr_import_lpm({imp, imported, lmod_self, pkg}){
   let v = passthrough_lmod({pkg, lmod: T_npm_to_lpm(imp)});
   if (v)
     return v;
@@ -375,7 +362,6 @@ function tr_import_lpm2({imp, imported, lmod_self, pkg}){
   return v;
 }
 
-let do_imp = 1;
 function tr_mjs_import(f){
   let s = Scroll(f.js), v, _v;
   for (let d of f.meta.imports||[]){
@@ -384,18 +370,8 @@ function tr_mjs_import(f){
       s.splice(d.start, d.end, json(imp+'?mjs=1'));
       continue;
     }
-    if (do_imp){
-      _v = tr_import_lpm2({imp, imported: d.imported,
-        lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
-      s.splice(d.start, d.end, json(_v));
-      continue;
-    }
-    if (!(v=lpm_import_lookup({lpm_pkg: f.lpm_pkg, imp: T_npm_to_lpm(imp)}))){
-      console.warn('import('+f.lmod+') missing: '+imp);
-      v = npm_to_lpm(imp);
-    }
-    _v = tr_import_lpm({imp: v, imported: d.imported, npm_self: f.npm_uri,
-      pkg: f.lpm_pkg.pkg});
+    _v = tr_import_lpm({imp, imported: d.imported,
+      lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
     s.splice(d.start, d.end, json(_v));
     continue;
   }
@@ -405,7 +381,7 @@ function tr_mjs_import(f){
 }
 
 function file_tr_mjs_worker(f, opt){
-  let uri_s = json(do_imp ? '/.lif/'+f.lmod : f.npm_uri);
+  let uri_s = json('/.lif/'+f.lmod);
   // double space between await and import, to prevent tr import_module
   let js = `
     let lif_worker = {
@@ -432,7 +408,7 @@ function file_tr_mjs_worker(f, opt){
 }
 
 function file_tr_mjs(f, opt){
-  let uri_s = json(do_imp ? '/.lif/'+f.lmod : f.npm_uri);
+  let uri_s = json('/.lif/'+f.lmod);
   let tr = tr_mjs_import(f);
   let slow = 0; // has problem with lif-kernel/util.js
   let log = 0, pre = '', post = '';
@@ -996,7 +972,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
 
 async function lpm_import_get({log, imp, lmod_self}){
   D && console.log('lpm_import_get', imp, lmod_self);
-  let lpm_pkg = await lpm_pkg_get({log, lmod: lmod_self});
+  let lpm_pkg = await lpm_pkg_get_follow({log, lmod: lmod_self});
   if (lpm_pkg.not_exist)
     return lpm_pkg;
   if (lpm_pkg.redirect)

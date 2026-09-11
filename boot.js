@@ -117,7 +117,7 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-function npm_2url_opt(imp, mod_self, opt){
+function npm_imp_abs(imp, mod_self, opt){
   let u = T_npm_url_base(imp, mod_self);
   let q = {};
   if (u.is.blob)
@@ -128,7 +128,7 @@ function npm_2url_opt(imp, mod_self, opt){
   {
     _url = u.path;
   } else if (u.is.mod){
-    if (opt?.do_imp && mod_self){
+    if (mod_self){
       let v;
       if (!(v=str.starts(mod_self, '/.lif/')))
         throw Error('npm import url: invalid mod_self: '+mod_self);
@@ -225,39 +225,24 @@ function test(){
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t = (mod_self, imp, opt, v)=>assert_eq(v, npm_2url_opt(imp, mod_self, opt));
-  t('mod@1.2.3', './a/file.js', {},
-    '/.lif/npm/mod@1.2.3/a/file.js?mod_self=mod@1.2.3');
-  t('/.lif/npm/mod@1.2.3/file', './a/file.js', {do_imp: 1},
+  t = (mod_self, imp, opt, v)=>assert_eq(v, npm_imp_abs(imp, mod_self, opt));
+  t('/.lif/npm/mod@1.2.3/file', './a/file.js', {},
     '/.lif/npm/mod@1.2.3/a/file.js');
   t('/dir/dir2/file', './a/file.js', {},
     '/dir/dir2/a/file.js');
-  t('.lif/local/other.js', './a/file.js', {worker: 1},
-    '/.lif/local/a/file.js?worker=1&mod_self=.lif/local/other.js');
-  t('/.lif/local/other.js', './a/file.js', {worker: 1, do_imp: 1},
+  t('/.lif/local/other.js', './a/file.js', {worker: 1},
     '/.lif/local/a/file.js?worker=1');
-  t('.lif/local/mod/', './a/file.js', {type: 'module'},
-    '/.lif/local/mod//a/file.js?mjs=1&mod_self=.lif/local/mod/');
-  t('/.lif/local/mod//x', './a/file.js', {type: 'module', do_imp: 1},
+  t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
     '/.lif/local/mod//a/file.js?mjs=1');
-  t('react@1.2.3', 'mod/file.js', {},
-    '/.lif/npm/mod/file.js?mod_self=react@1.2.3');
-  t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {do_imp: 1},
+  t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
     '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
-  t('react@1.2.3', 'mod@4.5.6/file.js', {},
-    '/.lif/npm/mod@4.5.6/file.js?mod_self=react@1.2.3');
-  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {do_imp: 1},
+  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
     '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
   t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
-  t('http://a.b/c', 'http:/x.y/z', {do_imp: 1}, 'http://x.y/z');
   t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', {do_imp: 1}, 'https://x.y/z');
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
-  t('http://a.b/c', 'blob:http://x.y/z', {do_imp: 1}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  t('http://a.b/c', 'blob:https://x.y/z', {do_imp: 1}, 'blob:https://x.y/z');
   t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
-  t(null, 'lif-kernel/hi.js', {do_imp: 1}, '/.lif/npm/lif-kernel/hi.js');
 }
 test();
 
@@ -920,9 +905,8 @@ function import_esm_cjs(mod){
   return ret;
 }
 
-let do_imp = 1;
 async function import_esm(mod_self, [imp, opt={}]){
-  let url = npm_2url_opt(imp, mod_self, {do_imp, ...opt});
+  let url = npm_imp_abs(imp, mod_self, opt);
   url = url_expand(url);
   let slow;
   try {
@@ -945,10 +929,10 @@ async function import_esm(mod_self, [imp, opt={}]){
 }
 // worker
 function importScripts_single(mod_self, [mod, opt={}]){
-  let _opt = {do_imp};
+  let _opt = {};
   if (opt?.type=='script')
     _opt.raw = 1;
-  let url = npm_2url_opt(mod, mod_self, _opt);
+  let url = npm_imp_abs(mod, mod_self, _opt);
   let res = fetch_sync(url);
   if (res.status!=200)
     throw Error('failed fetch '+url);
@@ -1162,7 +1146,8 @@ let boot_app = async(boot_pkg)=>{
 if (!is_worker){
   function imp_url(url, opt){
     url = url.href || url;
-    let _url = npm_2url_opt(url, npm_root, {worker: 1, type: opt?.type});
+    let mod_self = npm_root && npm_2url(npm_root);
+    let _url = npm_imp_abs(url, mod_self, {worker: 1, type: opt?.type});
     return _url;
   }
   class lif_Worker extends Worker {
