@@ -117,7 +117,7 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-const npm_2url_opt = (imp, mod_self, opt)=>{
+function npm_2url_opt(imp, mod_self, opt){
   let u = T_npm_url_base(imp, mod_self);
   let q = {};
   if (u.is.blob)
@@ -151,18 +151,18 @@ const npm_2url_opt = (imp, mod_self, opt)=>{
   if (mod_self && url_uri_type(mod_self)=='mod')
     q.mod_self = mod_self;
   return qs_append(_url, q);
-};
+}
 
-const npm_2url = (url, mod_self)=>{
+function npm_2url(url, mod_self){
   let u = T_npm_url_base(url, mod_self);
   if (u.is.url)
     return u.is.blob || u.is.data ? url : u.origin+u.path;
   if (u.is.uri)
     return u.path;
   return '/.lif/'+T_npm_to_lpm(u.path);
-};
+}
 
-const npm_base = (mod_self, url)=>{
+function npm_base(mod_self, url){
   let u = T_npm_url_base(url, mod_self);
   let v;
   if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
@@ -173,7 +173,7 @@ const npm_base = (mod_self, url)=>{
   if (u.is.url)
     return u.is.blob || u.is.data ? url : u.origin+u.path;
   return u.path;
-};
+}
 
 function test(){
   let t;
