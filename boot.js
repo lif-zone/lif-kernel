@@ -129,10 +129,13 @@ function npm_2url_opt(imp, mod_self, opt){
     _url = u.path;
   } else if (u.is.mod){
     if (opt?.do_imp && mod_self){
-      let lpm = lpm_parse(mod_self.slice(6));
-      return '/.lif/'+lpm.lmod+'/.lif.imp/'+u.path;
-    }
-    _url = '/.lif/'+T_npm_to_lpm(u.path);
+      let v;
+      if (!(v=str.starts(mod_self, '/.lif/')))
+        throw Error('npm import url: invalid mod_self: '+mod_self);
+      let lpm = lpm_parse(v.rest);
+      _url = '/.lif/'+lpm.lmod+'/.lif.imp/'+u.path;
+    } else
+      _url = '/.lif/'+T_npm_to_lpm(u.path);
   }
   let is_lif = u.is.mod ||
     ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
