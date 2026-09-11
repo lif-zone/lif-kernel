@@ -1154,11 +1154,11 @@ let boot_app = async(boot_pkg)=>{
 };
 
 if (!is_worker){
-  let get_url = (url, opt)=>{
+  function get_url(url, opt){
     url = url.href || url;
     let _url = npm_2url_opt(url, npm_root, {worker: 1, type: opt?.type});
     return _url;
-  };
+  }
   class lif_Worker extends Worker {
     constructor(url, opt){
       console.log('Worker start', url);
