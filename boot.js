@@ -945,7 +945,10 @@ async function import_esm(mod_self, [imp, opt={}]){
 }
 // worker
 function importScripts_single(mod_self, [mod, opt={}]){
-  let url = npm_2url_opt(mod, mod_self, opt?.type=='script' ? {raw: 1} : {});
+  let _opt = {do_imp};
+  if (opt?.type=='script')
+    _opt.raw = 1;
+  let url = npm_2url_opt(mod, mod_self, _opt);
   let res = fetch_sync(url);
   if (res.status!=200)
     throw Error('failed fetch '+url);
