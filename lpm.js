@@ -402,6 +402,12 @@ export function lpm_to_sw_passthrough(lpm){
   return '/.lif/'+lpm;
 }
 
+export function lpm_imp_rel(imp, lmod_self){
+  let depth = lpm_parse(lmod_self).path.split('/').length-2;
+  let rel_root = !depth ? './' : '../'.repeat(depth);
+  return rel_root+'.lif.imp/'+imp;
+}
+
 export function url_uri_type(url_uri){
   if (!url_uri)
     throw Error('empty url_uri');
@@ -962,6 +968,15 @@ function test_util(){
   t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
+  t = (imp, lmod_self, v)=>assert_eq(v, lpm_imp_rel(imp, lmod_self));
+  t('mod', 'npm/self/file.js', './.lif.imp/mod');
+  t('mod', 'npm/self/a/file.js', '../.lif.imp/mod');
+  t('mod', 'npm/self/a/b/file.js', '../../.lif.imp/mod');
+  t('mod', 'npm/self/a//b/file.js', '../.lif.imp/mod');
+  t('mod', 'git/github/repo/user/a/b/file.js', '../../.lif.imp/mod');
+  t('mod', 'git/github/repo/user/a//b/file.js', '../.lif.imp/mod');
+  t('mod@1.2.3', 'npm/self/a/b/file.js', '../../.lif.imp/mod@1.2.3');
+  t('mod/b', 'npm/self/a/b/file.js', '../../.lif.imp/mod/b');
   t = (dep, v, opt={})=>assert_eq(v,
     npm_import_parse({lmod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
   t('npm:react', 'npm/react');

@@ -12,7 +12,7 @@ const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
 const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
-  url_uri_type, T_npm_to_lpm, T_lpm_to_npm,
+  url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing,
   pkg_import_lookup, semver_parse, semver_cmp,
@@ -48,7 +48,7 @@ function db_upgrade(db, table, opt){
 }
 
 let cache_ver = 18;
-async function db_open(){
+async function db_open(){ // use storageBuckets
   if (!db){
     db = await idb.openDB('lif-kernel', cache_ver, {
       upgrade(db, old_ver, new_ver){
@@ -367,9 +367,7 @@ function tr_import_lpm2({imp, imported, lmod_self, pkg}){
   let v = passthrough_lmod({pkg, lmod: T_npm_to_lpm(imp)});
   if (v)
     return v;
-  let depth = lpm_parse(lmod_self).path.split('/').length-2;
-  let rel_root = !depth ? './' : '../'.repeat(depth);
-  v = rel_root+'.lif.imp/'+imp;
+  v = lpm_imp_rel(imp, lmod_self);
   let q = {};
   if (imported)
     q.imported = imported.join(',');
