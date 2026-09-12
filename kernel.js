@@ -396,11 +396,11 @@ function file_tr_mjs_worker(f, opt){
     // see also lif-coin/browser/node_env.js
     //import lif from '/.lif/npm/lif-kernel/boot.js';
     let lif = (await  import('/.lif/npm/lif-kernel/boot.js')).default;
-    let importScripts = (...mods)=>lif.boot._importScripts(${uri_s}, mods);
+    let importScripts = (...mods)=>lif.boot._importScripts(import.meta.url, mods);
     let import_lif = function(){
-      return globalThis.$lif.boot.import_esm(${uri_s}, arguments);
+      return globalThis.$lif.boot.import_esm(import.meta.url, arguments);
     };
-    let mod = await import_lif(${uri_s});
+    let mod = await import_lif(import.meta.url);
     globalThis.removeEventListener('message', lif_worker.cb);
     lif_worker.queue.forEach(e=>globalThis.dispatchEvent(e));
   `;
@@ -416,9 +416,9 @@ function file_tr_mjs(f, opt){
   if (opt?.worker)
     return file_tr_mjs_worker(f, opt);
   if (f.meta.imports_dyn?.length)
-    pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
+    pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(import.meta.url, arguments); }; `;
   if (slow)
-    pre += `let slow = globalThis.$lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
+    pre += `let slow = globalThis.$lif.boot.util.eslow(5000, 'load module '+import.meta.url); `;
   if (slow)
     post += `slow.end(); `;
   let _tr = tr;

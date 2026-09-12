@@ -5,7 +5,7 @@ let D = globalThis.localStorage?.getItem('lif_boot_D'); // Debug
 import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   uri_enc, qs_enc, qs_append, qs_trim, json, json_cp, str_to_buf,
-  html_elm, version as util_version,
+  html_elm, version as util_version, url_parse,
 } from './util.js';
 import {
   T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type, lpm_imp_rel,
@@ -905,7 +905,17 @@ function import_esm_cjs(mod){
   return ret;
 }
 
+function mod_self_to_path(mod_self){
+  if (!mod_self || mod_self[0]=='/')
+    return mod_self;
+  let u = url_parse(mod_self);
+  if (!u)
+    return mod_self;
+  return u.path;
+}
+
 async function import_esm(mod_self, [imp, opt={}]){
+  mod_self = mod_self_to_path(mod_self);
   let url = npm_imp_abs(imp, mod_self, opt);
   url = url_expand(url);
   let slow;
