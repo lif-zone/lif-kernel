@@ -158,90 +158,113 @@ function _gh_ver(u){
   return ver;
 }
 let lpm_cdn = {
-  npm: {src: [{
-    // package file listing+size+sha256
-    // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
-    name: 'jsdeliver.net',
-    url: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.submod_path}`,
-  }, {
-    // package file listing+size+sha256
-    //  https://unpkg.com/react@18.3.1/?meta
-    name: 'unpkg.com',
-    u: u=>`https://unpkg.com/${u.name}${u.ver}${u.submod_path}`,
-  }], src_ver: [{
-    name: 'npmjs.org',
-    url: u=>`https://registry.npmjs.com/${u.name}`,
-  }, {
-    name: 'yarnpkg.com',
-    url: u=>`https://registry.yarnpkg.com/${u.name}`,
-  }, {
-    name: 'npmmirror.com',
-    url: u=>`https://registry.npmmirror.com/${u.name}`,
-  }]},
-  git: {
-    'github.com': {src: [{
-      name: 'jsdeliver.net',
-      url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${u.submod_path}`
-    }, {
-      name: 'statically.io',
-      url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${u.submod_path}`,
-    }, {
-      name: 'raw.githubusercontent.com',
-      url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
-    }], src_ver: [{
-      name: 'api.github.com',
-      // all branches: [i].name, [i].commit.sha
-      // https://api.github.com/repos/facebook/react/branches
-      // all tags: [i].name [i].commit.sha
-      // https://api.github.com/repos/facebook/react/tags
-      // specific branch: name, commit.sha
-      // https://api.github.com/repos/facebook/react/branches/main
-      // specific tag: object.sha
-      // https://api.github.com/repos/facebook/react/git/refs/tags/v19.0.0
-      // list of all heads (including non-released): [i].object.sha
-      // https://api.github.com/repos/facebook/react/git/refs/heads
-      // specific head: object.sha
-      // https://api.github.com/repos/facebook/react/git/refs/heads/main
-      // without cors:
-      // https://github.com/lif-zone/lif-kernel.git/info/refs?service=git-upload-pack
-      // commit (with its contents, works partial sha): sha
-      // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
-      // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
-      // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12310d75175dea2366e750952080c236b6e
-      // https://api.github.com/repos/lif-zone/lif-kernel/commits/HEAD
-      // https://api.github.com/repos/lif-zone/lif-kernel/commits/main
-      // lookup branch+date: [0].sha
-      // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
-      // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
-      url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
-      get_data: data=>data.commit.sha,
-      _uri_branch: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
-      _uri_tag: u=>`https://api.github.com/repos/${u.name}/git/ref/tags/${u.ver||'main'}`,
-      _uri_branch_date: u=>`https://api.github.com/repos/${u.name}/commits?per_page=1&until={u.date}&sha=${u.ver||'main'}`,
-      _get_data: data=>data.object.sha,
-    }]},
-    'gitlab.com': {src: [{
-      name: 'statically.io',
-      url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
-    }], src_ver: [{
-      name: "gitlab.com",
-      // commit (works partial sha): id
-      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/dc83328
-      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/dc8332848c7f32dbd0e7eb56a94dd07bcdeabdf4
-      // specific tag/branch: id
-      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/master
-      // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/v18.11.2-ee
-      url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/commits/${b}`,
-      get_data: data=>data.id,
-    }]},
+  npm: {
+    src: [
+      {
+        // package file listing+size+sha256
+        // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
+        name: 'jsdeliver.net',
+        url: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.submod_path}`,
+      },
+      {
+        // package file listing+size+sha256
+        //  https://unpkg.com/react@18.3.1/?meta
+        name: 'unpkg.com',
+        u: u=>`https://unpkg.com/${u.name}${u.ver}${u.submod_path}`,
+      },
+    ],
+    src_ver: [
+      {
+        name: 'npmjs.org',
+        url: u=>`https://registry.npmjs.com/${u.name}`,
+      },
+      {
+        name: 'yarnpkg.com',
+        url: u=>`https://registry.yarnpkg.com/${u.name}`,
+      },
+      {
+        name: 'npmmirror.com',
+        url: u=>`https://registry.npmmirror.com/${u.name}`,
+      },
+    ],
   },
-  ipfs: {src: [{
-    name: 'ipfs.io',
-    url: u=>`https://ipfs.io/ipfs/${u.cid}${u.submod_path}`,
-  }, {
-    name: 'dweb.link',
-    url: u=>`https://dweb.link/ipfs/${u.cid}${u.submod_path}`,
-  }]},
+  git: {
+    'github.com': {
+      src: [
+        {
+          name: 'jsdeliver.net',
+          url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${u.submod_path}`
+        },
+        {
+          name: 'statically.io',
+          url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${u.submod_path}`,
+        },
+        {
+          name: 'raw.githubusercontent.com',
+          url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
+        },
+      ],
+      src_ver: [{
+        name: 'api.github.com',
+        // all branches: [i].name, [i].commit.sha
+        // https://api.github.com/repos/facebook/react/branches
+        // all tags: [i].name [i].commit.sha
+        // https://api.github.com/repos/facebook/react/tags
+        // specific branch: name, commit.sha
+        // https://api.github.com/repos/facebook/react/branches/main
+        // specific tag: object.sha
+        // https://api.github.com/repos/facebook/react/git/refs/tags/v19.0.0
+        // list of all heads (including non-released): [i].object.sha
+        // https://api.github.com/repos/facebook/react/git/refs/heads
+        // specific head: object.sha
+        // https://api.github.com/repos/facebook/react/git/refs/heads/main
+        // without cors:
+        // https://github.com/lif-zone/lif-kernel.git/info/refs?service=git-upload-pack
+        // commit (with its contents, works partial sha): sha
+        // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
+        // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
+        // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12310d75175dea2366e750952080c236b6e
+        // https://api.github.com/repos/lif-zone/lif-kernel/commits/HEAD
+        // https://api.github.com/repos/lif-zone/lif-kernel/commits/main
+        // lookup branch+date: [0].sha
+        // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
+        // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
+        url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
+        get_data: data=>data.commit.sha,
+        _uri_branch: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
+        _uri_tag: u=>`https://api.github.com/repos/${u.name}/git/ref/tags/${u.ver||'main'}`,
+        _uri_branch_date: u=>`https://api.github.com/repos/${u.name}/commits?per_page=1&until={u.date}&sha=${u.ver||'main'}`,
+        _get_data: data=>data.object.sha,
+      }],
+    },
+    'gitlab.com': {
+      src: [{
+        name: 'statically.io',
+        url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
+      }],
+      src_ver: [{
+        name: "gitlab.com",
+        // commit (works partial sha): id
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/dc83328
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/dc8332848c7f32dbd0e7eb56a94dd07bcdeabdf4
+        // specific tag/branch: id
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/master
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/v18.11.2-ee
+        url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/commits/${b}`,
+        get_data: data=>data.id,
+      }],
+    },
+  },
+  ipfs: {src: [
+    {
+      name: 'ipfs.io',
+      url: u=>`https://ipfs.io/ipfs/${u.cid}${u.submod_path}`,
+    },
+    {
+      name: 'dweb.link',
+      url: u=>`https://dweb.link/ipfs/${u.cid}${u.submod_path}`,
+    },
+  ]},
   local: {src: [{
     name: 'local',
     url: u=>u.submod_path,
