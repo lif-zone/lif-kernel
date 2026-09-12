@@ -172,6 +172,10 @@ let lpm_cdn = {
         name: 'unpkg.com',
         u: u=>`https://unpkg.com/${u.name}${u.ver}${u.submod_path}`,
       },
+      {
+        name: 'statically.io',
+        url: u=>`https://cdn.statically.io/npm/${u.name}${u.ver}${u.submod_path}`,
+      },
     ],
     src_ver: [
       {
@@ -197,7 +201,7 @@ let lpm_cdn = {
         },
         {
           name: 'statically.io',
-          url: u=>`https://statically.io/gh/${u.name}${gh_ver(u)}${u.submod_path}`,
+          url: u=>`https://cdn.statically.io/gh/${u.name}${gh_ver(u)}${u.submod_path}`,
         },
         {
           name: 'raw.githubusercontent.com',
@@ -240,7 +244,7 @@ let lpm_cdn = {
     'gitlab.com': {
       src: [{
         name: 'statically.io',
-        url: u=>`https://statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
+        url: u=>`https://cdn.statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
       }],
       src_ver: [{
         name: "gitlab.com",
@@ -496,13 +500,14 @@ async function reg_http_get({log, url}){
     D && console.log('fetch '+url+' for '+log.mod);
     response = await fetch(url, fetch_opt(url));
   } catch(_err){
-    slow.end();
-    err = Error('module('+log.mod+') failed fetch('+url+'): '+_err);
+    // jsdelivr 503 is due to rate limit appear as fetch-throw
+    err = 'module('+log.mod+') failed fetch('+url+'): '+_err;
     console.log(err);
     return {err, status: 0, fail_cdn: true};
+  } finally {
+    slow.end();
   }
-  slow.end();
-  // jsdelivr/gh jsdlivr/gl returns 403 for not-exist
+  // jsdelivr/gh/gl returns 403 for not-exist
   if (response.status==404 || response.status==403)
     return {status: response.status, not_exist: true};
   if (response.redirected){
@@ -517,7 +522,7 @@ async function reg_http_get({log, url}){
   try {
     blob = await response.blob();
   } catch(err){
-    err = Error('fetch('+url+'): '+err);
+    err = 'fetch('+url+'): '+err;
     console.log(err);
     return {err, fail_cdn: true};
   }
@@ -535,9 +540,9 @@ async function reg_get({log, lmod, opt}){
   u = reg.u = T_lpm_parse(reg.lmod);
   u.submod_path = u.submod.replace(/\/$/, '')+u.path;
   // select cdn
-  // npm/react@18.3.0/file.js
-  //   http://unpkg.com/react@18.3.0/file.js
-  //   http://cdn.jsdlivr.net/npm/react@18.3.0/file.js
+  // npm/react@18.3.0/index.js
+  //   http://unpkg.com/react@18.3.0/index.js
+  //   http://cdn.jsdelivr.net/npm/react@18.3.0/index.js
   let pkg, v;
   reg.cdn = lpm_get_cdn(u);
   let src = reg.cdn.src;
@@ -563,13 +568,14 @@ async function reg_get({log, lmod, opt}){
     reg.url = url;
     reg.src_ver = _src;
     ret = await reg_http_get({log, url});
-    if (ret.blob)
+    if (ret.blob) // fetch OK
       break;
     if (ret.not_exist){
       reg.not_exist = true;
       return reg;
     }
     assert(ret.fail_cdn);
+    console.warn('cdn failed. switching cdn: '+_src.name);
     _src.fail = {url, err: ret.err};
   }
   if (!(reg.blob = ret?.blob)){
