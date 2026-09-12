@@ -17,7 +17,7 @@ const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
   T_lpm_parse, T_lpm_str, lpm_ver_missing,
   pkg_import_lookup, semver_parse, semver_cmp,
   pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
-  pkg_transform_type,
+  pkg_transform_type, npm_ver_lookup,
 } = await import('./lpm.js');
 const {tr_tsx_to_js, tr_js_to_meta,
 } = await import('./ast.js');
@@ -596,34 +596,6 @@ async function npm_ver_get({log, lmod}){
   }
 }); }
 
-function npm_ver_lookup(pkg_ver, date){
-  let time = pkg_ver.time;
-  date = +new Date(date);
-  let created = +new Date(time.created);
-  let modified = +new Date(time.modified);
-  let found;
-  for (let [ver, tm] of OE(pkg_ver.time)){
-    if (str.is(ver, 'created', 'modified'))
-      continue;
-    tm = +new Date(tm);
-    let rel = semver_parse(ver).rel;
-    let cur = {ver, tm, rel};
-    if (!found || found.tm>date && tm<=date){
-      found = cur;
-      continue;
-    }
-    if (tm>date)
-      continue;
-    if (!found.rel && rel)
-      continue;
-    if (semver_cmp(found.ver, ver)>0)
-      continue;
-    found = cur;
-  }
-  if (found)
-    return '@'+found.ver;
-}
-
 async function npm_ver_resolve({log, lmod}){
   let u = T_lpm_parse(lmod);
   assert(lpm_ver_missing(u));
@@ -982,6 +954,8 @@ async function lpm_import_get({log, imp, lmod_self}){
   }
   // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
   let res = await lpm_pkg_resolve({log, imp: T_lpm_lmod(v), mod_self: lmod_self});
+  if (res.not_found)
+    return res;
   return {redirect: v};
 }
 
@@ -1468,40 +1442,6 @@ function test_kernel(){
   t('@1.2.3', '@1.2.3');
   t('@semver:=1.2.3', '@=1.2.3');
   0 && t('@^147a849fbc1', '@147a849fbc1'); // XXX git ^commitid
-  t = (date, v)=>assert_eq(v, npm_ver_lookup(pkg_ver, date));
-  let pkg_ver = {time: {
-    created: '2024-02-13T16:33:48.639Z',
-    modified: '2024-05-27T21:37:19.361Z',
-    '3.1.1': '2024-02-13T16:33:48.811Z',
-    '3.1.2': '2024-02-13T16:38:16.974Z',
-    '3.1.4': '2024-02-13T17:36:12.881Z',
-    '3.2.0': '2024-03-17T22:32:47.128Z',
-    '3.2.0-experimental': '2024-03-17T22:32:47.126Z',
-    '3.2.0-experimental-2': '2024-03-17T22:32:47.129Z',
-    '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
-    '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
-  }};
-  t('2024-02-13T16:38:16.973Z', '@3.1.1');
-  t('2024-02-13T16:38:16.974Z', '@3.1.2');
-  t('2024-02-13T16:38:16.975Z', '@3.1.2');
-  t('2024-03-17T22:32:47.128Z', '@3.2.0');
-  t('2024-03-17T22:32:47.130Z', '@3.2.0');
-  t('2024-03-13T16:33:48.639Z', '@3.1.4');
-  t('2024-03-13T16:33:48.638Z', '@3.1.4');
-  t('2024-01-01T00:00:00.000Z', '@3.1.1');
-  t('2024-04-01700:00:00.000Z', '@3.2.0');
-  pkg_ver = {time: {
-    created: '2024-02-13T16:33:48.639Z',
-    modified: '2024-05-27T21:37:19.361Z',
-    '3.2.0-experimental': '2024-03-17T22:32:47.126Z',
-    '3.2.0-experimental-2': '2024-03-17T22:32:47.129Z',
-    '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
-    '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
-  }};
-  t('2024-01-01T00:00:00.000Z', '@3.2.0-experimental');
-  t('2024-03-13T16:33:48.639Z', '@3.2.0-experimental');
-  t('2024-03-13T16:33:48.638Z', '@3.2.0-experimental');
-  t('2024-04-01700:00:00.000Z', '@3.2.2-experimental-2');
   let lpm_pkg = {lmod: 'npm/self@1.2.3',
     pkg: {lif: {
       dependencies: {

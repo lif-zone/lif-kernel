@@ -898,6 +898,34 @@ export function pkg_import_lookup({lmod_self, pkg, imp}){
   return found;
 }
 
+export function npm_ver_lookup(pkg_ver, date){
+  let time = pkg_ver.time;
+  date = +new Date(date);
+  let created = +new Date(time.created);
+  let modified = +new Date(time.modified);
+  let found;
+  for (let [ver, tm] of OE(pkg_ver.time)){
+    if (str.is(ver, 'created', 'modified'))
+      continue;
+    tm = +new Date(tm);
+    let rel = semver_parse(ver).rel;
+    let cur = {ver, tm, rel};
+    if (!found || found.tm>date && tm<=date){
+      found = cur;
+      continue;
+    }
+    if (tm>date)
+      continue;
+    if (!found.rel && rel)
+      continue;
+    if (semver_cmp(found.ver, ver)>0)
+      continue;
+    found = cur;
+  }
+  if (found)
+    return '@'+found.ver;
+}
+
 function test_util(){
   in_test = 1;
   let t = (url_uri, v)=>assert_obj(v, url_uri_type(url_uri));
@@ -1403,6 +1431,40 @@ function test_util(){
   t('npm/overg', {over: 'npm/overg@2.0.0'});
   t('npm/optional', {optional: 'npm/optional@1.0.0',
     reg: 'npm/optional@1.0.1'});
+  t = (date, v)=>assert_eq(v, npm_ver_lookup(pkg_ver, date));
+  let pkg_ver = {time: {
+    created: '2024-02-13T16:33:48.639Z',
+    modified: '2024-05-27T21:37:19.361Z',
+    '3.1.1': '2024-02-13T16:33:48.811Z',
+    '3.1.2': '2024-02-13T16:38:16.974Z',
+    '3.1.4': '2024-02-13T17:36:12.881Z',
+    '3.2.0': '2024-03-17T22:32:47.128Z',
+    '3.2.0-experimental': '2024-03-17T22:32:47.126Z',
+    '3.2.0-experimental-2': '2024-03-17T22:32:47.129Z',
+    '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
+    '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
+  }};
+  t('2024-02-13T16:38:16.973Z', '@3.1.1');
+  t('2024-02-13T16:38:16.974Z', '@3.1.2');
+  t('2024-02-13T16:38:16.975Z', '@3.1.2');
+  t('2024-03-17T22:32:47.128Z', '@3.2.0');
+  t('2024-03-17T22:32:47.130Z', '@3.2.0');
+  t('2024-03-13T16:33:48.639Z', '@3.1.4');
+  t('2024-03-13T16:33:48.638Z', '@3.1.4');
+  t('2024-01-01T00:00:00.000Z', '@3.1.1');
+  t('2024-04-01700:00:00.000Z', '@3.2.0');
+  pkg_ver = {time: {
+    created: '2024-02-13T16:33:48.639Z',
+    modified: '2024-05-27T21:37:19.361Z',
+    '3.2.0-experimental': '2024-03-17T22:32:47.126Z',
+    '3.2.0-experimental-2': '2024-03-17T22:32:47.129Z',
+    '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
+    '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
+  }};
+  t('2024-01-01T00:00:00.000Z', '@3.2.0-experimental');
+  t('2024-03-13T16:33:48.639Z', '@3.2.0-experimental');
+  t('2024-03-13T16:33:48.638Z', '@3.2.0-experimental');
+  t('2024-04-01700:00:00.000Z', '@3.2.2-experimental-2');
   in_test = 0;
 }
 test_util();
