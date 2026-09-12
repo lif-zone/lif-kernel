@@ -140,7 +140,7 @@ function sha256_hex(v){
 // https://api.github.com/repos/lif-zone/lif-kernel/git/ref/heads/master
 // GITHUB content
 // https://raw.githubusercontent.com/lif-zone/lif-kernel/0f78e4cef8ce6b7a0d24d8716cc599143af20312/package.json
-let gh_ver = u=>{
+function gh_ver(u){
   let ver = typeof u=='string' ? u : u.ver;
   if (!ver)
     return '';
@@ -149,14 +149,14 @@ let gh_ver = u=>{
   if (v=str.starts(_ver, 'semver:'))
     return '@'+v.rest;
   return ver;
-};
-let _gh_ver = u=>{
+}
+function _gh_ver(u){
   let ver = gh_ver(u);
   let _ver = ver.replace(/^@/, '');
   if (!ver)
     return 'latest';
   return ver;
-};
+}
 let lpm_cdn = {
   npm: {src: [{
     // package file listing+size+sha256
