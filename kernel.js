@@ -411,18 +411,14 @@ function file_tr_mjs(f, opt){
   let uri_s = json('/.lif/'+f.lmod);
   let tr = tr_mjs_import(f);
   let slow = 0; // has problem with lif-kernel/util.js
-  let log = 0, pre = '', post = '';
+  let pre = '', post = '';
   let _import = f.meta.imports?.length;
   if (opt?.worker)
     return file_tr_mjs_worker(f, opt);
   if (f.meta.imports_dyn?.length)
     pre += `let import_lif = function(){ return globalThis.$lif.boot.import_esm(${uri_s}, arguments); }; `;
-  if (log) 
-    pre += `console.log(${uri_s}, 'start'); `;
   if (slow)
     pre += `let slow = globalThis.$lif.boot.util.eslow(5000, 'load module '+${uri_s}); `;
-  if (log) 
-    post += `console.log(${uri_s}, 'end'); `;
   if (slow)
     post += `slow.end(); `;
   let _tr = tr;
