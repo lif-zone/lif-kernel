@@ -905,17 +905,17 @@ function import_esm_cjs(mod){
   return ret;
 }
 
-function mod_self_to_path(mod_self){
-  if (!mod_self || mod_self[0]=='/')
-    return mod_self;
-  let u = url_parse(mod_self);
+function url_to_path(url){
+  if (!url || url[0]=='/')
+    return url;
+  let u = url_parse(url);
   if (!u)
-    return mod_self;
+    return url;
   return u.path;
 }
 
 async function import_esm(mod_self, [imp, opt={}]){
-  mod_self = mod_self_to_path(mod_self);
+  mod_self = url_to_path(mod_self);
   let url = npm_imp_abs(imp, mod_self, opt);
   url = url_expand(url);
   let slow;
