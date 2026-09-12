@@ -1097,7 +1097,7 @@ async function cache_store_set(request, response){
   return response;
 }
 
-let ctype_binary = path=>{
+function ctype_binary(path){
   let ext = _path_ext(path);
   let ctype = ctype_get(ext)?.ctype;
   if (!ctype)
@@ -1105,7 +1105,7 @@ let ctype_binary = path=>{
   if (str.starts(ctype, 'audio/', 'image/', 'video/', 'font/'))
     return true;
   return false;
-};
+}
 
 function lpm_redirect({f, qs, lmod}){
   let q = new URLSearchParams(qs);
