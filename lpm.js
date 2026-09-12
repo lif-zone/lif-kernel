@@ -901,7 +901,8 @@ export function pkg_import_lookup({lmod_self, pkg, imp}){
 
 export function npm_ver_lookup(pkg_ver, date){
   let time = pkg_ver.time;
-  date = +new Date(date);
+  if (date)
+    date = +new Date(date);
   let created = +new Date(time.created);
   let modified = +new Date(time.modified);
   let found;
@@ -911,11 +912,11 @@ export function npm_ver_lookup(pkg_ver, date){
     tm = +new Date(tm);
     let rel = semver_parse(ver).rel;
     let cur = {ver, tm, rel};
-    if (!found || found.tm>date && tm<=date){
+    if (!found || (date && found.tm>date && tm<=date)){
       found = cur;
       continue;
     }
-    if (tm>date)
+    if (date && tm>date)
       continue;
     if (!found.rel && rel)
       continue;
@@ -1491,6 +1492,7 @@ function test_util(){
     '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
     '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
   }};
+  t(null, '@3.2.0');
   t('2024-02-13T16:38:16.973Z', '@3.1.1');
   t('2024-02-13T16:38:16.974Z', '@3.1.2');
   t('2024-02-13T16:38:16.975Z', '@3.1.2');
