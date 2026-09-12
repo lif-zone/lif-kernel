@@ -429,7 +429,6 @@ function file_tr_mjs(f, opt){
 
 function mjs_import_cjs(path, q){
   let imported = q.get('imported')?.split(',');
-  let mod_self = q.get('mod_self');
   let js = '';
   if (q.get('worker')){
     // double space between await and import, to prevent tr import_module
@@ -437,7 +436,7 @@ function mjs_import_cjs(path, q){
     js += `globalThis.addEventListener('message', $lif_message.fn); `;
     js += `let lif = (await  import('/.lif/npm/lif-kernel/boot.js')).default; `;
   }
-  js += `let exports = (await globalThis.$lif.boot.require_cjs_async(${json(mod_self)}, ${json(path)}));\n`;
+  js += `let exports = (await globalThis.$lif.boot.require_cjs_async(null, ${json(path)}));\n`;
   if (q.get('worker')){
     js += `globalThis.removeEventListener('message', $lif_message.fn); `;
     js += `$lif_message.q.forEach(e=>globalThis.dispatchEvent(e)); `;
@@ -451,10 +450,9 @@ function mjs_import_cjs(path, q){
 
 function mjs_import_amd(path, q){
   let imported = q.get('imported')?.split(',');
-  let mod_self = q.get('mod_self');
   let uri_s = json(path);
   let js = '';
-  js += `let exports = await globalThis.$lif.boot.import_amd(${json(mod_self)}, [${uri_s}]);\n`;
+  js += `let exports = await globalThis.$lif.boot.import_amd(null, [${uri_s}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
   js += `export const __esModule = false;\n`;
   js += `export default exports;\n`;
@@ -780,7 +778,6 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   let alt, pkg;
   let f = {lmod, lpm_pkg, log};
   pkg = f.pkg = lpm_pkg.pkg;
-  f.npm_uri = lpm_to_npm(lmod);
   lpm_pkg.log ||= log;
   if (lpm_pkg.redirect)
     return OA(f, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
@@ -983,7 +980,9 @@ async function lpm_import_get({log, imp, lmod_self}){
     }
     v = ver.redirect;
   }
-  return {redirect: v, q: {mod_self: lpm_to_npm(lmod_self)}};
+  // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
+  let res = await lpm_pkg_resolve({log, imp: T_lpm_lmod(v), mod_self: lmod_self});
+  return {redirect: v};
 }
 
 async function lpm_export_get({log, exp, mod_self}){

@@ -8,7 +8,7 @@ import {ewait, esleep, eslow, assert_eq, str,
   html_elm, version as util_version, url_parse,
 } from './util.js';
 import {
-  T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type, lpm_imp_rel,
+  T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type, lpm_imp_rel, T_lpm_lmod,
   lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_norm, lpm_is_perm,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
@@ -132,8 +132,7 @@ function npm_imp_abs(imp, mod_self, opt){
       let v;
       if (!(v=str.starts(mod_self, '/.lif/')))
         throw Error('npm import url: invalid mod_self: '+mod_self);
-      let lpm = lpm_parse(v.rest);
-      _url = '/.lif/'+lpm.lmod+'/.lif.imp/'+u.path;
+      _url = '/.lif/'+T_lpm_lmod(v.rest)+'/.lif.imp/'+u.path;
     } else
       _url = '/.lif/'+T_npm_to_lpm(u.path);
   }
