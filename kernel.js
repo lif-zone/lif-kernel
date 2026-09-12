@@ -12,6 +12,7 @@ const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
 const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
+  file_ctype, file_ctype_binary, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
   lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing,
@@ -25,7 +26,6 @@ const {qw} = str;
 const clog = console.log.bind(console);
 const cerr = console.error.bind(console);
 const json = JSON.stringify;
-const mime_db = await import('./mime_db.js');
 const sha256 = await import('./sha256.js');
 const idb = await globalThis.import_npm('idb@8.0.3/build/index.cjs');
 
@@ -314,17 +314,6 @@ let lpm_pkg_t = {};
 let lpm_pkg_ver_t = {};
 let lpm_file_t = {};
 let reg_file_t = {};
-
-function file_type(lmod){
-  let ext = _path_ext(lmod);
-  if (ctype_binary(lmod))
-    return 'binary';
-  if (ext=='json')
-    return 'json';
-  if (ext=='css')
-    return 'css';
-  return 'js';
-}
 
 function lpm_import_lookup({lpm_pkg, imp}){
   let D = 0;
@@ -1011,32 +1000,7 @@ let coi_set_headers = h=>{
 // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
 // image, json, manifest, object, paintworklet, report, script,
 // sharedworker, style, track, video, worker, xslt
-function ctype_get(ext){
-  let ctype_map = { // content-type
-    js: {ctype: 'application/javascript'},
-    mjs: {ctype: 'application/javascript', js_module: 'mjs'},
-    ts: {tr: 'ts', ctype: 'application/javascript'},
-    tsx: {tr: ['ts', 'jsx'], ctype: 'application/javascript'},
-    jsx: {tr: 'jsx', ctype: 'application/javascript'},
-    json: {ctype: 'application/json'},
-    css: {ctype: 'text/css'},
-    wasm: {ctype: 'application/wasm'},
-    text: {ctype: 'plain/text'},
-    bin: {ctype: 'application/octet-stream'},
-    ico: {ctype: 'image/x-icon'},
-  };
-  let t = ctype_map[ext];
-  if (!t){
-    if (!(t = mime_db.ext2mime[ext]))
-      return;
-    return {ctype: t};
-  }
-  t = {...t};
-  t.ext = ext;
-  return t;
-}
-
-let response_send = ({body, ext, cache})=>{
+function response_send({body, ext, cache}){
   let v, opt = {}, ctype = ctype_get(ext), h = {};
   if (!ctype){
     D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext));
@@ -1054,7 +1018,7 @@ let response_send = ({body, ext, cache})=>{
   coi_set_headers(h);
   opt.headers = new Headers(h);
   return new Response(body, opt);
-};
+}
 
 let cache_store = {
   // performance - loading lif-os from git, in linux:
@@ -1095,16 +1059,6 @@ async function cache_store_set(request, response){
   D && console.log('cache_store set', request.url);
   await cs.cache.put(request, response.clone());
   return response;
-}
-
-function ctype_binary(path){
-  let ext = _path_ext(path);
-  let ctype = ctype_get(ext)?.ctype;
-  if (!ctype)
-    return false;
-  if (str.starts(ctype, 'audio/', 'image/', 'video/', 'font/'))
-    return true;
-  return false;
 }
 
 function lpm_redirect({f, qs, lmod}){
@@ -1195,7 +1149,7 @@ async function responce_tr_send({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   if (f.redirect)
     return lpm_redirect({f, qs, lmod});
-  if (q.has('raw') || ctype_binary(lmod))
+  if (q.has('raw') || file_ctype_binary(lmod))
     return {body: f.blob, ext, cache: 1};
   if (str.is(ext, 'json', 'css', 'wasm'))
     return {body: f.blob, ext, cache: 1};
@@ -1260,7 +1214,7 @@ async function fetch_lpm_meta({log, imp, mod_self}){
   let f = await lpm_file_resolve_follow({log, imp, mod_self});
   if (f.not_exist || f.redirect)
     return f;
-  let type = file_type(f.lmod);
+  let type = file_ctype(f.lmod);
   if (type!='js')
     return {type};
   await file_tsx_to_js(f);

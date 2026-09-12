@@ -4,8 +4,9 @@ export const version = lpm_version;
 let D = 0; // Debug
 let in_test = 0;
 const {T, Tf, str, assert, OE, assert_obj, assert_obj_f, assert_eq,
-  url_parse, T_url_parse, URL_parse, url_proto_parse,
+  url_parse, T_url_parse, URL_parse, url_proto_parse, _path_ext,
 } = await import('./util.js');
+const mime_db = await import('./mime_db.js');
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -924,6 +925,52 @@ export function npm_ver_lookup(pkg_ver, date){
   }
   if (found)
     return '@'+found.ver;
+}
+
+export function file_ctype_binary(path){
+  let ext = _path_ext(path);
+  let ctype = ctype_get(ext)?.ctype;
+  if (!ctype)
+    return false;
+  if (str.starts(ctype, 'audio/', 'image/', 'video/', 'font/'))
+    return true;
+  return false;
+}
+
+export function file_ctype(path){
+  let ext = _path_ext(path);
+  if (file_ctype_binary(path))
+    return 'binary';
+  if (ext=='json')
+    return 'json';
+  if (ext=='css')
+    return 'css';
+  return 'js';
+}
+
+const ctype_map = { // content-type
+  js: {ctype: 'application/javascript'},
+  mjs: {ctype: 'application/javascript', js_module: 'mjs'},
+  ts: {tr: 'ts', ctype: 'application/javascript'},
+  tsx: {tr: ['ts', 'jsx'], ctype: 'application/javascript'},
+  jsx: {tr: 'jsx', ctype: 'application/javascript'},
+  json: {ctype: 'application/json'},
+  css: {ctype: 'text/css'},
+  wasm: {ctype: 'application/wasm'},
+  text: {ctype: 'plain/text'},
+  bin: {ctype: 'application/octet-stream'},
+  ico: {ctype: 'image/x-icon'},
+};
+export function ctype_get(ext){
+  let t = ctype_map[ext];
+  if (!t){
+    if (!(t = mime_db.ext2mime[ext]))
+      return;
+    return {ctype: t};
+  }
+  t = {...t};
+  t.ext = ext;
+  return t;
 }
 
 function test_util(){
