@@ -122,6 +122,8 @@ export function T_lpm_parse(lpm){
       l.name = v.name;
     }
     l.ver = v.ver;
+    if (l.ver)
+      l.ver_type = semver_parse(l.ver.slice(1), 1) ? 'final' : 'semver';
     l.lmod = l.reg+'/'+l.name+l.ver;
     break;
   case 'git': {
@@ -135,11 +137,13 @@ export function T_lpm_parse(lpm){
     let ver = l.ver ? l.ver.slice(1) : '';
     if (!ver);
     else if (/^[0-9a-f]+$/.test(ver)){
-      l.ver_type = ver.length==40 ? 'sha1' : ver.length==64 ? 'sha256' :
-        ver.length>=7 && ver.length<=20 ? 'shortcut' :
-        'name';
-    } else
-      l.ver_type = 'name';
+      l.ver_type = ver.length==40 || ver.length==64 ? 'final' : // sha1 sha256
+        ver.length>=7 && ver.length<=20 ? 'final_commitish' :
+        'final';
+    } else if (ver.startsWith('semver:'))
+      l.ver_type = 'semver';
+    else
+      l.ver_type = 'tag';
     l.lmod = l.reg+'/'+l.host+'/'+l.name+l.ver;
     break; }
   case 'bittorrent':
@@ -442,41 +446,23 @@ function __uri_parse(uri, base){
 
 export function lpm_ver_missing(u){
   u = _lpm_parse(u);
-  return str.is(u.reg, 'npm', 'git') && !u.ver;
+  return str.is(u.reg, 'npm', 'git') ? !u.ver : false;
+}
+export function lpm_ver_type(u){
+  u = _lpm_parse(u);
+  return str.is(u.reg, 'npm', 'git') && !u.ver ? 'missing' : u.ver_type;
+}
+export function lpm_ver_final(u){
+  u = _lpm_parse(u);
+  return str.is(u.reg, 'npm', 'git') ? u.ver_type=='final' : true;
 }
 export function lpm_is_perm(u){
-  // XXX needs a lot of refinements. only npm releases (not ^4.1.2,
-  // just =4.1.2, are perm. latest is also not perm. semver:~4.1.2 github is
-  // also not perm. also commit'ish (not full commit id) is no perm
-  let l = _lpm_parse(u);
-  switch (l.reg){
-  case 'npm':
-    // XXX need to validate ver string is final, not expr, not 'latest'
-    return !!l.ver;
-  case 'git':
-    // XXX need to validate ver string is final '4.2.1' not '^4.2.1',
-    // not expr semver:.., not 'latest'
-    return !!l.ver;
-  case 'bittorrent':
-    return true;
-  case 'lifcoin':
-    return true;
-  case 'bitcoin':
-    return true;
-  case 'ethereum':
-    throw Error('unsupported ethereum');
-  case 'ipfs':
-    return true;
-  case 'ipns':
-    return true;
-  case 'local':
-    return false;
-  case 'https': case 'http':
-    return false;
-  default:
-    throw Error('invalid registry: '+l.reg);
-  }
+  u = _lpm_parse(u);
+  return str.is(u.reg, 'npm', 'git') ? u.ver_type=='final' :
+    str.is(u.reg, 'local', 'https', 'http') ? false :
+    true;
 }
+
 export function _lpm_parse(lpm){
   return typeof lpm=='string' ? lpm_parse(lpm) : lpm;
 }
@@ -1247,16 +1233,29 @@ function test_util(){
   t('local/dir//file.js', '/dir/file.js');
   t('http/localhost:3000/dir//file.js', 'http://localhost:3000/dir/file.js');
   t('npm/mod/file.js', '/.lif/npm/mod/file.js');
-  t = (lpm, v)=>assert_eq(v, lpm_is_perm(lpm));
-  t('npm/mod@1.2.3/file', true);
-  t('npm/mod/dir', false);
-  t('npm/other@1.2.3/file', true);
-  t('npm/node:path', false);
-  t('npm/node:path@26.1.0', true);
-  t('local/dir/file', false);
-  t('local/dir@1.2.3/file', false); // probaby useless and invalid
-  t('git/github.com/user/repo/dir', false);
-  t('git/github.com/user/repo@1.2.3/file', true);
+  t = (lpm, v)=>{
+    assert_eq(v.type=='missing', lpm_ver_missing(lpm));
+    assert_eq(!!v.perm, lpm_is_perm(lpm));
+    assert_eq(!!v.final, lpm_ver_final(lpm));
+    assert_eq(v.type, lpm_ver_type(lpm));
+  };
+  t('npm/mod@1.2.3/file', {perm: true, final: true, type: 'final'});
+  t('npm/mod/dir', {type: 'missing'});
+  t('npm/other@1.2.3/file', {perm: true, final: true, type: 'final'});
+  t('npm/node:path', {type: 'missing'});
+  t('npm/node:path@26.1.0', {perm: true, final: true, type: 'final'});
+  t('npm/node:path@^26.1.0', {type: 'semver'});
+  t('local/dir/file', {final: true});
+  t('local/dir@1.2.3/file', {final: true}); // useless and invalid
+  t('git/github.com/user/repo/dir', {type: 'missing'});
+  t('git/github.com/user/repo@a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7/dir',
+    {perm: true, final: true, type: 'final'});
+  t('git/github.com/user/repo@a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7b6b6b6b6b6b6b6b6b6b6b6b6/dir',
+    {perm: true, final: true, type: 'final'});
+  t('git/github.com/user/repo@a7a7a7a7/dir', {type: 'final_commitish'});
+  t('git/github.com/user/repo@1.2.3/file', {type: 'tag'});
+  t('git/github.com/user/repo@v1.2.3/file', {type: 'tag'});
+  t('git/github.com/user/repo@semver:1.2.3/file', {type: 'semver'});
   t = (lpm, base, v)=>assert_eq(v, lpm_ver_from_base(lpm, base));
   t('npm/mod/dir', 'npm/mod@1.2.3/file', 'npm/mod@1.2.3/dir');
   t('npm/mod/dir', 'npm/mod/file');

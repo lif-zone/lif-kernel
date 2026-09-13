@@ -8,8 +8,8 @@ import {ewait, esleep, eslow, assert_eq, str,
   html_elm, version as util_version, url_parse,
 } from './util.js';
 import {
-  T_npm_to_lpm, npm_str, T_npm_url_base, url_uri_type, lpm_imp_rel, T_lpm_lmod,
-  lpm_parse, npm_to_lpm, lpm_to_npm, lpm_ver_missing, npm_norm, lpm_is_perm,
+  T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_lmod,
+  npm_to_lpm, lpm_to_npm, npm_norm, lpm_is_perm,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';

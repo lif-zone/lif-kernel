@@ -6,22 +6,19 @@ const $lif = globalThis.$lif ||= {};
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
-  _path_ext, path_dir, path_file, path_starts, qs_enc, uri_dec,
-  match_glob_to_regex, T_url_parse,
-  str_to_buf, eslow, Scroll, _debugger, assert_eq, assert_obj, assert_obj_f,
+  _path_ext, path_starts, qs_enc, uri_dec,
+  T_url_parse, str_to_buf, eslow, Scroll, assert_eq, assert_obj_f,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
-const {lpm_ver_from_base, lpm_same_base, lpm_to_sw_passthrough,
+const {lpm_ver_from_base, lpm_to_sw_passthrough,
   file_ctype, file_ctype_binary, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
-  lpm_parse, T_lpm_lmod, lpm_to_sw_uri, lpm_to_npm, npm_to_lpm,
+  lpm_parse, T_lpm_lmod, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing,
-  pkg_import_lookup, semver_parse, semver_cmp,
-  pkg_exports_lookup, export_path_match, pkg_web_exports_lookup,
+  pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
   pkg_transform_type, npm_ver_lookup,
 } = await import('./lpm.js');
-const {tr_tsx_to_js, tr_js_to_meta,
-} = await import('./ast.js');
+const {tr_tsx_to_js, tr_js_to_meta} = await import('./ast.js');
 const {qw} = str;
 const clog = console.log.bind(console);
 const cerr = console.error.bind(console);
@@ -639,13 +636,13 @@ async function git_ver_resolve({log, lmod, mod_self}){
   let is_c = enable_cache>=1;
   if (!u.ver || _ver=='latest')
     url = `https://api.github.com/repos/${u.name}/commits/HEAD`;
-  else if (u.ver_type=='shortcut'){
+  else if (u.ver_type=='final_commitish'){
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
     if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
       u.ver = v.ver;
       return T_lpm_str(u);
     }
-  } else if (u.ver_type=='name')
+  } else if (u.ver_type=='tag')
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
   else
     assert(0, 'invalid ver_type');
@@ -664,7 +661,7 @@ async function git_ver_resolve({log, lmod, mod_self}){
   if (sha.length!=40 && sha.length!=64)
     throw Error('git '+url+' sha invalid: '+sha);
   u.ver = '@'+sha;
-  if (is_c && u.ver_type=='shortcut')
+  if (is_c && u.ver_type=='final_commitish')
     cache_set('lpm_ver', {lmod, ver: u.ver});
   return T_lpm_str(u);
 }); }
@@ -673,11 +670,11 @@ async function lpm_ver_resolve({log, lmod, mod_self}){
   let u = lpm_parse(lmod);
   let v;
   if (u.reg=='npm'){
-    if (!lpm_ver_missing(lmod))
+    if (u.ver_type=='final')
       return;
     v = await npm_ver_resolve({log, lmod});
   } else if (u.reg=='git'){
-    if (str.is(u.ver_type, 'sha1', 'sha256'))
+    if (u.ver_type=='final')
       return;
     v = await git_ver_resolve({log, lmod});
   } else
