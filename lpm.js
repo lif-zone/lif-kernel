@@ -899,7 +899,7 @@ export function pkg_import_lookup({lmod_self, pkg, imp}){
   return found;
 }
 
-export function npm_ver_lookup(pkg_ver, date, ver_expr){
+export function npm_ver_lookup({pkg_ver, date, ver}){
   let time = pkg_ver.time;
   if (date)
     date = +new Date(date);
@@ -1479,7 +1479,7 @@ function test_util(){
   t('npm/overg', {over: 'npm/overg@2.0.0'});
   t('npm/optional', {optional: 'npm/optional@1.0.0',
     reg: 'npm/optional@1.0.1'});
-  t = (date, v)=>assert_eq(v, npm_ver_lookup(pkg_ver, date));
+  t = (arg, v)=>assert_eq(v, npm_ver_lookup({pkg_ver, ...arg}));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
     modified: '2024-05-27T21:37:19.361Z',
@@ -1492,16 +1492,18 @@ function test_util(){
     '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
     '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
   }};
-  t(null, '@3.2.0');
-  t('2024-02-13T16:38:16.973Z', '@3.1.1');
-  t('2024-02-13T16:38:16.974Z', '@3.1.2');
-  t('2024-02-13T16:38:16.975Z', '@3.1.2');
-  t('2024-03-17T22:32:47.128Z', '@3.2.0');
-  t('2024-03-17T22:32:47.130Z', '@3.2.0');
-  t('2024-03-13T16:33:48.639Z', '@3.1.4');
-  t('2024-03-13T16:33:48.638Z', '@3.1.4');
-  t('2024-01-01T00:00:00.000Z', '@3.1.1');
-  t('2024-04-01700:00:00.000Z', '@3.2.0');
+  t({}, '@3.2.0');
+  t({date: '2024-02-13T16:38:16.973Z'}, '@3.1.1');
+  t({date: '2024-02-13T16:38:16.974Z'}, '@3.1.2');
+  t({date: '2024-02-13T16:38:16.975Z'}, '@3.1.2');
+  t({date: '2024-03-17T22:32:47.128Z'}, '@3.2.0');
+  t({date: '2024-03-17T22:32:47.130Z'}, '@3.2.0');
+  t({date: '2024-03-13T16:33:48.639Z'}, '@3.1.4');
+  t({date: '2024-03-13T16:33:48.638Z'}, '@3.1.4');
+  t({date: '2024-01-01T00:00:00.000Z'}, '@3.1.1');
+  t({date: '2024-04-01700:00:00.000Z'}, '@3.2.0');
+  if (0)
+  t({ver: ''}, '@3.2.0');
   pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
     modified: '2024-05-27T21:37:19.361Z',
@@ -1510,10 +1512,10 @@ function test_util(){
     '3.2.1-experimental': '2024-03-17T22:32:47.129Z',
     '3.2.2-experimental-2': '2024-03-17T22:32:47.129Z',
   }};
-  t('2024-01-01T00:00:00.000Z', '@3.2.0-experimental');
-  t('2024-03-13T16:33:48.639Z', '@3.2.0-experimental');
-  t('2024-03-13T16:33:48.638Z', '@3.2.0-experimental');
-  t('2024-04-01700:00:00.000Z', '@3.2.2-experimental-2');
+  t({date: '2024-01-01T00:00:00.000Z'}, '@3.2.0-experimental');
+  t({date: '2024-03-13T16:33:48.639Z'}, '@3.2.0-experimental');
+  t({date: '2024-03-13T16:33:48.638Z'}, '@3.2.0-experimental');
+  t({date: '2024-04-01700:00:00.000Z'}, '@3.2.2-experimental-2');
   in_test = 0;
 }
 test_util();

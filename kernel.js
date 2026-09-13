@@ -621,7 +621,8 @@ async function npm_ver_resolve({log, lmod}){
   let pv = await npm_ver_get({log, lmod: u.lmod});
   if (pv.not_exist)
     return pv;
-  u.ver = npm_ver_lookup(pv.pkg_ver, lpm_app_date);
+  u.ver = npm_ver_lookup({pkg_ver: pv.pkg_ver, date: lpm_app_date,
+    ver: u.ver});
   if (!u.ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
   return T_lpm_str(u);
@@ -825,6 +826,8 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   // resolve ver
   let ver = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
   if (ver)
+    console.warn('lpm_pkg_get '+lmod+' -> ver ', ver);
+  if (ver)
     return OA(lpm_pkg, ver);
   // fetch pkg
   let pkg_json = lmod+'/package.json';
@@ -965,6 +968,8 @@ async function lpm_import_get({log, imp, lmod_self}){
   let lmod = T_npm_to_lpm(imp);
   if (!(v=lpm_import_lookup({lpm_pkg, imp: lmod}))){
     let ver = await lpm_ver_resolve({log, lmod, mod_self: lmod_self});
+    if (ver)
+      console.warn('lpm_import_get '+imp+' -> ver ', ver);
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
       return {error: 'missing import'};
@@ -1066,8 +1071,6 @@ async function cache_store_set(request, response){
 function lpm_redirect({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
-  if (0 && l && !lpm_ver_missing(l))
-    q.delete('mod_self');
   if (f.q){
     for (let [k, v] of OE(f.q))
       q.set(k, v);
