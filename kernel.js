@@ -795,6 +795,7 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   f.body = f_get.body;
   f.h_body = f_get.h_body;
   f.url = f_get.url; // for logging
+  f.cache = f_get.cache;
   return f;
 }
 
@@ -975,11 +976,6 @@ async function lpm_import_get({log, imp, lmod_self}){
   if (res.not_found)
     return res;
   return {redirect: v};
-}
-
-async function lpm_export_get({log, exp, mod_self}){
-  D && console.log('lpm_export_get', exp, mod_self);
-  return {error: 'lpm_export_get not yet implemented'};
 }
 
 async function lpm_file_resolve({log, imp, mod_self}){
@@ -1224,14 +1220,15 @@ async function fetch_lpm_meta({log, imp, mod_self}){
   if (type!='js')
     return {type};
   await file_tsx_to_js(f);
-  return await file_js_to_meta(f);
+  let meta = await file_js_to_meta(f);
+  return {...meta, cache: 1};
 }
 
 function response_redirect({redirect, cache}){
   return Response.redirect(redirect);
 }
 
-async function send_res({err, not_exist, redirect, body, ext, path}){
+async function send_res({err, not_exist, redirect, body, ext, path, cache}){
   if (err && body==undefined){
     console.error('req '+path+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
@@ -1241,7 +1238,8 @@ async function send_res({err, not_exist, redirect, body, ext, path}){
     return new Response('not found', {status: 404, statusText: 'not found'});
   }
   let v;
-  let cache = (v=str.starts(path, '/.lif/')) && cache_lmod(v.rest);
+  if (cache)
+    cache = (v=str.starts(path, '/.lif/')) && cache_lmod(v.rest);
   if (redirect)
     return response_redirect({redirect, cache});
   if (body)
@@ -1254,8 +1252,6 @@ async function fetch_lpm_file({log, imp, mod_self, qs}){
   let u = T_lpm_parse(imp);
   if (v=str.starts(u.path, '/.lif.imp/'))
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
-  else if (v=str.starts(u.path, '/.lif.exp/'))
-    f = await lpm_export_get({log, mod_self: u.lmod, exp: v.rest});
   else
     f = await lpm_file_resolve({log, imp, mod_self});
   return await responce_tr_send({f, qs, lmod: imp});
@@ -1361,7 +1357,8 @@ async function _kernel_fetch(event){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod});
       if (meta.err)
         console.error('parse '+url+': '+meta.err);
-      return send_res({body: json(meta), ext: 'json', path});
+      return send_res({body: json(meta), ext: 'json', path,
+        cache: meta.cache});
     }
     let response = await cache_store_get(request);
     if (response)
