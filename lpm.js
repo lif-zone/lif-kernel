@@ -899,7 +899,7 @@ export function pkg_import_lookup({lmod_self, pkg, imp}){
   return found;
 }
 
-export function npm_ver_lookup(pkg_ver, date){
+export function npm_ver_lookup(pkg_ver, date, ver_expr){
   let time = pkg_ver.time;
   if (date)
     date = +new Date(date);

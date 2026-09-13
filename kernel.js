@@ -822,9 +822,9 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   lpm_pkg.log = log;
   lpm_pkg.parent_mod = mod_self;
   // resolve ver
-  let v = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
-  if (v)
-    return OA(lpm_pkg, v);
+  let ver = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
+  if (ver)
+    return OA(lpm_pkg, ver);
   // fetch pkg
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lmod: pkg_json});
