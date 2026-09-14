@@ -7,7 +7,8 @@ const {T, Tf, str, assert, OE, assert_obj, assert_obj_f, assert_eq,
   url_parse, T_url_parse, URL_parse, url_proto_parse, _path_ext,
 } = await import('./util.js');
 const mime_db = await import('./mime_db.js');
-const {semver_parse, semver_max, semver_range_parse, semver_cmp,
+const {semver_parse, semver_range_max, semver_range_parse, semver_cmp,
+  semver_range_includes,
 } = await import('./semver.js');
 const qw = str.qw;
 
@@ -293,7 +294,7 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
       throw Error('only ./ files supported: '+dep);
     return lmod_self+'/'+v.rest;
   }
-  let ver = semver_max(d);
+  let ver = semver_range_max(d);
   return ver ? lmod+'@'+ver+path : undefined;
 }
 export const npm_import_parse = Tf(T_npm_import_parse, '');
@@ -548,11 +549,6 @@ export const npm_url_base = Tf(T_npm_url_base);
 export function npm_ver_lookup({pkg_ver, date, range}){
   let time = pkg_ver.time;
   let r = range && semver_range_parse(range);
-  if (r && r[0].length==1 && r[0][0].length==1 &&
-    (r[0][0].op=='=' || !r[0][0].op))
-  {
-    return r[0][0].ver;
-  }
   if (date)
     date = +new Date(date);
   let created = +new Date(time.created);
@@ -564,19 +560,11 @@ export function npm_ver_lookup({pkg_ver, date, range}){
     tm = +new Date(tm);
     let rel = semver_parse(ver).rel;
     let cur = {ver, tm, rel};
-    if (!found){
-      found = cur;
+    if (range && !semver_range_includes(ver, range))
       continue;
-    }
-    if (date && found.tm>date && tm<=date){
-      found = cur;
-      continue;
-    }
     if (date && tm>date)
       continue;
-    if (!found.rel && rel)
-      continue;
-    if (semver_cmp(found.ver, ver)>0)
+    if (found && semver_cmp(found.ver, ver)>0)
       continue;
     found = cur;
   }

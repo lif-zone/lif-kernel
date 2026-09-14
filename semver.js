@@ -1,5 +1,5 @@
 // LICENSE_CODE JPL semver.js
-let lpm_version = '2026.9.15';
+let semver_version = '2026.9.15';
 export const version = semver_version;
 let D = 0; // Debug
 const {T, Tf, str, assert, OE, assert_obj, assert_obj_f, assert_eq,
@@ -162,8 +162,7 @@ function semver_range_match(ver, range){
   }
 }
 
-// XXX rename semver_max
-export function semver_max(ver){
+export function semver_range_max(ver){
   if (semver_parse(ver))
     return ver;
   let range = semver_range_parse(ver);
@@ -202,7 +201,7 @@ function test_semver(){
   t('1');
   t = (range, v, guess)=>{
     assert_obj_f(v, semver_range_parse(range));
-    assert_obj(guess, semver_ver_guess(range));
+    assert_obj(guess, semver_range_max(range));
   };
   t('1.2.3', [[{ver: '1.2.3'}]], '1.2.3');
   t('v1.2.3-ab', [[{ver: '1.2.3-ab'}]], '1.2.3-ab');
@@ -313,6 +312,15 @@ function test_semver(){
   t('~1.x', '1.0.0-0 2.0.0-0 2.0.0', '1.0.0 1.9.9');
   // 1.2.x - 2.3.x  =>  hyphen + partials (left missing parts → 0; right partial → exclusive next bound)
   t('1.2.x - 2.3.x', '1.2.0-0 2.4-0 -2.4.0', '1.2.0 1.2.9 2.0.0 2.3.9');
+  t = (op, no, yes)=>{
+    for (let v of qw(no))
+      assert(!semver_range_includes(v, op));
+    for (let v of qw(yes))
+      assert(semver_range_includes(v, op));
+  };
+  t('>=1.2.x <2.5.5', '1.1.9 2.5.5', '1.2.0 2.5.4');
+  t('>=1.2.x <2.5.5 || 4.0.x', '1.1.9 2.5.5 3.9.9 4.1.0',
+    '1.2.0 2.5.4 4.0.0 4.0.9');
 }
 test_semver();
 
