@@ -13,7 +13,7 @@ let semver_full;
 // $ vim semver_full.js
 // delete import __Process line
 // uncomment:
-// semver_full = await import('./semver_full.js');
+semver_full = await import('./semver_full.js');
 
 function is_num(v){
   let n = +v;
@@ -22,8 +22,8 @@ function is_num(v){
 let semver_re_part = /([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
 let semver_re_start = new RegExp('^v?('+semver_re_part.source+')');
 let semver_re = new RegExp('^'+semver_re_part.source+'$');
-export function semver_parse(semver){
-  let m = semver_full.match(semver_re);
+export function semver_parse(ver){
+  let m = ver.match(semver_re);
   if (!m)
     return;
   let p = {ver: m[1], rel: m[2]||''};
