@@ -257,6 +257,7 @@ function git_to_lpm(url){
 }
 
 // parse-package-name: package.json:dependencies
+let do_semver = 0;
 export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
@@ -294,7 +295,7 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
       throw Error('only ./ files supported: '+dep);
     return lmod_self+'/'+v.rest;
   }
-  let ver = semver_range_max(d);
+  let ver = do_semver ? d : semver_range_max(d);
   return ver ? lmod+'@'+ver+path : undefined;
 }
 export const npm_import_parse = Tf(T_npm_import_parse, '');
@@ -931,10 +932,17 @@ function test_lpm(){
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
   t('1.2.3', 'npm/xxx@1.2.3');
+  if (do_semver){
+  t('=1.2.3', 'npm/xxx@=1.2.3');
+  t('~1.2.3', 'npm/xxx@1~.2.3');
+  t('^1.2.3', 'npm/xxx@^1.2.3');
+  t('>=1.2.3', 'npm/xxx@>=1.2.3');
+  } else {
   t('=1.2.3', 'npm/xxx@1.2.3');
   t('~1.2.3', 'npm/xxx@1.2.3');
   t('^1.2.3', 'npm/xxx@1.2.3');
   t('>=1.2.3', 'npm/xxx@1.2.3');
+  }
   t('git://github.com/mochajs/mocha', 'git/github.com/mochajs/mocha');
   t('git+https://github.com/mochajs/mocha', 'git/github.com/mochajs/mocha');
   t('github:mochajs/mocha', 'git/github.com/mochajs/mocha');

@@ -27,7 +27,6 @@ export default [{
     reportUnusedDisableDirectives: false,
   },
   files: ['**/*.jsx', '**/*.js', '**/*.jsm', '**/*.tsx'],
-  ignores: ['./semver_full.js'],
   rules: {
     'no-debugger': 'warn',
     'no-cond-assign': 'off',
