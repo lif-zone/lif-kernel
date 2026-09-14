@@ -7,6 +7,9 @@ const {T, Tf, str, assert, OE, assert_obj, assert_obj_f, assert_eq,
   url_parse, T_url_parse, URL_parse, url_proto_parse, _path_ext,
 } = await import('./util.js');
 const mime_db = await import('./mime_db.js');
+const {semver_parse, semver_max, semver_range_parse, semver_cmp,
+} = await import('./semver.js');
+const qw = str.qw;
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
@@ -123,7 +126,7 @@ export function T_lpm_parse(lpm){
     }
     l.ver = v.ver;
     if (l.ver)
-      l.ver_type = semver_parse(l.ver.slice(1), 1) ? 'final' : 'semver';
+      l.ver_type = semver_parse(l.ver.slice(1)) ? 'final' : 'semver';
     l.lmod = l.reg+'/'+l.name+l.ver;
     break;
   case 'git': {
@@ -290,7 +293,7 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
       throw Error('only ./ files supported: '+dep);
     return lmod_self+'/'+v.rest;
   }
-  let ver = semver_ver_guess(d);
+  let ver = semver_max(d);
   return ver ? lmod+'@'+ver+path : undefined;
 }
 export const npm_import_parse = Tf(T_npm_import_parse, '');
@@ -542,125 +545,43 @@ export function T_npm_url_base(url_uri, base_uri){
 }
 export const npm_url_base = Tf(T_npm_url_base);
 
-function is_num(v){
-  let n = +v;
-  return ''+n==v && Number.isInteger(n) && n>=0;
-}
-let semver_re_part = /v?([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
-let semver_re_start = new RegExp('^'+semver_re_part.source);
-let semver_re = new RegExp('^'+semver_re_part.source+'$');
-export function semver_parse(semver, strict){
-  let m = semver.match(semver_re);
-  if (!m)
-    return;
-  let p = {ver: m[1], rel: m[2]||''};
-  if (!strict)
-    return p;
-  let v = p.ver.split('.');
-  if (v.length!=3)
-    return;
-  for (let i=0; i<3; i++){
-    if (!is_num(v[i]))
-      return;
+export function npm_ver_lookup({pkg_ver, date, range}){
+  let time = pkg_ver.time;
+  let r = range && semver_range_parse(range);
+  if (r && r[0].length==1 && r[0][0].length==1 &&
+    (r[0][0].op=='=' || !r[0][0].op))
+  {
+    return r[0][0].ver;
   }
-  return p;
-}
-
-function semver_cmp_part(a, b){
-  if (a==b)
-    return 0;
-  if (a==undefined || b==undefined)
-    return +(a!=undefined) - +(b!=undefined);
-  let an = is_num(a), bn = is_num(b);
-  if (an != bn)
-    return +is_num(a) - +is_num(b);
-  if (an)
-    return +a > +b ? 1 : -1;
-  return a>b ? 1: -1;
-}
-export function semver_cmp(a, b){
-  let _a = semver_parse(a, 1), _b = semver_parse(b, 1);
-  if (a==b)
-    return 0;
-  if (!_a || !_b)
-    return !!_a - !!_b; // parsing error
-  if (!_a.rel != !_b.rel)
-    return +!_a.rel - +!_b.rel;
-  let va = _a.ver.split('.'), vb = _b.ver.split('.');
-  for (let i=0; i<Math.max(va.length, vb.length); i++){
-    if (+va[i] != +vb[i])
-      return semver_cmp_part(va[i], vb[i]);
-  }
-  let ra = _a.rel.slice(1).split('.'), rb = _b.rel.slice(1).split('.');
-  for (let i=0; i<Math.max(ra.length, rb.length); i++){
-    if (ra[i] != rb[i])
-      return semver_cmp_part(ra[i], rb[i]);
-  }
-  assert();
-}
-
-const semver_op_re_start = /^(\^|=|~|>=|<=|\|\||-)/;
-export function T_semver_range_parse(semver_range){
-  let or = [[]]; // top level OR set, lower level AND sets
-  let s = semver_range, m;
-  function is(re){
-    m = s.match(re);
-    if (!m)
-      return;
-    s = s.slice(m[0].length);
-    return true;
-  }
-  while (s){
-    let and = or[or.length-1];
-    let op, ver;
-    is(/^ +/);
-    if (!s)
-      break;
-    if (is(semver_op_re_start))
-      op = m[0];
-    is(/^ +/);
-    if (op=='||'){
-      or.push([]);
+  if (date)
+    date = +new Date(date);
+  let created = +new Date(time.created);
+  let modified = +new Date(time.modified);
+  let found;
+  for (let [ver, tm] of OE(pkg_ver.time)){
+    if (str.is(ver, 'created', 'modified'))
+      continue;
+    tm = +new Date(tm);
+    let rel = semver_parse(ver).rel;
+    let cur = {ver, tm, rel};
+    if (!found){
+      found = cur;
       continue;
     }
-    if (!is(semver_re_start))
-      throw Error('invalid semver_range '+semver_range);
-    ver = m[0].replace(/^v/, '');
-    if (op=='-'){
-      let a = and[and.length-1];
-      if (a?.op!='')
-        throw Error('invalid semver_range "-" '+semver_range);
-      a.op = op;
-      a.ver2 = ver;
+    if (date && found.tm>date && tm<=date){
+      found = cur;
       continue;
     }
-    and.push({op: op||'', ver});
+    if (date && tm>date)
+      continue;
+    if (!found.rel && rel)
+      continue;
+    if (semver_cmp(found.ver, ver)>0)
+      continue;
+    found = cur;
   }
-  if (!or[or.length-1].length)
-    throw Error('empty semver range');
-  return or;
-}
-export const semver_range_parse = Tf(T_semver_range_parse);
-
-export function semver_ver_guess(semver_range){
-  let range = semver_range_parse(semver_range);
-  if (!range){
-    D && console.log('invalid semver_range: '+semver_range);
-    return;
-  }
-  let max;
-  for (let or of range){
-    for (let and of or){
-      let op = and.op;
-      let ver;
-      if (op=='>=' || op=='^' || op=='=' || op=='' || op=='~')
-        ver = and.ver;
-      else if (op='-')
-        ver = and.ver2;
-      max ||= ver; // XXX just take the first version...
-    }
-  }
-  return max;
+  if (found)
+    return '@'+found.ver;
 }
 
 // https://webpack.js.org/guides/package-exports/
@@ -885,35 +806,6 @@ export function pkg_import_lookup({lmod_self, pkg, imp}){
   return found;
 }
 
-export function npm_ver_lookup({pkg_ver, date, ver}){
-  let time = pkg_ver.time;
-  if (date)
-    date = +new Date(date);
-  let created = +new Date(time.created);
-  let modified = +new Date(time.modified);
-  let found;
-  for (let [ver, tm] of OE(pkg_ver.time)){
-    if (str.is(ver, 'created', 'modified'))
-      continue;
-    tm = +new Date(tm);
-    let rel = semver_parse(ver).rel;
-    let cur = {ver, tm, rel};
-    if (!found || (date && found.tm>date && tm<=date)){
-      found = cur;
-      continue;
-    }
-    if (date && tm>date)
-      continue;
-    if (!found.rel && rel)
-      continue;
-    if (semver_cmp(found.ver, ver)>0)
-      continue;
-    found = cur;
-  }
-  if (found)
-    return '@'+found.ver;
-}
-
 export function file_ctype_binary(path){
   let ext = _path_ext(path);
   let ctype = ctype_get(ext)?.ctype;
@@ -960,7 +852,7 @@ export function ctype_get(ext){
   return t;
 }
 
-function test_util(){
+function test_lpm(){
   in_test = 1;
   let t = (url_uri, v)=>assert_obj(v, url_uri_type(url_uri));
   t('http://site.com/', 'url');
@@ -1209,11 +1101,13 @@ function test_util(){
     ['mod/c/d', 'mod@1.2.3/c/a']);
   t({path: 'mod@4.5.6/c/d', is: {mod: 1}}, ['mod@4.5.6/c/d', 'mod@1.2.3/c/a']);
   t({path: 'mod/c/d', is: {mod: 1}}, ['mod/c/d', 'other@1.2.3/c/a']);
-  t({path: '.lif/git/github.com/user/repo@v1.2.3/c/d', is: {mod: 1, rel_ver: 1}},
-    ['.lif/git/github.com/user/repo/c/d', '.lif/git/github.com/user/repo@v1.2.3/c/a']);
+  t({path: '.lif/git/github.com/user/repo@v1.2.3/c/d',
+      is: {mod: 1, rel_ver: 1}},
+    ['.lif/git/github.com/user/repo/c/d',
+      '.lif/git/github.com/user/repo@v1.2.3/c/a']);
   t({path: '.lif/git/github.com/user/repo/c/d', is: {mod: 1}},
     ['.lif/git/github.com/user/repo/c/d',
-    '.lif/git/github.com/other/repo@v1.2.3/c/a']);
+      '.lif/git/github.com/other/repo@v1.2.3/c/a']);
   t({path: 'mod/sub//a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod/sub//a/b']);
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
   t({path: '.lif/git/github.com/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
@@ -1264,66 +1158,6 @@ function test_util(){
   t('local/dir/file', 'local/dir@1.2.3/file');
   t('git/github.com/user/repo/dir', 'git/github.com/user/repo@1.2.3/file',
     'git/github.com/user/repo@1.2.3/dir');
-  t = (semver, v, strict)=>assert_obj(v, semver_parse(semver, strict));
-  t('1.2.3', {ver: '1.2.3', rel: ''});
-  t('1.2.3-abc', {ver: '1.2.3', rel: '-abc'});
-  t('1.2.3-abc2-341.3', {ver: '1.2.3', rel: '-abc2-341.3'});
-  t('x1.2.3-abc2-341.3');
-  t('1.2.3x-abc2-341.3');
-  t('1.2.3-a_');
-  t('01.2.3', {ver: '01.2.3', rel: ''});
-  t('01.2.3', undefined, true);
-  t('1.2..3', {ver: '1.2..3', rel: ''});
-  t('1.2..3', undefined, true);
-  t = (range, v, guess)=>{
-    assert_obj_f(v, semver_range_parse(range));
-    assert_obj(guess, semver_ver_guess(range));
-  };
-  t('1.2.3', [[{ver: '1.2.3'}]], '1.2.3');
-  t('v1.2.3-ab', [[{ver: '1.2.3-ab'}]], '1.2.3-ab');
-  t('=1.2.3', [[{ver: '1.2.3', op: '='}]], '1.2.3');
-  t('~1.2.3', [[{ver: '1.2.3', op: '~'}]], '1.2.3');
-  t('1.2.3 >=v1.3.4', [[{op: '', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]],
-    '1.2.3');
-  t(' = 1.2.3 >= 1.3.4 ', [[{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]],
-    '1.2.3');
-  t('=1.2.3 +1.3.4');
-  t('=1.2.3 x.2.3');
-  t('^1.2.3 || ^4.5.6', [[{op: '^', ver: '1.2.3'}], [{op: '^', ver: '4.5.6'}]],
-    '1.2.3');
-  t('^1.2.3||^4.5.6', [[{op: '^', ver: '1.2.3'}], [{op: '^', ver: '4.5.6'}]],
-    '1.2.3');
-  t('1.2.3 - 1.3.4', [[{op: '-', ver: '1.2.3', ver2: '1.3.4'}]], '1.3.4');
-  t('2.2.2 1.2.3 - 1.3.4||3.3.3', [
-    [{op: '', ver: '2.2.2'}, {op: '-', ver: '1.2.3', ver2: '1.3.4'}],
-    [{op: '', ver: '3.3.3'}],
-  ], '2.2.2');
-  // missing support for 1 1.2 1.x.x 1.X.X 1.*.*
-  t('  ');
-  t = (a, b, v)=>assert_obj(v, semver_cmp_part(a, b));
-  t('0', '1', -1);
-  t('10', '0', 1);
-  t('0', '01', 1);
-  t('00', '01', -1);
-  t('aa', 'ab', -1);
-  t('aa', '1', -1);
-  t('1', 'aa', 1);
-  t('9', '80', -1);
-  t('100', '80', 1);
-  t = (a, b, v)=>assert_obj(v, semver_cmp(a, b));
-  t('1.0.0-alpha', '1.0.0-alpha.1', -1);
-  t('1.0.0-alpha.1', '1.0.0-alpha.2', -1);
-  t('1.0.0-beta', '1.0.0-alpha.999', 1);
-  t('1.0.0-rc.1', '1.0.0-rc.10', -1);
-  t('1.0.0-x.7', '1.0.0-x.11', -1);
-  t('1.0.0-9', '1.0.0-10', -1);
-  t('1.2.3', '1.11.1', -1);
-  t('1.2.3', '1.0,8', 1);
-  t('1.2.3', '2.0.0', -1);
-  t('1.2.3', '1.2.3-abc', 1);
-  t('1.2.3', '1.2.4-abc', 1);
-  t('1.2.3', '1.3.04', 1);
-  t('1.2.3', '1.3.x', 1);
   t = (path, match, tr, v)=>assert_obj(v, export_path_match(path, match, tr));
   t('./file', './file', './file', './file');
   t('.', '.', '.', '.');
@@ -1517,5 +1351,5 @@ function test_util(){
   t({date: '2024-04-01700:00:00.000Z'}, '@3.2.2-experimental-2');
   in_test = 0;
 }
-test_util();
+test_lpm();
 

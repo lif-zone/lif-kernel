@@ -618,10 +618,11 @@ async function npm_ver_resolve({log, lmod}){
   let pv = await npm_ver_get({log, lmod: u.lmod});
   if (pv.not_exist)
     return pv;
-  u.ver = npm_ver_lookup({pkg_ver: pv.pkg_ver, date: lpm_app_date,
-    ver: u.ver});
-  if (!u.ver)
+  let ver = npm_ver_lookup({pkg_ver: pv.pkg_ver, date: lpm_app_date,
+    ver: u.ver.slice(1)});
+  if (!ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
+  u.ver = '@'+ver;
   return T_lpm_str(u);
 }
 
