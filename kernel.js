@@ -14,7 +14,7 @@ const {lpm_ver_from_base, lpm_to_sw_passthrough,
   file_ctype, file_ctype_binary, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
   lpm_parse, T_lpm_lmod, lpm_to_npm, npm_to_lpm,
-  T_lpm_parse, T_lpm_str, lpm_ver_missing,
+  T_lpm_parse, T_lpm_str, lpm_ver_missing, lpm_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
   pkg_transform_type, npm_ver_lookup,
 } = await import('./lpm.js');
@@ -613,7 +613,7 @@ async function npm_ver_get({log, lmod}){
 
 async function npm_ver_resolve({log, lmod}){
   let u = T_lpm_parse(lmod);
-  assert(lpm_ver_missing(u));
+  assert(!lpm_ver_final(u));
   assert(u.reg=='npm');
   let pv = await npm_ver_get({log, lmod: u.lmod});
   if (pv.not_exist)

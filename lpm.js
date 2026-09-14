@@ -295,7 +295,8 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
       throw Error('only ./ files supported: '+dep);
     return lmod_self+'/'+v.rest;
   }
-  let ver = do_semver ? d : semver_range_max(d);
+  let ver = do_semver ? (semver_range_parse(d) ? d : null) :
+    semver_range_max(d);
   return ver ? lmod+'@'+ver+path : undefined;
 }
 export const npm_import_parse = Tf(T_npm_import_parse, '');
@@ -934,7 +935,7 @@ function test_lpm(){
   t('1.2.3', 'npm/xxx@1.2.3');
   if (do_semver){
   t('=1.2.3', 'npm/xxx@=1.2.3');
-  t('~1.2.3', 'npm/xxx@1~.2.3');
+  t('~1.2.3', 'npm/xxx@~1.2.3');
   t('^1.2.3', 'npm/xxx@^1.2.3');
   t('>=1.2.3', 'npm/xxx@>=1.2.3');
   } else {
@@ -990,18 +991,30 @@ function test_lpm(){
   t('user/repo#', 'git/github.com/user/repo');
   t = (imp, dep, v)=>
     assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', imp, dep}));
+  if (do_semver){
+  t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
+  t('npm/react/file', '^18.3.1', 'npm/react@^18.3.1/file');
+  } else {
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
   t('npm/react/file', '^18.3.1', 'npm/react@18.3.1/file');
+  }
   t('npm/xxx', '/', 'local');
   t('npm/xxx/file', '/', 'local/file');
   t('npm/xxx/file', '/DIR', 'local/DIR//file');
-  t('npm/react', '=18.3.1', 'npm/react@18.3.1');
   t('npm/react', '18.3.1', 'npm/react@18.3.1');
+  if (do_semver){
+  t('npm/react', '=18.3.1', 'npm/react@=18.3.1');
+  t('npm/react', '>=18.3.1', 'npm/react@>=18.3.1');
+  t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
+  t('npm/react/index.js', '^18.3.1', 'npm/react@^18.3.1/index.js');
+  } else {
+  t('npm/react', '=18.3.1', 'npm/react@18.3.1');
   t('npm/react', '>=18.3.1', 'npm/react@18.3.1');
-  t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
-  t('npm/loc/file.js', '/loc', 'local/loc//file.js');
   t('npm/react', '^18.3.1', 'npm/react@18.3.1');
   t('npm/react/index.js', '^18.3.1', 'npm/react@18.3.1/index.js');
+  }
+  t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
+  t('npm/loc/file.js', '/loc', 'local/loc//file.js');
   t('npm/rmod', 'npm:react@18.3.1', 'npm/react@18.3.1');
   t('npm/os/dir/index.js', '.lif/git/github.com/repo/mod',
     'git/github.com/repo/mod/dir/index.js');
@@ -1297,17 +1310,30 @@ function test_lpm(){
   };
   t('npm/pages/_app.tsx', {reg: 'npm/lif_os/pages/_app.tsx'});
   t('npm/loc/file.js', {reg: 'local/loc//file.js'});
+  if (do_semver){
+  t('npm/react', {reg: 'npm/react@^18.3.1'});
+  t('npm/react/index.js', {reg: 'npm/react@^18.3.1/index.js'});
+  t('npm/dom', {reg: 'npm/dom@>=18.3.1'});
+  t('npm/react_p', {peer: 'npm/react_p@^18.3.1'});
+  t('npm/dom_p', {peer: 'npm/dom_p@>=18.3.1'});
+  } else {
   t('npm/react', {reg: 'npm/react@18.3.1'});
   t('npm/react/index.js', {reg: 'npm/react@18.3.1/index.js'});
   t('npm/dom', {reg: 'npm/dom@18.3.1'});
   t('npm/react_p', {peer: 'npm/react_p@18.3.1'});
   t('npm/dom_p', {peer: 'npm/dom_p@18.3.1'});
+  }
   t('npm/os/dir/index.js', {reg: 'git/github.com/repo/mod/dir/index.js'});
   t('npm/glb', {over: 'npm/glb@1.2.0'});
   t('npm/over', {reg: 'npm/over@2.0.0'});
   t('npm/overg', {over: 'npm/overg@2.0.0'});
+  if (do_semver){
+  t('npm/optional', {optional: 'npm/optional@1.0.0',
+    reg: 'npm/optional@^1.0.1'});
+  } else {
   t('npm/optional', {optional: 'npm/optional@1.0.0',
     reg: 'npm/optional@1.0.1'});
+  }
   t = (arg, v)=>assert_eq(v, npm_ver_lookup({pkg_ver, ...arg}));
   let pkg_ver = {time: {
     created: '2024-02-13T16:33:48.639Z',
