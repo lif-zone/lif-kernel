@@ -9,11 +9,11 @@ const qw = str.qw;
 
 let semver_full;
 // for testing compared to npm semver:
-// $ wget https://esm.sh/semver@7.8.5/es2022/semver.bundle.mjs -O semver_full.js
-// $ vim semver_full.js
-// delete import __Process line
+// $ npm pack semver@7.8.5
+// $ tar -xzf semver-7.8.5.tgz
+// $ npx --yes esbuild@0.28.2 package/index.js --bundle --format=esm --platform=neutral --target=es2022 --outfile=semver_full.js
 // uncomment:
-semver_full = await import('./semver_full.js');
+semver_full = (await import('./semver_full.js')).default;
 
 function is_num(v){
   let n = +v;

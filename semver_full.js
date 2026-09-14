@@ -1,4 +1,2002 @@
-/* esm.sh - semver@7.8.5 */
-const __Process$ = globalThis.process;
-var ot=Object.create;var he=Object.defineProperty;var ct=Object.getOwnPropertyDescriptor;var at=Object.getOwnPropertyNames;var lt=Object.getPrototypeOf,ut=Object.prototype.hasOwnProperty;var p=(t,e)=>()=>{try{return e||t((e={exports:{}}).exports,e),e.exports}catch(r){throw e=0,r}};var ft=(t,e,r,s)=>{if(e&&typeof e=="object"||typeof e=="function")for(let n of at(e))!ut.call(t,n)&&n!==r&&he(t,n,{get:()=>e[n],enumerable:!(s=ct(e,n))||s.enumerable});return t};var Et=(t,e,r)=>(r=t!=null?ot(lt(t)):{},ft(e||!t||!t.__esModule?he(r,"default",{value:t,enumerable:!0}):r,t));var g=p((Oi,pe)=>{"use strict";var ht="2.0.0",pt=Number.MAX_SAFE_INTEGER||9007199254740991,mt=16,Rt=250,$t=["major","premajor","minor","preminor","patch","prepatch","prerelease"];pe.exports={MAX_LENGTH:256,MAX_SAFE_COMPONENT_LENGTH:mt,MAX_SAFE_BUILD_LENGTH:Rt,MAX_SAFE_INTEGER:pt,RELEASE_TYPES:$t,SEMVER_SPEC_VERSION:ht,FLAG_INCLUDE_PRERELEASE:1,FLAG_LOOSE:2}});var P=p((Si,me)=>{"use strict";var It=typeof __Process$=="object"&&__Process$.env&&__Process$.env.NODE_DEBUG&&/\bsemver\b/i.test(__Process$.env.NODE_DEBUG)?(...t)=>console.error("SEMVER",...t):()=>{};me.exports=It});var w=p((A,Re)=>{"use strict";var{MAX_SAFE_COMPONENT_LENGTH:M,MAX_SAFE_BUILD_LENGTH:Lt,MAX_LENGTH:Nt}=g(),dt=P();A=Re.exports={};var Ot=A.re=[],St=A.safeRe=[],c=A.src=[],Tt=A.safeSrc=[],a=A.t={},At=0,W="[a-zA-Z0-9-]",qt=[["\\s",1],["\\d",Nt],[W,Lt]],gt=t=>{for(let[e,r]of qt)t=t.split(`${e}*`).join(`${e}{0,${r}}`).split(`${e}+`).join(`${e}{1,${r}}`);return t},m=(t,e,r)=>{let s=gt(e),n=At++;dt(t,n,e),a[t]=n,c[n]=e,Tt[n]=s,Ot[n]=new RegExp(e,r?"g":void 0),St[n]=new RegExp(s,r?"g":void 0)};m("NUMERICIDENTIFIER","0|[1-9]\\d*");m("NUMERICIDENTIFIERLOOSE","\\d+");m("NONNUMERICIDENTIFIER",`\\d*[a-zA-Z-]${W}*`);m("MAINVERSION",`(${c[a.NUMERICIDENTIFIER]})\\.(${c[a.NUMERICIDENTIFIER]})\\.(${c[a.NUMERICIDENTIFIER]})`);m("MAINVERSIONLOOSE",`(${c[a.NUMERICIDENTIFIERLOOSE]})\\.(${c[a.NUMERICIDENTIFIERLOOSE]})\\.(${c[a.NUMERICIDENTIFIERLOOSE]})`);m("PRERELEASEIDENTIFIER",`(?:${c[a.NONNUMERICIDENTIFIER]}|${c[a.NUMERICIDENTIFIER]})`);m("PRERELEASEIDENTIFIERLOOSE",`(?:${c[a.NONNUMERICIDENTIFIER]}|${c[a.NUMERICIDENTIFIERLOOSE]})`);m("PRERELEASE",`(?:-(${c[a.PRERELEASEIDENTIFIER]}(?:\\.${c[a.PRERELEASEIDENTIFIER]})*))`);m("PRERELEASELOOSE",`(?:-?(${c[a.PRERELEASEIDENTIFIERLOOSE]}(?:\\.${c[a.PRERELEASEIDENTIFIERLOOSE]})*))`);m("BUILDIDENTIFIER",`${W}+`);m("BUILD",`(?:\\+(${c[a.BUILDIDENTIFIER]}(?:\\.${c[a.BUILDIDENTIFIER]})*))`);m("FULLPLAIN",`v?${c[a.MAINVERSION]}${c[a.PRERELEASE]}?${c[a.BUILD]}?`);m("FULL",`^${c[a.FULLPLAIN]}$`);m("LOOSEPLAIN",`[v=\\s]*${c[a.MAINVERSIONLOOSE]}${c[a.PRERELEASELOOSE]}?${c[a.BUILD]}?`);m("LOOSE",`^${c[a.LOOSEPLAIN]}$`);m("GTLT","((?:<|>)?=?)");m("XRANGEIDENTIFIERLOOSE",`${c[a.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);m("XRANGEIDENTIFIER",`${c[a.NUMERICIDENTIFIER]}|x|X|\\*`);m("XRANGEPLAIN",`[v=\\s]*(${c[a.XRANGEIDENTIFIER]})(?:\\.(${c[a.XRANGEIDENTIFIER]})(?:\\.(${c[a.XRANGEIDENTIFIER]})(?:${c[a.PRERELEASE]})?${c[a.BUILD]}?)?)?`);m("XRANGEPLAINLOOSE",`[v=\\s]*(${c[a.XRANGEIDENTIFIERLOOSE]})(?:\\.(${c[a.XRANGEIDENTIFIERLOOSE]})(?:\\.(${c[a.XRANGEIDENTIFIERLOOSE]})(?:${c[a.PRERELEASELOOSE]})?${c[a.BUILD]}?)?)?`);m("XRANGE",`^${c[a.GTLT]}\\s*${c[a.XRANGEPLAIN]}$`);m("XRANGELOOSE",`^${c[a.GTLT]}\\s*${c[a.XRANGEPLAINLOOSE]}$`);m("COERCEPLAIN",`(^|[^\\d])(\\d{1,${M}})(?:\\.(\\d{1,${M}}))?(?:\\.(\\d{1,${M}}))?`);m("COERCE",`${c[a.COERCEPLAIN]}(?:$|[^\\d])`);m("COERCEFULL",c[a.COERCEPLAIN]+`(?:${c[a.PRERELEASE]})?(?:${c[a.BUILD]})?(?:$|[^\\d])`);m("COERCERTL",c[a.COERCE],!0);m("COERCERTLFULL",c[a.COERCEFULL],!0);m("LONETILDE","(?:~>?)");m("TILDETRIM",`(\\s*)${c[a.LONETILDE]}\\s+`,!0);A.tildeTrimReplace="$1~";m("TILDE",`^${c[a.LONETILDE]}${c[a.XRANGEPLAIN]}$`);m("TILDELOOSE",`^${c[a.LONETILDE]}${c[a.XRANGEPLAINLOOSE]}$`);m("LONECARET","(?:\\^)");m("CARETTRIM",`(\\s*)${c[a.LONECARET]}\\s+`,!0);A.caretTrimReplace="$1^";m("CARET",`^${c[a.LONECARET]}${c[a.XRANGEPLAIN]}$`);m("CARETLOOSE",`^${c[a.LONECARET]}${c[a.XRANGEPLAINLOOSE]}$`);m("COMPARATORLOOSE",`^${c[a.GTLT]}\\s*(${c[a.LOOSEPLAIN]})$|^$`);m("COMPARATOR",`^${c[a.GTLT]}\\s*(${c[a.FULLPLAIN]})$|^$`);m("COMPARATORTRIM",`(\\s*)${c[a.GTLT]}\\s*(${c[a.LOOSEPLAIN]}|${c[a.XRANGEPLAIN]})`,!0);A.comparatorTrimReplace="$1$2$3";m("HYPHENRANGE",`^\\s*(${c[a.XRANGEPLAIN]})\\s+-\\s+(${c[a.XRANGEPLAIN]})\\s*$`);m("HYPHENRANGELOOSE",`^\\s*(${c[a.XRANGEPLAINLOOSE]})\\s+-\\s+(${c[a.XRANGEPLAINLOOSE]})\\s*$`);m("STAR","(<|>)?=?\\s*\\*");m("GTE0","^\\s*>=\\s*0\\.0\\.0\\s*$");m("GTE0PRE","^\\s*>=\\s*0\\.0\\.0-0\\s*$")});var G=p((Ti,$e)=>{"use strict";var wt=Object.freeze({loose:!0}),Pt=Object.freeze({}),vt=t=>t?typeof t!="object"?wt:t:Pt;$e.exports=vt});var z=p((Ai,Ne)=>{"use strict";var Ie=/^[0-9]+$/,Le=(t,e)=>{if(typeof t=="number"&&typeof e=="number")return t===e?0:t<e?-1:1;let r=Ie.test(t),s=Ie.test(e);return r&&s&&(t=+t,e=+e),t===e?0:r&&!s?-1:s&&!r?1:t<e?-1:1},xt=(t,e)=>Le(e,t);Ne.exports={compareIdentifiers:Le,rcompareIdentifiers:xt}});var N=p((qi,Oe)=>{"use strict";var y=P(),{MAX_LENGTH:de,MAX_SAFE_INTEGER:j}=g(),{safeRe:F,t:U}=w(),Ct=G(),{compareIdentifiers:K}=z(),Dt=(t,e)=>{let r=e.split(".");if(r.length>t.length)return!1;for(let s=0;s<r.length;s++)if(K(t[s],r[s])!==0)return!1;return!0},Z=class t{constructor(e,r){if(r=Ct(r),e instanceof t){if(e.loose===!!r.loose&&e.includePrerelease===!!r.includePrerelease)return e;e=e.version}else if(typeof e!="string")throw new TypeError(`Invalid version. Must be a string. Got type "${typeof e}".`);if(e.length>de)throw new TypeError(`version is longer than ${de} characters`);y("SemVer",e,r),this.options=r,this.loose=!!r.loose,this.includePrerelease=!!r.includePrerelease;let s=e.trim().match(r.loose?F[U.LOOSE]:F[U.FULL]);if(!s)throw new TypeError(`Invalid Version: ${e}`);if(this.raw=e,this.major=+s[1],this.minor=+s[2],this.patch=+s[3],this.major>j||this.major<0)throw new TypeError("Invalid major version");if(this.minor>j||this.minor<0)throw new TypeError("Invalid minor version");if(this.patch>j||this.patch<0)throw new TypeError("Invalid patch version");s[4]?this.prerelease=s[4].split(".").map(n=>{if(/^[0-9]+$/.test(n)){let i=+n;if(i>=0&&i<j)return i}return n}):this.prerelease=[],this.build=s[5]?s[5].split("."):[],this.format()}format(){return this.version=`${this.major}.${this.minor}.${this.patch}`,this.prerelease.length&&(this.version+=`-${this.prerelease.join(".")}`),this.version}toString(){return this.version}compare(e){if(y("SemVer.compare",this.version,this.options,e),!(e instanceof t)){if(typeof e=="string"&&e===this.version)return 0;e=new t(e,this.options)}return e.version===this.version?0:this.compareMain(e)||this.comparePre(e)}compareMain(e){return e instanceof t||(e=new t(e,this.options)),this.major<e.major?-1:this.major>e.major?1:this.minor<e.minor?-1:this.minor>e.minor?1:this.patch<e.patch?-1:this.patch>e.patch?1:0}comparePre(e){if(e instanceof t||(e=new t(e,this.options)),this.prerelease.length&&!e.prerelease.length)return-1;if(!this.prerelease.length&&e.prerelease.length)return 1;if(!this.prerelease.length&&!e.prerelease.length)return 0;let r=0;do{let s=this.prerelease[r],n=e.prerelease[r];if(y("prerelease compare",r,s,n),s===void 0&&n===void 0)return 0;if(n===void 0)return 1;if(s===void 0)return-1;if(s===n)continue;return K(s,n)}while(++r)}compareBuild(e){e instanceof t||(e=new t(e,this.options));let r=0;do{let s=this.build[r],n=e.build[r];if(y("build compare",r,s,n),s===void 0&&n===void 0)return 0;if(n===void 0)return 1;if(s===void 0)return-1;if(s===n)continue;return K(s,n)}while(++r)}inc(e,r,s){if(e.startsWith("pre")){if(!r&&s===!1)throw new Error("invalid increment argument: identifier is empty");if(r){let n=`-${r}`.match(this.options.loose?F[U.PRERELEASELOOSE]:F[U.PRERELEASE]);if(!n||n[1]!==r)throw new Error(`invalid identifier: ${r}`)}}switch(e){case"premajor":this.prerelease.length=0,this.patch=0,this.minor=0,this.major++,this.inc("pre",r,s);break;case"preminor":this.prerelease.length=0,this.patch=0,this.minor++,this.inc("pre",r,s);break;case"prepatch":this.prerelease.length=0,this.inc("patch",r,s),this.inc("pre",r,s);break;case"prerelease":this.prerelease.length===0&&this.inc("patch",r,s),this.inc("pre",r,s);break;case"release":if(this.prerelease.length===0)throw new Error(`version ${this.raw} is not a prerelease`);this.prerelease.length=0;break;case"major":(this.minor!==0||this.patch!==0||this.prerelease.length===0)&&this.major++,this.minor=0,this.patch=0,this.prerelease=[];break;case"minor":(this.patch!==0||this.prerelease.length===0)&&this.minor++,this.patch=0,this.prerelease=[];break;case"patch":this.prerelease.length===0&&this.patch++,this.prerelease=[];break;case"pre":{let n=Number(s)?1:0;if(this.prerelease.length===0)this.prerelease=[n];else{let i=this.prerelease.length;for(;--i>=0;)typeof this.prerelease[i]=="number"&&(this.prerelease[i]++,i=-2);if(i===-1){if(r===this.prerelease.join(".")&&s===!1)throw new Error("invalid increment argument: identifier already exists");this.prerelease.push(n)}}if(r){let i=[r,n];if(s===!1&&(i=[r]),Dt(this.prerelease,r)){let o=this.prerelease[r.split(".").length];isNaN(o)&&(this.prerelease=i)}else this.prerelease=i}break}default:throw new Error(`invalid increment argument: ${e}`)}return this.raw=this.format(),this.build.length&&(this.raw+=`+${this.build.join(".")}`),this}};Oe.exports=Z});var q=p((gi,Te)=>{"use strict";var Se=N(),Gt=(t,e,r=!1)=>{if(t instanceof Se)return t;try{return new Se(t,e)}catch(s){if(!r)return null;throw s}};Te.exports=Gt});var qe=p((wi,Ae)=>{"use strict";var yt=q(),jt=(t,e)=>{let r=yt(t,e);return r?r.version:null};Ae.exports=jt});var we=p((Pi,ge)=>{"use strict";var Ft=q(),Ut=(t,e)=>{let r=Ft(t.trim().replace(/^[=v]+/,""),e);return r?r.version:null};ge.exports=Ut});var xe=p((vi,ve)=>{"use strict";var Pe=N(),Vt=(t,e,r,s,n)=>{typeof r=="string"&&(n=s,s=r,r=void 0);try{return new Pe(t instanceof Pe?t.version:t,r).inc(e,s,n).version}catch{return null}};ve.exports=Vt});var Ge=p((xi,De)=>{"use strict";var Ce=q(),Xt=(t,e)=>{let r=Ce(t,null,!0),s=Ce(e,null,!0),n=r.compare(s);if(n===0)return null;let i=n>0,o=i?r:s,l=i?s:r,u=!!o.prerelease.length;if(!!l.prerelease.length&&!u){if(!l.patch&&!l.minor)return"major";if(l.compareMain(o)===0)return l.minor&&!l.patch?"minor":"patch"}let R=u?"pre":"";return r.major!==s.major?R+"major":r.minor!==s.minor?R+"minor":r.patch!==s.patch?R+"patch":"prerelease"};De.exports=Xt});var je=p((Ci,ye)=>{"use strict";var _t=N(),bt=(t,e)=>new _t(t,e).major;ye.exports=bt});var Ue=p((Di,Fe)=>{"use strict";var Ht=N(),kt=(t,e)=>new Ht(t,e).minor;Fe.exports=kt});var Xe=p((Gi,Ve)=>{"use strict";var Bt=N(),Yt=(t,e)=>new Bt(t,e).patch;Ve.exports=Yt});var be=p((yi,_e)=>{"use strict";var Mt=q(),Wt=(t,e)=>{let r=Mt(t,e);return r&&r.prerelease.length?r.prerelease:null};_e.exports=Wt});var S=p((ji,ke)=>{"use strict";var He=N(),zt=(t,e,r)=>new He(t,r).compare(new He(e,r));ke.exports=zt});var Ye=p((Fi,Be)=>{"use strict";var Kt=S(),Zt=(t,e,r)=>Kt(e,t,r);Be.exports=Zt});var We=p((Ui,Me)=>{"use strict";var Jt=S(),Qt=(t,e)=>Jt(t,e,!0);Me.exports=Qt});var V=p((Vi,Ke)=>{"use strict";var ze=N(),es=(t,e,r)=>{let s=new ze(t,r),n=new ze(e,r);return s.compare(n)||s.compareBuild(n)};Ke.exports=es});var Je=p((Xi,Ze)=>{"use strict";var rs=V(),ts=(t,e)=>t.sort((r,s)=>rs(r,s,e));Ze.exports=ts});var er=p((_i,Qe)=>{"use strict";var ss=V(),ns=(t,e)=>t.sort((r,s)=>ss(s,r,e));Qe.exports=ns});var v=p((bi,rr)=>{"use strict";var is=S(),os=(t,e,r)=>is(t,e,r)>0;rr.exports=os});var X=p((Hi,tr)=>{"use strict";var cs=S(),as=(t,e,r)=>cs(t,e,r)<0;tr.exports=as});var J=p((ki,sr)=>{"use strict";var ls=S(),us=(t,e,r)=>ls(t,e,r)===0;sr.exports=us});var Q=p((Bi,nr)=>{"use strict";var fs=S(),Es=(t,e,r)=>fs(t,e,r)!==0;nr.exports=Es});var _=p((Yi,ir)=>{"use strict";var hs=S(),ps=(t,e,r)=>hs(t,e,r)>=0;ir.exports=ps});var b=p((Mi,or)=>{"use strict";var ms=S(),Rs=(t,e,r)=>ms(t,e,r)<=0;or.exports=Rs});var ee=p((Wi,cr)=>{"use strict";var $s=J(),Is=Q(),Ls=v(),Ns=_(),ds=X(),Os=b(),Ss=(t,e,r,s)=>{switch(e){case"===":return typeof t=="object"&&(t=t.version),typeof r=="object"&&(r=r.version),t===r;case"!==":return typeof t=="object"&&(t=t.version),typeof r=="object"&&(r=r.version),t!==r;case"":case"=":case"==":return $s(t,r,s);case"!=":return Is(t,r,s);case">":return Ls(t,r,s);case">=":return Ns(t,r,s);case"<":return ds(t,r,s);case"<=":return Os(t,r,s);default:throw new TypeError(`Invalid operator: ${e}`)}};cr.exports=Ss});var lr=p((zi,ar)=>{"use strict";var Ts=N(),As=q(),{safeRe:H,t:k}=w(),qs=(t,e)=>{if(t instanceof Ts)return t;if(typeof t=="number"&&(t=String(t)),typeof t!="string")return null;e=e||{};let r=null;if(!e.rtl)r=t.match(e.includePrerelease?H[k.COERCEFULL]:H[k.COERCE]);else{let u=e.includePrerelease?H[k.COERCERTLFULL]:H[k.COERCERTL],f;for(;(f=u.exec(t))&&(!r||r.index+r[0].length!==t.length);)(!r||f.index+f[0].length!==r.index+r[0].length)&&(r=f),u.lastIndex=f.index+f[1].length+f[2].length;u.lastIndex=-1}if(r===null)return null;let s=r[2],n=r[3]||"0",i=r[4]||"0",o=e.includePrerelease&&r[5]?`-${r[5]}`:"",l=e.includePrerelease&&r[6]?`+${r[6]}`:"";return As(`${s}.${n}.${i}${o}${l}`,e)};ar.exports=qs});var fr=p((Ki,ur)=>{"use strict";var gs=q(),ws=g(),Ps=N(),vs=(t,e,r)=>{if(!ws.RELEASE_TYPES.includes(e))return null;let s=xs(t,r);return s&&Cs(s,e)},xs=(t,e)=>{let r=t instanceof Ps?t.version:t;return gs(r,e)},Cs=(t,e)=>{if(Ds(e))return t.version;switch(t.prerelease=[],e){case"major":t.minor=0,t.patch=0;break;case"minor":t.patch=0;break}return t.format()},Ds=t=>t.startsWith("pre");ur.exports=vs});var hr=p((Zi,Er)=>{"use strict";var re=class{constructor(){this.max=1e3,this.map=new Map}get(e){let r=this.map.get(e);if(r!==void 0)return this.map.delete(e),this.map.set(e,r),r}delete(e){return this.map.delete(e)}set(e,r){if(!this.delete(e)&&r!==void 0){if(this.map.size>=this.max){let n=this.map.keys().next().value;this.delete(n)}this.map.set(e,r)}return this}};Er.exports=re});var T=p((Ji,$r)=>{"use strict";var Gs=/\s+/g,te=class t{constructor(e,r){if(r=js(r),e instanceof t)return e.loose===!!r.loose&&e.includePrerelease===!!r.includePrerelease?e:new t(e.raw,r);if(e instanceof se)return this.raw=e.value,this.set=[[e]],this.formatted=void 0,this;if(this.options=r,this.loose=!!r.loose,this.includePrerelease=!!r.includePrerelease,this.raw=e.trim().replace(Gs," "),this.set=this.raw.split("||").map(s=>this.parseRange(s.trim())).filter(s=>s.length),!this.set.length)throw new TypeError(`Invalid SemVer Range: ${this.raw}`);if(this.set.length>1){let s=this.set[0];if(this.set=this.set.filter(n=>!mr(n[0])),this.set.length===0)this.set=[s];else if(this.set.length>1){for(let n of this.set)if(n.length===1&&Bs(n[0])){this.set=[n];break}}}this.formatted=void 0}get range(){if(this.formatted===void 0){this.formatted="";for(let e=0;e<this.set.length;e++){e>0&&(this.formatted+="||");let r=this.set[e];for(let s=0;s<r.length;s++)s>0&&(this.formatted+=" "),this.formatted+=r[s].toString().trim()}}return this.formatted}format(){return this.range}toString(){return this.range}parseRange(e){e=e.replace(ks,"");let s=((this.options.includePrerelease&&bs)|(this.options.loose&&Hs))+":"+e,n=pr.get(s);if(n)return n;let i=this.options.loose,o=i?O[d.HYPHENRANGELOOSE]:O[d.HYPHENRANGE];e=e.replace(o,tn(this.options.includePrerelease)),$("hyphen replace",e),e=e.replace(O[d.COMPARATORTRIM],Vs),$("comparator trim",e),e=e.replace(O[d.TILDETRIM],Xs),$("tilde trim",e),e=e.replace(O[d.CARETTRIM],_s),$("caret trim",e);let l=e.split(" ").map(E=>Ys(E,this.options)).join(" ").split(/\s+/).map(E=>rn(E,this.options));i&&(l=l.filter(E=>($("loose invalid filter",E,this.options),!!E.match(O[d.COMPARATORLOOSE])))),$("range list",l);let u=new Map,f=l.map(E=>new se(E,this.options));for(let E of f){if(mr(E))return[E];u.set(E.value,E)}u.size>1&&u.has("")&&u.delete("");let R=[...u.values()];return pr.set(s,R),R}intersects(e,r){if(!(e instanceof t))throw new TypeError("a Range is required");return this.set.some(s=>Rr(s,r)&&e.set.some(n=>Rr(n,r)&&s.every(i=>n.every(o=>i.intersects(o,r)))))}test(e){if(!e)return!1;if(typeof e=="string")try{e=new Fs(e,this.options)}catch{return!1}for(let r=0;r<this.set.length;r++)if(sn(this.set[r],e,this.options))return!0;return!1}};$r.exports=te;var ys=hr(),pr=new ys,js=G(),se=x(),$=P(),Fs=N(),{safeRe:O,src:Us,t:d,comparatorTrimReplace:Vs,tildeTrimReplace:Xs,caretTrimReplace:_s}=w(),{FLAG_INCLUDE_PRERELEASE:bs,FLAG_LOOSE:Hs}=g(),ks=new RegExp(Us[d.BUILD],"g"),mr=t=>t.value==="<0.0.0-0",Bs=t=>t.value==="",Rr=(t,e)=>{let r=!0,s=t.slice(),n=s.pop();for(;r&&s.length;)r=s.every(i=>n.intersects(i,e)),n=s.pop();return r},Ys=(t,e)=>(t=t.replace(O[d.BUILD],""),$("comp",t,e),t=Ks(t,e),$("caret",t),t=Ws(t,e),$("tildes",t),t=Js(t,e),$("xrange",t),t=en(t,e),$("stars",t),t),L=t=>!t||t.toLowerCase()==="x"||t==="*",Ms=(t,e,r)=>L(t)&&!L(e)||L(e)&&r&&!L(r),Ws=(t,e)=>t.trim().split(/\s+/).map(r=>zs(r,e)).join(" "),zs=(t,e)=>{let r=e.loose?O[d.TILDELOOSE]:O[d.TILDE],s=e.includePrerelease?"-0":"";return t.replace(r,(n,i,o,l,u)=>{$("tilde",t,n,i,o,l,u);let f;return L(i)?f="":L(o)?f=`>=${i}.0.0${s} <${+i+1}.0.0-0`:L(l)?f=`>=${i}.${o}.0${s} <${i}.${+o+1}.0-0`:u?($("replaceTilde pr",u),f=`>=${i}.${o}.${l}-${u} <${i}.${+o+1}.0-0`):f=`>=${i}.${o}.${l} <${i}.${+o+1}.0-0`,$("tilde return",f),f})},Ks=(t,e)=>t.trim().split(/\s+/).map(r=>Zs(r,e)).join(" "),Zs=(t,e)=>{$("caret",t,e);let r=e.loose?O[d.CARETLOOSE]:O[d.CARET],s=e.includePrerelease?"-0":"";return t.replace(r,(n,i,o,l,u)=>{$("caret",t,n,i,o,l,u);let f;return L(i)?f="":L(o)?f=`>=${i}.0.0${s} <${+i+1}.0.0-0`:L(l)?i==="0"?f=`>=${i}.${o}.0${s} <${i}.${+o+1}.0-0`:f=`>=${i}.${o}.0${s} <${+i+1}.0.0-0`:u?($("replaceCaret pr",u),i==="0"?o==="0"?f=`>=${i}.${o}.${l}-${u} <${i}.${o}.${+l+1}-0`:f=`>=${i}.${o}.${l}-${u} <${i}.${+o+1}.0-0`:f=`>=${i}.${o}.${l}-${u} <${+i+1}.0.0-0`):($("no pr"),i==="0"?o==="0"?f=`>=${i}.${o}.${l} <${i}.${o}.${+l+1}-0`:f=`>=${i}.${o}.${l} <${i}.${+o+1}.0-0`:f=`>=${i}.${o}.${l} <${+i+1}.0.0-0`),$("caret return",f),f})},Js=(t,e)=>($("replaceXRanges",t,e),t.split(/\s+/).map(r=>Qs(r,e)).join(" ")),Qs=(t,e)=>{t=t.trim();let r=e.loose?O[d.XRANGELOOSE]:O[d.XRANGE];return t.replace(r,(s,n,i,o,l,u)=>{if($("xRange",t,s,n,i,o,l,u),Ms(i,o,l))return t;let f=L(i),R=f||L(o),E=R||L(l),I=E;return n==="="&&I&&(n=""),u=e.includePrerelease?"-0":"",f?n===">"||n==="<"?s="<0.0.0-0":s="*":n&&I?(R&&(o=0),l=0,n===">"?(n=">=",R?(i=+i+1,o=0,l=0):(o=+o+1,l=0)):n==="<="&&(n="<",R?i=+i+1:o=+o+1),n==="<"&&(u="-0"),s=`${n+i}.${o}.${l}${u}`):R?s=`>=${i}.0.0${u} <${+i+1}.0.0-0`:E&&(s=`>=${i}.${o}.0${u} <${i}.${+o+1}.0-0`),$("xRange return",s),s})},en=(t,e)=>($("replaceStars",t,e),t.trim().replace(O[d.STAR],"")),rn=(t,e)=>($("replaceGTE0",t,e),t.trim().replace(O[e.includePrerelease?d.GTE0PRE:d.GTE0],"")),tn=t=>(e,r,s,n,i,o,l,u,f,R,E,I)=>(L(s)?r="":L(n)?r=`>=${s}.0.0${t?"-0":""}`:L(i)?r=`>=${s}.${n}.0${t?"-0":""}`:o?r=`>=${r}`:r=`>=${r}${t?"-0":""}`,L(f)?u="":L(R)?u=`<${+f+1}.0.0-0`:L(E)?u=`<${f}.${+R+1}.0-0`:I?u=`<=${f}.${R}.${E}-${I}`:t?u=`<${f}.${R}.${+E+1}-0`:u=`<=${u}`,`${r} ${u}`.trim()),sn=(t,e,r)=>{for(let s=0;s<t.length;s++)if(!t[s].test(e))return!1;if(e.prerelease.length&&!r.includePrerelease){for(let s=0;s<t.length;s++)if($(t[s].semver),t[s].semver!==se.ANY&&t[s].semver.prerelease.length>0){let n=t[s].semver;if(n.major===e.major&&n.minor===e.minor&&n.patch===e.patch)return!0}return!1}return!0}});var x=p((Qi,Sr)=>{"use strict";var C=Symbol("SemVer ANY"),oe=class t{static get ANY(){return C}constructor(e,r){if(r=Ir(r),e instanceof t){if(e.loose===!!r.loose)return e;e=e.value}e=e.trim().split(/\s+/).join(" "),ie("comparator",e,r),this.options=r,this.loose=!!r.loose,this.parse(e),this.semver===C?this.value="":this.value=this.operator+this.semver.version,ie("comp",this)}parse(e){let r=this.options.loose?Lr[Nr.COMPARATORLOOSE]:Lr[Nr.COMPARATOR],s=e.match(r);if(!s)throw new TypeError(`Invalid comparator: ${e}`);this.operator=s[1]!==void 0?s[1]:"",this.operator==="="&&(this.operator=""),s[2]?this.semver=new dr(s[2],this.options.loose):this.semver=C}toString(){return this.value}test(e){if(ie("Comparator.test",e,this.options.loose),this.semver===C||e===C)return!0;if(typeof e=="string")try{e=new dr(e,this.options)}catch{return!1}return ne(e,this.operator,this.semver,this.options)}intersects(e,r){if(!(e instanceof t))throw new TypeError("a Comparator is required");return this.operator===""?this.value===""?!0:new Or(e.value,r).test(this.value):e.operator===""?e.value===""?!0:new Or(this.value,r).test(e.semver):(r=Ir(r),r.includePrerelease&&(this.value==="<0.0.0-0"||e.value==="<0.0.0-0")||!r.includePrerelease&&(this.value.startsWith("<0.0.0")||e.value.startsWith("<0.0.0"))?!1:!!(this.operator.startsWith(">")&&e.operator.startsWith(">")||this.operator.startsWith("<")&&e.operator.startsWith("<")||this.semver.version===e.semver.version&&this.operator.includes("=")&&e.operator.includes("=")||ne(this.semver,"<",e.semver,r)&&this.operator.startsWith(">")&&e.operator.startsWith("<")||ne(this.semver,">",e.semver,r)&&this.operator.startsWith("<")&&e.operator.startsWith(">")))}};Sr.exports=oe;var Ir=G(),{safeRe:Lr,t:Nr}=w(),ne=ee(),ie=P(),dr=N(),Or=T()});var D=p((eo,Tr)=>{"use strict";var nn=T(),on=(t,e,r)=>{try{e=new nn(e,r)}catch{return!1}return e.test(t)};Tr.exports=on});var qr=p((ro,Ar)=>{"use strict";var cn=T(),an=(t,e)=>new cn(t,e).set.map(r=>r.map(s=>s.value).join(" ").trim().split(" "));Ar.exports=an});var wr=p((to,gr)=>{"use strict";var ln=N(),un=T(),fn=(t,e,r)=>{let s=null,n=null,i=null;try{i=new un(e,r)}catch{return null}return t.forEach(o=>{i.test(o)&&(!s||n.compare(o)===-1)&&(s=o,n=new ln(s,r))}),s};gr.exports=fn});var vr=p((so,Pr)=>{"use strict";var En=N(),hn=T(),pn=(t,e,r)=>{let s=null,n=null,i=null;try{i=new hn(e,r)}catch{return null}return t.forEach(o=>{i.test(o)&&(!s||n.compare(o)===1)&&(s=o,n=new En(s,r))}),s};Pr.exports=pn});var Dr=p((no,Cr)=>{"use strict";var ce=N(),mn=T(),xr=v(),Rn=(t,e)=>{t=new mn(t,e);let r=new ce("0.0.0");if(t.test(r)||(r=new ce("0.0.0-0"),t.test(r)))return r;r=null;for(let s=0;s<t.set.length;++s){let n=t.set[s],i=null;n.forEach(o=>{let l=new ce(o.semver.version);switch(o.operator){case">":l.prerelease.length===0?l.patch++:l.prerelease.push(0),l.raw=l.format();case"":case">=":(!i||xr(l,i))&&(i=l);break;case"<":case"<=":break;default:throw new Error(`Unexpected operation: ${o.operator}`)}}),i&&(!r||xr(r,i))&&(r=i)}return r&&t.test(r)?r:null};Cr.exports=Rn});var yr=p((io,Gr)=>{"use strict";var $n=T(),In=(t,e)=>{try{return new $n(t,e).range||"*"}catch{return null}};Gr.exports=In});var B=p((oo,Vr)=>{"use strict";var Ln=N(),Ur=x(),{ANY:Nn}=Ur,dn=T(),On=D(),jr=v(),Fr=X(),Sn=b(),Tn=_(),An=(t,e,r,s)=>{t=new Ln(t,s),e=new dn(e,s);let n,i,o,l,u;switch(r){case">":n=jr,i=Sn,o=Fr,l=">",u=">=";break;case"<":n=Fr,i=Tn,o=jr,l="<",u="<=";break;default:throw new TypeError('Must provide a hilo val of "<" or ">"')}if(On(t,e,s))return!1;for(let f=0;f<e.set.length;++f){let R=e.set[f],E=null,I=null;if(R.forEach(h=>{h.semver===Nn&&(h=new Ur(">=0.0.0")),E=E||h,I=I||h,n(h.semver,E.semver,s)?E=h:o(h.semver,I.semver,s)&&(I=h)}),E.operator===l||E.operator===u||(!I.operator||I.operator===l)&&i(t,I.semver))return!1;if(I.operator===u&&o(t,I.semver))return!1}return!0};Vr.exports=An});var _r=p((co,Xr)=>{"use strict";var qn=B(),gn=(t,e,r)=>qn(t,e,">",r);Xr.exports=gn});var Hr=p((ao,br)=>{"use strict";var wn=B(),Pn=(t,e,r)=>wn(t,e,"<",r);br.exports=Pn});var Yr=p((lo,Br)=>{"use strict";var kr=T(),vn=(t,e,r)=>(t=new kr(t,r),e=new kr(e,r),t.intersects(e,r));Br.exports=vn});var Wr=p((uo,Mr)=>{"use strict";var xn=D(),Cn=S();Mr.exports=(t,e,r)=>{let s=[],n=null,i=null,o=t.sort((R,E)=>Cn(R,E,r));for(let R of o)xn(R,e,r)?(i=R,n||(n=R)):(i&&s.push([n,i]),i=null,n=null);n&&s.push([n,null]);let l=[];for(let[R,E]of s)R===E?l.push(R):!E&&R===o[0]?l.push("*"):E?R===o[0]?l.push(`<=${E}`):l.push(`${R} - ${E}`):l.push(`>=${R}`);let u=l.join(" || "),f=typeof e.raw=="string"?e.raw:String(e);return u.length<f.length?u:e}});var et=p((fo,Qr)=>{"use strict";var zr=T(),ue=x(),{ANY:ae}=ue,le=D(),fe=S(),Dn=(t,e,r={})=>{if(t===e)return!0;t=new zr(t,r),e=new zr(e,r);let s=!1;e:for(let n of t.set){for(let i of e.set){let o=yn(n,i,r);if(s=s||o!==null,o)continue e}if(s)return!1}return!0},Gn=[new ue(">=0.0.0-0")],Kr=[new ue(">=0.0.0")],yn=(t,e,r)=>{if(t===e)return!0;if(t.length===1&&t[0].semver===ae){if(e.length===1&&e[0].semver===ae)return!0;r.includePrerelease?t=Gn:t=Kr}if(e.length===1&&e[0].semver===ae){if(r.includePrerelease)return!0;e=Kr}let s=new Set,n,i;for(let h of t)h.operator===">"||h.operator===">="?n=Zr(n,h,r):h.operator==="<"||h.operator==="<="?i=Jr(i,h,r):s.add(h.semver);if(s.size>1)return null;let o;if(n&&i){if(o=fe(n.semver,i.semver,r),o>0)return null;if(o===0&&(n.operator!==">="||i.operator!=="<="))return null}for(let h of s){if(n&&!le(h,String(n),r)||i&&!le(h,String(i),r))return null;for(let it of e)if(!le(h,String(it),r))return!1;return!0}let l,u,f,R,E=i&&!r.includePrerelease&&i.semver.prerelease.length?i.semver:!1,I=n&&!r.includePrerelease&&n.semver.prerelease.length?n.semver:!1;E&&E.prerelease.length===1&&i.operator==="<"&&E.prerelease[0]===0&&(E=!1);for(let h of e){if(R=R||h.operator===">"||h.operator===">=",f=f||h.operator==="<"||h.operator==="<=",n){if(I&&h.semver.prerelease&&h.semver.prerelease.length&&h.semver.major===I.major&&h.semver.minor===I.minor&&h.semver.patch===I.patch&&(I=!1),h.operator===">"||h.operator===">="){if(l=Zr(n,h,r),l===h&&l!==n)return!1}else if(n.operator===">="&&!h.test(n.semver))return!1}if(i){if(E&&h.semver.prerelease&&h.semver.prerelease.length&&h.semver.major===E.major&&h.semver.minor===E.minor&&h.semver.patch===E.patch&&(E=!1),h.operator==="<"||h.operator==="<="){if(u=Jr(i,h,r),u===h&&u!==i)return!1}else if(i.operator==="<="&&!h.test(i.semver))return!1}if(!h.operator&&(i||n)&&o!==0)return!1}return!(n&&f&&!i&&o!==0||i&&R&&!n&&o!==0||I||E)},Zr=(t,e,r)=>{if(!t)return e;let s=fe(t.semver,e.semver,r);return s>0?t:s<0||e.operator===">"&&t.operator===">="?e:t},Jr=(t,e,r)=>{if(!t)return e;let s=fe(t.semver,e.semver,r);return s<0?t:s>0||e.operator==="<"&&t.operator==="<="?e:t};Qr.exports=Dn});var nt=p((Eo,st)=>{"use strict";var Ee=w(),rt=g(),jn=N(),tt=z(),Fn=q(),Un=qe(),Vn=we(),Xn=xe(),_n=Ge(),bn=je(),Hn=Ue(),kn=Xe(),Bn=be(),Yn=S(),Mn=Ye(),Wn=We(),zn=V(),Kn=Je(),Zn=er(),Jn=v(),Qn=X(),ei=J(),ri=Q(),ti=_(),si=b(),ni=ee(),ii=lr(),oi=fr(),ci=x(),ai=T(),li=D(),ui=qr(),fi=wr(),Ei=vr(),hi=Dr(),pi=yr(),mi=B(),Ri=_r(),$i=Hr(),Ii=Yr(),Li=Wr(),Ni=et();st.exports={parse:Fn,valid:Un,clean:Vn,inc:Xn,diff:_n,major:bn,minor:Hn,patch:kn,prerelease:Bn,compare:Yn,rcompare:Mn,compareLoose:Wn,compareBuild:zn,sort:Kn,rsort:Zn,gt:Jn,lt:Qn,eq:ei,neq:ri,gte:ti,lte:si,cmp:ni,coerce:ii,truncate:oi,Comparator:ci,Range:ai,satisfies:li,toComparators:ui,maxSatisfying:fi,minSatisfying:Ei,minVersion:hi,validRange:pi,outside:mi,gtr:Ri,ltr:$i,intersects:Ii,simplifyRange:Li,subset:Ni,SemVer:jn,re:Ee.re,src:Ee.src,tokens:Ee.t,SEMVER_SPEC_VERSION:rt.SEMVER_SPEC_VERSION,RELEASE_TYPES:rt.RELEASE_TYPES,compareIdentifiers:tt.compareIdentifiers,rcompareIdentifiers:tt.rcompareIdentifiers}});var Y=Et(nt()),{parse:ho,valid:po,clean:mo,inc:Ro,diff:$o,major:Io,minor:Lo,patch:No,prerelease:Oo,compare:So,rcompare:To,compareLoose:Ao,compareBuild:qo,sort:go,rsort:wo,gt:Po,lt:vo,eq:xo,neq:Co,gte:Do,lte:Go,cmp:yo,coerce:jo,truncate:Fo,Comparator:Uo,Range:Vo,satisfies:Xo,toComparators:_o,maxSatisfying:bo,minSatisfying:Ho,minVersion:ko,validRange:Bo,outside:Yo,gtr:Mo,ltr:Wo,intersects:zo,simplifyRange:Ko,subset:Zo,SemVer:Jo,re:Qo,src:ec,tokens:rc,SEMVER_SPEC_VERSION:tc,RELEASE_TYPES:sc,compareIdentifiers:nc,rcompareIdentifiers:ic}=Y,oc=Y.default??Y;export{Uo as Comparator,sc as RELEASE_TYPES,Vo as Range,tc as SEMVER_SPEC_VERSION,Jo as SemVer,mo as clean,yo as cmp,jo as coerce,So as compare,qo as compareBuild,nc as compareIdentifiers,Ao as compareLoose,oc as default,$o as diff,xo as eq,Po as gt,Do as gte,Mo as gtr,Ro as inc,zo as intersects,vo as lt,Go as lte,Wo as ltr,Io as major,bo as maxSatisfying,Ho as minSatisfying,ko as minVersion,Lo as minor,Co as neq,Yo as outside,ho as parse,No as patch,Oo as prerelease,To as rcompare,ic as rcompareIdentifiers,Qo as re,wo as rsort,Xo as satisfies,Ko as simplifyRange,go as sort,ec as src,Zo as subset,_o as toComparators,rc as tokens,Fo as truncate,po as valid,Bo as validRange};
-//# sourceMappingURL=semver.bundle.mjs.map
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __commonJS = (cb, mod) => function __require() {
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
+};
+
+// package/internal/constants.js
+var require_constants = __commonJS({
+  "package/internal/constants.js"(exports, module) {
+    "use strict";
+    var SEMVER_SPEC_VERSION = "2.0.0";
+    var MAX_LENGTH = 256;
+    var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || /* istanbul ignore next */
+    9007199254740991;
+    var MAX_SAFE_COMPONENT_LENGTH = 16;
+    var MAX_SAFE_BUILD_LENGTH = MAX_LENGTH - 6;
+    var RELEASE_TYPES = [
+      "major",
+      "premajor",
+      "minor",
+      "preminor",
+      "patch",
+      "prepatch",
+      "prerelease"
+    ];
+    module.exports = {
+      MAX_LENGTH,
+      MAX_SAFE_COMPONENT_LENGTH,
+      MAX_SAFE_BUILD_LENGTH,
+      MAX_SAFE_INTEGER,
+      RELEASE_TYPES,
+      SEMVER_SPEC_VERSION,
+      FLAG_INCLUDE_PRERELEASE: 1,
+      FLAG_LOOSE: 2
+    };
+  }
+});
+
+// package/internal/debug.js
+var require_debug = __commonJS({
+  "package/internal/debug.js"(exports, module) {
+    "use strict";
+    var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
+    };
+    module.exports = debug;
+  }
+});
+
+// package/internal/re.js
+var require_re = __commonJS({
+  "package/internal/re.js"(exports, module) {
+    "use strict";
+    var {
+      MAX_SAFE_COMPONENT_LENGTH,
+      MAX_SAFE_BUILD_LENGTH,
+      MAX_LENGTH
+    } = require_constants();
+    var debug = require_debug();
+    exports = module.exports = {};
+    var re = exports.re = [];
+    var safeRe = exports.safeRe = [];
+    var src = exports.src = [];
+    var safeSrc = exports.safeSrc = [];
+    var t = exports.t = {};
+    var R = 0;
+    var LETTERDASHNUMBER = "[a-zA-Z0-9-]";
+    var safeRegexReplacements = [
+      ["\\s", 1],
+      ["\\d", MAX_LENGTH],
+      [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH]
+    ];
+    var makeSafeRegex = (value) => {
+      for (const [token, max] of safeRegexReplacements) {
+        value = value.split(`${token}*`).join(`${token}{0,${max}}`).split(`${token}+`).join(`${token}{1,${max}}`);
+      }
+      return value;
+    };
+    var createToken = (name, value, isGlobal) => {
+      const safe = makeSafeRegex(value);
+      const index = R++;
+      debug(name, index, value);
+      t[name] = index;
+      src[index] = value;
+      safeSrc[index] = safe;
+      re[index] = new RegExp(value, isGlobal ? "g" : void 0);
+      safeRe[index] = new RegExp(safe, isGlobal ? "g" : void 0);
+    };
+    createToken("NUMERICIDENTIFIER", "0|[1-9]\\d*");
+    createToken("NUMERICIDENTIFIERLOOSE", "\\d+");
+    createToken("NONNUMERICIDENTIFIER", `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
+    createToken("MAINVERSION", `(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})`);
+    createToken("MAINVERSIONLOOSE", `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})`);
+    createToken("PRERELEASEIDENTIFIER", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIER]})`);
+    createToken("PRERELEASEIDENTIFIERLOOSE", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIERLOOSE]})`);
+    createToken("PRERELEASE", `(?:-(${src[t.PRERELEASEIDENTIFIER]}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
+    createToken("PRERELEASELOOSE", `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
+    createToken("BUILDIDENTIFIER", `${LETTERDASHNUMBER}+`);
+    createToken("BUILD", `(?:\\+(${src[t.BUILDIDENTIFIER]}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
+    createToken("FULLPLAIN", `v?${src[t.MAINVERSION]}${src[t.PRERELEASE]}?${src[t.BUILD]}?`);
+    createToken("FULL", `^${src[t.FULLPLAIN]}$`);
+    createToken("LOOSEPLAIN", `[v=\\s]*${src[t.MAINVERSIONLOOSE]}${src[t.PRERELEASELOOSE]}?${src[t.BUILD]}?`);
+    createToken("LOOSE", `^${src[t.LOOSEPLAIN]}$`);
+    createToken("GTLT", "((?:<|>)?=?)");
+    createToken("XRANGEIDENTIFIERLOOSE", `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
+    createToken("XRANGEIDENTIFIER", `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
+    createToken("XRANGEPLAIN", `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:${src[t.PRERELEASE]})?${src[t.BUILD]}?)?)?`);
+    createToken("XRANGEPLAINLOOSE", `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:${src[t.PRERELEASELOOSE]})?${src[t.BUILD]}?)?)?`);
+    createToken("XRANGE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
+    createToken("XRANGELOOSE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
+    createToken("COERCEPLAIN", `${"(^|[^\\d])(\\d{1,"}${MAX_SAFE_COMPONENT_LENGTH}})(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
+    createToken("COERCE", `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
+    createToken("COERCEFULL", src[t.COERCEPLAIN] + `(?:${src[t.PRERELEASE]})?(?:${src[t.BUILD]})?(?:$|[^\\d])`);
+    createToken("COERCERTL", src[t.COERCE], true);
+    createToken("COERCERTLFULL", src[t.COERCEFULL], true);
+    createToken("LONETILDE", "(?:~>?)");
+    createToken("TILDETRIM", `(\\s*)${src[t.LONETILDE]}\\s+`, true);
+    exports.tildeTrimReplace = "$1~";
+    createToken("TILDE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
+    createToken("TILDELOOSE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
+    createToken("LONECARET", "(?:\\^)");
+    createToken("CARETTRIM", `(\\s*)${src[t.LONECARET]}\\s+`, true);
+    exports.caretTrimReplace = "$1^";
+    createToken("CARET", `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
+    createToken("CARETLOOSE", `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
+    createToken("COMPARATORLOOSE", `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
+    createToken("COMPARATOR", `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
+    createToken("COMPARATORTRIM", `(\\s*)${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
+    exports.comparatorTrimReplace = "$1$2$3";
+    createToken("HYPHENRANGE", `^\\s*(${src[t.XRANGEPLAIN]})\\s+-\\s+(${src[t.XRANGEPLAIN]})\\s*$`);
+    createToken("HYPHENRANGELOOSE", `^\\s*(${src[t.XRANGEPLAINLOOSE]})\\s+-\\s+(${src[t.XRANGEPLAINLOOSE]})\\s*$`);
+    createToken("STAR", "(<|>)?=?\\s*\\*");
+    createToken("GTE0", "^\\s*>=\\s*0\\.0\\.0\\s*$");
+    createToken("GTE0PRE", "^\\s*>=\\s*0\\.0\\.0-0\\s*$");
+  }
+});
+
+// package/internal/parse-options.js
+var require_parse_options = __commonJS({
+  "package/internal/parse-options.js"(exports, module) {
+    "use strict";
+    var looseOption = Object.freeze({ loose: true });
+    var emptyOpts = Object.freeze({});
+    var parseOptions = (options) => {
+      if (!options) {
+        return emptyOpts;
+      }
+      if (typeof options !== "object") {
+        return looseOption;
+      }
+      return options;
+    };
+    module.exports = parseOptions;
+  }
+});
+
+// package/internal/identifiers.js
+var require_identifiers = __commonJS({
+  "package/internal/identifiers.js"(exports, module) {
+    "use strict";
+    var numeric = /^[0-9]+$/;
+    var compareIdentifiers = (a, b) => {
+      if (typeof a === "number" && typeof b === "number") {
+        return a === b ? 0 : a < b ? -1 : 1;
+      }
+      const anum = numeric.test(a);
+      const bnum = numeric.test(b);
+      if (anum && bnum) {
+        a = +a;
+        b = +b;
+      }
+      return a === b ? 0 : anum && !bnum ? -1 : bnum && !anum ? 1 : a < b ? -1 : 1;
+    };
+    var rcompareIdentifiers = (a, b) => compareIdentifiers(b, a);
+    module.exports = {
+      compareIdentifiers,
+      rcompareIdentifiers
+    };
+  }
+});
+
+// package/classes/semver.js
+var require_semver = __commonJS({
+  "package/classes/semver.js"(exports, module) {
+    "use strict";
+    var debug = require_debug();
+    var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants();
+    var { safeRe: re, t } = require_re();
+    var parseOptions = require_parse_options();
+    var { compareIdentifiers } = require_identifiers();
+    var isPrereleaseIdentifier = (prerelease, identifier) => {
+      const identifiers = identifier.split(".");
+      if (identifiers.length > prerelease.length) {
+        return false;
+      }
+      for (let i = 0; i < identifiers.length; i++) {
+        if (compareIdentifiers(prerelease[i], identifiers[i]) !== 0) {
+          return false;
+        }
+      }
+      return true;
+    };
+    var SemVer = class _SemVer {
+      constructor(version, options) {
+        options = parseOptions(options);
+        if (version instanceof _SemVer) {
+          if (version.loose === !!options.loose && version.includePrerelease === !!options.includePrerelease) {
+            return version;
+          } else {
+            version = version.version;
+          }
+        } else if (typeof version !== "string") {
+          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`);
+        }
+        if (version.length > MAX_LENGTH) {
+          throw new TypeError(
+            `version is longer than ${MAX_LENGTH} characters`
+          );
+        }
+        debug("SemVer", version, options);
+        this.options = options;
+        this.loose = !!options.loose;
+        this.includePrerelease = !!options.includePrerelease;
+        const m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
+        if (!m) {
+          throw new TypeError(`Invalid Version: ${version}`);
+        }
+        this.raw = version;
+        this.major = +m[1];
+        this.minor = +m[2];
+        this.patch = +m[3];
+        if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
+          throw new TypeError("Invalid major version");
+        }
+        if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
+          throw new TypeError("Invalid minor version");
+        }
+        if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
+          throw new TypeError("Invalid patch version");
+        }
+        if (!m[4]) {
+          this.prerelease = [];
+        } else {
+          this.prerelease = m[4].split(".").map((id) => {
+            if (/^[0-9]+$/.test(id)) {
+              const num = +id;
+              if (num >= 0 && num < MAX_SAFE_INTEGER) {
+                return num;
+              }
+            }
+            return id;
+          });
+        }
+        this.build = m[5] ? m[5].split(".") : [];
+        this.format();
+      }
+      format() {
+        this.version = `${this.major}.${this.minor}.${this.patch}`;
+        if (this.prerelease.length) {
+          this.version += `-${this.prerelease.join(".")}`;
+        }
+        return this.version;
+      }
+      toString() {
+        return this.version;
+      }
+      compare(other) {
+        debug("SemVer.compare", this.version, this.options, other);
+        if (!(other instanceof _SemVer)) {
+          if (typeof other === "string" && other === this.version) {
+            return 0;
+          }
+          other = new _SemVer(other, this.options);
+        }
+        if (other.version === this.version) {
+          return 0;
+        }
+        return this.compareMain(other) || this.comparePre(other);
+      }
+      compareMain(other) {
+        if (!(other instanceof _SemVer)) {
+          other = new _SemVer(other, this.options);
+        }
+        if (this.major < other.major) {
+          return -1;
+        }
+        if (this.major > other.major) {
+          return 1;
+        }
+        if (this.minor < other.minor) {
+          return -1;
+        }
+        if (this.minor > other.minor) {
+          return 1;
+        }
+        if (this.patch < other.patch) {
+          return -1;
+        }
+        if (this.patch > other.patch) {
+          return 1;
+        }
+        return 0;
+      }
+      comparePre(other) {
+        if (!(other instanceof _SemVer)) {
+          other = new _SemVer(other, this.options);
+        }
+        if (this.prerelease.length && !other.prerelease.length) {
+          return -1;
+        } else if (!this.prerelease.length && other.prerelease.length) {
+          return 1;
+        } else if (!this.prerelease.length && !other.prerelease.length) {
+          return 0;
+        }
+        let i = 0;
+        do {
+          const a = this.prerelease[i];
+          const b = other.prerelease[i];
+          debug("prerelease compare", i, a, b);
+          if (a === void 0 && b === void 0) {
+            return 0;
+          } else if (b === void 0) {
+            return 1;
+          } else if (a === void 0) {
+            return -1;
+          } else if (a === b) {
+            continue;
+          } else {
+            return compareIdentifiers(a, b);
+          }
+        } while (++i);
+      }
+      compareBuild(other) {
+        if (!(other instanceof _SemVer)) {
+          other = new _SemVer(other, this.options);
+        }
+        let i = 0;
+        do {
+          const a = this.build[i];
+          const b = other.build[i];
+          debug("build compare", i, a, b);
+          if (a === void 0 && b === void 0) {
+            return 0;
+          } else if (b === void 0) {
+            return 1;
+          } else if (a === void 0) {
+            return -1;
+          } else if (a === b) {
+            continue;
+          } else {
+            return compareIdentifiers(a, b);
+          }
+        } while (++i);
+      }
+      // preminor will bump the version up to the next minor release, and immediately
+      // down to pre-release. premajor and prepatch work the same way.
+      inc(release, identifier, identifierBase) {
+        if (release.startsWith("pre")) {
+          if (!identifier && identifierBase === false) {
+            throw new Error("invalid increment argument: identifier is empty");
+          }
+          if (identifier) {
+            const match = `-${identifier}`.match(this.options.loose ? re[t.PRERELEASELOOSE] : re[t.PRERELEASE]);
+            if (!match || match[1] !== identifier) {
+              throw new Error(`invalid identifier: ${identifier}`);
+            }
+          }
+        }
+        switch (release) {
+          case "premajor":
+            this.prerelease.length = 0;
+            this.patch = 0;
+            this.minor = 0;
+            this.major++;
+            this.inc("pre", identifier, identifierBase);
+            break;
+          case "preminor":
+            this.prerelease.length = 0;
+            this.patch = 0;
+            this.minor++;
+            this.inc("pre", identifier, identifierBase);
+            break;
+          case "prepatch":
+            this.prerelease.length = 0;
+            this.inc("patch", identifier, identifierBase);
+            this.inc("pre", identifier, identifierBase);
+            break;
+          // If the input is a non-prerelease version, this acts the same as
+          // prepatch.
+          case "prerelease":
+            if (this.prerelease.length === 0) {
+              this.inc("patch", identifier, identifierBase);
+            }
+            this.inc("pre", identifier, identifierBase);
+            break;
+          case "release":
+            if (this.prerelease.length === 0) {
+              throw new Error(`version ${this.raw} is not a prerelease`);
+            }
+            this.prerelease.length = 0;
+            break;
+          case "major":
+            if (this.minor !== 0 || this.patch !== 0 || this.prerelease.length === 0) {
+              this.major++;
+            }
+            this.minor = 0;
+            this.patch = 0;
+            this.prerelease = [];
+            break;
+          case "minor":
+            if (this.patch !== 0 || this.prerelease.length === 0) {
+              this.minor++;
+            }
+            this.patch = 0;
+            this.prerelease = [];
+            break;
+          case "patch":
+            if (this.prerelease.length === 0) {
+              this.patch++;
+            }
+            this.prerelease = [];
+            break;
+          // This probably shouldn't be used publicly.
+          // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
+          case "pre": {
+            const base = Number(identifierBase) ? 1 : 0;
+            if (this.prerelease.length === 0) {
+              this.prerelease = [base];
+            } else {
+              let i = this.prerelease.length;
+              while (--i >= 0) {
+                if (typeof this.prerelease[i] === "number") {
+                  this.prerelease[i]++;
+                  i = -2;
+                }
+              }
+              if (i === -1) {
+                if (identifier === this.prerelease.join(".") && identifierBase === false) {
+                  throw new Error("invalid increment argument: identifier already exists");
+                }
+                this.prerelease.push(base);
+              }
+            }
+            if (identifier) {
+              let prerelease = [identifier, base];
+              if (identifierBase === false) {
+                prerelease = [identifier];
+              }
+              if (isPrereleaseIdentifier(this.prerelease, identifier)) {
+                const prereleaseBase = this.prerelease[identifier.split(".").length];
+                if (isNaN(prereleaseBase)) {
+                  this.prerelease = prerelease;
+                }
+              } else {
+                this.prerelease = prerelease;
+              }
+            }
+            break;
+          }
+          default:
+            throw new Error(`invalid increment argument: ${release}`);
+        }
+        this.raw = this.format();
+        if (this.build.length) {
+          this.raw += `+${this.build.join(".")}`;
+        }
+        return this;
+      }
+    };
+    module.exports = SemVer;
+  }
+});
+
+// package/functions/parse.js
+var require_parse = __commonJS({
+  "package/functions/parse.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var parse = (version, options, throwErrors = false) => {
+      if (version instanceof SemVer) {
+        return version;
+      }
+      try {
+        return new SemVer(version, options);
+      } catch (er) {
+        if (!throwErrors) {
+          return null;
+        }
+        throw er;
+      }
+    };
+    module.exports = parse;
+  }
+});
+
+// package/functions/valid.js
+var require_valid = __commonJS({
+  "package/functions/valid.js"(exports, module) {
+    "use strict";
+    var parse = require_parse();
+    var valid = (version, options) => {
+      const v = parse(version, options);
+      return v ? v.version : null;
+    };
+    module.exports = valid;
+  }
+});
+
+// package/functions/clean.js
+var require_clean = __commonJS({
+  "package/functions/clean.js"(exports, module) {
+    "use strict";
+    var parse = require_parse();
+    var clean = (version, options) => {
+      const s = parse(version.trim().replace(/^[=v]+/, ""), options);
+      return s ? s.version : null;
+    };
+    module.exports = clean;
+  }
+});
+
+// package/functions/inc.js
+var require_inc = __commonJS({
+  "package/functions/inc.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var inc = (version, release, options, identifier, identifierBase) => {
+      if (typeof options === "string") {
+        identifierBase = identifier;
+        identifier = options;
+        options = void 0;
+      }
+      try {
+        return new SemVer(
+          version instanceof SemVer ? version.version : version,
+          options
+        ).inc(release, identifier, identifierBase).version;
+      } catch (er) {
+        return null;
+      }
+    };
+    module.exports = inc;
+  }
+});
+
+// package/functions/diff.js
+var require_diff = __commonJS({
+  "package/functions/diff.js"(exports, module) {
+    "use strict";
+    var parse = require_parse();
+    var diff = (version1, version2) => {
+      const v1 = parse(version1, null, true);
+      const v2 = parse(version2, null, true);
+      const comparison = v1.compare(v2);
+      if (comparison === 0) {
+        return null;
+      }
+      const v1Higher = comparison > 0;
+      const highVersion = v1Higher ? v1 : v2;
+      const lowVersion = v1Higher ? v2 : v1;
+      const highHasPre = !!highVersion.prerelease.length;
+      const lowHasPre = !!lowVersion.prerelease.length;
+      if (lowHasPre && !highHasPre) {
+        if (!lowVersion.patch && !lowVersion.minor) {
+          return "major";
+        }
+        if (lowVersion.compareMain(highVersion) === 0) {
+          if (lowVersion.minor && !lowVersion.patch) {
+            return "minor";
+          }
+          return "patch";
+        }
+      }
+      const prefix = highHasPre ? "pre" : "";
+      if (v1.major !== v2.major) {
+        return prefix + "major";
+      }
+      if (v1.minor !== v2.minor) {
+        return prefix + "minor";
+      }
+      if (v1.patch !== v2.patch) {
+        return prefix + "patch";
+      }
+      return "prerelease";
+    };
+    module.exports = diff;
+  }
+});
+
+// package/functions/major.js
+var require_major = __commonJS({
+  "package/functions/major.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var major = (a, loose) => new SemVer(a, loose).major;
+    module.exports = major;
+  }
+});
+
+// package/functions/minor.js
+var require_minor = __commonJS({
+  "package/functions/minor.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var minor = (a, loose) => new SemVer(a, loose).minor;
+    module.exports = minor;
+  }
+});
+
+// package/functions/patch.js
+var require_patch = __commonJS({
+  "package/functions/patch.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var patch = (a, loose) => new SemVer(a, loose).patch;
+    module.exports = patch;
+  }
+});
+
+// package/functions/prerelease.js
+var require_prerelease = __commonJS({
+  "package/functions/prerelease.js"(exports, module) {
+    "use strict";
+    var parse = require_parse();
+    var prerelease = (version, options) => {
+      const parsed = parse(version, options);
+      return parsed && parsed.prerelease.length ? parsed.prerelease : null;
+    };
+    module.exports = prerelease;
+  }
+});
+
+// package/functions/compare.js
+var require_compare = __commonJS({
+  "package/functions/compare.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
+    module.exports = compare;
+  }
+});
+
+// package/functions/rcompare.js
+var require_rcompare = __commonJS({
+  "package/functions/rcompare.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var rcompare = (a, b, loose) => compare(b, a, loose);
+    module.exports = rcompare;
+  }
+});
+
+// package/functions/compare-loose.js
+var require_compare_loose = __commonJS({
+  "package/functions/compare-loose.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var compareLoose = (a, b) => compare(a, b, true);
+    module.exports = compareLoose;
+  }
+});
+
+// package/functions/compare-build.js
+var require_compare_build = __commonJS({
+  "package/functions/compare-build.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var compareBuild = (a, b, loose) => {
+      const versionA = new SemVer(a, loose);
+      const versionB = new SemVer(b, loose);
+      return versionA.compare(versionB) || versionA.compareBuild(versionB);
+    };
+    module.exports = compareBuild;
+  }
+});
+
+// package/functions/sort.js
+var require_sort = __commonJS({
+  "package/functions/sort.js"(exports, module) {
+    "use strict";
+    var compareBuild = require_compare_build();
+    var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
+    module.exports = sort;
+  }
+});
+
+// package/functions/rsort.js
+var require_rsort = __commonJS({
+  "package/functions/rsort.js"(exports, module) {
+    "use strict";
+    var compareBuild = require_compare_build();
+    var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
+    module.exports = rsort;
+  }
+});
+
+// package/functions/gt.js
+var require_gt = __commonJS({
+  "package/functions/gt.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var gt = (a, b, loose) => compare(a, b, loose) > 0;
+    module.exports = gt;
+  }
+});
+
+// package/functions/lt.js
+var require_lt = __commonJS({
+  "package/functions/lt.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var lt = (a, b, loose) => compare(a, b, loose) < 0;
+    module.exports = lt;
+  }
+});
+
+// package/functions/eq.js
+var require_eq = __commonJS({
+  "package/functions/eq.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var eq = (a, b, loose) => compare(a, b, loose) === 0;
+    module.exports = eq;
+  }
+});
+
+// package/functions/neq.js
+var require_neq = __commonJS({
+  "package/functions/neq.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var neq = (a, b, loose) => compare(a, b, loose) !== 0;
+    module.exports = neq;
+  }
+});
+
+// package/functions/gte.js
+var require_gte = __commonJS({
+  "package/functions/gte.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var gte = (a, b, loose) => compare(a, b, loose) >= 0;
+    module.exports = gte;
+  }
+});
+
+// package/functions/lte.js
+var require_lte = __commonJS({
+  "package/functions/lte.js"(exports, module) {
+    "use strict";
+    var compare = require_compare();
+    var lte = (a, b, loose) => compare(a, b, loose) <= 0;
+    module.exports = lte;
+  }
+});
+
+// package/functions/cmp.js
+var require_cmp = __commonJS({
+  "package/functions/cmp.js"(exports, module) {
+    "use strict";
+    var eq = require_eq();
+    var neq = require_neq();
+    var gt = require_gt();
+    var gte = require_gte();
+    var lt = require_lt();
+    var lte = require_lte();
+    var cmp = (a, op, b, loose) => {
+      switch (op) {
+        case "===":
+          if (typeof a === "object") {
+            a = a.version;
+          }
+          if (typeof b === "object") {
+            b = b.version;
+          }
+          return a === b;
+        case "!==":
+          if (typeof a === "object") {
+            a = a.version;
+          }
+          if (typeof b === "object") {
+            b = b.version;
+          }
+          return a !== b;
+        case "":
+        case "=":
+        case "==":
+          return eq(a, b, loose);
+        case "!=":
+          return neq(a, b, loose);
+        case ">":
+          return gt(a, b, loose);
+        case ">=":
+          return gte(a, b, loose);
+        case "<":
+          return lt(a, b, loose);
+        case "<=":
+          return lte(a, b, loose);
+        default:
+          throw new TypeError(`Invalid operator: ${op}`);
+      }
+    };
+    module.exports = cmp;
+  }
+});
+
+// package/functions/coerce.js
+var require_coerce = __commonJS({
+  "package/functions/coerce.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var parse = require_parse();
+    var { safeRe: re, t } = require_re();
+    var coerce = (version, options) => {
+      if (version instanceof SemVer) {
+        return version;
+      }
+      if (typeof version === "number") {
+        version = String(version);
+      }
+      if (typeof version !== "string") {
+        return null;
+      }
+      options = options || {};
+      let match = null;
+      if (!options.rtl) {
+        match = version.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
+      } else {
+        const coerceRtlRegex = options.includePrerelease ? re[t.COERCERTLFULL] : re[t.COERCERTL];
+        let next;
+        while ((next = coerceRtlRegex.exec(version)) && (!match || match.index + match[0].length !== version.length)) {
+          if (!match || next.index + next[0].length !== match.index + match[0].length) {
+            match = next;
+          }
+          coerceRtlRegex.lastIndex = next.index + next[1].length + next[2].length;
+        }
+        coerceRtlRegex.lastIndex = -1;
+      }
+      if (match === null) {
+        return null;
+      }
+      const major = match[2];
+      const minor = match[3] || "0";
+      const patch = match[4] || "0";
+      const prerelease = options.includePrerelease && match[5] ? `-${match[5]}` : "";
+      const build = options.includePrerelease && match[6] ? `+${match[6]}` : "";
+      return parse(`${major}.${minor}.${patch}${prerelease}${build}`, options);
+    };
+    module.exports = coerce;
+  }
+});
+
+// package/functions/truncate.js
+var require_truncate = __commonJS({
+  "package/functions/truncate.js"(exports, module) {
+    "use strict";
+    var parse = require_parse();
+    var constants = require_constants();
+    var SemVer = require_semver();
+    var truncate = (version, truncation, options) => {
+      if (!constants.RELEASE_TYPES.includes(truncation)) {
+        return null;
+      }
+      const clonedVersion = cloneInputVersion(version, options);
+      return clonedVersion && doTruncation(clonedVersion, truncation);
+    };
+    var cloneInputVersion = (version, options) => {
+      const versionStringToParse = version instanceof SemVer ? version.version : version;
+      return parse(versionStringToParse, options);
+    };
+    var doTruncation = (version, truncation) => {
+      if (isPrerelease(truncation)) {
+        return version.version;
+      }
+      version.prerelease = [];
+      switch (truncation) {
+        case "major":
+          version.minor = 0;
+          version.patch = 0;
+          break;
+        case "minor":
+          version.patch = 0;
+          break;
+      }
+      return version.format();
+    };
+    var isPrerelease = (type) => {
+      return type.startsWith("pre");
+    };
+    module.exports = truncate;
+  }
+});
+
+// package/internal/lrucache.js
+var require_lrucache = __commonJS({
+  "package/internal/lrucache.js"(exports, module) {
+    "use strict";
+    var LRUCache = class {
+      constructor() {
+        this.max = 1e3;
+        this.map = /* @__PURE__ */ new Map();
+      }
+      get(key) {
+        const value = this.map.get(key);
+        if (value === void 0) {
+          return void 0;
+        } else {
+          this.map.delete(key);
+          this.map.set(key, value);
+          return value;
+        }
+      }
+      delete(key) {
+        return this.map.delete(key);
+      }
+      set(key, value) {
+        const deleted = this.delete(key);
+        if (!deleted && value !== void 0) {
+          if (this.map.size >= this.max) {
+            const firstKey = this.map.keys().next().value;
+            this.delete(firstKey);
+          }
+          this.map.set(key, value);
+        }
+        return this;
+      }
+    };
+    module.exports = LRUCache;
+  }
+});
+
+// package/classes/range.js
+var require_range = __commonJS({
+  "package/classes/range.js"(exports, module) {
+    "use strict";
+    var SPACE_CHARACTERS = /\s+/g;
+    var Range = class _Range {
+      constructor(range, options) {
+        options = parseOptions(options);
+        if (range instanceof _Range) {
+          if (range.loose === !!options.loose && range.includePrerelease === !!options.includePrerelease) {
+            return range;
+          } else {
+            return new _Range(range.raw, options);
+          }
+        }
+        if (range instanceof Comparator) {
+          this.raw = range.value;
+          this.set = [[range]];
+          this.formatted = void 0;
+          return this;
+        }
+        this.options = options;
+        this.loose = !!options.loose;
+        this.includePrerelease = !!options.includePrerelease;
+        this.raw = range.trim().replace(SPACE_CHARACTERS, " ");
+        this.set = this.raw.split("||").map((r) => this.parseRange(r.trim())).filter((c) => c.length);
+        if (!this.set.length) {
+          throw new TypeError(`Invalid SemVer Range: ${this.raw}`);
+        }
+        if (this.set.length > 1) {
+          const first = this.set[0];
+          this.set = this.set.filter((c) => !isNullSet(c[0]));
+          if (this.set.length === 0) {
+            this.set = [first];
+          } else if (this.set.length > 1) {
+            for (const c of this.set) {
+              if (c.length === 1 && isAny(c[0])) {
+                this.set = [c];
+                break;
+              }
+            }
+          }
+        }
+        this.formatted = void 0;
+      }
+      get range() {
+        if (this.formatted === void 0) {
+          this.formatted = "";
+          for (let i = 0; i < this.set.length; i++) {
+            if (i > 0) {
+              this.formatted += "||";
+            }
+            const comps = this.set[i];
+            for (let k = 0; k < comps.length; k++) {
+              if (k > 0) {
+                this.formatted += " ";
+              }
+              this.formatted += comps[k].toString().trim();
+            }
+          }
+        }
+        return this.formatted;
+      }
+      format() {
+        return this.range;
+      }
+      toString() {
+        return this.range;
+      }
+      parseRange(range) {
+        range = range.replace(BUILDSTRIPRE, "");
+        const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
+        const memoKey = memoOpts + ":" + range;
+        const cached = cache.get(memoKey);
+        if (cached) {
+          return cached;
+        }
+        const loose = this.options.loose;
+        const hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE];
+        range = range.replace(hr, hyphenReplace(this.options.includePrerelease));
+        debug("hyphen replace", range);
+        range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace);
+        debug("comparator trim", range);
+        range = range.replace(re[t.TILDETRIM], tildeTrimReplace);
+        debug("tilde trim", range);
+        range = range.replace(re[t.CARETTRIM], caretTrimReplace);
+        debug("caret trim", range);
+        let rangeList = range.split(" ").map((comp) => parseComparator(comp, this.options)).join(" ").split(/\s+/).map((comp) => replaceGTE0(comp, this.options));
+        if (loose) {
+          rangeList = rangeList.filter((comp) => {
+            debug("loose invalid filter", comp, this.options);
+            return !!comp.match(re[t.COMPARATORLOOSE]);
+          });
+        }
+        debug("range list", rangeList);
+        const rangeMap = /* @__PURE__ */ new Map();
+        const comparators = rangeList.map((comp) => new Comparator(comp, this.options));
+        for (const comp of comparators) {
+          if (isNullSet(comp)) {
+            return [comp];
+          }
+          rangeMap.set(comp.value, comp);
+        }
+        if (rangeMap.size > 1 && rangeMap.has("")) {
+          rangeMap.delete("");
+        }
+        const result = [...rangeMap.values()];
+        cache.set(memoKey, result);
+        return result;
+      }
+      intersects(range, options) {
+        if (!(range instanceof _Range)) {
+          throw new TypeError("a Range is required");
+        }
+        return this.set.some((thisComparators) => {
+          return isSatisfiable(thisComparators, options) && range.set.some((rangeComparators) => {
+            return isSatisfiable(rangeComparators, options) && thisComparators.every((thisComparator) => {
+              return rangeComparators.every((rangeComparator) => {
+                return thisComparator.intersects(rangeComparator, options);
+              });
+            });
+          });
+        });
+      }
+      // if ANY of the sets match ALL of its comparators, then pass
+      test(version) {
+        if (!version) {
+          return false;
+        }
+        if (typeof version === "string") {
+          try {
+            version = new SemVer(version, this.options);
+          } catch (er) {
+            return false;
+          }
+        }
+        for (let i = 0; i < this.set.length; i++) {
+          if (testSet(this.set[i], version, this.options)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    };
+    module.exports = Range;
+    var LRU = require_lrucache();
+    var cache = new LRU();
+    var parseOptions = require_parse_options();
+    var Comparator = require_comparator();
+    var debug = require_debug();
+    var SemVer = require_semver();
+    var {
+      safeRe: re,
+      src,
+      t,
+      comparatorTrimReplace,
+      tildeTrimReplace,
+      caretTrimReplace
+    } = require_re();
+    var { FLAG_INCLUDE_PRERELEASE, FLAG_LOOSE } = require_constants();
+    var BUILDSTRIPRE = new RegExp(src[t.BUILD], "g");
+    var isNullSet = (c) => c.value === "<0.0.0-0";
+    var isAny = (c) => c.value === "";
+    var isSatisfiable = (comparators, options) => {
+      let result = true;
+      const remainingComparators = comparators.slice();
+      let testComparator = remainingComparators.pop();
+      while (result && remainingComparators.length) {
+        result = remainingComparators.every((otherComparator) => {
+          return testComparator.intersects(otherComparator, options);
+        });
+        testComparator = remainingComparators.pop();
+      }
+      return result;
+    };
+    var parseComparator = (comp, options) => {
+      comp = comp.replace(re[t.BUILD], "");
+      debug("comp", comp, options);
+      comp = replaceCarets(comp, options);
+      debug("caret", comp);
+      comp = replaceTildes(comp, options);
+      debug("tildes", comp);
+      comp = replaceXRanges(comp, options);
+      debug("xrange", comp);
+      comp = replaceStars(comp, options);
+      debug("stars", comp);
+      return comp;
+    };
+    var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
+    var invalidXRangeOrder = (M, m, p) => isX(M) && !isX(m) || isX(m) && p && !isX(p);
+    var replaceTildes = (comp, options) => {
+      return comp.trim().split(/\s+/).map((c) => replaceTilde(c, options)).join(" ");
+    };
+    var replaceTilde = (comp, options) => {
+      const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE];
+      const z = options.includePrerelease ? "-0" : "";
+      return comp.replace(r, (_, M, m, p, pr) => {
+        debug("tilde", comp, _, M, m, p, pr);
+        let ret;
+        if (isX(M)) {
+          ret = "";
+        } else if (isX(m)) {
+          ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`;
+        } else if (isX(p)) {
+          ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`;
+        } else if (pr) {
+          debug("replaceTilde pr", pr);
+          ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
+        } else {
+          ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
+        }
+        debug("tilde return", ret);
+        return ret;
+      });
+    };
+    var replaceCarets = (comp, options) => {
+      return comp.trim().split(/\s+/).map((c) => replaceCaret(c, options)).join(" ");
+    };
+    var replaceCaret = (comp, options) => {
+      debug("caret", comp, options);
+      const r = options.loose ? re[t.CARETLOOSE] : re[t.CARET];
+      const z = options.includePrerelease ? "-0" : "";
+      return comp.replace(r, (_, M, m, p, pr) => {
+        debug("caret", comp, _, M, m, p, pr);
+        let ret;
+        if (isX(M)) {
+          ret = "";
+        } else if (isX(m)) {
+          ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`;
+        } else if (isX(p)) {
+          if (M === "0") {
+            ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`;
+          } else {
+            ret = `>=${M}.${m}.0${z} <${+M + 1}.0.0-0`;
+          }
+        } else if (pr) {
+          debug("replaceCaret pr", pr);
+          if (M === "0") {
+            if (m === "0") {
+              ret = `>=${M}.${m}.${p}-${pr} <${M}.${m}.${+p + 1}-0`;
+            } else {
+              ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
+            }
+          } else {
+            ret = `>=${M}.${m}.${p}-${pr} <${+M + 1}.0.0-0`;
+          }
+        } else {
+          debug("no pr");
+          if (M === "0") {
+            if (m === "0") {
+              ret = `>=${M}.${m}.${p} <${M}.${m}.${+p + 1}-0`;
+            } else {
+              ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
+            }
+          } else {
+            ret = `>=${M}.${m}.${p} <${+M + 1}.0.0-0`;
+          }
+        }
+        debug("caret return", ret);
+        return ret;
+      });
+    };
+    var replaceXRanges = (comp, options) => {
+      debug("replaceXRanges", comp, options);
+      return comp.split(/\s+/).map((c) => replaceXRange(c, options)).join(" ");
+    };
+    var replaceXRange = (comp, options) => {
+      comp = comp.trim();
+      const r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE];
+      return comp.replace(r, (ret, gtlt, M, m, p, pr) => {
+        debug("xRange", comp, ret, gtlt, M, m, p, pr);
+        if (invalidXRangeOrder(M, m, p)) {
+          return comp;
+        }
+        const xM = isX(M);
+        const xm = xM || isX(m);
+        const xp = xm || isX(p);
+        const anyX = xp;
+        if (gtlt === "=" && anyX) {
+          gtlt = "";
+        }
+        pr = options.includePrerelease ? "-0" : "";
+        if (xM) {
+          if (gtlt === ">" || gtlt === "<") {
+            ret = "<0.0.0-0";
+          } else {
+            ret = "*";
+          }
+        } else if (gtlt && anyX) {
+          if (xm) {
+            m = 0;
+          }
+          p = 0;
+          if (gtlt === ">") {
+            gtlt = ">=";
+            if (xm) {
+              M = +M + 1;
+              m = 0;
+              p = 0;
+            } else {
+              m = +m + 1;
+              p = 0;
+            }
+          } else if (gtlt === "<=") {
+            gtlt = "<";
+            if (xm) {
+              M = +M + 1;
+            } else {
+              m = +m + 1;
+            }
+          }
+          if (gtlt === "<") {
+            pr = "-0";
+          }
+          ret = `${gtlt + M}.${m}.${p}${pr}`;
+        } else if (xm) {
+          ret = `>=${M}.0.0${pr} <${+M + 1}.0.0-0`;
+        } else if (xp) {
+          ret = `>=${M}.${m}.0${pr} <${M}.${+m + 1}.0-0`;
+        }
+        debug("xRange return", ret);
+        return ret;
+      });
+    };
+    var replaceStars = (comp, options) => {
+      debug("replaceStars", comp, options);
+      return comp.trim().replace(re[t.STAR], "");
+    };
+    var replaceGTE0 = (comp, options) => {
+      debug("replaceGTE0", comp, options);
+      return comp.trim().replace(re[options.includePrerelease ? t.GTE0PRE : t.GTE0], "");
+    };
+    var hyphenReplace = (incPr) => ($0, from, fM, fm, fp, fpr, fb, to, tM, tm, tp, tpr) => {
+      if (isX(fM)) {
+        from = "";
+      } else if (isX(fm)) {
+        from = `>=${fM}.0.0${incPr ? "-0" : ""}`;
+      } else if (isX(fp)) {
+        from = `>=${fM}.${fm}.0${incPr ? "-0" : ""}`;
+      } else if (fpr) {
+        from = `>=${from}`;
+      } else {
+        from = `>=${from}${incPr ? "-0" : ""}`;
+      }
+      if (isX(tM)) {
+        to = "";
+      } else if (isX(tm)) {
+        to = `<${+tM + 1}.0.0-0`;
+      } else if (isX(tp)) {
+        to = `<${tM}.${+tm + 1}.0-0`;
+      } else if (tpr) {
+        to = `<=${tM}.${tm}.${tp}-${tpr}`;
+      } else if (incPr) {
+        to = `<${tM}.${tm}.${+tp + 1}-0`;
+      } else {
+        to = `<=${to}`;
+      }
+      return `${from} ${to}`.trim();
+    };
+    var testSet = (set, version, options) => {
+      for (let i = 0; i < set.length; i++) {
+        if (!set[i].test(version)) {
+          return false;
+        }
+      }
+      if (version.prerelease.length && !options.includePrerelease) {
+        for (let i = 0; i < set.length; i++) {
+          debug(set[i].semver);
+          if (set[i].semver === Comparator.ANY) {
+            continue;
+          }
+          if (set[i].semver.prerelease.length > 0) {
+            const allowed = set[i].semver;
+            if (allowed.major === version.major && allowed.minor === version.minor && allowed.patch === version.patch) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      return true;
+    };
+  }
+});
+
+// package/classes/comparator.js
+var require_comparator = __commonJS({
+  "package/classes/comparator.js"(exports, module) {
+    "use strict";
+    var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
+    var Comparator = class _Comparator {
+      static get ANY() {
+        return ANY;
+      }
+      constructor(comp, options) {
+        options = parseOptions(options);
+        if (comp instanceof _Comparator) {
+          if (comp.loose === !!options.loose) {
+            return comp;
+          } else {
+            comp = comp.value;
+          }
+        }
+        comp = comp.trim().split(/\s+/).join(" ");
+        debug("comparator", comp, options);
+        this.options = options;
+        this.loose = !!options.loose;
+        this.parse(comp);
+        if (this.semver === ANY) {
+          this.value = "";
+        } else {
+          this.value = this.operator + this.semver.version;
+        }
+        debug("comp", this);
+      }
+      parse(comp) {
+        const r = this.options.loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR];
+        const m = comp.match(r);
+        if (!m) {
+          throw new TypeError(`Invalid comparator: ${comp}`);
+        }
+        this.operator = m[1] !== void 0 ? m[1] : "";
+        if (this.operator === "=") {
+          this.operator = "";
+        }
+        if (!m[2]) {
+          this.semver = ANY;
+        } else {
+          this.semver = new SemVer(m[2], this.options.loose);
+        }
+      }
+      toString() {
+        return this.value;
+      }
+      test(version) {
+        debug("Comparator.test", version, this.options.loose);
+        if (this.semver === ANY || version === ANY) {
+          return true;
+        }
+        if (typeof version === "string") {
+          try {
+            version = new SemVer(version, this.options);
+          } catch (er) {
+            return false;
+          }
+        }
+        return cmp(version, this.operator, this.semver, this.options);
+      }
+      intersects(comp, options) {
+        if (!(comp instanceof _Comparator)) {
+          throw new TypeError("a Comparator is required");
+        }
+        if (this.operator === "") {
+          if (this.value === "") {
+            return true;
+          }
+          return new Range(comp.value, options).test(this.value);
+        } else if (comp.operator === "") {
+          if (comp.value === "") {
+            return true;
+          }
+          return new Range(this.value, options).test(comp.semver);
+        }
+        options = parseOptions(options);
+        if (options.includePrerelease && (this.value === "<0.0.0-0" || comp.value === "<0.0.0-0")) {
+          return false;
+        }
+        if (!options.includePrerelease && (this.value.startsWith("<0.0.0") || comp.value.startsWith("<0.0.0"))) {
+          return false;
+        }
+        if (this.operator.startsWith(">") && comp.operator.startsWith(">")) {
+          return true;
+        }
+        if (this.operator.startsWith("<") && comp.operator.startsWith("<")) {
+          return true;
+        }
+        if (this.semver.version === comp.semver.version && this.operator.includes("=") && comp.operator.includes("=")) {
+          return true;
+        }
+        if (cmp(this.semver, "<", comp.semver, options) && this.operator.startsWith(">") && comp.operator.startsWith("<")) {
+          return true;
+        }
+        if (cmp(this.semver, ">", comp.semver, options) && this.operator.startsWith("<") && comp.operator.startsWith(">")) {
+          return true;
+        }
+        return false;
+      }
+    };
+    module.exports = Comparator;
+    var parseOptions = require_parse_options();
+    var { safeRe: re, t } = require_re();
+    var cmp = require_cmp();
+    var debug = require_debug();
+    var SemVer = require_semver();
+    var Range = require_range();
+  }
+});
+
+// package/functions/satisfies.js
+var require_satisfies = __commonJS({
+  "package/functions/satisfies.js"(exports, module) {
+    "use strict";
+    var Range = require_range();
+    var satisfies = (version, range, options) => {
+      try {
+        range = new Range(range, options);
+      } catch (er) {
+        return false;
+      }
+      return range.test(version);
+    };
+    module.exports = satisfies;
+  }
+});
+
+// package/ranges/to-comparators.js
+var require_to_comparators = __commonJS({
+  "package/ranges/to-comparators.js"(exports, module) {
+    "use strict";
+    var Range = require_range();
+    var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
+    module.exports = toComparators;
+  }
+});
+
+// package/ranges/max-satisfying.js
+var require_max_satisfying = __commonJS({
+  "package/ranges/max-satisfying.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var Range = require_range();
+    var maxSatisfying = (versions, range, options) => {
+      let max = null;
+      let maxSV = null;
+      let rangeObj = null;
+      try {
+        rangeObj = new Range(range, options);
+      } catch (er) {
+        return null;
+      }
+      versions.forEach((v) => {
+        if (rangeObj.test(v)) {
+          if (!max || maxSV.compare(v) === -1) {
+            max = v;
+            maxSV = new SemVer(max, options);
+          }
+        }
+      });
+      return max;
+    };
+    module.exports = maxSatisfying;
+  }
+});
+
+// package/ranges/min-satisfying.js
+var require_min_satisfying = __commonJS({
+  "package/ranges/min-satisfying.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var Range = require_range();
+    var minSatisfying = (versions, range, options) => {
+      let min = null;
+      let minSV = null;
+      let rangeObj = null;
+      try {
+        rangeObj = new Range(range, options);
+      } catch (er) {
+        return null;
+      }
+      versions.forEach((v) => {
+        if (rangeObj.test(v)) {
+          if (!min || minSV.compare(v) === 1) {
+            min = v;
+            minSV = new SemVer(min, options);
+          }
+        }
+      });
+      return min;
+    };
+    module.exports = minSatisfying;
+  }
+});
+
+// package/ranges/min-version.js
+var require_min_version = __commonJS({
+  "package/ranges/min-version.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var Range = require_range();
+    var gt = require_gt();
+    var minVersion = (range, loose) => {
+      range = new Range(range, loose);
+      let minver = new SemVer("0.0.0");
+      if (range.test(minver)) {
+        return minver;
+      }
+      minver = new SemVer("0.0.0-0");
+      if (range.test(minver)) {
+        return minver;
+      }
+      minver = null;
+      for (let i = 0; i < range.set.length; ++i) {
+        const comparators = range.set[i];
+        let setMin = null;
+        comparators.forEach((comparator) => {
+          const compver = new SemVer(comparator.semver.version);
+          switch (comparator.operator) {
+            case ">":
+              if (compver.prerelease.length === 0) {
+                compver.patch++;
+              } else {
+                compver.prerelease.push(0);
+              }
+              compver.raw = compver.format();
+            /* fallthrough */
+            case "":
+            case ">=":
+              if (!setMin || gt(compver, setMin)) {
+                setMin = compver;
+              }
+              break;
+            case "<":
+            case "<=":
+              break;
+            /* istanbul ignore next */
+            default:
+              throw new Error(`Unexpected operation: ${comparator.operator}`);
+          }
+        });
+        if (setMin && (!minver || gt(minver, setMin))) {
+          minver = setMin;
+        }
+      }
+      if (minver && range.test(minver)) {
+        return minver;
+      }
+      return null;
+    };
+    module.exports = minVersion;
+  }
+});
+
+// package/ranges/valid.js
+var require_valid2 = __commonJS({
+  "package/ranges/valid.js"(exports, module) {
+    "use strict";
+    var Range = require_range();
+    var validRange = (range, options) => {
+      try {
+        return new Range(range, options).range || "*";
+      } catch (er) {
+        return null;
+      }
+    };
+    module.exports = validRange;
+  }
+});
+
+// package/ranges/outside.js
+var require_outside = __commonJS({
+  "package/ranges/outside.js"(exports, module) {
+    "use strict";
+    var SemVer = require_semver();
+    var Comparator = require_comparator();
+    var { ANY } = Comparator;
+    var Range = require_range();
+    var satisfies = require_satisfies();
+    var gt = require_gt();
+    var lt = require_lt();
+    var lte = require_lte();
+    var gte = require_gte();
+    var outside = (version, range, hilo, options) => {
+      version = new SemVer(version, options);
+      range = new Range(range, options);
+      let gtfn, ltefn, ltfn, comp, ecomp;
+      switch (hilo) {
+        case ">":
+          gtfn = gt;
+          ltefn = lte;
+          ltfn = lt;
+          comp = ">";
+          ecomp = ">=";
+          break;
+        case "<":
+          gtfn = lt;
+          ltefn = gte;
+          ltfn = gt;
+          comp = "<";
+          ecomp = "<=";
+          break;
+        default:
+          throw new TypeError('Must provide a hilo val of "<" or ">"');
+      }
+      if (satisfies(version, range, options)) {
+        return false;
+      }
+      for (let i = 0; i < range.set.length; ++i) {
+        const comparators = range.set[i];
+        let high = null;
+        let low = null;
+        comparators.forEach((comparator) => {
+          if (comparator.semver === ANY) {
+            comparator = new Comparator(">=0.0.0");
+          }
+          high = high || comparator;
+          low = low || comparator;
+          if (gtfn(comparator.semver, high.semver, options)) {
+            high = comparator;
+          } else if (ltfn(comparator.semver, low.semver, options)) {
+            low = comparator;
+          }
+        });
+        if (high.operator === comp || high.operator === ecomp) {
+          return false;
+        }
+        if ((!low.operator || low.operator === comp) && ltefn(version, low.semver)) {
+          return false;
+        } else if (low.operator === ecomp && ltfn(version, low.semver)) {
+          return false;
+        }
+      }
+      return true;
+    };
+    module.exports = outside;
+  }
+});
+
+// package/ranges/gtr.js
+var require_gtr = __commonJS({
+  "package/ranges/gtr.js"(exports, module) {
+    "use strict";
+    var outside = require_outside();
+    var gtr = (version, range, options) => outside(version, range, ">", options);
+    module.exports = gtr;
+  }
+});
+
+// package/ranges/ltr.js
+var require_ltr = __commonJS({
+  "package/ranges/ltr.js"(exports, module) {
+    "use strict";
+    var outside = require_outside();
+    var ltr = (version, range, options) => outside(version, range, "<", options);
+    module.exports = ltr;
+  }
+});
+
+// package/ranges/intersects.js
+var require_intersects = __commonJS({
+  "package/ranges/intersects.js"(exports, module) {
+    "use strict";
+    var Range = require_range();
+    var intersects = (r1, r2, options) => {
+      r1 = new Range(r1, options);
+      r2 = new Range(r2, options);
+      return r1.intersects(r2, options);
+    };
+    module.exports = intersects;
+  }
+});
+
+// package/ranges/simplify.js
+var require_simplify = __commonJS({
+  "package/ranges/simplify.js"(exports, module) {
+    "use strict";
+    var satisfies = require_satisfies();
+    var compare = require_compare();
+    module.exports = (versions, range, options) => {
+      const set = [];
+      let first = null;
+      let prev = null;
+      const v = versions.sort((a, b) => compare(a, b, options));
+      for (const version of v) {
+        const included = satisfies(version, range, options);
+        if (included) {
+          prev = version;
+          if (!first) {
+            first = version;
+          }
+        } else {
+          if (prev) {
+            set.push([first, prev]);
+          }
+          prev = null;
+          first = null;
+        }
+      }
+      if (first) {
+        set.push([first, null]);
+      }
+      const ranges = [];
+      for (const [min, max] of set) {
+        if (min === max) {
+          ranges.push(min);
+        } else if (!max && min === v[0]) {
+          ranges.push("*");
+        } else if (!max) {
+          ranges.push(`>=${min}`);
+        } else if (min === v[0]) {
+          ranges.push(`<=${max}`);
+        } else {
+          ranges.push(`${min} - ${max}`);
+        }
+      }
+      const simplified = ranges.join(" || ");
+      const original = typeof range.raw === "string" ? range.raw : String(range);
+      return simplified.length < original.length ? simplified : range;
+    };
+  }
+});
+
+// package/ranges/subset.js
+var require_subset = __commonJS({
+  "package/ranges/subset.js"(exports, module) {
+    "use strict";
+    var Range = require_range();
+    var Comparator = require_comparator();
+    var { ANY } = Comparator;
+    var satisfies = require_satisfies();
+    var compare = require_compare();
+    var subset = (sub, dom, options = {}) => {
+      if (sub === dom) {
+        return true;
+      }
+      sub = new Range(sub, options);
+      dom = new Range(dom, options);
+      let sawNonNull = false;
+      OUTER: for (const simpleSub of sub.set) {
+        for (const simpleDom of dom.set) {
+          const isSub = simpleSubset(simpleSub, simpleDom, options);
+          sawNonNull = sawNonNull || isSub !== null;
+          if (isSub) {
+            continue OUTER;
+          }
+        }
+        if (sawNonNull) {
+          return false;
+        }
+      }
+      return true;
+    };
+    var minimumVersionWithPreRelease = [new Comparator(">=0.0.0-0")];
+    var minimumVersion = [new Comparator(">=0.0.0")];
+    var simpleSubset = (sub, dom, options) => {
+      if (sub === dom) {
+        return true;
+      }
+      if (sub.length === 1 && sub[0].semver === ANY) {
+        if (dom.length === 1 && dom[0].semver === ANY) {
+          return true;
+        } else if (options.includePrerelease) {
+          sub = minimumVersionWithPreRelease;
+        } else {
+          sub = minimumVersion;
+        }
+      }
+      if (dom.length === 1 && dom[0].semver === ANY) {
+        if (options.includePrerelease) {
+          return true;
+        } else {
+          dom = minimumVersion;
+        }
+      }
+      const eqSet = /* @__PURE__ */ new Set();
+      let gt, lt;
+      for (const c of sub) {
+        if (c.operator === ">" || c.operator === ">=") {
+          gt = higherGT(gt, c, options);
+        } else if (c.operator === "<" || c.operator === "<=") {
+          lt = lowerLT(lt, c, options);
+        } else {
+          eqSet.add(c.semver);
+        }
+      }
+      if (eqSet.size > 1) {
+        return null;
+      }
+      let gtltComp;
+      if (gt && lt) {
+        gtltComp = compare(gt.semver, lt.semver, options);
+        if (gtltComp > 0) {
+          return null;
+        } else if (gtltComp === 0 && (gt.operator !== ">=" || lt.operator !== "<=")) {
+          return null;
+        }
+      }
+      for (const eq of eqSet) {
+        if (gt && !satisfies(eq, String(gt), options)) {
+          return null;
+        }
+        if (lt && !satisfies(eq, String(lt), options)) {
+          return null;
+        }
+        for (const c of dom) {
+          if (!satisfies(eq, String(c), options)) {
+            return false;
+          }
+        }
+        return true;
+      }
+      let higher, lower;
+      let hasDomLT, hasDomGT;
+      let needDomLTPre = lt && !options.includePrerelease && lt.semver.prerelease.length ? lt.semver : false;
+      let needDomGTPre = gt && !options.includePrerelease && gt.semver.prerelease.length ? gt.semver : false;
+      if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt.operator === "<" && needDomLTPre.prerelease[0] === 0) {
+        needDomLTPre = false;
+      }
+      for (const c of dom) {
+        hasDomGT = hasDomGT || c.operator === ">" || c.operator === ">=";
+        hasDomLT = hasDomLT || c.operator === "<" || c.operator === "<=";
+        if (gt) {
+          if (needDomGTPre) {
+            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomGTPre.major && c.semver.minor === needDomGTPre.minor && c.semver.patch === needDomGTPre.patch) {
+              needDomGTPre = false;
+            }
+          }
+          if (c.operator === ">" || c.operator === ">=") {
+            higher = higherGT(gt, c, options);
+            if (higher === c && higher !== gt) {
+              return false;
+            }
+          } else if (gt.operator === ">=" && !c.test(gt.semver)) {
+            return false;
+          }
+        }
+        if (lt) {
+          if (needDomLTPre) {
+            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomLTPre.major && c.semver.minor === needDomLTPre.minor && c.semver.patch === needDomLTPre.patch) {
+              needDomLTPre = false;
+            }
+          }
+          if (c.operator === "<" || c.operator === "<=") {
+            lower = lowerLT(lt, c, options);
+            if (lower === c && lower !== lt) {
+              return false;
+            }
+          } else if (lt.operator === "<=" && !c.test(lt.semver)) {
+            return false;
+          }
+        }
+        if (!c.operator && (lt || gt) && gtltComp !== 0) {
+          return false;
+        }
+      }
+      if (gt && hasDomLT && !lt && gtltComp !== 0) {
+        return false;
+      }
+      if (lt && hasDomGT && !gt && gtltComp !== 0) {
+        return false;
+      }
+      if (needDomGTPre || needDomLTPre) {
+        return false;
+      }
+      return true;
+    };
+    var higherGT = (a, b, options) => {
+      if (!a) {
+        return b;
+      }
+      const comp = compare(a.semver, b.semver, options);
+      return comp > 0 ? a : comp < 0 ? b : b.operator === ">" && a.operator === ">=" ? b : a;
+    };
+    var lowerLT = (a, b, options) => {
+      if (!a) {
+        return b;
+      }
+      const comp = compare(a.semver, b.semver, options);
+      return comp < 0 ? a : comp > 0 ? b : b.operator === "<" && a.operator === "<=" ? b : a;
+    };
+    module.exports = subset;
+  }
+});
+
+// package/index.js
+var require_index = __commonJS({
+  "package/index.js"(exports, module) {
+    var internalRe = require_re();
+    var constants = require_constants();
+    var SemVer = require_semver();
+    var identifiers = require_identifiers();
+    var parse = require_parse();
+    var valid = require_valid();
+    var clean = require_clean();
+    var inc = require_inc();
+    var diff = require_diff();
+    var major = require_major();
+    var minor = require_minor();
+    var patch = require_patch();
+    var prerelease = require_prerelease();
+    var compare = require_compare();
+    var rcompare = require_rcompare();
+    var compareLoose = require_compare_loose();
+    var compareBuild = require_compare_build();
+    var sort = require_sort();
+    var rsort = require_rsort();
+    var gt = require_gt();
+    var lt = require_lt();
+    var eq = require_eq();
+    var neq = require_neq();
+    var gte = require_gte();
+    var lte = require_lte();
+    var cmp = require_cmp();
+    var coerce = require_coerce();
+    var truncate = require_truncate();
+    var Comparator = require_comparator();
+    var Range = require_range();
+    var satisfies = require_satisfies();
+    var toComparators = require_to_comparators();
+    var maxSatisfying = require_max_satisfying();
+    var minSatisfying = require_min_satisfying();
+    var minVersion = require_min_version();
+    var validRange = require_valid2();
+    var outside = require_outside();
+    var gtr = require_gtr();
+    var ltr = require_ltr();
+    var intersects = require_intersects();
+    var simplifyRange = require_simplify();
+    var subset = require_subset();
+    module.exports = {
+      parse,
+      valid,
+      clean,
+      inc,
+      diff,
+      major,
+      minor,
+      patch,
+      prerelease,
+      compare,
+      rcompare,
+      compareLoose,
+      compareBuild,
+      sort,
+      rsort,
+      gt,
+      lt,
+      eq,
+      neq,
+      gte,
+      lte,
+      cmp,
+      coerce,
+      truncate,
+      Comparator,
+      Range,
+      satisfies,
+      toComparators,
+      maxSatisfying,
+      minSatisfying,
+      minVersion,
+      validRange,
+      outside,
+      gtr,
+      ltr,
+      intersects,
+      simplifyRange,
+      subset,
+      SemVer,
+      re: internalRe.re,
+      src: internalRe.src,
+      tokens: internalRe.t,
+      SEMVER_SPEC_VERSION: constants.SEMVER_SPEC_VERSION,
+      RELEASE_TYPES: constants.RELEASE_TYPES,
+      compareIdentifiers: identifiers.compareIdentifiers,
+      rcompareIdentifiers: identifiers.rcompareIdentifiers
+    };
+  }
+});
+export default require_index();
