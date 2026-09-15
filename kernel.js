@@ -973,6 +973,9 @@ async function lpm_import_get({log, imp, lmod_self}){
     return lpm_pkg;
   if (lpm_pkg.redirect)
     throw Error('lpm_import_get redirect: '+lmod_self+' -> '+lpm_pkg.redirect);
+  let v;
+  if (lpm_pkg.pkg.name && (v=path_starts(imp, lpm_pkg.pkg.name)))
+    return {redirect: lmod_self+v.rest};
   let lmod = T_npm_to_lpm(imp);
   let _imp = lpm_import_lookup({lpm_pkg, imp: lmod});
   if (!_imp)
