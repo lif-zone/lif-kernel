@@ -660,7 +660,7 @@ async function git_ver_resolve({log, lmod, mod_self}){
   if (reg.not_exist)
     return reg;
   if (!reg.blob)
-    throw Error('failed git ver fetch '+url);
+    throw 'failed git ver fetch '+url;
   let body = await reg.blob.text();
   try {
     v = JSON.parse(body);
@@ -977,7 +977,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   let lmod = T_npm_to_lpm(imp);
   let _imp = lpm_import_lookup({lpm_pkg, imp: lmod});
   if (!_imp)
-    _imp = imp;
+    _imp = lmod;
   let ver = await lpm_ver_resolve({log, lmod: _imp, mod_self: lmod_self});
   if (ver){
     if (ver.not_exist){
