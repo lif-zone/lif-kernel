@@ -1177,12 +1177,12 @@ async function responce_tr_send({f, qs, lmod}){
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
   let type = meta.type;
   let v;
-  if ((q.get('mjs')==2 || q.get('mjs')==1 || type=='mjs') &&
+  if ((q.get('mjs_imp') || q.get('mjs') || type=='mjs') &&
     (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
   {
     return {body: mjs_import_mjs(meta.export_default, v), ext};
   }
-  if (q.get('mjs')==2){
+  if (q.get('mjs_imp')){
     return {body: mjs_import_mjs(meta.export_default,
       '/.lif/'+lmod+'?mjs=1'), ext};
   }
@@ -1193,7 +1193,7 @@ async function responce_tr_send({f, qs, lmod}){
   if (type=='amd' || type=='')
     return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
   if (type=='mjs')
-    return {redirect: '/.lif/'+lmod+'?mjs=2'};
+    return {redirect: '/.lif/'+lmod+'?mjs_imp=1'};
   return {err: 'invalid lpm file type '+type};
 }
 
