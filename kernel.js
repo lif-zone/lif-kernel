@@ -205,38 +205,45 @@ let lpm_cdn = {
           url: u=>`https://raw.githubusercontent.com/${u.name}/${_gh_ver(u)}${u.submod_path}`,
         },
       ],
-      src_ver: [{
-        name: 'api.github.com',
-        // all branches: [i].name, [i].commit.sha
-        // https://api.github.com/repos/facebook/react/branches
-        // all tags: [i].name [i].commit.sha
-        // https://api.github.com/repos/facebook/react/tags
-        // specific branch: name, commit.sha
-        // https://api.github.com/repos/facebook/react/branches/main
-        // specific tag: object.sha
-        // https://api.github.com/repos/facebook/react/git/refs/tags/v19.0.0
-        // list of all heads (including non-released): [i].object.sha
-        // https://api.github.com/repos/facebook/react/git/refs/heads
-        // specific head: object.sha
-        // https://api.github.com/repos/facebook/react/git/refs/heads/main
-        // without cors:
-        // https://github.com/lif-zone/lif-kernel.git/info/refs?service=git-upload-pack
-        // commit (with its contents, works partial sha): sha
-        // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
-        // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
-        // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12310d75175dea2366e750952080c236b6e
-        // https://api.github.com/repos/lif-zone/lif-kernel/commits/HEAD
-        // https://api.github.com/repos/lif-zone/lif-kernel/commits/main
-        // lookup branch+date: [0].sha
-        // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
-        // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
-        url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
-        get_data: data=>data.commit.sha,
-        _uri_branch: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
-        _uri_tag: u=>`https://api.github.com/repos/${u.name}/git/ref/tags/${u.ver||'main'}`,
-        _uri_branch_date: u=>`https://api.github.com/repos/${u.name}/commits?per_page=1&until={u.date}&sha=${u.ver||'main'}`,
-        _get_data: data=>data.object.sha,
-      }],
+      src_ver: [
+        {
+          name: 'api.github.com',
+          // all branches: [i].name, [i].commit.sha
+          // https://api.github.com/repos/facebook/react/branches
+          // all tags: [i].name [i].commit.sha
+          // https://api.github.com/repos/facebook/react/tags
+          // specific branch: name, commit.sha
+          // https://api.github.com/repos/facebook/react/branches/main
+          // specific tag: object.sha
+          // https://api.github.com/repos/facebook/react/git/refs/tags/v19.0.0
+          // list of all heads (including non-released): [i].object.sha
+          // https://api.github.com/repos/facebook/react/git/refs/heads
+          // specific head: object.sha
+          // https://api.github.com/repos/facebook/react/git/refs/heads/main
+          // without cors:
+          // https://github.com/lif-zone/lif-kernel.git/info/refs?service=git-upload-pack
+          // commit (with its contents, works partial sha): sha
+          // returns only sha if fetch({headers: {Accept: 'application/vnd.github.sha'}})
+          // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12
+          // https://api.github.com/repos/lif-zone/lif-kernel/commits/ec37e12310d75175dea2366e750952080c236b6e
+          // https://api.github.com/repos/lif-zone/lif-kernel/commits/HEAD
+          // https://api.github.com/repos/lif-zone/lif-kernel/commits/main
+          // lookup branch+date: [0].sha
+          // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
+          // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
+          url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
+          get_data: data=>data.commit.sha,
+          _uri_branch: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
+          _uri_tag: u=>`https://api.github.com/repos/${u.name}/git/ref/tags/${u.ver||'main'}`,
+          _uri_branch_date: u=>`https://api.github.com/repos/${u.name}/commits?per_page=1&until={u.date}&sha=${u.ver||'main'}`,
+          _get_data: data=>data.object.sha,
+        },
+        {
+          name: 'ungh.cc',
+          url: u=>`https://ungh.cc/repos/${u.name}/files/${u.ver||'main'}`,
+          get_data: data=>data.meta.sha,
+        },
+      ],
     },
     'gitlab.com': {
       src: [{
@@ -615,7 +622,7 @@ async function npm_ver_resolve({log, lmod}){
   let u = T_lpm_parse(lmod);
   assert(!lpm_ver_final(u));
   assert(u.reg=='npm');
-  let pv = await npm_ver_get({log, lmod: u.lmod});
+  let pv = await npm_ver_get({log, lmod: u.reg+'/'+u.name});
   if (pv.not_exist)
     return pv;
   let ver = npm_ver_lookup({pkg_ver: pv.pkg_ver, date: lpm_app_date,
