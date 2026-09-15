@@ -693,8 +693,7 @@ async function lpm_ver_resolve({log, lmod, mod_self}){
     console.error('pkg not found: '+lmod);
     return v;
   }
-  console.warn('module('+mod_self+') redirect ver '+lmod+' -> '+v);
-  D && console.warn('module('+mod_self+') redirect from '+log?.mod);
+  D && console.log('module('+mod_self+') redirect ver '+lmod+' -> '+v);
   return {redirect: v};
 }
 
@@ -834,7 +833,7 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   let ver = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
   if (ver){
     if (ver.redirect)
-      console.warn('lpm_pkg_get '+lmod+' -> '+ver.redirect);
+      D && console.log('lpm_pkg_get '+lmod+' -> '+ver.redirect);
     if (ver.not_exist)
       console.error('lpm_pkg_get '+lmod+' ver not exist');
     return OA(lpm_pkg, ver);
@@ -984,7 +983,7 @@ async function lpm_import_get({log, imp, lmod_self}){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
       return {error: 'missing import'};
     }
-    console.warn('lpm_import_get '+imp+' -> '+ver.redirect);
+    D && console.log('lpm_import_get '+imp+' -> '+ver.redirect);
     _imp = ver.redirect;
   }
   // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
