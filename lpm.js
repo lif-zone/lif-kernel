@@ -257,7 +257,7 @@ function git_to_lpm(url){
 }
 
 // parse-package-name: package.json:dependencies
-let do_semver = 0;
+let do_semver = 1;
 export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;

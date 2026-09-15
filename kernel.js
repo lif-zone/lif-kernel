@@ -580,7 +580,6 @@ async function reg_get({log, lmod, opt}){
       return reg;
     }
     assert(ret.fail_cdn);
-    debugger;
     console.warn('cdn failed '+_src.name+'. '+
       'switching cdn '+(src[i+1]?.name || 'all cdns failed'));
     _src.fail = {url, err: ret.err, tm: Date.now()};
@@ -975,22 +974,25 @@ async function lpm_import_get({log, imp, lmod_self}){
     return lpm_pkg;
   if (lpm_pkg.redirect)
     throw Error('lpm_import_get redirect: '+lmod_self+' -> '+lpm_pkg.redirect);
-  let v;
   let lmod = T_npm_to_lpm(imp);
-  if (!(v=lpm_import_lookup({lpm_pkg, imp: lmod}))){
-    let ver = await lpm_ver_resolve({log, lmod, mod_self: lmod_self});
+  let _imp = lpm_import_lookup({lpm_pkg, imp: lmod});
+  if (!_imp)
+    _imp = imp;
+  let ver = await lpm_ver_resolve({log, lmod: _imp, mod_self: lmod_self});
+  if (ver){
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
       return {error: 'missing import'};
     }
     console.warn('lpm_import_get '+imp+' -> '+ver.redirect);
-    v = ver.redirect;
+    _imp = ver.redirect;
   }
   // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
-  let res = await lpm_pkg_resolve({log, imp: T_lpm_lmod(v), mod_self: lmod_self});
+  let res = await lpm_pkg_resolve({log, imp: T_lpm_lmod(_imp),
+    mod_self: lmod_self});
   if (res.not_found)
     return res;
-  return {redirect: v};
+  return {redirect: _imp};
 }
 
 async function lpm_file_resolve({log, imp, mod_self}){
