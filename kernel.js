@@ -519,7 +519,7 @@ async function reg_http_get({log, url}){
     return {status: response.status, not_exist: true};
   }
   if (response.status!=200){
-    err = Error('cdn failed fetch '+response.status+' '+url);
+    err = 'cdn failed fetch '+response.status+' '+url;
     console.log(err);
     return {status: response.status, err, fail_cdn: true};
   }
@@ -562,7 +562,8 @@ async function reg_get({log, lmod, opt}){
       throw Error('reg_get missing ver: '+lmod);
   }
   let ret;
-  for (let _src of src){
+  src = src.sort((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
+  for (let [i, _src] of OE(src)){
     if (_src.fail)
       continue;
     let url_fn = _src.url;
@@ -579,8 +580,10 @@ async function reg_get({log, lmod, opt}){
       return reg;
     }
     assert(ret.fail_cdn);
-    console.warn('cdn failed. switching cdn: '+_src.name);
-    _src.fail = {url, err: ret.err};
+    debugger;
+    console.warn('cdn failed '+_src.name+'. '+
+      'switching cdn '+(src[i+1]?.name || 'all cdns failed'));
+    _src.fail = {url, err: ret.err, tm: Date.now()};
   }
   if (!(reg.blob = ret?.blob)){
     reg.err = ret ? ret.err : 'no non-failed cdn available';
@@ -830,10 +833,13 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   lpm_pkg.parent_mod = mod_self;
   // resolve ver
   let ver = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
-  if (ver)
-    console.warn('lpm_pkg_get '+lmod+' -> ver ', ver);
-  if (ver)
+  if (ver){
+    if (ver.redirect)
+      console.warn('lpm_pkg_get '+lmod+' -> '+ver.redirect);
+    if (ver.not_exist)
+      console.error('lpm_pkg_get '+lmod+' ver not exist');
     return OA(lpm_pkg, ver);
+  }
   // fetch pkg
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lmod: pkg_json});
@@ -973,12 +979,11 @@ async function lpm_import_get({log, imp, lmod_self}){
   let lmod = T_npm_to_lpm(imp);
   if (!(v=lpm_import_lookup({lpm_pkg, imp: lmod}))){
     let ver = await lpm_ver_resolve({log, lmod, mod_self: lmod_self});
-    if (ver)
-      console.warn('lpm_import_get '+imp+' -> ver ', ver);
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
       return {error: 'missing import'};
     }
+    console.warn('lpm_import_get '+imp+' -> '+ver.redirect);
     v = ver.redirect;
   }
   // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
