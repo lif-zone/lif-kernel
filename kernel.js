@@ -626,7 +626,7 @@ async function npm_ver_resolve({log, lmod}){
   if (pv.not_exist)
     return pv;
   let ver = npm_ver_lookup({pkg_ver: pv.pkg_ver, date: lpm_app_date,
-    ver: u.ver.slice(1)});
+    range: u.ver.slice(1)});
   if (!ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
   u.ver = '@'+ver;
