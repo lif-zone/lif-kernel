@@ -19,21 +19,19 @@ function is_num(v){
   let n = +v;
   return ''+n==v && Number.isInteger(n) && n>=0;
 }
-let semver_re_part = /([0-9.]+)([\-+][0-9.\-+A-Za-z]*)?/;
-let semver_re_start = new RegExp('^v?('+semver_re_part.source+')');
-let semver_re = new RegExp('^'+semver_re_part.source+'$');
+let _digit_re = `(0|[1-9][0-9]*)`;
+let _digits_re = `((?<d1>${_digit_re})[.](?<d2>${_digit_re})[.](?<d3>${_digit_re}))`;
+let _semver_re = `((?<digits>${_digits_re})(?<rel>-[0-9.+A-Za-z-]+)?)`;
+let semver_re = new RegExp(`^${_semver_re}$`);
+let _gdigit_re = `([0xX*]|[1-9][0-9]*)`;
+let _gdigits_re = `((?<d1>${_gdigit_re})([.](?<d2>${_gdigit_re})([.](?<d3>${_gdigit_re}))?)?)`;
+let _gsemver_re = `v?((?<digits>${_gdigits_re})(?<rel>-[0-9.+A-Za-z-]+)?)`;
+let gsemver_part_re = new RegExp(`^${_gsemver_re}`);
 export function semver_parse(ver){
-  let m = ver.match(semver_re);
+  let m = ver.match(semver_re)?.groups;
   if (!m)
     return;
-  let p = {ver: m[1], rel: m[2]||''};
-  let v = p.ver.split('.');
-  if (v.length!=3)
-    return;
-  for (let i=0; i<3; i++){
-    if (!is_num(v[i]))
-      return;
-  }
+  let p = {ver: m.digits, rel: m.rel||''};
   return p;
 }
 
@@ -110,7 +108,7 @@ export function T_semver_range_parse(semver_range){
       or.push([]);
       continue;
     }
-    if (!is(semver_re_start))
+    if (!is(gsemver_part_re))
       throw Error('invalid semver_range '+semver_range);
     ver = m[1];
     if (op=='-'){
@@ -216,7 +214,10 @@ function test_semver(){
   t(' = 1.2.3 >= 1.3.4 ', [[{op: '=', ver: '1.2.3'}, {op: '>=', ver: '1.3.4'}]],
     '1.3.4');
   t('=1.2.3 +1.3.4');
-  t('=1.2.3 x.2.3');
+  t('=1.2.3 1.x.x', [[{op: '=', ver: '1.2.3'}, {op: '', ver: '1.x.x'}]],
+    '1.2.3');
+  t('=1.2.3 3.0', [[{op: '=', ver: '1.2.3'}, {op: '', ver: '3.0'}]],
+    '1.2.3');
   t('^1.2.3 || ^4.5.6', [[{op: '^', ver: '1.2.3'}], [{op: '^', ver: '4.5.6'}]],
     '4.5.6');
   t('^1.2.3||^4.5.6', [[{op: '^', ver: '1.2.3'}], [{op: '^', ver: '4.5.6'}]],
@@ -226,8 +227,15 @@ function test_semver(){
     [{op: '', ver: '2.2.2'}, {op: '-', ver: '1.2.3', ver2: '1.3.4'}],
     [{op: '', ver: '3.3.3'}],
   ], '3.3.3');
-  // missing support for 1 1.2 1.x.x 1.X.X 1.*.*
+  t('1', [[{op: '', ver: '1'}]]);
+  t('1.2', [[{op: '', ver: '1.2'}]]);
+  t('1.x.x', [[{op: '', ver: '1.x.x'}]]);
+  t('1.*', [[{op: '', ver: '1.*'}]]);
+  t('1.X', [[{op: '', ver: '1.X'}]]);
+  t('*', [[{op: '', ver: '*'}]]);
+  t('v1.2.3', [[{op: '', ver: '1.2.3'}]], '1.2.3');
   t('  ');
+  t('x.2.3', [[{op: '', ver: 'x.2.3'}]]); // XXX should fail
   t = (a, b, v)=>assert_obj(v, semver_cmp_part(a, b));
   t('0', '1', -1);
   t('10', '0', 1);
