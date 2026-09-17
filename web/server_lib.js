@@ -75,6 +75,14 @@ async function rpc_websocket_pipe_lif(ws, topic){ // obsolete
   rpc_sock_pipe(c, s);
 }
 
+async function lifnet_lif_blockstream_handler(req, res, uri){
+  let {ret, error} = await lifnet_call('lifcoin/blockstream', {uri});
+  if (error)
+    return res_err(res, 500, 'proxy error: '+error);
+  let {result} = ret;
+  res_send(res, {body: result.body, ext: 'json'});
+}
+
 function ws_on_trunk_connect(ws){
   let rpc = ws_trunk_accept(ws);
   rpc_methods_lifnet_trunk(rpc);
@@ -199,7 +207,9 @@ function http_listener(req, res){
     return lifnet_lif_kv_handler(req, res);
   if (uri=='/.lif.net/lif_kv-proxy') // obsolete
     return http_pipe_lif_kv(req, res);
-  if (v=str.starts(req.url, '/lif-explorer/'))
+  if (v=str.starts(req.url, '/blockstream/'))
+    return lifnet_lif_blockstream_handler(req, res, '.'+v.rest);
+  if (v=str.starts(req.url, 'XXX /lif-explorer/'))
     return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
   if (v=str.starts(req.url, '/blockstream/'))
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});

@@ -6,7 +6,7 @@ import '../compat/browser_env.js';
 import {url_http_to_ws, qs_enc} from '../util.js';
 import {lifnet_connect, lifnet_listen, lifnet_set} from './lifnet.js';
 import {leaf_rpc_websocket_out, leaf_fetch_out, leaf_websocket_out,
-  leaf_http_out, leaf_tcp_out, leaf_dns_out, leaf_lifcoin_node_out,
+  leaf_http_out, leaf_tcp_out, leaf_dns_out,
 } from './tcpip_s.js';
 
 function node_is_main(mod_self){
@@ -38,6 +38,19 @@ async function leaf_liftest_lif_kv_out({msg, sock}){
   return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
 }
 
+async function leaf_lifcoin_node_out({msg, sock}){ // unused
+  let m = {ip: '127.0.0.1', port: 8433};
+  return await leaf_tcp_out({msg: m, sock, allow_ip: true});
+}
+
+async function leaf_lifcoin_blockstream_out({msg, sock}){
+  let {uri} = msg.params;
+  if (uri[0]!='/')
+    return {error: 'invalid uri'};
+  let m = {params: {url: lifcoin_node_url+'/blockstream'+uri}};
+  return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
+}
+
 export function leaf_lifcoin_out(){
   // ws://localhost:8432/electrum
   leaf_rpc_websocket_out('lifcoin/electrum', lifcoin_node_ws_url+'/electrum');
@@ -60,6 +73,7 @@ export function leaf_lifcoin_out(){
   lifnet_listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
   lifnet_listen('lifcoin_test/lif_kv', leaf_liftest_lif_kv_out);
   lifnet_listen('lifcoin/node', leaf_lifcoin_node_out); // unused
+  lifnet_listen('lifcoin/blockstream', leaf_lifcoin_blockstream_out);
 }
 
 async function start_leaf(opt={}){
