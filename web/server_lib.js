@@ -207,11 +207,11 @@ function http_listener(req, res){
     return lifnet_lif_kv_handler(req, res);
   if (uri=='/.lif.net/lif_kv-proxy') // obsolete
     return http_pipe_lif_kv(req, res);
-  if (v=str.starts(req.url, '/blockstream/'))
-    return lifnet_lif_blockstream_handler(req, res, '.'+v.rest);
-  if (v=str.starts(req.url, 'XXX /lif-explorer/'))
+  if (0) if (v=str.starts(req.url, '/lif-explorer/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
   if (v=str.starts(req.url, '/blockstream/'))
+    return lifnet_lif_blockstream_handler(req, res, '/'+v.rest);
+  if (0) if (v=str.starts(req.url, '/blockstream/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   if (v=map_uri({uri, opt: g_opt}))
     return res_send_file(res, v);
