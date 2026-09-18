@@ -492,7 +492,9 @@ function mjs_import_mjs(export_default, path){
 
 function pkg_alt_get(pkg, file){
   let ext = _path_ext(file);
-  if (ext && ctype_get(ext))
+  // this can cause a bug if imported dir/list.ts which needs
+  // dir/list.ts/index.js or dir/list.ts.js loaded
+  if (ext && str.is(ext, 'js', 'ts', 'jsx', 'tsx', 'css'))
     return;
   let alt = pkg.lif?.alt || ['.js', '/index.js'];
   if (alt.find(e=>file.endsWith(e)))
@@ -1534,7 +1536,7 @@ function test_kernel(){
   t('a/file', ['.js'], ['.js']);
   t('a/file', ['.xjs', '.js'], ['.xjs', '.js']);
   t('a/file.xjs', ['.xjs', '.js'], undefined);
-  t('a/file.ico', ['.xjs'], undefined);
+  t('a/file.ico', ['.xjs'], ['.xjs']);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
   // XXX obsolete comment? check 'package.json' is not modified, even if pkg is null
 }
