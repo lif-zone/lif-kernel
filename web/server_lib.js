@@ -203,24 +203,26 @@ function http_listener(req, res){
   let uri = decodeURI(url.pathname);
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
+  let dest = req.headers['sec-fetch-dest'];
+  //let mode = req.headers['sec-fetch-mode'];
+  let spa = dest=='document' || dest=='iframe' || dest=='frame';
+  let lif_kernel = g_opt.map['/lif-kernel'];
+  // handle URLs
   if (uri=='/.lif.net/lif_kv')
     return lifnet_lif_kv_handler(req, res);
   if (uri=='/.lif.net/lif_kv-proxy') // obsolete
     return http_pipe_lif_kv(req, res);
   if (0) if (v=str.starts(req.url, '/lif-explorer/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
-  if (v=str.starts(req.url, '/blockstream/'))
+  if (v=str.starts(req.url, '/.lif.net//blockstream/'))
     return lifnet_lif_blockstream_handler(req, res, '/'+v.rest);
-  if (0) if (v=str.starts(req.url, '/blockstream/')) // obsolete
+  if (v=str.starts(req.url, '/blockstream/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   if (v=map_uri({uri, opt: g_opt}))
     return res_send_file(res, v);
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'no map found');
-  let dest = req.headers['sec-fetch-dest'];
-  //let mode = req.headers['sec-fetch-mode'];
-  let lif_kernel = g_opt.map['/lif-kernel'];
-  if (dest=='document' || dest=='iframe' || dest=='frame') // SPA
+  if (spa)
     return res_send_file(res, lif_kernel+'/index.html');
   return res_err(res, 404, 'no map found');
 }
