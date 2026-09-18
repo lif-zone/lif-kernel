@@ -762,7 +762,7 @@ async function lpm_file_get_alt({log, lmod, alt}){
     if (!f.err)
       return f;
     if (f.err)
-      throw Error('fetch failed '+lmod+' '+f.url);
+      throw Error('fetch failed '+lmod+' '+(f.url||''));
   }
   console.error('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
     ') failed fetch not exist '+lmod);
