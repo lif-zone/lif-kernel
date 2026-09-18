@@ -161,7 +161,7 @@ function npm_2url(url, mod_self){
     return u.is.blob || u.is.data ? url : u.origin+u.path;
   if (u.is.uri)
     return u.path;
-  return '/.lif/'+T_npm_to_lpm(u.path);
+  return '/.lif/'+T_npm_to_lpm(u.path); // XXX /.lif/$mod_self/.lif.imp/$u.path
 }
 
 function npm_base(mod_self, url){
@@ -208,6 +208,8 @@ function test(){
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
   t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
   t('.lif/local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
+  // XXX .lif.imp/MOD
+  0 && t('react@1.2.3', 'mod/file.js', '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
   t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
   t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
   t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
@@ -263,7 +265,7 @@ function require_cjs_load_meta_sync(p){
   let opt = {meta: 1, follow: 1};
   if (p.mod_self)
     opt.mod_self = p.mod_self;
-  let url = m.url+qs_enc(opt);
+  let url = m.url+qs_enc(opt); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -330,7 +332,7 @@ async function require_cjs_load_meta(p){
   let opt = {meta: 1, follow: 1};
   if (p.mod_self)
     opt.mod_self = p.mod_self;
-  let url = m.url+qs_enc(opt);
+  let url = m.url+qs_enc(opt); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
   let req;
   if (p.wait)
     return await p.wait;
