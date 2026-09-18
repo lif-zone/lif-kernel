@@ -80,7 +80,7 @@ async function lifnet_lif_blockstream_handler(req, res, uri){
   if (error)
     return res_err(res, 500, 'proxy error: '+error);
   let {result} = ret;
-  res_send(res, {body: result.body, ext: 'json'});
+  res_send(res, {body: result.body, ctype: result.headers['content-type']});
 }
 
 function ws_on_trunk_connect(ws){
@@ -134,8 +134,8 @@ function res_send_file(res, _path){
   stream.pipe(res);
 }
 
-function res_send(res, {body, ext}){
-  let ctype = ext2mime[ext]||'plain/text';
+function res_send(res, {body, ext, ctype}){
+  ctype ||= ext2mime[ext]||'plain/text';
   let h = {};
   headers_set({h, ctype});
   res.writeHead(200, h);
@@ -214,7 +214,7 @@ function http_listener(req, res){
     return http_pipe_lif_kv(req, res);
   if (0) if (v=str.starts(req.url, '/lif-explorer/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
-  if (v=str.starts(req.url, '/.lif.net//blockstream/'))
+  if (v=str.starts(req.url, '/.lif.net/blockstream/'))
     return lifnet_lif_blockstream_handler(req, res, '/'+v.rest);
   if (v=str.starts(req.url, '/blockstream/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
