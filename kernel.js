@@ -367,6 +367,9 @@ function lpm_import_lookup({lpm_pkg, imp}){
   // lookup devDependencies: current
   if (l.dev)
     return l.dev;
+  // last resort - parent imported it
+  if (par.reg)
+    return par.reg;
   return ret_err('imp missing');
 }
 
@@ -862,8 +865,9 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
 async function lpm_pkg_get_follow({log, lmod}){
   D && console.log('lpm_pkg_get_folow', lmod);
   let v;
-  let lookup = pkg_import_lookup({lmod_self: lpm_pkg_root.lmod,
-    pkg: lpm_pkg_root.pkg, imp: lmod});
+  let lpm_self = lpm_pkg_app || lpm_pkg_root;
+  let lookup = pkg_import_lookup({lmod_self: lpm_self.lmod, pkg: lpm_self.pkg,
+    imp: lmod});
   let _lmod = lookup.over || lookup.reg;
   if (_lmod && _lmod!=lmod){
     D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
@@ -949,7 +953,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     if (lmod_self==imp)
       return {lpm_pkg: lpm_self};
   } else
-    lpm_self = lpm_pkg_root;
+    lpm_self = lpm_pkg_app || lpm_pkg_root;
   // lookup for imports in parent
   let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp});
   let lmod = _imp || imp;
@@ -1512,7 +1516,7 @@ function test_kernel(){
   t('npm/peer', 'npm/peer@1.1.1');
   t('npm/gmod', 'npm/gmod@21.0.0');
   t('npm/gparent', 'npm/gparent@22.0.0');
-  t('npm/gparent2');
+  t('npm/gparent2', 'npm/gparent2@99.9.9');
   t('npm/gpeer', 'npm/gpeer@13.0.1');
   t('npm/gpeer2', 'npm/gpeer2@14.0.1');
   t('npm/optional', 'npm/optional@1.0.0');
