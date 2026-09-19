@@ -157,13 +157,14 @@ function tr_js_to_ast(js){
           let bind = path.scope.getBinding(spec.local.name);
           bind.referencePaths.forEach(ref=>{
             let cont = ref.container;
-            if (cont.type=='MemberExpression' && !cont.computed)
-              imported.push(cont.property.name);
-            else if (cont.type=='MemberExpression' && cont.computed
-              && cont.property.type=='StringLiteral')
-              imported.push(cont.property.value);
-            else if (cont.type=='MemberExpression' && cont.computed)
-              has_dyn = true;
+            if (cont.type=='MemberExpression'){
+              if (!cont.computed)
+                imported.push(cont.property.name);
+              else if (cont.property.type=='StringLiteral')
+                imported.push(cont.property.value);
+              else
+                has_dyn = true;
+            }
           });
         }
       });
@@ -209,13 +210,14 @@ function tr_js_to_ast(js){
               if (refPath.parentPath.isExportNamespaceSpecifier())
                 return;
               let cont = refPath.container;
-              if (cont.type=='MemberExpression' && !cont.computed)
-                imported.push(cont.property.name);
-              else if (cont.type=='MemberExpression' && cont.computed
-                && cont.property.type=='StringLiteral')
-                imported.push(cont.property.value);
-              else if (cont.type=='MemberExpression' && cont.computed)
-                has_dyn = true;
+              if (cont.type=='MemberExpression'){
+                if (!cont.computed)
+                  imported.push(cont.property.name);
+                else if (cont.property.type=='StringLiteral')
+                  imported.push(cont.property.value);
+                else
+                  has_dyn = true;
+              }
             },
           });
         }
