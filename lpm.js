@@ -1277,10 +1277,8 @@ function test_lpm(){
     overrides: {glb: '1.2.0', overg: '1.0.0'},
   }};
   t = (imp, v)=>{
-    in_test = 1;
     let res = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg,
       imp});
-    in_test = 0;
     assert.eq(v.over, res.over);
     assert.eq(v.optional, res.optional);
     assert.eq(v.reg, res.reg);
