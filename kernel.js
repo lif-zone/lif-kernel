@@ -452,8 +452,11 @@ function file_tr_mjs(f, opt){
 
 function mjs_import_cjs(path, q){
   let imported = q.get('imported')?.split(',');
+  let qs = qs_enc(q);
+  if (!qs)
+    qs = '?import_cjs';
   let js = '';
-  js += `//# sourceURL=${path}${qs_enc(q)}\n`;
+  js += `//# sourceURL=${path}${qs}\n`;
   if (q.get('worker')){
     // double space between await and import, to prevent tr import_module
     js += `let $lif_message = {q: [], fn: e=>$lif_message.q.push(e)}; `;
@@ -466,7 +469,7 @@ function mjs_import_cjs(path, q){
     js += `$lif_message.q.forEach(e=>globalThis.dispatchEvent(e)); `;
   }
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
-  //js += `export const __esModule = false;\n`;
+  js += `export const __esModule = exports.__esModule;\n`; // unused
   js += `export const __es_lif_cjs = true;\n`;
   js += `if (exports.__esModule && exports.default) exports = exports.default;\n`;
   js += `export default exports;\n`;
@@ -475,12 +478,15 @@ function mjs_import_cjs(path, q){
 
 function mjs_import_amd(path, q){
   let imported = q.get('imported')?.split(',');
+  let qs = qs_enc(q);
+  if (!qs)
+    qs = '?import_amd';
   let uri_s = json(path);
   let js = '';
-  js += `//# sourceURL=${path}${qs_enc(q)}\n`;
+  js += `//# sourceURL=${path}${qs}\n`;
   js += `let exports = await globalThis.$lif.boot.import_amd(null, [${uri_s}]);\n`;
   imported?.forEach(i=>js += `export const ${i} = exports.${i};\n`);
-  js += `export const __esModule = false;\n`;
+  js += `export const __esModule = exports.__esModule;\n`; // unused
   js += `export const __es_lif_cjs = true;\n`;
   js += `export default exports;\n`;
   return js;
