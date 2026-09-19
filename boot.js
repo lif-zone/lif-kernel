@@ -938,6 +938,11 @@ async function import_esm(mod_self, [imp, opt={}]){
     slow.end();
   }
 }
+
+function import_cjs_ns(module_ns){
+  return module_ns.__es_lif_cjs ? module_ns.default : module_ns;
+}
+
 // worker
 function importScripts_single(mod_self, [mod, opt={}]){
   let _opt = {};
@@ -1197,6 +1202,7 @@ lif.boot = {
   import_esm,
   import_amd,
   define_amd_get_mod,
+  import_cjs_ns,
 };
 if (is_worker){
   OA(lif.boot, {_importScripts});
