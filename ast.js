@@ -141,6 +141,7 @@ function tr_js_to_ast(js){
     ast.imports_dyn = [];
     ast.exports_require = [];
     let has = ast.has = {};
+    // XXX merge _handle_import_source and _handle_export_source
     function _handle_import_source(path){
       let n = path.node;
       let s = n.source;
