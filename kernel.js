@@ -44,7 +44,7 @@ function db_upgrade(db, table, opt){
   }
 }
 
-let cache_ver = 19;
+let cache_ver = 21;
 async function db_open(){ // use storageBuckets
   if (!db){
     db = await idb.openDB('lif-kernel', cache_ver, {
@@ -395,6 +395,14 @@ function tr_mjs_import(f){
     }
     _v = tr_import_lpm({imp, imported: d.imported,
       lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
+    if (d.imported_dyn){
+      let dyn = d.imported_dyn;
+      let name = f.js.slice(dyn.name_start, dyn.name_end);
+      let lif_name = '__lif_'+name;
+      s.splice(dyn.name_start, dyn.name_end, lif_name);
+      s.splice(dyn.stmt_end, dyn.stmt_end,
+        ` const ${name} = $lif.boot.import_cjs_namespace(${lif_name});`);
+    }
     s.splice(d.start, d.end, json(_v));
     continue;
   }

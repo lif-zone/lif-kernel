@@ -148,22 +148,37 @@ function tr_js_to_ast(js){
         return;
       let v = s.value;
       let {type} = ast_get_scope_type(path, {try: 1});
-      let imported = [];
+      let imported = [], ns_spec, has_dyn;
       n.specifiers?.forEach(spec=>{
         if (spec.type=='ImportSpecifier')
           imported.push(spec.imported.name);
         if (spec.type=='ImportNamespaceSpecifier'){
+          ns_spec = spec;
           let bind = path.scope.getBinding(spec.local.name);
           bind.referencePaths.forEach(ref=>{
             let cont = ref.container;
             if (cont.type=='MemberExpression' && !cont.computed)
               imported.push(cont.property.name);
+            else if (cont.type=='MemberExpression' && cont.computed
+              && cont.property.type=='StringLiteral')
+              imported.push(cont.property.value);
+            else if (cont.type=='MemberExpression' && cont.computed)
+              has_dyn = true;
           });
         }
       });
       imported = array_unique(imported).sort();
-      ast.imports.push({module: v, start: s.start, end: s.end, type,
-        imported: imported.length ? imported : null});
+      let imported_dyn = ns_spec && has_dyn ? {
+        name_start: ns_spec.local.start,
+        name_end: ns_spec.local.end,
+        stmt_end: n.end,
+      } : undefined;
+      let imports = {module: v, start: s.start, end: s.end, type};
+      if (imported.length)
+        imports.imported = imported;
+      if (imported_dyn)
+        imports.imported_dyn = imported_dyn;
+      ast.imports.push(imports);
     }
     function _handle_export_source(path){
       let n = path.node;
@@ -172,11 +187,12 @@ function tr_js_to_ast(js){
         return;
       let v = s.value;
       let {type} = ast_get_scope_type(path, {try: 1});
-      let imported = [];
+      let imported = [], ns_spec, has_dyn;
       n.specifiers?.forEach(spec=>{
         if (spec.type=='ExportSpecifier')
           imported.push(spec.exported.name);
         if (spec.type=='ExportNamespaceSpecifier'){
+          ns_spec = spec;
           // bind is null: bind = path.scope.getBinding(spec.exported.name);
           // there is a bug in babeljs that it does not bind named re-exports
           // so need to manually find the uses of these identifiers
@@ -195,13 +211,27 @@ function tr_js_to_ast(js){
               let cont = refPath.container;
               if (cont.type=='MemberExpression' && !cont.computed)
                 imported.push(cont.property.name);
+              else if (cont.type=='MemberExpression' && cont.computed
+                && cont.property.type=='StringLiteral')
+                imported.push(cont.property.value);
+              else if (cont.type=='MemberExpression' && cont.computed)
+                has_dyn = true;
             },
           });
         }
       });
       imported = array_unique(imported).sort();
-      ast.imports.push({module: v, start: s.start, end: s.end, type,
-        imported: imported.length ? imported : null});
+      let imported_dyn = ns_spec && has_dyn ? {
+        name_start: ns_spec.exported.start,
+        name_end: ns_spec.exported.end,
+        stmt_end: n.end,
+      } : undefined;
+      let imports = {module: v, start: s.start, end: s.end, type};
+      if (imported.length)
+        imports.imported = imported;
+      if (imported_dyn)
+        imports.imported_dyn = imported_dyn;
+      ast.imports.push(imports);
     }
     function handle_import_source(path){
       has.import = true;
@@ -358,11 +388,11 @@ function test_ast(){
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
   t(`import "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: null, module: 'lif', start: 7, end: 12}]
+      {type: 'program', module: 'lif', start: 7, end: 12}]
     });
   t(`import a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
+      {type: 'program', module: 'lif', start: 14, end: 19}]
     });
   t(`import {a, b} from "lif";`,
     {type: 'mjs', imports: [
@@ -376,26 +406,71 @@ function test_ast(){
     });
   t(`export * from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: null, module: 'lif', start: 14, end: 19}]
+      {type: 'program', module: 'lif', start: 14, end: 19}]
     });
   t(`import * as a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
+      {type: 'program', module: 'lif', start: 19, end: 24}]
     });
   t(`export * as a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: null, module: 'lif', start: 19, end: 24}]
+      {type: 'program', module: 'lif', start: 19, end: 24}]
     });
-  // XXX in the future we may want to also include a['xx'] as a.xx
-  t(`import * as a from "lif"; let b = a.A || a.AA || a['xx'] || a[x]; let x;`,
+  t(`import * as a from "lif"; let b = a.A || a.AA;`,
     {type: 'mjs', imports: [
       {type: 'program', imported: ['A', 'AA'], module: 'lif',
         start: 19, end: 24}]
     });
-  t(`export * as a from "lif"; let b = a.A || a.AA || a['xx'] || a[x]; let x;`,
+  t(`export * as a from "lif"; let b = a.A || a.AA;`,
     {type: 'mjs', imports: [
       {type: 'program', imported: ['A', 'AA'], module: 'lif',
         start: 19, end: 24}]
+    });
+  t(`import * as a from "lif"; let b = a['xx'];`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['xx'], module: 'lif',
+        start: 19, end: 24}]
+    });
+  t(`export * as a from "lif"; let b = a['xx'];`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['xx'], module: 'lif',
+        start: 19, end: 24}]
+    });
+  t(`import * as a from "lif"; let b = a[x]; let x;`,
+    {type: 'mjs', imports: [
+      {type: 'program',
+        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+        module: 'lif', start: 19, end: 24}]
+    });
+  t(`export * as a from "lif"; let b = a[x]; let x;`,
+    {type: 'mjs', imports: [
+      {type: 'program',
+        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+        module: 'lif', start: 19, end: 24}]
+    });
+  t(`import * as a from "lif"; let b = a['xx'+'yy'];`,
+    {type: 'mjs', imports: [
+      {type: 'program',
+        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+        module: 'lif', start: 19, end: 24}]
+    });
+  t(`export * as a from "lif"; let b = a['xx'+'yy'];`,
+    {type: 'mjs', imports: [
+      {type: 'program',
+        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+        module: 'lif', start: 19, end: 24}]
+    });
+  t(`import * as a from "lif"; let b = a['xx'] || a[x]; let x;`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['xx'],
+        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+        module: 'lif', start: 19, end: 24}]
+    });
+  t(`export * as a from "lif"; let b = a['xx'] || a[x]; let x;`,
+    {type: 'mjs', imports: [
+      {type: 'program', imported: ['xx'],
+        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+        module: 'lif', start: 19, end: 24}]
     });
   t(`module.exports = {api: ()=>{}};`, {type: 'cjs'});
   t(`export function a(){}`, {type: 'mjs'});
