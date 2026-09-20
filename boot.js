@@ -1155,7 +1155,7 @@ let boot_app = async(boot_pkg)=>{
     console.error('boot: app('+webapp+') failed: '+err);
     throw err;
   }
-  console.log('boot: boot complete');
+  console.log('boot: boot complete: '+webapp);
   return ret;
 };
 
