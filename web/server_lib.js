@@ -210,7 +210,7 @@ function http_listener(req, res){
   let uri = decodeURI(url.pathname);
   res.on('finish', ()=>console.log(
     `${uri} ${res.statusCode} ${res.statusMessage}`));
-  let dest = req.headers['sec-fetch-dest'];
+  let dest = req.headers['lif-dest'] || req.headers['sec-fetch-dest'];
   //let mode = req.headers['sec-fetch-mode'];
   let spa = dest=='document' || dest=='iframe' || dest=='frame';
   let lif_kernel = g_opt.map['/lif-kernel'];
@@ -230,7 +230,9 @@ function http_listener(req, res){
   if (v=str.starts(req.url, '/.lif/npm/')) // devtools map files skip service worker
     return res.writeHead(302, {Location: `https://unpkg.com/${v.rest}`}).end();
   if (str.starts(uri, '/.lif/', '/.lif.'))
-    return res_err(res, 404, 'no map found');
+    return res_err(res, 404, 'invalid /.lif/ uri');
+  console.log('spa', spa, dest);
+  console.log(req.headers);
   if (spa)
     return res_send_file(res, lif_kernel+'/index.html');
   return res_err(res, 404, 'no map found');

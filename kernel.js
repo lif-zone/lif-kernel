@@ -1298,6 +1298,15 @@ async function fetch_lpm_file({log, imp, mod_self, qs}){
   return await responce_tr_send({f, qs, lmod: imp});
 }
 
+function fetch_request_document(request){
+  console.log('req padd', request);
+  if (request.destination!='document')
+    return request;
+  const headers = new Headers(request.headers);
+  headers.set("lif-dest", 'document');
+  return new Request(request, {headers});
+}
+
 async function fetch_pass(request, type){
   let url = request.url;
   let slow = eslow('fetch_pass');
@@ -1426,11 +1435,12 @@ async function _kernel_fetch(event){
     let lmod = T_npm_to_lpm(_path);
     return Response.redirect('/.lif/'+lmod);
   }
-  if (is_doc && !is_reload){
-    // XXX add support for handling SPA
+  if (is_doc){
+    // XXX add support for handling SPA: if (!is_reload) return spa_cache();
     // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
     // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
     // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
+    return await fetch(fetch_request_document(request));
   }
   D && console.log('req default', url);
   let response = await fetch(request);
