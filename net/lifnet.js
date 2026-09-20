@@ -9,6 +9,7 @@ let D = 1;
 
 let RETRY_MS = 1000;
 let RETRY_REST_MS = 60000;
+let uplink_default = 'wss://lifnet.net/.lif.net';
 
 class Trunk_loopback extends EventEmitter {
   status = 'online';
@@ -412,7 +413,7 @@ function lifnet_init(){
   lifnet_inited = true;
   if (is_node){
     lifnet.trunk_uplink_add('ws://localhost:1842/.lif.net');
-    lifnet.trunk_uplink_add('wss://lifnet.net/.lif.net');
+    0 && lifnet.trunk_uplink_add(uplink_default);
   } else
     lifnet.trunk_uplink_add(url_http_to_ws(location.origin+'/.lif.net'));
   return lifnet;
@@ -425,6 +426,10 @@ export function lifnet_init_router(rpc){
 export function lifnet_set(opt={}){
   if (opt.client_name)
     lifnet.client_name = opt.client_name;
+  if (opt.uplink){
+    let uplink = opt.uplink=='default' ? uplink_default : opt.uplink;
+    lifnet.trunk_uplink_add(uplink);
+  }
 }
 export function lifnet_get(){
   lifnet_init();

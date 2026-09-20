@@ -12,7 +12,8 @@ import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
 import {rpc_websocket, rpc_sock_pipe, websocket_pipe} from '../rpc.js';
 import {sni_cb, do_ssl} from './ssl_s.js';
 import {WebSocketServer} from 'ws';
-import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add, trunk_router,
+import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add,
+  trunk_router,
 } from '../net/trunk.js';
 import {lifnet_connect, lifnet_call, lifnet_set, lifnet_init_router,
 } from '../net/lifnet.js';
@@ -75,11 +76,13 @@ async function rpc_websocket_pipe_lif(ws, topic){ // obsolete
   rpc_sock_pipe(c, s);
 }
 
-async function lifnet_lif_blockstream_handler(req, res, uri){
-  let {ret, error} = await lifnet_call('lifcoin/blockstream', {uri});
+async function http_pipe_lif(req, res, topic, param){
+  let {ret, error} = await lifnet_call(topic, param);
   if (error)
     return res_err(res, 500, 'proxy error: '+error);
   let {result} = ret;
+  if (!result.body || !result.headers)
+    return res_err(res, 500, 'proxy invalid res');
   res_send(res, {body: result.body, ctype: result.headers['content-type']});
 }
 
@@ -215,7 +218,7 @@ function http_listener(req, res){
   if (0) if (v=str.starts(req.url, '/lif-explorer/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:1806/lif-explorer/${v.rest}`});
   if (v=str.starts(req.url, '/.lif.net/blockstream/'))
-    return lifnet_lif_blockstream_handler(req, res, '/'+v.rest);
+    return http_pipe_lif(req, res, 'lifcoin/blockstream', {uri: '/'+v.rest});
   if (v=str.starts(req.url, '/blockstream/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   if (v=map_uri({uri, opt: g_opt}))
@@ -297,6 +300,7 @@ async function run(opt){
   let a;
   OA(g_opt, opt);
   let map = g_opt.map = {...opt?.map||{}};
+  let lifnet_opt = {uplink: 'default'};
   g_opt.root = opt.root||process.cwd();
   g_opt.port = opt.port||1842;
   argv.shift();
@@ -314,9 +318,7 @@ async function run(opt){
       g_opt.ssl = true;
     } else if (a=='-l' || a=='--local'){
       argv.shift();
-      console.log('in the browser open localhost:port url, and in console '+
-        'run: localStorage.setItem("local_dev_enable", true)');
-      process.exit(1);
+      delete lifnet_opt.uplink;
     } else if (a=='--web'){
       argv.shift();
       g_opt.web = true;
@@ -332,10 +334,10 @@ async function run(opt){
     g_opt.web = true;
     g_opt.lifnet_trunk  = true;
   }
-  lifnet_set({client_name:
-    g_opt.lifnet_trunk
+  lifnet_opt.client_name = g_opt.lifnet_trunk
     ? (g_opt.peers?.length ? 'tpeer'+g_opt.port : 'tmain'+g_opt.port)
-    : 'leaf'});
+    : 'leaf';
+  lifnet_set(lifnet_opt);
   if (g_opt.lifnet_trunk)
     lifnet_init_router(trunk_router());
   start_web();

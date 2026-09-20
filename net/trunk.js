@@ -224,6 +224,7 @@ export function rpc_methods_lifnet_trunk(rpc){
 export function trunk_peer_add(url){
   if (peer_urls[url])
     return;
+  console.log('added trunk peer '+url);
   peer_urls[url] = {url, last: 0};
   _peer_connect(url);
 }

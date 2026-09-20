@@ -94,7 +94,7 @@ export async function run(opt={}){
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
-  lifnet_set({client_name: 'lifcoin'});
+  lifnet_set({client_name: 'lifcoin', uplink: 'default'});
   start_leaf(opt);
 }
 
