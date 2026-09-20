@@ -220,6 +220,8 @@ function http_listener(req, res){
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   if (v=map_uri({uri, opt: g_opt}))
     return res_send_file(res, v);
+  if (v=str.starts(req.url, '/.lif/npm/')) // devtools map files skip service worker
+    return res.writeHead(302, {Location: `https://unpkg.com/${v.rest}`}).end();
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'no map found');
   if (spa)
