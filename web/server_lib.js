@@ -81,8 +81,12 @@ async function http_pipe_lif(req, res, topic, param){
   if (error)
     return res_err(res, 500, 'proxy error: '+error);
   let {result} = ret;
-  if (!result.body || !result.headers)
-    return res_err(res, 500, 'proxy invalid res');
+  if (result.status!=200)
+    return res_err(res, 500, 'proxy invalid res: status '+result.status);
+  if (result.body==null)
+    return res_err(res, 500, 'proxy invalid res: missing body');
+  if (!result.headers)
+    return res_err(res, 500, 'proxy invalid res: missing headers');
   res_send(res, {body: result.body, ctype: result.headers['content-type']});
 }
 
