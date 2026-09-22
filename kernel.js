@@ -16,7 +16,7 @@ const {lpm_ver_from_base, lpm_to_sw_passthrough,
   lpm_parse, T_lpm_lmod, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, lpm_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
-  pkg_transform_type, npm_ver_lookup,
+  pkg_transform_type, npm_ver_lookup, patch_json,
 } = await import('./lpm.js');
 const {tr_tsx_to_js, tr_js_to_meta} = await import('./ast.js');
 const {qw} = str;
@@ -158,34 +158,55 @@ let lpm_cdn = {
   npm: {
     src: [
       {
-        // package file listing+size+sha256
-        // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
         name: 'jsdeliver.net',
+        // https://cdn.jsdelivr.net/npm/react@18.3.1/package.json
         url: u=>`https://cdn.jsdelivr.net/npm/${u.name}${u.ver}${u.submod_path}`,
       },
       {
         // package file listing+size+sha256
-        //  https://unpkg.com/react@18.3.1/?meta
+        // https://unpkg.com/react@18.3.1/?meta
         name: 'unpkg.com',
+        // https://unpkg.com/react@18.3.1/package.json
         u: u=>`https://unpkg.com/${u.name}${u.ver}${u.submod_path}`,
       },
       {
         name: 'statically.io',
+        // https://cdn.statically.io/npm/react@18.3.1/package.json
         url: u=>`https://cdn.statically.io/npm/${u.name}${u.ver}${u.submod_path}`,
       },
     ],
     src_ver: [
       {
         name: 'npmjs.org',
+        // https://registry.npmjs.com/react
         url: u=>`https://registry.npmjs.com/${u.name}`,
       },
       {
         name: 'yarnpkg.com',
+        // https://registry.yarnpkg.com/react
         url: u=>`https://registry.yarnpkg.com/${u.name}`,
       },
       {
+        // directory listing (not whole tarcall):
+        // https://registry.npmmirror.com/react/18.3.1/files/
+        // https://registry.npmmirror.com/react/18.3.1/files/umd/
         name: 'npmmirror.com',
+        // https://registry.npmmirror.com/react
         url: u=>`https://registry.npmmirror.com/${u.name}`,
+      },
+    ],
+    src_files: [
+      {
+        name: 'jsdeliver.net',
+        // package file listing+size+sha256
+        // https://cdn.jsdelivr.net/npm/react@18.3.1/package.json
+        url: u=> `https://data.jsdelivr.com/v1/packages/npm/${u.name}${u.ver}`,
+      },
+      {
+        name: 'unpkg.com',
+        // package file listing+size+sha256
+        // https://unpkg.com/react@18.3.1/?meta
+        u: u=>`https://unpkg.com/${u.name}${u.ver}/?meta`,
       },
     ],
   },
@@ -561,7 +582,7 @@ async function reg_get({log, lmod, opt}){
   return await ecache({table: reg_file_t, id: lmod, opt},
     async function run(reg)
 {
-  let wait, u, get_ver;
+  let wait, u, get_ver, get_files;
   reg.lmod = lmod;
   reg.log = log;
   u = reg.u = T_lpm_parse(reg.lmod);
@@ -580,6 +601,13 @@ async function reg_get({log, lmod, opt}){
     u.path = '';
     if (u.ver)
       throw Error('reg_get invalid --ver: '+lmod);
+  } else if (u.path=='/--files'){
+    get_files = true;
+    src = reg.cdn.src_files;
+    u.submod = '';
+    u.path = '';
+    if (lpm_ver_missing(u))
+      throw Error('reg_get files missing ver: '+lmod);
   } else {
     if (lpm_ver_missing(u))
       throw Error('reg_get missing ver: '+lmod);
@@ -829,6 +857,45 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   return f;
 }
 
+function lpm_patch_pkg_json(lpm_pkg){
+  // handle {lif: {patches: {"mod": {"./package.json": {diff}}}}}
+  let u = T_lpm_parse(lpm_pkg.lmod);
+  u.ver = '';
+  let lmod_no_ver = T_lpm_str(u);
+  let u_self = T_lpm_parse(lpm_pkg.lmod);
+  let patch, patch_p;
+  for (let p = lpm_pkg.parent; p; p = p.parent){
+    let mods;
+    if (!(mods=p.pkg.lif?.patches))
+      continue;
+    let files;
+    for (let [mod, _files] of OE(mods)){
+      let lmod = npm_to_lpm(mod);
+      if (lmod==lpm_pkg.lmod || lmod==lmod_no_ver){
+        files = _files;
+        break;
+      }
+    }
+    if (!files)
+      continue;
+    let v;
+    if (!(v=files['./package.json']))
+      continue;
+    patch = v;
+    patch_p = p;
+  }
+  if (!patch)
+    return;
+  lpm_pkg.pkg_orig = lpm_pkg.pkg;
+  let pkg = patch_json(json_cp(lpm_pkg.pkg), patch);
+  if (!pkg){
+    console.error('failed patch_json '+lpm_pkg.lmod+' by '+patch_p.lmod,
+      patch);
+    return;
+  }
+  lpm_pkg.pkg = pkg;
+}
+
 async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   let is_c = cache_lmod(lmod);
   let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
@@ -871,6 +938,7 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   }
   lpm_pkg.blob = f.blob;
   lpm_pkg.body = f.body;
+  lpm_pkg._body = f.body;
   try {
     lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
   } catch(err){
@@ -878,6 +946,8 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
     lpm_pkg.pkg = {};
     console.log('failed parse package.json', pkg_json);
   }
+  // check for package.json overrides
+  lpm_patch_pkg_json(lpm_pkg);
   return lpm_pkg;
 }); }
 

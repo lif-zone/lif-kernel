@@ -776,7 +776,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
 
 function require_cjs_sync(mod_self, imp){
   imp = npm_base(mod_self, imp);
-  D && console.log('require_cjs_sync', imp);
+  D && console.log('require_cjs_sync '+(mod_self||'')+' -> '+imp);
   let p = modules[imp]?.parent[mod_self];
   let m;
   if (p)
@@ -791,7 +791,7 @@ function require_cjs_sync(mod_self, imp){
 
 async function require_cjs_async(mod_self, imp){
   imp = npm_base(mod_self, imp);
-  D && console.log('require_cjs_async', imp);
+  D && console.log('require_cjs_async '+(mod_self||'')+' -> '+imp);
   let m = await require_cjs_load({mod_self, imp, loading: []});
   require_cjs_run(m);
   return m.exports;

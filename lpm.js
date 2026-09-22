@@ -372,6 +372,7 @@ export const npm_to_lpm = Tf(T_npm_to_lpm);
 export function T_npm_parse(npm){
   return T_lpm_parse(T_npm_to_lpm(npm));
 }
+export const npm_parse = Tf(T_npm_parse);
 
 export function T_lpm_to_npm(lpm){
   let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
@@ -838,6 +839,27 @@ export function ctype_get(ext){
   t = {...t};
   t.ext = ext;
   return t;
+}
+
+export function patch_json(json, patch){
+  if (!patch.json)
+    return;
+  function do_patch(_json, _patch, key){
+    for (let [k, v] of OE(_patch)){
+      if (v==null)
+        delete _json[k];
+      else if (typeof v!='object')
+        _json[k] = v;
+      else if (typeof _json[k]!='object')
+        _json[k] = v;
+      else if (Array.isArray(_patch[k]))
+        _json[k] = v;
+      else
+        do_patch(_json[k], _patch[k]);
+    }
+  }
+  do_patch(json, patch.json);
+  return json;
 }
 
 function test_lpm(){
@@ -1337,6 +1359,19 @@ function test_lpm(){
   t({date: '2024-03-17T22:32:47.126Z'}, '3.2.0-experimental');
   t({date: '2024-03-17T22:32:47.129Z'}, '3.2.2-experimental-2');
   t({date: '2024-04-01700:00:00.000Z'}, '3.2.2-experimental-2');
+  t = (json, patch, v)=>assert_obj(v, patch_json(json, {json: patch}));
+  t({a: 1}, {b: 2}, {a: 1, b: 2});
+  t({a: 1}, {a: 2}, {a: 2});
+  t({a: 1}, {a: '2'}, {a: '2'});
+  t({a: 1}, {a: null}, {});
+  t({a: 1}, {a: undefined}, {});
+  t({a: 1}, {a: false}, {a: false});
+  t({a: 1}, {a: {b: 1}}, {a: {b: 1}});
+  t({a: 1}, {a: [1]}, {a: [1]});
+  t({a: {b: 1, c: 3}}, {a: {b: 2}}, {a: {b: 2, c: 3}});
+  t({a: {b: 1, c: 3}}, {a: 'a'}, {a: 'a'});
+  t({a: [1, 2]}, {a: ['1']}, {a: ['1']});
+  t({a: 1, b: 2}, {b: null}, {a: 1});
   in_test = 0;
 }
 test_lpm();
