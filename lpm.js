@@ -685,7 +685,8 @@ export function pkg_exports_lookup(pkg, file){
     if (sec=pkg.exports){
       if (typeof sec=='string')
         sec = {'.': sec};
-      return parse_section(sec);
+      if (v=parse_section(sec))
+        return v;
     }
     if (file=='.'){
       v = check_val(pkg.browser) ||
@@ -694,8 +695,6 @@ export function pkg_exports_lookup(pkg, file){
         check_val('./index.js');
     } else
       v = parse_section(pkg.browser);
-    if (!v)
-      return;
     return v;
   }
   // start package.json lookup
@@ -1213,7 +1212,7 @@ function test_lpm(){
   t({exports: {'./package.json': './x'}}, './package.json', './package.json');
   t({exports: {'.': './exp'}, lif: {exports: {'.': './abc'}}}, '.', './abc');
   t({main: './Main', exports: {'.': './exp'}}, '.', './exp');
-  t({main: './Main', exports: {'./x': './exp'}}, '.');
+  t({main: './Main', exports: {'./x': './exp'}}, '.', './Main');
   t({main: './Main', lif: {exports: {'.': './exp'}}}, '.', './exp');
   t({main: './Main', lif: {exports: {'./x': './exp'}}}, '.', './Main');
   t({main: './Main'}, '.', './Main');
@@ -1228,6 +1227,7 @@ function test_lpm(){
   t({exports: {'.': {default: './def'}}, default: './Def'}, '.', './def');
   t({exports: {'.': {default: './def'}}, import: './Imp'}, '.', './def');
   t({exports: {'.': {import: './imp'}}, module: './Mod'}, '.', './imp');
+  t({exports: {'.': './imp'}, module: './Mod'}, '.', './imp');
   t({exports: {'.': {require: './req'}}}, '.', './req');
   t({exports: {'.': './exp'}}, './a');
   t({exports: {'./a': './b'}}, './a', './b');
