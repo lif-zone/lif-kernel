@@ -672,7 +672,11 @@ export function pkg_exports_lookup(pkg, file){
     let _tr = parse_target(tr);
     if (!_tr)
       return;
-    return export_path_match(file, best, _tr);
+    tr = export_path_match(file, best, _tr);
+    // avoid redirect loops ./*->./esm/* of ./esm/file->./esm/esm/file
+    if (export_path_match(file, _tr))
+      return file;
+    return tr;
   }
   function parse_pkg(){
     let sec, v;
@@ -1251,6 +1255,7 @@ function test_lpm(){
   t({exports: {'./ab*': './1*', './a*': './2*'}}, './abc', './1c');
   t({exports: {'./*': './B*', './abc': './A'}}, './abc', './A');
   t({exports: {'./dir/*': 'npm:mod/*'}}, './dir/a/b', 'npm:mod/a/b');
+  t({exports: {'./*': './esm/*'}}, './esm/a', './esm/a');
   t = (pkg, file, v)=>assert_obj(v, pkg_web_exports_lookup(pkg, file));
   t({web_exports: {'./abc': './def'}}, './abc', './def');
   t({web_exports: {'./abc': './def'}}, './abc/x');
