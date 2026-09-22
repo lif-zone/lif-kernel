@@ -28,7 +28,7 @@ export function esleep(ms){
 }
 
 export function eslow(ms, arg){
-  let enable = 1; // = 1 to enable, or = 0 just to trace active tasks, no print
+  let enable = 0; // = 1 to enable, or = 0 just to trace active tasks, no print
   if (enable==undefined)
     return {end: ()=>{}};
   eslow.seq ||= 0;
