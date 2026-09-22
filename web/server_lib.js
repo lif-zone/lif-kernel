@@ -227,7 +227,7 @@ function http_listener(req, res){
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
   if (v=map_uri({uri, opt: g_opt}))
     return res_send_file(res, v);
-  if (v=str.starts(req.url, '/.lif/npm/')) // devtools map files skip service worker
+  if (g_opt?.js_map && (v=str.starts(req.url, '/.lif/npm/')) && req.url.endsWith('.map'))
     return res.writeHead(302, {Location: `https://unpkg.com/${v.rest}`}).end();
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'invalid /.lif/ uri');
@@ -309,6 +309,7 @@ async function run(opt){
   let lifnet_opt = {uplink: 'default'};
   g_opt.root = opt.root||process.cwd();
   g_opt.port = opt.port||1842;
+  g_opt.js_map = true;
   argv.shift();
   argv.shift();
   while ((a=argv[0])!=undefined){
@@ -319,7 +320,9 @@ async function run(opt){
       argv.shift();
       map[argv.shift()] = argv.shift();
       break;
-    } else if (a=='-s' || a=='--ssl'){
+    } else if (a=='--no-js-map')
+      g_opt.js_map = false;
+    else if (a=='-s' || a=='--ssl'){
       argv.shift();
       g_opt.ssl = true;
     } else if (a=='-l' || a=='--local'){
