@@ -3,6 +3,11 @@ import server from './server_lib.js';
 let root = import.meta.dirname+'/..';
 let map = {};
 map['/lif-kernel'] = '.';
+map['/index.html'] = {path: './index.html', tr: {
+  __WEBAPP__: 'lif-kernel/hi.js',
+  // __BOOT_JS__: 'https://unpkg.com/lif-kernel@latest/boot.js',
+  __BOOT_JS__: '/lif-kernel/boot.js',
+}};
 // local dev
 map['/lif-basic'] = './lif-basic';
 map['/lif-os'] = '../lif-os';

@@ -1,10 +1,35 @@
 <html>
   <head>
     <script type=module>
-      //import lif from 'https://unpkg.com/lif-kernel@latest/boot.js';
-      //import lif from '/.lif.local/lif-kernel/boot.js'; // host serving
-      import lif from '/lif-kernel/boot.js'; // local dev
-      await lif.boot.boot_app({lif: {webapp: 'lif-kernel/hi.js'}});
+      async function unregister_reload(){
+        if (!navigator.serviceWorker.controller)
+          return;
+        console.log('lif boot failed loading - unreegister sw');
+        let reg = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(reg.map(r=>r.update()));
+        await Promise.all(reg.map(r=>r.unregister()));
+        localStorage.setItem('lif.boot.retry', ''+Date.now());
+        window.location.reload(true);
+      }
+      let lif;
+      let retry = +localStorage.getItem('lif.boot.retry')||0;
+      if (retry)
+        console.log('lif boot retry');
+      if (!retry || Date.now()-retry>10000){
+        setTimeout(()=>{
+          if (lif)
+            return;
+          unregister_reload();
+        }, 2000);
+      }
+      try {
+        lif = (await import('__BOOT_JS__')).default;
+      } catch(err){
+        console.error('index.html boot', err);
+        await unregister_reload();
+        throw err;
+      }
+      await lif.boot.boot_app({lif: {webapp: '__WEBAPP__'}});
     </script>
   </head>
   <body>

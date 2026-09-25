@@ -43,21 +43,26 @@ function assert_eq(exp, res){
   assert(exp===res, 'exp', exp, 'got', res);
 }
 
+function str_is(s, ...list){
+  return list.includes(s);
+}
+
 async function _on_fetch(event){
   if (sw_boot.on_fetch){
     try {
       return sw_boot.on_fetch(event);
     } catch(err){
       console.error('lif kernel sw: '+err);
+      return await fetch(event.request);
     }
-    return;
   }
   let wait = ewait();
   let {request, request: {url}} = event;
+  let is_doc = str_is(request.destination, 'document', 'iframe', 'frame');
   let u = new URL(url);
   let external = u.origin!=location.origin;
   let path = u.pathname;
-  if (external || path=='/' || request.method!='GET'){
+  if (external || is_doc || request.method!='GET'){
     console.log('passed req', url);
     return await fetch(request);
   }

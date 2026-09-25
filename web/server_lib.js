@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import {ext2mime} from '../mime_db.js';
 import '../compat/browser_env.js';
-import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc,
+import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc, OE,
   path_file, path_is_dir, str, version as util_version, OA, url_http_to_ws,
 } from '../util.js';
 import {rpc_websocket, rpc_sock_pipe, websocket_pipe} from '../rpc.js';
@@ -131,9 +131,11 @@ function res_send_file(res, _path){
     return res_err(res, 404, 'file not found');
   let h = {};
   headers_set({h, ctype});
-  if (opt?.tr_fn){
+  if (opt?.tr){
     let _body = fs.readFileSync(_path, 'utf8');
-    let body = opt.tr_fn(_body);
+    let body = _body;
+    for (let [search, replace] of OE(opt.tr))
+      body = body.replace(search, replace);
     return res_send(res, {body, ext});
   }
   res.writeHead(200, h);

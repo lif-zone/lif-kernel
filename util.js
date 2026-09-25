@@ -566,6 +566,26 @@ export function html_stylesheet_add(href){
   document.head.appendChild(html_elm('link', {rel: 'stylesheet', href}));
 }
 
+export function html_elm_frag(html){
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  return template.content.children; // returns HTMLCollection
+}
+
+export function lif_domain_parse(hostname){
+  let v;
+  let h = hostname.split('.').reverse();
+  let sub_idx;
+  if (h[0]=='localhost' || h[0]=='lif')
+    sub_idx = 1; // LIF-DOMAIN.localhost
+  else
+    sub_idx = 2; // LIF-DOMAIN.lif.zone
+  return {
+    sub: h.slice(sub_idx).reverse().join('.'),
+    root: h.slice(0, sub_idx).reverse().join('.'),
+  };
+}
+
 function test_util(){
   in_test = 1;
   let t;
@@ -707,6 +727,15 @@ function test_util(){
   scr.splice(7, 7, '-');
   scr.splice(8, 8, '-');
   t('012ABCD5-QW-  -89abcdef');
+  t = (domain, v)=>assert_obj(v, lif_domain_parse(domain));
+  t('site.lifcoin.org', {sub: 'site', root: 'lifcoin.org'});
+  t('site.localhost', {sub: 'site', root: 'localhost'});
+  t('sub.site.lifcoin.org', {sub: 'sub.site', root: 'lifcoin.org'});
+  t('sub.site.localhost', {sub: 'sub.site', root: 'localhost'});
+  t('sub.site.lif', {sub: 'sub.site', root: 'lif'});
+  t('lifcoin.org', {sub: '', root: 'lifcoin.org'});
+  t('localhost', {sub: '', root: 'localhost'});
+  t('lif', {sub: '', root: 'lif'});
   in_test = 0;
 }
 test_util();

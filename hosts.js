@@ -1,6 +1,6 @@
 // the lifnet reserved hardcoded hosts: /etc/hosts
 export const hosts = {
-  '': {redirect: 'start'}, // special handling for built-in demo_index
+  '': {redirect: '//start.lif'},
   'start': 'git://github.com/lif-zone/lif-start',
   'lif-start': 'git://github.com/lif-zone/lif-start',
   'basic': 'git://github.com/lif-zone/lif-basic@main/main.jsx',

@@ -1,5 +1,6 @@
 // LICENSE_CODE JPL hi world!
-import {OE, html_elm, str, qs_append, qs_enc} from './util.js';
+import {OE, html_elm, html_elm_frag, str, qs_append, qs_enc, lif_domain_parse,
+} from './util.js';
 import lif from './boot.js';
 import {hosts} from './hosts.js';
 
@@ -12,12 +13,6 @@ function demo_index(){
     p.appendChild(e);
     body.appendChild(p);
   }
-}
-
-function html_elm_frag(html){
-  const template = document.createElement('template');
-  template.innerHTML = html;
-  return template.content.children; // returns HTMLCollection
 }
 
 function page_domain_not_found(sub){
@@ -73,35 +68,9 @@ async function lif_kv_get(key){
   return kv.val;
 }
 
-function sub_dns(){
-  let hostname = location.hostname;
-  let v;
-  let h = hostname.split('.').reverse();
-  let sub_idx;
-  if (h[0]=='localhost')
-    sub_idx = 1; // LIF-DOMAIN.localhost
-  else
-    sub_idx = 2; // LIF-DOMAIN.lif.zone
-  return h.slice(sub_idx).reverse().join('.');
-}
-
-function webapp_default(){
-  let q = new URLSearchParams(location.search);
-  let e = [...q.entries()][0];
-  let webapp, v;
-  if (e && e[0] && !e[1])
-    webapp = e[0];
-  if (v=q.get('webapp'))
-    webapp = v;
-  if (v=hosts[webapp||''])
-    webapp = v;
-  if (webapp)
-    return webapp;
-}
-
 async function webapp_resolve(){
   let v, sub;
-  if (sub = sub_dns()){
+  if (sub = lif_domain_parse(location.hostname).sub){
     let name = sub;
     if (v = hosts[name])
       return {site: v};
@@ -113,17 +82,26 @@ async function webapp_resolve(){
       return {site: v.site};
     return {page: ()=>page_domain_not_found(sub)};
   }
-  let redirect = location.protocol+'//'+
-    hosts[''].redirect+
-    location.hostname+(location.port ? ':'+location.port : '');
-  return {redirect};
+  // root domain: http://localhost https://lifcoin.org
+  if (location.pathname!='/')
+    return {page: ()=>page_not_found()};
+  let q = new URLSearchParams(location.search);
   // XXX in the future, if ?webapp=github:... then lookup in localStorage,
   // assign to existing or new webapp--1 webapp--2... and redirect
   // (or maybe tmp--1.lifnet.com/?webapp=github:... tmp--2...)
   // if in development mode - dont redirect: allow playground on parent domain
-  if (v = webapp_default())
+  if (v=q.get('webapp'))
     return {site: v};
-  return {page: ()=>page_not_found()};
+  let qe = [...q.entries()];
+  if (qe.length==1 && qe[0][0] && !qe[0][1])
+    return {site: qe[0][0]};
+  let redirect = hosts[''].redirect;
+  let u = new URL(redirect, location);
+  u.protocol = location.protocol;
+  if (u.hostname.endsWith('.lif'))
+    u.hostname = u.hostname.replace(/\.lif$/, '.'+location.hostname);
+  u.port = location.port;
+  return {redirect: ''+u};
 }
 
 async function life(){

@@ -32,6 +32,7 @@ function Atomics_wait(array, index, value, timeout){
       console.error('Atomics timed-out');
       return 'timed-out';
     }
+    Atomics.pause();
   }
   return 'ok';
 }
