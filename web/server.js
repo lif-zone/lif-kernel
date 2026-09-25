@@ -15,5 +15,6 @@ map['/lif-coin'] = '../lif-coin';
 map['/lif-net'] = '../lif-net';
 map['/lif-wallet'] = '../lif-wallet';
 map['/lif-explorer'] = '../lif-explorer';
+map['/lif-start'] = '../lif-start';
 let peers = ['https://lifnet.net/.lif.net'];
 server({map, root, peers});
