@@ -113,6 +113,10 @@ async function webapp_resolve(){
       return {site: v.site};
     return {page: ()=>page_domain_not_found(sub)};
   }
+  let redirect = location.protocol+'//'+
+    hosts[''].redirect+
+    location.hostname+(location.port ? ':'+location.port : '');
+  return {redirect};
   // XXX in the future, if ?webapp=github:... then lookup in localStorage,
   // assign to existing or new webapp--1 webapp--2... and redirect
   // (or maybe tmp--1.lifnet.com/?webapp=github:... tmp--2...)
@@ -124,6 +128,10 @@ async function webapp_resolve(){
 
 async function life(){
   let w = await webapp_resolve();
+  if (w.redirect){
+    window.location = w.redirect;
+    return;
+  }
   if (w.site=='*demo_index')
     w.page = ()=>demo_index();
   if (w.page)

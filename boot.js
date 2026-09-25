@@ -544,7 +544,7 @@ function require_cjs_run(m, p){
 
 function require_cjs_load_sync({mod_self, imp, p}){
   imp = npm_base(mod_self, imp);
-  D && console.log('sync load', mod_self, imp);
+  D>=2 && console.log('sync load', mod_self, imp);
   let m;
   if (!p){
     if (!(m=modules[imp])){
@@ -565,6 +565,7 @@ function require_cjs_load_sync({mod_self, imp, p}){
   if (m.run || m.load_requires || p.loading)
     return m;
   p.loading = 1;
+  D && console.log('sync load', mod_self, imp);
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
     return m;
@@ -709,7 +710,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   imp = npm_base(mod_self, imp);
   let slow = eslow(15000, 'require_cjs_load('+imp+')');
   try {
-  D && console.log('async load', mod_self, imp);
+  D>=2 && console.log('async load check ', mod_self, imp);
   let m;
   if (!p){
     if (!(m=modules[imp])){
