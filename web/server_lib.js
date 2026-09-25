@@ -233,8 +233,6 @@ function http_listener(req, res){
     return res.writeHead(302, {Location: `https://unpkg.com/${v.rest}`}).end();
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'invalid /.lif/ uri');
-  console.log('spa', spa, dest);
-  console.log(req.headers);
   if (spa)
     return res_send_file(res, lif_kernel+'/index.html');
   return res_err(res, 404, 'no map found');
