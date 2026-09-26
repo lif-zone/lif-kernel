@@ -574,7 +574,7 @@ export function html_elm_frag(html){
 
 export function html_elm_frag_append(parent, html){
   let e = html_elm_frag(html);
-  for (let c of e)
+  for (let [, c] of Object.entries(e))
     parent.appendChild(c);
 }
 
