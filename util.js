@@ -586,6 +586,20 @@ export function lif_domain_parse(hostname){
   };
 }
 
+export function lif_url_tr(url, base){
+  let u = URL_parse(url);
+  if (!u || !str.is(u.protocol, 'http:', 'https:'))
+    return url;
+  if (!u.hostname.endsWith('.lif'))
+    return url;
+  base = new URL(base || location);
+  u.port = base.port;
+  let cur = lif_domain_parse(base.hostname).root;
+  u.hostname = u.hostname.replace(/\.lif$/, '.'+cur);
+  u.protocol = base.protocol;
+  return ''+u;
+}
+
 function test_util(){
   in_test = 1;
   let t;
@@ -736,6 +750,14 @@ function test_util(){
   t('lifcoin.org', {sub: '', root: 'lifcoin.org'});
   t('localhost', {sub: '', root: 'localhost'});
   t('lif', {sub: '', root: 'lif'});
+  t = (url, base, v)=>assert_obj(v, lif_url_tr(url, base));
+  t('http://wallet.lif', 'https://test.site.org', 'https://wallet.site.org/');
+  t('http://wallet.lif/test?a#b', 'https://test.site.org:/def',
+    'https://wallet.site.org/test?a#b');
+  t('http://wallet.lif/def', 'http://localhost:1803/abc',
+    'http://wallet.localhost:1803/def');
+  t('https://wallet.net/def', 'http://localhost:1803/abc',
+    'https://wallet.net/def');
   in_test = 0;
 }
 test_util();
