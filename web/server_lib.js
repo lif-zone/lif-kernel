@@ -215,7 +215,6 @@ function http_listener(req, res){
   let dest = req.headers['lif-dest'] || req.headers['sec-fetch-dest'];
   //let mode = req.headers['sec-fetch-mode'];
   let spa = dest=='document' || dest=='iframe' || dest=='frame';
-  let lif_kernel = g_opt.map['/lif-kernel'];
   // handle URLs
   if (uri=='/.lif.net/lif_kv')
     return lifnet_lif_kv_handler(req, res);
@@ -234,7 +233,7 @@ function http_listener(req, res){
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'invalid /.lif/ uri');
   if (spa)
-    return res_send_file(res, lif_kernel+'/index.html');
+    return res_send_file(res, map_uri({uri: '/', opt: g_opt}));
   return res_err(res, 404, 'no map found');
 }
 
