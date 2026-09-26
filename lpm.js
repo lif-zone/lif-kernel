@@ -5,12 +5,17 @@ let D = 0; // Debug
 let in_test = 0;
 const {T, Tf, str, assert, OE, assert_obj, assert_obj_f, assert_eq,
   url_parse, T_url_parse, URL_parse, url_proto_parse, _path_ext,
+  set_in_test,
 } = await import('./util.js');
 const mime_db = await import('./mime_db.js');
 const {semver_parse, semver_range_max, semver_range_parse, semver_cmp,
   semver_range_includes,
 } = await import('./semver.js');
 const qw = str.qw;
+
+export function lpm_in_test(set){
+  in_test += set ? +1 : -1;
+}
 
 // https://www.iana.org/assignments/uri-schemes/prov/gitoid
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json

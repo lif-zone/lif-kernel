@@ -135,7 +135,7 @@ function res_send_file(res, _path){
     let _body = fs.readFileSync(_path, 'utf8');
     let body = _body;
     for (let [search, replace] of OE(opt.tr))
-      body = body.replace(search, replace);
+      body = body.replaceAll(search, replace);
     return res_send(res, {body, ext});
   }
   res.writeHead(200, h);

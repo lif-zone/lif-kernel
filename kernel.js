@@ -1,7 +1,6 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
 export const lif_version = '2026.8.23';
 let D = 0; // debug
-let in_test = 0;
 const $lif = globalThis.$lif ||= {};
 
 const util = await import('./util.js');
@@ -10,7 +9,7 @@ const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
   T_url_parse, str_to_buf, eslow, Scroll, assert_eq, assert_obj_f,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
-const {lpm_ver_from_base, lpm_to_sw_passthrough,
+const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
   file_ctype, file_ctype_binary, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
   lpm_parse, T_lpm_lmod, lpm_to_npm, npm_to_lpm,
@@ -1597,9 +1596,9 @@ function test_kernel(){
     },
   };
   t = (imp, v)=>{
-    in_test = 1;
+    lpm_in_test(1);
     assert_eq(v, lpm_import_lookup({lpm_pkg, imp}));
-    in_test = 0;
+    lpm_in_test(0);
   };
   t('npm/self/dir/main.tsx', 'npm/self@1.2.3/dir/main.tsx');
   t('npm/mod/dir/main.tsx', 'local/MOD//dir/main.tsx');
