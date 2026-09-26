@@ -1,5 +1,6 @@
 // LICENSE_CODE JPL hi world!
-import {OE, html_elm, html_elm_frag, str, qs_append, qs_enc, lif_domain_parse,
+import {OE, html_elm, html_elm_frag_append, str, qs_append, qs_enc,
+  lif_domain_parse,
 } from './util.js';
 import lif from './boot.js';
 import {hosts} from './hosts.js';
@@ -22,7 +23,7 @@ function page_domain_not_found(sub){
   let host_rest = location.host.slice(sub.length);
   let pre = location.protocol+'//';
   let wallet = pre+'wallet'+host_rest;
-  const e = html_elm_frag(`
+  html_elm_frag_append(body, `
     <h1>Domain <a href="${location.host}"><b>${sub}</b>${domain_rest}</a> is available!</h1>
     <h2>
       No one registered <b>${sub}</b>${domain_rest} domain yet.
@@ -35,22 +36,18 @@ function page_domain_not_found(sub){
       </a> - In 5 minute, for free!
     </div>
   `);
-  for (let c; c = e[0];)
-    body.appendChild(c);
 }
 
 function page_not_found(){
   let body = document.querySelector('body');
   let uri = location.pathname+location.search;
-  const e = html_elm_frag(`
+  html_elm_frag_append(body, `
     <h1>Page ${uri} 404 page not found</h1>
     <a href=/
       style="display: inline-block; padding: 14px 28px; background-color: #0066ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;">
       Return home
     </a>
   `);
-  for (let c of e)
-    body.appendChild(c);
 }
 
 async function lif_kv_get(key){

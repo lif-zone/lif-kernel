@@ -572,6 +572,12 @@ export function html_elm_frag(html){
   return template.content.children; // returns HTMLCollection
 }
 
+export function html_elm_frag_append(parent, html){
+  let e = html_elm_frag(html);
+  for (let c of e)
+    parent.appendChild(c);
+}
+
 export function lif_domain_parse(hostname){
   let v;
   let h = hostname.split('.').reverse();
