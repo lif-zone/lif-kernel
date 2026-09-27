@@ -81,7 +81,7 @@ async function http_pipe_lif(req, res, topic, param){
   if (error)
     return res_err(res, 500, 'proxy error: '+error);
   let {result} = ret;
-  if (result.status!=200)
+  if (0 && result.status!=200)
     return res_err(res, 500, 'proxy invalid res: status '+result.status);
   if (result.body==null)
     return res_err(res, 500, 'proxy invalid res: missing body');
