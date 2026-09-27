@@ -87,7 +87,8 @@ async function http_pipe_lif(req, res, topic, param){
     return res_err(res, 500, 'proxy invalid res: missing body');
   if (!result.headers)
     return res_err(res, 500, 'proxy invalid res: missing headers');
-  res_send(res, {body: result.body, ctype: result.headers['content-type']});
+  res_send(res, {body: result.body, status: result.status,
+    ctype: result.headers['content-type']});
 }
 
 function ws_on_trunk_connect(ws){
@@ -143,11 +144,11 @@ function res_send_file(res, _path){
   stream.pipe(res);
 }
 
-function res_send(res, {body, ext, ctype}){
+function res_send(res, {body, ext, ctype, status=200}){
   ctype ||= ext2mime[ext]||'plain/text';
   let h = {};
   headers_set({h, ctype});
-  res.writeHead(200, h);
+  res.writeHead(status, h);
   res.end(body);
 }
 
