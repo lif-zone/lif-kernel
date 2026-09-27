@@ -704,7 +704,11 @@ async function git_ver_resolve({log, lmod, mod_self}){
     }
   } else if (u.ver_type=='tag')
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
-  else
+  else if (u.ver_type=='semver'){
+    // XXX need proper semver handling
+    let semver = _ver.replace(/^.*semver:[=^~]?/, '');
+    url = `https://api.github.com/repos/${u.name}/commits/v${semver}`;
+  } else
     assert(0, 'invalid ver_type');
   let reg = await reg_http_get({log, url});
   if (reg.not_exist)
