@@ -54,6 +54,7 @@
     "ipc.js",
     "rpc.js",
     "lpm.js",
+    "ast.js",
     "semver.js",
     "semver_full.js",
     "sw_boot.js",
