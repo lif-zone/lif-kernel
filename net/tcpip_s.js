@@ -275,7 +275,7 @@ export async function leaf_fetch_out({msg, sock, allow_ip}){
     method: method||'GET',
     headers: req_headers||{},
   });
-  if (res.status!=200)
+  if (0 && res.status!=200)
     return sock_error_log('failed fetch()');
   let body = await res.text();
   return {body, status: res.status, headers: Object.fromEntries(res.headers)};
