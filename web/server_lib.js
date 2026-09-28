@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import {ext2mime} from '../mime_db.js';
 import '../compat/browser_env.js';
-import {esleep, assert_eq, path_starts, path_join, path_dots, qs_enc, OE,
+import {esleep, assert_obj, path_starts, path_join, path_dots, qs_enc, OE,
   path_file, path_is_dir, str, version as util_version, OA, url_http_to_ws,
 } from '../util.js';
 import {rpc_websocket, rpc_sock_pipe, websocket_pipe} from '../rpc.js';
@@ -127,6 +127,8 @@ function res_send_file(res, _path){
   }
   let ext = (path.extname(_path)||'').slice(1);
   let ctype = ext2mime[ext]||'plain/text';
+  if (_path[0]!='/')
+    _path = path.join(g_opt.root, _path);
   let e = fs.statSync(_path, {throwIfNoEntry: false});
   if (!e || !e.isFile())
     return res_err(res, 404, 'file not found');
@@ -153,7 +155,7 @@ function res_send(res, {body, ext, ctype, status=200}){
 }
 
 function map_uri({uri, opt: {map, root}}){
-  let _uri, to;
+  let _uri, to, opt;
   if (path_is_dir(uri))
     uri = path_join(uri, 'index.html');
   for (let f in map){
@@ -166,8 +168,10 @@ function map_uri({uri, opt: {map, root}}){
   }
   if (_uri==undefined)
     return;
-  if (to.path)
-    return {uri, ...to};
+  if (to.path){
+    opt = to;
+    to = to.path;
+  }
   if (path_starts(to, '.', '..'))
     to = path_join(root, to);
   if (_uri)
@@ -175,6 +179,8 @@ function map_uri({uri, opt: {map, root}}){
   to = path_dots(to);
   if (to.endsWith('/'))
     to = path_join(to, path_file(uri)||'index.html');
+  if (opt)
+    return {...opt, uri, path: to};
   return to;
 }
 function test_server(){
@@ -183,11 +189,14 @@ function test_server(){
     '/kernel': '/root/os/kernel',
     '/this': '/that/mod',
     '/sw.js': '/root/os/kernel/sw.js',
+    '/tr.html': {path: './index.html', tr: {
+      __REPLACE__: 'replacement',
+    }},
     '/': './',
   };
   let root = '/ROOT/os';
   let t = (uri, path, opt)=>
-    assert_eq(path, map_uri({uri, opt: {root, map}}));
+    assert_obj(path, map_uri({uri, opt: {root, map}}));
   t('/', '/ROOT/os/index.html');
   t('/util.js', '/ROOT/os/util.js');
   t('/sw.js', '/root/os/kernel/sw.js');
@@ -197,6 +206,8 @@ function test_server(){
   t('/favicon.ico', '/ROOT/os/favicon.ico');
   t('/kernel/mod/favicon.ico', '/root/os/kernel/mod/favicon.ico');
   t('/this/mod/favicon.ico', '/that/mod/mod/favicon.ico');
+  t('/tr.html', {path: '/ROOT/os/index.html', uri: '/tr.html',
+    tr: {__REPLACE__: 'replacement'}});
   delete map['/'];
   t('/', undefined);
   t('/util.js', undefined);
