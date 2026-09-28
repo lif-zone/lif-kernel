@@ -1492,8 +1492,15 @@ async function _kernel_fetch(event){
       await cache_store_set(request, response);
     return response;
   }
+  if (is_doc){
+    // XXX add support for handling SPA: if (!is_reload) return spa_cache();
+    // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
+    // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
+    // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
+    return await fetch(fetch_request_document(request));
+  }
   // lif-kernel passthrough for local dev
-  if (path=='/' || path_starts(url, lif_kernel_base))
+  if (path_starts(url, lif_kernel_base))
     return await fetch(request);
   // local requests
   let _path;
@@ -1507,13 +1514,6 @@ async function _kernel_fetch(event){
     }
     let lmod = T_npm_to_lpm(_path);
     return Response.redirect('/.lif/'+lmod);
-  }
-  if (is_doc){
-    // XXX add support for handling SPA: if (!is_reload) return spa_cache();
-    // pkg.lif?.spa && str.is(request.destination, 'document', 'iframe')
-    // for serve: const des = req.headers['sec-fetch-dest']=='docunment;
-    // pkg.lif?.spa && str.is(dest, 'document', 'iframe')
-    return await fetch(fetch_request_document(request));
   }
   D && console.log('req default', url);
   let response = await fetch(request);
