@@ -981,10 +981,12 @@ function init_worker(){
 
 let lif_kernel_base = import.meta.resolve('./x').slice(0, -2);
 let boot_kernel = async()=>{
+  if (boot_kernel.wait){
+    console.log('lif boot: waiting to complete');
+    return await boot_kernel.wait;
+  }
   console.log('lif boot version: '+lif_version+' util '+util_version
     +' from '+lif_kernel_base);
-  if (boot_kernel.wait)
-    return await boot_kernel.wait;
   let wait = boot_kernel.wait = ewait();
   try {
     let serviceWorker = navigator.serviceWorker;
