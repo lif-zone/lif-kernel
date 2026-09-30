@@ -330,23 +330,24 @@ async function run(opt){
     } else if (a=='-m' || a=='--map'){
       argv.shift();
       map[argv.shift()] = argv.shift();
-      break;
     } else if (a=='--no-js-map')
       g_opt.js_map = false;
     else if (a=='-s' || a=='--ssl'){
       argv.shift();
       g_opt.ssl = true;
-    } else if (a=='-l' || a=='--local'){
-      argv.shift();
-      delete lifnet_opt.uplink;
     } else if (a=='--web'){
       argv.shift();
       g_opt.web = true;
+    } else if (a=='--no-peer'){
+      delete lifnet_opt.uplink;
+      delete g_opt.peers;
+      argv.shift();
     } else if (a=='--peer'){
       argv.shift();
       let peer_url = argv.shift();
       g_opt.peers = [...(g_opt.peers||[]), peer_url];
-    }
+    } else
+      break;
   }
   if (argv[0]!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
