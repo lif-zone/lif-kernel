@@ -494,6 +494,7 @@ export async function lifnet_connect(topic, params, opt={}){
     sock = _sock;
     rg = _rg;
     ret = _ret;
+    break;
   }
   if (!rg)
     return {error: 'no good '+topic+' servers online: '+_error};
