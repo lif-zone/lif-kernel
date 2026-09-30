@@ -157,6 +157,8 @@ class Trunk_uplink extends Trunk {
     rpc.on('error', err=>et.return(
       {error: 'lifnet trunk error '+this.url+' '+err}));
     rpc.on('close', ()=>et.return({error: 'closed'}));
+    for (let method in this.lifnet.method_fn)
+      this._rpc_method_set(rpc, method);
     let ret = yield T2E_et(()=>rpc.connect({url: this.url}));
     if (ret?.error)
       return ret;
@@ -172,8 +174,6 @@ class Trunk_uplink extends Trunk {
       let t = this.lifnet.pub_t[topic];
       rpc.call('topic_pub', {topic, data: t.data});
     }
-    for (let method in this.lifnet.method_fn)
-      this._rpc_method_set(rpc, method);
     this.emit_status('online');
     yield etask.wait();
    }.bind(this)); }
@@ -527,5 +527,4 @@ export async function lifnet_call(topic, params){
   sock?.close();
   return {ret, error};
 }
-
 

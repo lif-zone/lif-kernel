@@ -112,11 +112,12 @@ export class rpc_base extends EventEmitter {
   }
   async _emit_call(msg, opt){
     let {id, method, params} = msg;
+    let _id = JSON.stringify(id);
     let method_fn = this.method_fn[method] || this.method_fn[''];
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
-    this.D && console.log(this.pre+JSON.stringify(id)+'<> '+method, params);
+    this.D && console.log(this.pre+_id+'<> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
@@ -139,7 +140,7 @@ export class rpc_base extends EventEmitter {
     }
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log(this.pre+id+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
+      console.log(this.pre+_id+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
     this.send(res, opt);
