@@ -458,6 +458,9 @@ export async function lifnet_online({timeout}={}){
   return await wait;
 }
 
+// lifnet_connect is the equivalent of TCP connect('domain.com:80'),
+// where domain.com:80 is the server/potic, and it resolves to/ IPs/RGs,
+//and tries them one by one.
 export async function lifnet_connect(topic, params, opt={}){
   let timeout = 5000;
   if (opt.timeout!=null)
