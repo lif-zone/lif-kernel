@@ -10,6 +10,7 @@ let D = 1;
 let RETRY_MS = 1000;
 let RETRY_REST_MS = 60000;
 let uplink_default = 'wss://lifnet.net/.lif.net';
+let do_conn_ping = false;
 
 class Trunk_loopback extends EventEmitter {
   status = 'online';
@@ -312,10 +313,12 @@ export class Lifnet extends EventEmitter {
         console.warn('failed connect', ret);
         return ret;
       }
-      let ping = await sock._call('ping');
-      if (ping.error || !ping.result.pong){
-        console.warn('failed ping', ping);
-        return {error: 'no pong'};
+      if (do_conn_ping){
+        let ping = await sock._call('ping');
+        if (ping.error || !ping.result.pong){
+          console.warn('failed ping', ping);
+          return {error: 'no pong'};
+        }
       }
       return ret;
     })();
