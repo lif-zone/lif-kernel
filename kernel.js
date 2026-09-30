@@ -1372,7 +1372,6 @@ async function fetch_lpm_file({log, imp, mod_self, qs}){
 }
 
 function fetch_request_document(request){
-  console.log('req padd', request);
   if (request.destination!='document')
     return request;
   const headers = new Headers(request.headers);
