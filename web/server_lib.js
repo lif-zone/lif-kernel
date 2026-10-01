@@ -324,32 +324,27 @@ async function run(opt){
   argv.shift();
   argv.shift();
   while ((a=argv[0])!=undefined){
-    if (a=='-p' || a=='--port'){
-      argv.shift();
+    argv.shift();
+    if (a=='-p' || a=='--port')
       g_opt.port = +argv.shift();
-    } else if (a=='-m' || a=='--map'){
-      argv.shift();
+    else if (a=='-m' || a=='--map')
       map[argv.shift()] = argv.shift();
-    } else if (a=='--no-js-map')
+    else if (a=='--no-js-map')
       g_opt.js_map = false;
-    else if (a=='-s' || a=='--ssl'){
-      argv.shift();
+    else if (a=='-s' || a=='--ssl')
       g_opt.ssl = true;
-    } else if (a=='--web'){
-      argv.shift();
+    else if (a=='--web')
       g_opt.web = true;
-    } else if (a=='--no-peer'){
+    else if (a=='--no-peer'){
       delete lifnet_opt.uplink;
       delete g_opt.peers;
-      argv.shift();
     } else if (a=='--peer'){
-      argv.shift();
       let peer_url = argv.shift();
       g_opt.peers = [...(g_opt.peers||[]), peer_url];
     } else
-      break;
+      throw 'invalid arg '+a;
   }
-  if (argv[0]!=undefined)
+  if (argv.length)
     throw 'invalid args '+JSON.stringify(argv);
   if (!g_opt.web && !g_opt.lifnet_trunk){
     g_opt.web = true;
