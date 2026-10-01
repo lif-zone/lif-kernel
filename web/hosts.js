@@ -54,7 +54,7 @@ add_domains_hosts({ip: '216.227.189.196',
   hosts: 'lifcoin-node-1 ns1 ns2',
 });
 add_domains_hosts({ip: '50.7.176.34',
-  domains: 'arik.center venao.center',
+  domains: 'fartyfart.com',
   hosts: 'ns1 ns2',
 });
 add_domains_hosts({ip: '216.227.189.4',
