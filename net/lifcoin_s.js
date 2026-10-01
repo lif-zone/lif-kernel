@@ -87,14 +87,19 @@ export async function run(opt={}){
   argv.shift();
   argv.shift();
   while ((a=argv[0])!=undefined){
+    argv.shift();
     if (a=='--ip')
       opt.ip = true;
-    if (a=='--lifcoin')
+    else if (a=='--lifcoin')
       opt.lifcoin = true;
+    else if (a=='--no-peer')
+      opt.no_peer = true;
+    else
+      break;
   }
-  if (argv[0]!=undefined)
+  if (a!=undefined)
     throw 'invalid args '+JSON.stringify(argv);
-  lifnet_set({client_name: 'lifcoin_s', uplink: 'default'});
+  lifnet_set({client_name: 'lifcoin_s', uplink: opt.no_peer ? null : 'default'});
   start_leaf(opt);
 }
 
