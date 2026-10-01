@@ -95,9 +95,9 @@ export async function run(opt={}){
     else if (a=='--no-peer')
       opt.no_peer = true;
     else
-      break;
+      throw 'invalid argv '+a;
   }
-  if (a!=undefined)
+  if (argv.length)
     throw 'invalid args '+JSON.stringify(argv);
   lifnet_set({client_name: 'lifcoin_s', uplink: opt.no_peer ? null : 'default'});
   start_leaf(opt);
