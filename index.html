@@ -17,15 +17,15 @@
           window.location.reload(true);
         }
       }
-      function load_timeout(){
+      async function load_timeout(){
         if (lif || !navigator.serviceWorker.controller)
           return;
-        let res;
+        let res, _err;
         setTimeout(()=>fetch_err(), 2000);
         try {
-          res = fetch('__BOOT_JS__');
+          res = await fetch('__BOOT_JS__');
         } catch(err){
-          res = {err};
+          _err = err;
         }
         function fetch_err(){
           if (res)
