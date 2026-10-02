@@ -16,5 +16,9 @@ map['/lif-net'] = '../lif-net';
 map['/lif-wallet'] = '../lif-wallet';
 map['/lif-explorer'] = '../lif-explorer';
 map['/lif-start'] = '../lif-start';
-let peers = ['https://lifnet.net/.lif.net'];
+let peers = [
+  'https://lifnet.net/.lif.net',
+  'https://zon.life/.lif.net',
+  'https://fartyfart.com/.lif.net',
+];
 server({map, root, peers});
