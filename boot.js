@@ -123,11 +123,11 @@ function npm_imp_abs(imp, mod_self, opt){
   if (u.is.blob)
     return imp;
   let _url;
-  if ((u.is.uri || u.is.url && u.origin==location.origin) &&
-    u.path.startsWith('/.lif/'))
-  {
+  let is_lif = (u.is.uri || u.is.url && u.origin==location.origin) &&
+    u.path.startsWith('/.lif/');
+  if (is_lif)
     _url = u.path;
-  } else if (u.is.mod){
+  else if (u.is.mod){
     if (mod_self){
       let v;
       if (!(v=str.starts(mod_self, '/.lif/')))
@@ -136,16 +136,14 @@ function npm_imp_abs(imp, mod_self, opt){
     } else
       _url = '/.lif/'+T_npm_to_lpm(u.path);
   }
-  let is_lif = u.is.mod ||
-    ((u.is.uri || u.is.url && u.origin==location.origin) &&
-    u.path.startsWith('/.lif/'));
-  if (opt?.worker && is_lif)
+  let is_lif_mod = u.is.mod || is_lif;
+  if (opt?.worker && is_lif_mod)
     q.worker = '';
-  if (u.is.url && !is_lif)
+  if (u.is.url && !is_lif_mod)
     return qs_append(u.origin+u.path, q);
   if (opt?.raw)
     q.raw = '';
-  if (u.is.uri && !is_lif)
+  if (u.is.uri && !is_lif_mod)
     return qs_append(u.path, q);
   // mod
   if (opt?.type=='module')
@@ -918,7 +916,7 @@ function url_to_path(url){
 
 async function import_esm(mod_self, [imp, opt={}]){
   mod_self = url_to_path(mod_self);
-  let url = npm_imp_abs(imp, mod_self, opt);
+  let url = npm_imp_abs(imp, mod_self, {...opt, type: 'module'});
   url = url_expand(url);
   let slow;
   try {
