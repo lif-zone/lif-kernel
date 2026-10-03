@@ -246,6 +246,14 @@ function test(){
 test();
 
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
+function npm_need_mod_self(mod_self, lmod_imp){
+  if (!mod_self)
+    return;
+  let lmod_self = npm_to_lpm(mod_self);
+  if (!lmod_self)
+    return true;
+  return T_lpm_lmod(lmod_imp)!=T_lpm_lmod(lmod_self);
+}
 
 function require_cjs_get_mod(url){
   let m;
@@ -258,10 +266,12 @@ function require_cjs_load_meta_sync(p){
   if (p.res=='done' || p.res=='err')
     return p.res;
   p.res = 'loading';
-  if (!m.url.startsWith('/.lif/'))
+  let v;
+  if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
+  let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  if (p.mod_self)
+  if (npm_need_mod_self(p.mod_self, lmod))
     qs.mod_self = p.mod_self;
   let url = m.url+qs_enc(qs); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
   let req;
@@ -328,7 +338,7 @@ async function require_cjs_load_meta(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  if (p.mod_self)
+  if (npm_need_mod_self(p.mod_self, lmod))
     qs.mod_self = p.mod_self;
   let url = m.url+qs_enc(qs); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
   let req;
