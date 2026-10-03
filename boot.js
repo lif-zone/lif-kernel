@@ -1005,29 +1005,6 @@ let boot_kernel = async()=>{
   }
 };
 
-// https://web.dev/articles/cross-origin-isolation-guide
-// https://developer.chrome.com/blog/coep-credentialless-origin-trial
-// https://github.com/gzuidhof/coi-serviceworker
-// Cross-Origin-Isolation is required for SharedArrayBuffer feature
-// also, in browser, you need to activate
-// the required COI headers to enable SAB is added by service worker:
-// 'cross-origin-embedder-policy': 'require-corp'
-// 'cross-origin-opener-policy': 'same-origin'
-let coi_enable = false;
-let coi_reload = async()=>{
-  const reloaded = window.sessionStorage.getItem("coi_reload");
-  window.sessionStorage.removeItem("coi_reload");
-  if (window.crossOriginIsolated)
-    return true;
-  if (reloaded){
-    console.error('failed enabling coi');
-    return;
-  }
-  window.sessionStorage.setItem("coi_reload", true);
-  console.log('reload: to enable cross origin isolation for SAB');
-  window.location.reload();
-};
-
 async function run_html(mod_self, webapp){
   let _webapp = npm_base(webapp, mod_self);
   console.log('run_html start '+_webapp);
@@ -1058,9 +1035,6 @@ async function run_html(mod_self, webapp){
 let boot_app = async(boot_pkg)=>{
   // init kernel
   await boot_kernel();
-  // reload page for cross-origin-isolation
-  if (coi_enable)
-    await coi_reload();
   if (!boot_pkg)
     return;
   let pkg = json_cp(boot_pkg);
