@@ -410,7 +410,7 @@ function tr_mjs_import(f){
   for (let d of f.meta.imports||[]){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
-      s.splice(d.start, d.end, json(imp+'?mjs=1'));
+      s.splice(d.start, d.end, json(imp+'?mjs'));
       continue;
     }
     _v = tr_import_lpm({imp, imported: d.imported,
@@ -485,14 +485,14 @@ function mjs_import_cjs(path, q){
     qs = '?import_cjs';
   let js = '';
   js += `//# sourceURL=${path}${qs}\n`;
-  if (q.get('worker')){
+  if (q.has('worker')){
     // double space between await and import, to prevent tr import_module
     js += `let $lif_message = {q: [], fn: e=>$lif_message.q.push(e)}; `;
     js += `globalThis.addEventListener('message', $lif_message.fn); `;
     js += `let lif = (await  import('/.lif/npm/lif-kernel/boot.js')).default; `;
   }
   js += `let exports = (await globalThis.$lif.boot.require_cjs_async(null, ${json(path)}));\n`;
-  if (q.get('worker')){
+  if (q.has('worker')){
     js += `globalThis.removeEventListener('message', $lif_message.fn); `;
     js += `$lif_message.q.forEach(e=>globalThis.dispatchEvent(e)); `;
   }
@@ -770,7 +770,7 @@ async function lpm_pkg_cache_follow(lmod){
   return lpm_pkg;
 }
 
-// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
+// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw
 async function lpm_file_get({log, lmod}){
   let is_c = cache_lmod(lmod);
   let opt = is_c ? {} : cache_opt;
@@ -823,7 +823,7 @@ async function lpm_file_get_alt({log, lmod, alt}){
   return first; // not_exist
 }
 
-// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw=1
+// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw
 async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   D && console.log('lpm_file_get_follow', lmod);
   let alt, pkg;
@@ -1276,23 +1276,23 @@ async function responce_tr_send({f, qs, lmod}){
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
   let type = meta.type;
   let v;
-  if ((q.get('mjs_imp') || q.get('mjs') || type=='mjs') &&
+  if ((q.has('mjs_imp') || q.has('mjs') || type=='mjs') &&
     (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
   {
     return {body: mjs_import_mjs(meta.export_default, v), ext};
   }
-  if (q.get('mjs_imp')){
+  if (q.has('mjs_imp')){
     return {body: mjs_import_mjs(meta.export_default,
-      '/.lif/'+lmod+'?mjs=1'), ext};
+      '/.lif/'+lmod+'?mjs'), ext};
   }
-  if (q.get('mjs')==1 && (type=='mjs' || !type))
-    return {body: file_tr_mjs(f, {worker: q.get('worker')}), ext, cache: 1};
+  if (q.has('mjs') && (type=='mjs' || !type))
+    return {body: file_tr_mjs(f, {worker: q.has('worker')}), ext, cache: 1};
   if (type=='cjs' || type=='')
     return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
   if (type=='amd' || type=='')
     return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
   if (type=='mjs')
-    return {redirect: '/.lif/'+lmod+'?mjs_imp=1'};
+    return {redirect: '/.lif/'+lmod+'?mjs_imp'};
   return {err: 'invalid lpm file type '+type};
 }
 
@@ -1475,7 +1475,7 @@ async function _kernel_fetch(event){
     let slow = eslow('app_init');
     await app_init_wait; // XXX - try to remove. favicon can be handled later!
     slow.end();
-    if (q.get('meta')){
+    if (q.has('meta')){
       let meta = await fetch_lpm_meta({log, mod_self, imp: lmod});
       if (meta.err)
         console.error('parse '+url+': '+meta.err);
@@ -1507,7 +1507,7 @@ async function _kernel_fetch(event){
     console.info('req before lpm_pkg_app init '+path);
   else if (_path = pkg_web_exports_lookup(lpm_pkg_app.pkg, '.'+path)){
     if (_path.startsWith('./')){
-      _path = '/.lif/'+lpm_app+_path.slice(1)+'?raw=1';
+      _path = '/.lif/'+lpm_app+_path.slice(1)+'?raw';
       D && console.log('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }

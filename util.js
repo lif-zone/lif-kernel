@@ -426,7 +426,7 @@ export function match_glob(glob, value){
 export function qs_enc(q){
   let _q = (''+new URLSearchParams(q))
   .replaceAll('%2F', '/').replaceAll('%40', '@').replaceAll('%3A', ':')
-  .replaceAll('%2C', ',');
+  .replaceAll('%2C', ',').replaceAll('=&', '&').replaceAll(/=$/g, '');
   return _q ? '?'+_q : '';
 }
 export function qs_append(url, q){
@@ -645,7 +645,9 @@ function test_util(){
   t('abc def %2B.%0A', 'abc def +.\n');
   t('a%40%3A/.', 'a@:/.');
   t = (v, q)=>assert_eq(v, qs_enc(q));
-  t('?abc+def+%0A=', {'abc def \n': ''});
+  t('?a=1&b&c', {a: 1, b: '', c:''});
+  t('?abc+def+%0A=x', {'abc def \n': 'x'});
+  t('?abc+def+%0A', {'abc def \n': ''});
   t('?a=a@:/.%2B+', {a: 'a@:/.+ '});
   t = (v, s)=>assert_eq(v, qs_trim(s));
   t('http://site/dir', 'http://site/dir?q=21');

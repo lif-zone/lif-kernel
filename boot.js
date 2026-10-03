@@ -140,7 +140,7 @@ function npm_imp_abs(imp, mod_self, opt){
     ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
     u.path.startsWith('/.lif/'));
   if (opt?.worker && is_lif)
-    q.worker = 1;
+    q.worker = '';
   if (u.is.url && !is_lif)
     return qs_append(u.origin+u.path, q);
   if (opt?.raw)
@@ -149,7 +149,7 @@ function npm_imp_abs(imp, mod_self, opt){
     return qs_append(u.path, q);
   // mod
   if (opt?.type=='module')
-    q.mjs = 1;
+    q.mjs = '';
   if (mod_self && url_uri_type(mod_self)=='mod')
     q.mod_self = mod_self;
   return qs_append(_url, q);
@@ -232,9 +232,9 @@ function test(){
   t('/dir/dir2/file', './a/file.js', {},
     '/dir/dir2/a/file.js');
   t('/.lif/local/other.js', './a/file.js', {worker: 1},
-    '/.lif/local/a/file.js?worker=1');
+    '/.lif/local/a/file.js?worker');
   t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
-    '/.lif/local/mod//a/file.js?mjs=1');
+    '/.lif/local/mod//a/file.js?mjs');
   t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
     '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
   t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
@@ -262,10 +262,10 @@ function require_cjs_load_meta_sync(p){
   p.res = 'loading';
   if (!m.url.startsWith('/.lif/'))
     return do_ret('done');
-  let opt = {meta: 1, follow: 1};
+  let qs = {meta: '', follow: ''};
   if (p.mod_self)
-    opt.mod_self = p.mod_self;
-  let url = m.url+qs_enc(opt); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
+    qs.mod_self = p.mod_self;
+  let url = m.url+qs_enc(qs); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -329,10 +329,10 @@ async function require_cjs_load_meta(p){
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
   let lmod = v.rest;
-  let opt = {meta: 1, follow: 1};
+  let qs = {meta: '', follow: ''};
   if (p.mod_self)
-    opt.mod_self = p.mod_self;
-  let url = m.url+qs_enc(opt); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
+    qs.mod_self = p.mod_self;
+  let url = m.url+qs_enc(qs); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
   let req;
   if (p.wait)
     return await p.wait;
@@ -379,7 +379,7 @@ async function require_cjs_load_file_sync(m){
   p.res = 'loading';
   let url = m.url;
   if (m.url.startsWith('/.lif/'))
-    url += '?raw=1';
+    url += '?raw';
   let req;
   req = fetch_sync(url);
   if (req.status==200)
@@ -408,7 +408,7 @@ async function require_cjs_load_file(m){
   p.res = 'loading';
   let url = m.url;
   if (m.url.startsWith('/.lif/'))
-    url += '?raw=1';
+    url += '?raw';
   let req;
   if (p.wait)
     return await p.wait;
@@ -757,7 +757,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
     m.wait = ewait();
     // hard-coded import()s should be imported and run just before
     // require_cjs_run(). but might be also ok here already to import them
-    let e = await /*keep*/ import(m.url+'?mjs=1');
+    let e = await /*keep*/ import(m.url+'?mjs');
     m.exports = e.default || e;
     m.run = 'done';
     return m.wait.return(m);
@@ -828,7 +828,7 @@ async function import_amd(mod_self, [imp, opt]){
     return await m.wait;
   m = modules[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
-  url += '?raw=1';
+  url += '?raw';
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -885,7 +885,7 @@ async function import_worker({mod_self, imp, opt}){
   let url = npm_2url(imp, mod_self);
   let q;
   if (opt?.type=='script')
-    q = {raw: 1};
+    q = {raw: ''};
   else
     assert(0, 'module import not yet supportedd');
   url = qs_append(url, q);
@@ -1106,7 +1106,7 @@ async function run_html(mod_self, webapp){
       let f = document.createRange().createContextualFragment(
         script[i].outerHTML);
       // TODO need to modify type=module scripts:
-      // src=mod --> src=/.lif/../mod?mjs=1
+      // src=mod --> src=/.lif/../mod?mjs
       // inline scripts: need to parse their ast contents and update imports
       e.appendChild(f);
       script[i].parentNode.removeChild(script[i]);
