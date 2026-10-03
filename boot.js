@@ -175,76 +175,6 @@ function npm_base(mod_self, url){
   return u.path;
 }
 
-function test(){
-  let t;
-  t = (mod_self, url, v)=>assert_eq(v, npm_base(mod_self, url));
-  t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
-  t('.lif/local/other.js', './a/file.js', '.lif/local/a/file.js');
-  t('.lif/local/mod/', './a/file.js', '.lif/local/mod//a/file.js');
-  t('react@1.2.3', 'mod/file.js', 'mod/file.js');
-  t('react@1.2.3', 'mod@4.5.6/file.js', 'mod@4.5.6/file.js');
-  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
-  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
-  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
-  t('http://a.b/c', 'b/file.js', 'b/file.js');
-  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
-  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
-  t('http://a.b/c/', '/b/file.js', '/b/file.js');
-  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
-  t(null, location.origin+'/b/file.js', location.origin+'/b/file.js');
-  t(null, location.origin+'/.lif/npm/react', 'react');
-  t(null, location.origin+'/.lif/local/dir', '.lif/local/dir');
-  t('/a.b/c/', '/b/file.js', '/b/file.js');
-  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
-  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t(null, '/.lif/npm/mod', 'mod');
-  t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
-  t('mod@1.2.3', 'node:path', 'node:path');
-  t('mod@1.2.3', 'node:path/a/b', 'node:path/a/b');
-  t = (mod_self, url, v)=>assert_eq(v, npm_2url(url, mod_self));
-  t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
-  t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
-  t('.lif/local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
-  // XXX .lif.imp/MOD
-  0 && t('react@1.2.3', 'mod/file.js', '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
-  t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
-  t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
-  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
-  t('http://a.b/c', 'blob:a/b', 'blob:a/b');
-  t('http://a.b/c', 'data:a/b', 'data:a/b');
-  t('http://a.b/c', 'node:mod', '/.lif/npm/node:mod');
-  t('http://a.b/c', 'node:mod/a/b', '/.lif/npm/node:mod/a/b');
-  t('http://a.b/c', 'b/file.js', '/.lif/npm/b/file.js');
-  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
-  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
-  t('http://a.b/c/', '/b/file.js', '/b/file.js');
-  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
-  t('/a.b/c/', '/b/file.js', '/b/file.js');
-  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
-  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t = (mod_self, imp, opt, v)=>assert_eq(v, npm_imp_abs(imp, mod_self, opt));
-  t('/.lif/npm/mod@1.2.3/file', './a/file.js', {},
-    '/.lif/npm/mod@1.2.3/a/file.js');
-  t('/dir/dir2/file', './a/file.js', {},
-    '/dir/dir2/a/file.js');
-  t('/.lif/local/other.js', './a/file.js', {worker: 1},
-    '/.lif/local/a/file.js?worker');
-  t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
-    '/.lif/local/mod//a/file.js?mjs');
-  t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
-  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
-  t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
-  t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
-  t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
-}
-test();
-
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
 function npm_need_mod_self(mod_self, lmod_imp){
   if (!mod_self)
@@ -1196,6 +1126,76 @@ if (!is_worker){
   globalThis.orig_SharedWorker = SharedWorker;
   globalThis.SharedWorker = lif_SharedWorker;
 }
+
+function test(){
+  let t;
+  t = (mod_self, url, v)=>assert_eq(v, npm_base(mod_self, url));
+  t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
+  t('.lif/local/other.js', './a/file.js', '.lif/local/a/file.js');
+  t('.lif/local/mod/', './a/file.js', '.lif/local/mod//a/file.js');
+  t('react@1.2.3', 'mod/file.js', 'mod/file.js');
+  t('react@1.2.3', 'mod@4.5.6/file.js', 'mod@4.5.6/file.js');
+  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
+  t('http://a.b/c', 'b/file.js', 'b/file.js');
+  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
+  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
+  t('http://a.b/c/', '/b/file.js', '/b/file.js');
+  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
+  t(null, location.origin+'/b/file.js', location.origin+'/b/file.js');
+  t(null, location.origin+'/.lif/npm/react', 'react');
+  t(null, location.origin+'/.lif/local/dir', '.lif/local/dir');
+  t('/a.b/c/', '/b/file.js', '/b/file.js');
+  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
+  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
+  t(null, '/.lif/npm/mod', 'mod');
+  t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
+  t('mod@1.2.3', 'node:path', 'node:path');
+  t('mod@1.2.3', 'node:path/a/b', 'node:path/a/b');
+  t = (mod_self, url, v)=>assert_eq(v, npm_2url(url, mod_self));
+  t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
+  t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
+  t('.lif/local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
+  // XXX .lif.imp/MOD
+  0 && t('react@1.2.3', 'mod/file.js', '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
+  t('react@1.2.3', 'mod/file.js', '/.lif/npm/mod/file.js');
+  t('react@1.2.3', 'mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
+  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
+  t('http://a.b/c', 'blob:a/b', 'blob:a/b');
+  t('http://a.b/c', 'data:a/b', 'data:a/b');
+  t('http://a.b/c', 'node:mod', '/.lif/npm/node:mod');
+  t('http://a.b/c', 'node:mod/a/b', '/.lif/npm/node:mod/a/b');
+  t('http://a.b/c', 'b/file.js', '/.lif/npm/b/file.js');
+  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
+  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
+  t('http://a.b/c/', '/b/file.js', '/b/file.js');
+  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
+  t('/a.b/c/', '/b/file.js', '/b/file.js');
+  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
+  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
+  t = (mod_self, imp, opt, v)=>assert_eq(v, npm_imp_abs(imp, mod_self, opt));
+  t('/.lif/npm/mod@1.2.3/file', './a/file.js', {},
+    '/.lif/npm/mod@1.2.3/a/file.js');
+  t('/dir/dir2/file', './a/file.js', {},
+    '/dir/dir2/a/file.js');
+  t('/.lif/local/other.js', './a/file.js', {worker: 1},
+    '/.lif/local/a/file.js?worker');
+  t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
+    '/.lif/local/mod//a/file.js?mjs');
+  t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
+    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
+  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
+    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
+  t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
+  t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
+}
+test();
 
 lif.boot = {
   miani: 'ANKI IHUH ALUHIK:LA IHIH LK ALUHIM AhRIM EL PNI:LA TSA AT SM IHUH ALUHK LSUA:ZKUR AT IUM HSBT LQDSU:KBD AT AUIK UAT AMK:LA TRXh:LA TNAF:LA TGNU:LA TONH BROK OD SQR:LA ThMD BIT ROK:',
