@@ -1100,7 +1100,7 @@ let boot_app = async(boot_pkg)=>{
   return ret;
 };
 
-if (!is_worker){
+function mainthread_setup(){
   function imp_url(url, opt){
     url = url.href || url;
     let mod_self = npm_root && npm_2url(npm_root);
@@ -1215,13 +1215,12 @@ lif.boot = {
   define_amd_get_mod,
   import_cjs_namespace,
 };
-if (is_worker){
+if (!is_worker){
+  mainthread_setup();
+  OA(lif.boot, {boot_kernel, boot_app});
+} else {
   OA(lif.boot, {_importScripts});
   init_worker();
 }
-if (!is_worker)
-  OA(lif.boot, {boot_kernel, boot_app});
-// globalThis.define = define;
-// globalThis.require = require;
 
 export default lif;
