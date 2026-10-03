@@ -252,7 +252,7 @@ function sha256_hex(v){
   return sha256.digest(v).toHex();
 }
 
-async function require_cjs_load_meta(p){
+async function require_cjs_load_meta_async(p){
   let m = p.m;
   function do_ret(res){
     p.res = res;
@@ -309,6 +309,7 @@ async function require_cjs_load_meta(p){
     assert.obj(p.meta, meta_c);
   return do_ret('done');
 }
+
 async function require_cjs_load_file_sync(m){
   let p = m.file ||= {};
   function do_ret(res){ return p.res = res; }
@@ -336,7 +337,7 @@ async function require_cjs_load_file_sync(m){
   return do_ret('done');
 }
 
-async function require_cjs_load_file(m){
+async function require_cjs_load_file_async(m){
   let p = m.file ||= {};
   function do_ret(res){
     return p.wait.return(p.res = res);
@@ -400,7 +401,7 @@ function require_cjs_cond_static(req, text){
   return _static;
 }
 
-async function require_cjs_load_requires(m, loading){
+async function require_cjs_load_requires_async(m, loading){
   if (m.load_requires)
     return;
   for (let req of m.meta.requires||[]){
@@ -672,7 +673,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
     return m;
   loading.push(p);
   D && console.log('async load', mod_self, imp);
-  await require_cjs_load_meta(p);
+  await require_cjs_load_meta_async(p);
   if (p.res!='done')
     return m;
   if (p.meta.redirect){
@@ -686,7 +687,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
   }
   m.meta = p.meta;
   m.type = m.meta.type;
-  await require_cjs_load_file(m);
+  await require_cjs_load_file_async(m);
   if (m.file.res!='done')
     return m;
   if (m.type=='mjs'){
@@ -708,7 +709,7 @@ async function require_cjs_load({mod_self, imp, p, loading}){
     await import_amd_load_requires(m, loading);
     return m.wait.return(m);
   }
-  await require_cjs_load_requires(m, loading);
+  await require_cjs_load_requires_async(m, loading);
   return m;
   } finally { slow.end(); }
 }
