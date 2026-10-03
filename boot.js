@@ -1198,7 +1198,8 @@ function test(){
 test();
 
 lif.boot = {
-  miani: 'ANKI IHUH ALUHIK:LA IHIH LK ALUHIM AhRIM EL PNI:LA TSA AT SM IHUH ALUHK LSUA:ZKUR AT IUM HSBT LQDSU:KBD AT AUIK UAT AMK:LA TRXh:LA TNAF:LA TGNU:LA TONH BROK OD SQR:LA ThMD BIT ROK:',
+  miani: 'ANKI IHUH ALUHIK:LA IHIH LK ALUHIM AhRIM OL PNI:LA TSA AT SM IHUH ALUHK LSUA:ZKUR AT IUM HSBT LQDSU:KBD AT AUIK UAT AMK:LA TRXh:LA TNAF:LA TGNU:LA TONH BROK OD SQR:LA ThMD BIT ROK:',
+  //     'ANKI IHUH ALUHIK:LA IHIH LK ALUHIM AhRIM EL PNI:LA TSA AT SM IHUH ALUHK LSUA:ZKUR AT IUM HSBT LQDSU:KBD AT AUIK UAT AMK:LA TRXh:LA TNAF:LA TGNU:LA TONH BROK OD SQR:LA ThMD BIT ROK:',
   //     'ANKI YHVH ALOHYK:LA YHYH LK ALOHIM AJRIM EL PNY:LA TSA AT SM YHVH ALOHK LSVA:ZKOR AT YOM HSBT LQDSO:KBD AT AVIK VAT AMK:LA TRXJ:LA TNAF:LA TGNV:LA TENH BREK ED SQR:LA TJMD BYT REK:',
   //     'anki yhvh alohyk:la yhyh lk alohim ajrim el pny:la tsa at sm yhvh alohk lsva:zkor at yom hsbt lqdso:kbd at avik vat amk:la trxj:la tnaf:la tgnv:la tenh brek ed sqr:la tjmd byt rek:',
   //     'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
