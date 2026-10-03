@@ -123,7 +123,7 @@ function npm_imp_abs(imp, mod_self, opt){
   if (u.is.blob)
     return imp;
   let _url;
-  if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
+  if ((u.is.uri || u.is.url && u.origin==location.origin) &&
     u.path.startsWith('/.lif/'))
   {
     _url = u.path;
@@ -137,7 +137,7 @@ function npm_imp_abs(imp, mod_self, opt){
       _url = '/.lif/'+T_npm_to_lpm(u.path);
   }
   let is_lif = u.is.mod ||
-    ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
+    ((u.is.uri || u.is.url && u.origin==location.origin) &&
     u.path.startsWith('/.lif/'));
   if (opt?.worker && is_lif)
     q.worker = '';
@@ -167,7 +167,7 @@ function npm_2url(url, mod_self){
 function npm_base(mod_self, url){
   let u = T_npm_url_base(url, mod_self);
   let v;
-  if ((u.is.uri || u.is.url && u.origin==globalThis.origin) &&
+  if ((u.is.uri || u.is.url && u.origin==location.origin) &&
     (v=str.starts(u.path, '/.lif/')))
   {
     return lpm_to_npm(v.rest);
@@ -194,9 +194,9 @@ function test(){
   t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
   t('http://a.b/c/', '/b/file.js', '/b/file.js');
   t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
-  t(null, globalThis.origin+'/b/file.js', globalThis.origin+'/b/file.js');
-  t(null, globalThis.origin+'/.lif/npm/react', 'react');
-  t(null, globalThis.origin+'/.lif/local/dir', '.lif/local/dir');
+  t(null, location.origin+'/b/file.js', location.origin+'/b/file.js');
+  t(null, location.origin+'/.lif/npm/react', 'react');
+  t(null, location.origin+'/.lif/local/dir', '.lif/local/dir');
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
@@ -247,7 +247,7 @@ function test(){
 }
 test();
 
-let url_expand = Tf(url=>(new URL(url, globalThis.location)).href || url);
+let url_expand = Tf(url=>(new URL(url, location)).href || url);
 
 function require_cjs_get_mod(url){
   let m;
@@ -967,14 +967,14 @@ function _importScripts(mod_self, mods){
 }
 
 function new_importScripts(...mods){
-  _importScripts(globalThis.origin, mods);
+  _importScripts(location.origin, mods);
 }
 
 function init_worker(){
   if (init_worker.inited)
     return;
   init_worker.inited = true;
-  console.log('lif init_worker '+globalThis.location+' '+(globalThis.name||''));
+  console.log('lif init_worker '+location+' '+(globalThis.name||''));
   globalThis.orig_importScripts = globalThis.importScripts;
   globalThis.importScripts = new_importScripts;
 }
