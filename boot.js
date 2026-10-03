@@ -1168,6 +1168,13 @@ function test(){
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
   t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
+  t = (mod_self, lmod_imp, v)=>
+    assert_eq(v, npm_need_mod_self(mod_self, lmod_imp));
+  t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 
+    true);
+  t('base64-js/index.js', 'npm/buffer@6.0.3/index.js', true);
+  t('buffer@6.1.0/other.js', 'npm/buffer@6.0.3/index.js', true);
+  t('buffer@6.0.3/other.js', 'npm/buffer@6.0.3/index.js', false);
 }
 test();
 
