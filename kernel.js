@@ -1283,7 +1283,7 @@ async function responce_tr_send({f, qs, lmod}){
   }
   if (q.has('mjs_imp')){
     return {body: mjs_import_mjs(meta.export_default,
-      '/.lif/'+lmod+'?mjs'), ext};
+      '/.lif/'+lmod+'?mjs'), ext, cache: 1};
   }
   if (q.has('mjs') && (type=='mjs' || !type))
     return {body: file_tr_mjs(f, {worker: q.has('worker')}), ext, cache: 1};

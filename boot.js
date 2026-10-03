@@ -144,7 +144,7 @@ function npm_imp_abs(imp, mod_self, opt){
   if (u.is.url && !is_lif)
     return qs_append(u.origin+u.path, q);
   if (opt?.raw)
-    q.raw = 1;
+    q.raw = '';
   if (u.is.uri && !is_lif)
     return qs_append(u.path, q);
   // mod
