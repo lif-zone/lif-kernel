@@ -718,12 +718,9 @@ function require_cjs_sync(mod_self, imp){
   D && console.log('require_cjs_sync '+(mod_self||'')+' -> '+imp);
   let p = modules[imp]?.parent[mod_self];
   let m;
-  if (p)
-    m = require_cjs_load_sync({p, mod_self, imp});
-  else {
+  if (!p)
     console.log('dynamic sync require('+imp+') in '+mod_self);
-    m = require_cjs_load_sync({mod_self, imp});
-  }
+  m = require_cjs_load_sync({p, mod_self, imp});
   require_cjs_run(m);
   return m.exports;
 }
