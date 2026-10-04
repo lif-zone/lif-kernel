@@ -972,6 +972,7 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   assert(lpm_self, 'module('+lmod+') req before app set');
   // add to tree
   lpm_pkg.parent = lpm_self;
+  assert(lpm_self.child, 'there is a lurking bug here');
   lpm_self.child.push(lpm_pkg);
   lpm_pkg.child = [];
   lpm_pkg.log = log;
