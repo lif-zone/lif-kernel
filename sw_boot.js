@@ -151,22 +151,22 @@ async function import_module(url, mod_self=lif_kernel_base+'/'){
       throw Error('sw import_module('+url+') failed fetch');
     let body = await response.text();
     let tr = esm_kernel_tr(body);
-    imod.script = `'use strict';
-      let module = {exports: {}};
-      let exports = module.exports;
-      let import_module = (mod, mod_self)=>globalThis.$lif.import_module(mod, mod_self||${json(url)});
-      module.wait = (async()=>{
-      ${tr}
-      })();
-      module;
-    `;
+    imod.script = 
+      `'use strict'; `
+      +`let module = {exports: {}}; `
+      +`let exports = module.exports; `
+      +`let import_module = (mod, mod_self)=>globalThis.$lif.import_module(mod, mod_self||${json(url)}); `
+      +`module.wait = (async()=>{ `
+      +`${tr} `
+      +`})(); `
+      +`module;\n`
+      +`//# sourceURL=${url}\n`;
   } catch(err){
     console.error('import('+url+') failed', err);
     throw imod.wait.throw(err);
   }
   try {
-    let module = eval?.(
-      `//# sourceURL=${url}\n${imod.script}`);
+    let module = eval?.(imod.script);
     await module.wait;
     imod.exports = module.exports;
     if (imod.exports.default===undefined)
