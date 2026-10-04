@@ -43,20 +43,76 @@ function db_upgrade(db, table, opt){
   }
 }
 
+let storage_bucket;
+let idb_api = {
+  openDB: idb.openDB.bind(idb.openDB),
+  deleteDB: idb.deleteDB.bind(idb.deleteDB),
+};
+function storage_bucket_init(){
+  let storageBuckets = navigator.storageBuckets; // chrome >=122
+  if (!storageBuckets)
+    return;
+  idb_api = {
+    openDB: async function(name, version, callbacks={}) {
+      storage_bucket ||= await storageBuckets.open('lif-cache', {
+        persisted: false,
+        durability: 'relaxed',
+      });
+      const {upgrade, blocked, blocking, terminated} = callbacks;
+      const request = storage_bucket.indexedDB.open(name, version);
+      if (upgrade){
+        request.addEventListener('upgradeneeded', event=>{
+          upgrade(
+            idb.wrap(request.result),
+            event.oldVersion,
+            event.newVersion,
+            idb.wrap(request.transaction),
+            event,
+          );
+        });
+      }
+      if (blocked){
+        request.addEventListener('blocked', event=>{
+          blocked(event.oldVersion, event.newVersion, event);
+        });
+      }
+      const db = await idb.wrap(request);
+      if (blocking){
+        db.addEventListener('versionchange', event=>{
+          blocking(event.oldVersion, event.newVersion, event);
+        });
+      }
+      if (terminated)
+        db.addEventListener('close', ()=>terminated());
+      return db;
+    },
+    deleteDB: async function(name, {blocked}={}){
+      const request = storage_bucket.indexedDB.deleteDatabase(name);
+      if (blocked){
+        request.addEventListener('blocked', event=>{
+          blocked(event.oldVersion, event.newVersion, event);
+        });
+      }
+      return idb.wrap(request);
+    }
+  };
+}
+storage_bucket_init();
+
 let cache_ver = 22;
 async function db_open(){ // use storageBuckets
-  if (!db){
-    db = await idb.openDB('lif-kernel-'+cache_ver, 1, {
-      upgrade(db, old_ver, new_ver){
-        let opt = {del_create: true};
-        console.log('upgrade cache db '+old_ver+' -> '+new_ver);
-        db_upgrade(db, 'js_to_meta', {keyPath: ['h_js'], ...opt});
-        db_upgrade(db, 'tsx_to_js', {keyPath: ['h_tsx'], ...opt});
-        db_upgrade(db, 'lpm_file', {keyPath: ['lmod'], ...opt});
-        db_upgrade(db, 'lpm_ver', {keyPath: ['lmod'], ...opt});
-      }
-    });
-  }
+  if (db)
+    return db;
+  db = await idb_api.openDB('lif-kernel-'+cache_ver, 1, {
+    upgrade(db, old_ver, new_ver){
+      let opt = {del_create: true};
+      console.log('upgrade cache db '+old_ver+' -> '+new_ver);
+      db_upgrade(db, 'js_to_meta', {keyPath: ['h_js'], ...opt});
+      db_upgrade(db, 'tsx_to_js', {keyPath: ['h_tsx'], ...opt});
+      db_upgrade(db, 'lpm_file', {keyPath: ['lmod'], ...opt});
+      db_upgrade(db, 'lpm_ver', {keyPath: ['lmod'], ...opt});
+    }
+  });
   return db;
 }
 
