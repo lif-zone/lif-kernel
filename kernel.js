@@ -1328,6 +1328,14 @@ async function lpm_file_resolve_follow({log, imp, mod_self}){
 }
 
 async function fetch_lpm_meta({log, imp, mod_self}){
+  let v;
+  let u = T_lpm_parse(imp);
+  if (v=str.starts(u.path, '/.lif.imp/')){
+    let ret = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
+    if (ret.redirect)
+      ret.redirect = lpm_to_npm(ret.redirect);
+    return ret;
+  }
   let f = await lpm_file_resolve_follow({log, imp, mod_self});
   if (f.not_exist || f.redirect)
     return f;

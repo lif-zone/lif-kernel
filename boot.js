@@ -176,13 +176,13 @@ function npm_base(mod_self, url){
 }
 
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
-function npm_need_mod_self(mod_self, lmod_imp){
+function npm_need_mod_self(mod_self, lmod){
   if (!mod_self)
     return;
   let lmod_self = npm_to_lpm(mod_self);
   if (!lmod_self)
     return true;
-  return T_lpm_lmod(lmod_imp)!=T_lpm_lmod(lmod_self);
+  return T_lpm_lmod(lmod)!=T_lpm_lmod(lmod_self);
 }
 
 function require_cjs_get_mod(url){
@@ -190,6 +190,15 @@ function require_cjs_get_mod(url){
   assert(m = modules[url], 'module '+url+' not loaded');
   return m;
 }
+
+function npm_imp_url({mod_self, lmod}){
+  let lpm;
+  let lmod_self = mod_self && npm_to_lpm(mod_self);
+  if (mod_self && T_lpm_lmod(lmod)!=(lpm=T_lpm_lmod(lmod_self)))
+    return '/.lif/'+lpm+'/.lif.imp/'+lpm_to_npm(lmod);
+  return '/.lif/'+lmod; // m.url
+}
+
 function require_cjs_load_meta_sync(p){
   let m = p.m;
   function do_ret(res){ return p.res = res; }
@@ -201,9 +210,7 @@ function require_cjs_load_meta_sync(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  if (npm_need_mod_self(p.mod_self, lmod))
-    qs.mod_self = p.mod_self;
-  let url = m.url+qs_enc(qs); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
+  let url = npm_imp_url({mod_self: p.mod_self, lmod})+qs_enc(qs);
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -268,9 +275,7 @@ async function require_cjs_load_meta_async(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  if (npm_need_mod_self(p.mod_self, lmod))
-    qs.mod_self = p.mod_self;
-  let url = m.url+qs_enc(qs); // XXX /lif/${npm2lpm(lmod_self).lmod}/.lif.imp/$lmod
+  let url = npm_imp_url({mod_self: p.mod_self, lmod})+qs_enc(qs);
   let req;
   if (p.wait)
     return await p.wait;
@@ -826,15 +831,14 @@ function exports_to_esm(exports){
 }
 
 async function import_worker({mod_self, imp, opt}){
-  let url = npm_2url(imp, mod_self);
+  let _imp = npm_2url(imp, mod_self);
   let q;
   if (opt?.type=='script')
     q = {raw: ''};
   else
     assert(0, 'module import not yet supportedd');
-  url = qs_append(url, q);
-  imp = npm_2url(imp, mod_self);
-  let exports = await import_module_script({mod_self, imp, url,
+  let url = qs_append(_imp, q);
+  let exports = await import_module_script({mod_self, imp: _imp, url,
     opt: {worker: 1}});
   return exports_to_esm(exports);
 }
@@ -1174,13 +1178,21 @@ function test(){
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
   t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
-  t = (mod_self, lmod_imp, v)=>
-    assert_eq(v, npm_need_mod_self(mod_self, lmod_imp));
+  t = (mod_self, lmod, v)=>
+    assert_eq(v, npm_need_mod_self(mod_self, lmod));
   t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 
     true);
   t('base64-js/index.js', 'npm/buffer@6.0.3/index.js', true);
   t('buffer@6.1.0/other.js', 'npm/buffer@6.0.3/index.js', true);
   t('buffer@6.0.3/other.js', 'npm/buffer@6.0.3/index.js', false);
+  t = (mod_self, lmod, v)=>
+    assert_eq(v, npm_imp_url({mod_self, lmod}));
+  t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 
+    '/.lif/npm/react-dom@19.2.6/.lif.imp/react');
+  t('buffer@6.1.0/other.js', 'npm/buffer@6.0.3/index.js',
+    '/.lif/npm/buffer@6.1.0/.lif.imp/buffer@6.0.3/index.js');
+  t('buffer@6.0.3/other.js', 'npm/buffer@6.0.3/index.js',
+    '/.lif/npm/buffer@6.0.3/index.js');
 }
 test();
 
