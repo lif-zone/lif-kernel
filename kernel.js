@@ -399,6 +399,7 @@ function tr_import_lpm({imp, imported, lmod_self, pkg}){
     return v;
   v = lpm_imp_rel(imp, lmod_self);
   let q = {};
+  q.mjs = '';
   if (imported)
     q.imported = imported.join(',');
   v += qs_enc(q);
