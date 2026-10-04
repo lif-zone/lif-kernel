@@ -94,6 +94,10 @@ export function T_lpm_parse(lpm){
   }
   function next_submod(){
     let j = p.indexOf('', i);
+    if (j<0)
+      return '';
+    if (p[i]=='.lif.imp')
+      return '';
     if (j==i){
       // in nodejs require('util/') forces it to use npm util, not builtin util
       // but probably should not be allowed for other uses
@@ -101,8 +105,6 @@ export function T_lpm_parse(lpm){
         throw Error('invalid empty submod: '+lpm);
       return '';
     }
-    if (j<0)
-      return '';
     let submod = '/'+p.slice(i, j).join('/')+'/';
     i = j+1;
     return submod;
@@ -934,6 +936,10 @@ function test_lpm(){
     lmod: 'npm/mod', path: '/dir/file'});
   t('npm/mod/dir/', {reg: 'npm', submod: '/dir/',
     lmod: 'npm/mod/dir/', path: ''});
+  t('npm/mod/.lif.imp/', {reg: 'npm', submod: '',
+    lmod: 'npm/mod', path: '/.lif.imp/'});
+  t('npm/mod/.lif.imp/dir/', {reg: 'npm', submod: '',
+    lmod: 'npm/mod', path: '/.lif.imp/dir/'});
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
     lmod: 'npm/mod/sub/', path: '/'});
   t('npm/mod/', {reg: 'npm', submod: '', lmod: 'npm/mod', path: '/'});
