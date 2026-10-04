@@ -43,7 +43,7 @@ function db_upgrade(db, table, opt){
   }
 }
 
-let cache_ver = 21;
+let cache_ver = 22;
 async function db_open(){ // use storageBuckets
   if (!db){
     db = await idb.openDB('lif-kernel', cache_ver, {
