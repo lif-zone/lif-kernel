@@ -458,18 +458,21 @@ function require_cjs_run(m, p){
     return await require_cjs_async(m.id, imp);
   };
   m.require.module = m; // debug
-  let js = `//# sourceURL=${m.url}\n`;
   let script = m.script;
   assert(typeof script=='string', 'invalid script type');
   if (script.startsWith('#!'))
     script = '//'+script;
-  js += `'use strict';
-    let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.id)});
-    let exports = module.exports;
-    let require = module.require;
-    let __dirname = ${json(path_dir(m.id))};
-    let __filename = ${json(path_file(m.id))};
-    (function(){\n${script}\n})();`;
+  let js =
+    `'use strict'; `
+    +`let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.id)}); `
+    +`let exports = module.exports; `
+    +`let require = module.require; `
+    +`let __dirname = ${json(path_dir(m.id))}; `
+    +`let __filename = ${json(path_file(m.id))}; `
+    +`(function(){ `
+    +`${script}\n`
+    +`})();\n`
+    +`//# sourceURL=${m.url}\n`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -616,7 +619,6 @@ function import_amd_run_define(m, loading){
   // define() was detected, so run the module to get the define import list,
   // and the export_fn
   // implementation of AMD define()
-  let js = `//# sourceURL=${m.url}\n`;
   let called = 0;
   let eval_completed = false;
   m.define = function(id, reqs, factory){
@@ -631,8 +633,13 @@ function import_amd_run_define(m, loading){
   m.define.amd = {};
   m.amd_imp = [];
   m.define.module = m; // debug
-  js += `let define = globalThis.$lif.boot.define_amd_get_mod(${json(m.id)}).define;`;
-  js += `(function(){\n${m.script}\n}());`;
+  // dont put \n before script to keep original line locations
+  let js =
+    `let define = globalThis.$lif.boot.define_amd_get_mod(${json(m.id)}).define; `
+    +`(function(){ `
+    +`${m.script}\n`
+    +`}());\n`
+    +`//# sourceURL=${m.url}\n`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -801,7 +808,7 @@ let import_module_script = async({mod_self, imp, url})=>{
     console.error('import('+url+') failed', err);
     throw m.wait.throw(err);
   }
-  let js = `//# sourceURL=${url}\n(function(){\n${m.script}\n}());`;
+  let js = `(function(){ ${m.script}\n}());\n//# sourceURL=${url}\n`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
@@ -894,7 +901,7 @@ function importScripts_single(mod_self, [mod, opt={}]){
   // from preventing the top level functions and var of the import stript to
   // be be "exported" (added) to the global context.
   let exports = eval.call(globalThis,
-    `//# sourceURL=${url}\n;${script}`);
+    `${script}\n//# sourceURL=${url}\n`);
 }
 
 function _importScripts(mod_self, mods){
