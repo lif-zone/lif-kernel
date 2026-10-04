@@ -481,8 +481,6 @@ function file_tr_mjs(f, opt){
 function mjs_import_cjs(path, q){
   let imported = q.get('imported')?.split(',');
   let qs = qs_enc(q);
-  if (!qs)
-    qs = '?import_cjs';
   let js = '';
   if (q.has('worker')){
     // double space between await and import, to prevent tr import_module
