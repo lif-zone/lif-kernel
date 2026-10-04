@@ -46,7 +46,7 @@ function db_upgrade(db, table, opt){
 let cache_ver = 22;
 async function db_open(){ // use storageBuckets
   if (!db){
-    db = await idb.openDB('lif-kernel', cache_ver, {
+    db = await idb.openDB('lif-kernel-'+cache_ver, 1, {
       upgrade(db, old_ver, new_ver){
         let opt = {del_create: true};
         console.log('upgrade cache db '+old_ver+' -> '+new_ver);
