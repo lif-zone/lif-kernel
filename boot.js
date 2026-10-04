@@ -462,6 +462,7 @@ function require_cjs_run(m, p){
   assert(typeof script=='string', 'invalid script type');
   if (script.startsWith('#!'))
     script = '//'+script;
+  // dont put \n before script to keep original line locations synced
   let js =
     `'use strict'; `
     +`let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.id)}); `
@@ -633,7 +634,7 @@ function import_amd_run_define(m, loading){
   m.define.amd = {};
   m.amd_imp = [];
   m.define.module = m; // debug
-  // dont put \n before script to keep original line locations
+  // dont put \n before script to keep original line locations synced
   let js =
     `let define = globalThis.$lif.boot.define_amd_get_mod(${json(m.id)}).define; `
     +`(function(){ `
