@@ -902,7 +902,7 @@ function importScripts_single(mod_self, [mod, opt={}]){
   // from preventing the top level functions and var of the import stript to
   // be be "exported" (added) to the global context.
   let exports = eval.call(globalThis,
-    `${script}\n//# sourceURL=${url}\n`);
+    `; ${script}\n//# sourceURL=${url}\n`);
 }
 
 function _importScripts(mod_self, mods){
