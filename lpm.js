@@ -423,12 +423,6 @@ export function lpm_imp_rel(imp, lmod_self){
   return rel_root+'.lif.imp/'+imp;
 }
 
-export function lpm_imp_abs(imp, lmod_self){
-  let depth = lpm_parse(lmod_self).path.split('/').length-2;
-  let rel_root = depth<=0 ? './' : '../'.repeat(depth);
-  return '/.lif/'+rel_root+'.lif.imp/'+imp;
-}
-
 export function url_uri_type(url_uri){
   if (!url_uri)
     throw Error('empty url_uri');
