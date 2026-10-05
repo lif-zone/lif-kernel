@@ -489,17 +489,24 @@ export function lifnet_connect(topic, params, opt={}){
     return {error: 'no '+topic+' servers online'};
   }
   let rg, sock, _error, res;
+  let rg_addr = [];
   for (let id of addr){
     let _rg = g_rg[id] ||= {id};
     if (opt.rg_block?.(_rg))
       continue;
-    let {sock: _sock, wait} = lifnet.connect(id, topic, params);
+    rg_addr.push(_rg);
+  }
+  rg_addr.sort((a, b)=>(a.error_tm||0) - (b.error_tm||0));
+  for (let _rg of rg_addr){
+    let {sock: _sock, wait} = lifnet.connect(_rg.id, topic, params);
     wait = etask.wait_ext(wait);
     this.alarm(timeout, ()=>wait.return({error: 'timeout connect'}));
     let _ret = yield wait;
     this.del_alarm();
     if (_ret?.error){
-      console.log('failed connecting to '+id);
+      console.log('failed connecting to '+_rg.id);
+      _rg.error_tm = Date.now();
+      _rg.error = _ret.error;
       _error = _ret.error;
       continue;
     }
