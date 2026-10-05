@@ -681,7 +681,7 @@ E.prototype.alarm = function(ms, cb){
 
 E.prototype.once = function(event, cb){
   if (cb)
-    return EventEmitter.prototype.once.call(event, cb);
+    return EventEmitter.prototype.once.call(this, event, cb);
   // XXX missing unit-test for this case. also - the best place to support
   // this is in EventEmitter.prototype.once - no cb: return Promise
   return EventEmitter.once(event);
