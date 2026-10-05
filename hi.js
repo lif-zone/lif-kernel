@@ -106,17 +106,26 @@ function load_progress(){
     'position:fixed;top:0;left:0;width:100%;height:100%;display:flex;'
     +'align-items:center;justify-content:center;font-family:sans-serif;'
     +'color:#888;font-size:14px'});
-  elm.textContent = 'Loading…';
+  let img = html_elm('img', {src: '/.lif/npm/lif-kernel/favicon.ico',
+    style: 'height:14px;width:14px;margin-right:6px'});
+  if (0) elm.appendChild(img);
+  let txt = document.createTextNode('Loading…');
+  elm.appendChild(txt);
   document.body.appendChild(elm);
-  setInterval(async function(){
+  let last = 0;
+  let iv = setInterval(async function(){
     let stats = await lif.boot.kernel_stats();
-    if (!stats)
+    let all = stats?.fetch?.all;
+    if (!all || all==last)
       return;
-    console.log(stats?.fetch?.all);
-  }, 250);
+    last = all;
+    txt.textContent = 'Loading… '+all;
+  }, 100);
   return {
     elm,
     remove: function(){
+      clearInterval(iv);
+      elm.remove();
     },
   };
 }

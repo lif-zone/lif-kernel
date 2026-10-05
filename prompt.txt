@@ -193,3 +193,11 @@ Added two helper functions and modified file_tsx_to_js in kernel.js:
 USER: Add a loader to hi.js life() around the boot_app call, since loading can take up to 30 seconds.
 
 CLAUDE: Added a simple centered "Loading…" overlay div before boot_app, removed in a finally block. Non-intrusive gray text on white background.
+---
+USER: Update load_progress to show fetch count: "Loading… 1038" etc, updating only when the number changes.
+
+CLAUDE: Track `last` count, update elm.textContent only when stats.fetch.all changes. Also filled in the `remove` function to clearInterval and remove the element.
+---
+USER: Add favicon.ico logo to the left of the Loading text, sized to match the text.
+
+CLAUDE: Added 14px img element with favicon.ico before the text node. Changed text updates to modify the text node instead of elm.textContent to preserve the img.
