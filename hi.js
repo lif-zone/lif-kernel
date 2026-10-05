@@ -101,6 +101,25 @@ async function webapp_resolve(){
   return {redirect: ''+u};
 }
 
+function load_progress(){
+  let elm = html_elm('div', {id: 'lif-loader', style:
+    'position:fixed;top:0;left:0;width:100%;height:100%;display:flex;'
+    +'align-items:center;justify-content:center;font-family:sans-serif;'
+    +'color:#888;font-size:14px'});
+  elm.textContent = 'Loading…';
+  document.body.appendChild(elm);
+  setInterval(async function(){
+    let stats = await lif.boot.kernel_stats();
+    if (!stats)
+      return;
+    console.log(stats?.fetch?.all);
+  }, 250);
+  return {
+    elm,
+    remove: function(){
+    },
+  };
+}
 async function life(){
   let w = await webapp_resolve();
   if (w.redirect){
@@ -111,7 +130,12 @@ async function life(){
     w.page = ()=>demo_index();
   if (w.page)
     return await w.page();
-  return await lif.boot.boot_app({lif: {webapp: w.site}});
+  let l = load_progress();
+  try {
+    return await lif.boot.boot_app({lif: {webapp: w.site}});
+  } finally {
+    l?.remove();
+  }
 }
 
 await life();

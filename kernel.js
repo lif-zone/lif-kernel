@@ -666,9 +666,9 @@ async function reg_get({log, lmod, opt}){
       throw Error('reg_get missing ver: '+lmod);
   }
   let ret;
-  src = src.sort((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
+  src.sort((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
   for (let [i, _src] of OE(src)){
-    if (_src.fail)
+    if (_src.fail && _src.fail.tm+3000>Date.now())
       continue;
     let url_fn = _src.url;
     if (!url_fn)
@@ -689,7 +689,7 @@ async function reg_get({log, lmod, opt}){
     _src.fail = {url, err: ret.err, tm: Date.now()};
   }
   if (!(reg.blob = ret?.blob)){
-    reg.err = ret ? ret.err : 'no non-failed cdn available';
+    reg.err = ret ? ret.err : 'all cdns failed';
     return reg;
   }
   reg.body = await reg.blob.text();
@@ -994,6 +994,8 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
     console.error('lpm_pkg_get('+pkg_json+') not found');
     return lpm_pkg;
   }
+  if (f.err)
+    throw f.err;
   lpm_pkg.blob = f.blob;
   lpm_pkg.body = f.body;
   lpm_pkg._body = f.body;
@@ -1443,6 +1445,7 @@ function fetch_request_document(request){
 }
 
 async function fetch_pass(request, type){
+  g_stats.fetch.pass++;
   let url = request.url;
   let slow = eslow('fetch_pass');
   try {
@@ -1456,6 +1459,13 @@ async function fetch_pass(request, type){
   }
 }
 
+let g_stats = {
+  fetch: {
+    all: 0,
+    lif: 0,
+    pass: 0,
+  },
+};
 async function _kernel_fetch(event){
   let {request, request: {url}} = event;
   let u = T_url_parse(url);
@@ -1477,11 +1487,13 @@ async function _kernel_fetch(event){
   let is_doc = str.is(request.destination, 'document', 'iframe', 'frame');
   D && console.log('sw '+log.mod);
   // external and non GET requests
+  g_stats.fetch.all++;
   if (external)
     return fetch_pass(request, 'external');
-  log.imp = path;
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-get');
+  g_stats.fetch.lif++;
+  log.imp = path;
   // chrome linux: F5 gives cache==no-cache for root document only.
   //   URL Enter: cache==default
   // chrome win: F5 and Enter give cache==reload, for all resources in page,
@@ -1763,7 +1775,7 @@ async function webapp_load({log, lmod_self, webapp}){
 // mappong nodejs npm->browser npm shim
 // https://github.com/browserify/browserify/blob/master/lib/builtins.js
 let refrash_clear_cache = false;
-let do_app_pkg = async function(boot_pkg){
+async function do_app_pkg(boot_pkg){
   boot_pkg = json_cp(boot_pkg);
   let lif = boot_pkg.lif ||= {};
   let lmod_root = 'local/.lif.boot/';
@@ -1809,7 +1821,11 @@ let do_app_pkg = async function(boot_pkg){
   let res = await webapp_load({log, lmod_self: lmod_root, webapp});
   app_init_wait.return();
   return res;
-};
+}
+
+function do_kernel_stats(){
+  return g_stats;
+}
 
 let boot_chan;
 export function boot(sw_boot){
@@ -1817,6 +1833,7 @@ export function boot(sw_boot){
   boot_chan = new ipc_postmessage();
   boot_chan.method('version', ()=>({version: lif_version}));
   boot_chan.method('app_pkg', async(arg)=>await do_app_pkg(arg));
+  boot_chan.method('kernel_stats', ()=>do_kernel_stats());
   sw_boot.on_message = event=>{
     if (boot_chan.accept(event))
       return;

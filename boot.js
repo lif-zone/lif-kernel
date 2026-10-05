@@ -1015,6 +1015,12 @@ let boot_kernel = async()=>{
   }
 };
 
+async function kernel_stats(){
+  if (!kernel_chan)
+    return;
+  return await kernel_chan.call('kernel_stats');
+}
+
 async function run_html(mod_self, webapp){
   let _webapp = npm_base(webapp, mod_self);
   console.log('run_html start '+_webapp);
@@ -1214,6 +1220,7 @@ lif.boot = {
   import_amd,
   define_amd_get_mod,
   import_cjs_namespace,
+  kernel_stats,
 };
 if (!is_worker){
   mainthread_setup();

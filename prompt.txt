@@ -189,3 +189,7 @@ Added two helper functions and modified file_tsx_to_js in kernel.js:
 - glob_match(pattern, path): converts glob to regex (handles **/ and *)
 - pkg_transform_ext(pkg, lmod, pkg_lmod): looks up lif.transform in package.json, computes relative path, matches patterns, returns override ext
 - file_tsx_to_js: calls pkg_transform_ext to override type before Babel transform decision
+---
+USER: Add a loader to hi.js life() around the boot_app call, since loading can take up to 30 seconds.
+
+CLAUDE: Added a simple centered "Loading…" overlay div before boot_app, removed in a finally block. Non-intrusive gray text on white background.
