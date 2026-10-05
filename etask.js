@@ -848,6 +848,9 @@ E.prototype.wait_ext = function(promise){
   promise.then(wait.continue_fn(), wait.throw_fn());
   return wait;
 };
+E.wait_ext = function(promise){
+  return etask(function*(){ return promise; });
+};
 
 E.prototype.longname = function(flags){
   flags = flags||{TIME: 1};
