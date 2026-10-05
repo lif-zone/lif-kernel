@@ -112,14 +112,16 @@ function load_progress(){
   let txt = document.createTextNode('Loading…');
   elm.appendChild(txt);
   document.body.appendChild(elm);
-  let last = 0;
+  let last, diff;
   let iv = setInterval(async function(){
     let stats = await lif.boot.kernel_stats();
     let all = stats?.fetch?.all;
-    if (!all || all==last)
+    if (all==null || all==last)
       return;
+    if (last==null)
+      diff = all
     last = all;
-    txt.textContent = 'Loading… '+all;
+    txt.textContent = 'Loading… '+(all-diff);
   }, 100);
   return {
     elm,
