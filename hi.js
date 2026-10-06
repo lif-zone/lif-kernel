@@ -119,7 +119,7 @@ function load_progress(){
     if (all==null || all==last)
       return;
     if (last==null)
-      diff = all
+      diff = all;
     last = all;
     txt.textContent = 'Loading… '+(all-diff);
   }, 100);
