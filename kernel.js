@@ -5,7 +5,7 @@ const $lif = globalThis.$lif ||= {};
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
-  _path_ext, path_starts, qs_enc, uri_dec,
+  _path_ext, path_starts, qs_enc, qs_append, uri_dec,
   T_url_parse, str_to_buf, eslow, Scroll, assert_eq, assert_obj_f,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
@@ -1129,7 +1129,7 @@ async function lpm_import_get({log, imp, lmod_self}){
     throw Error('lpm_import_get redirect: '+lmod_self+' -> '+lpm_pkg.redirect);
   let v;
   if (lpm_pkg.pkg.name && (v=path_starts(imp, lpm_pkg.pkg.name)))
-    return {redirect: lmod_self+v.rest};
+    return {redirect: lmod_self+v.rest+'?mjs_imp'};
   let lmod = T_npm_to_lpm(imp);
   let _imp = lpm_import_lookup({lpm_pkg, imp: lmod});
   if (!_imp)
@@ -1148,7 +1148,7 @@ async function lpm_import_get({log, imp, lmod_self}){
     mod_self: lmod_self});
   if (res.not_found)
     return res;
-  return {redirect: _imp};
+  return {redirect: _imp+'?imp'};
 }
 
 async function lpm_file_resolve({log, imp, mod_self}){
@@ -1243,7 +1243,7 @@ function lpm_redirect({f, qs, lmod}){
     for (let [k, v] of OE(f.q))
       q.set(k, v);
   }
-  let redirect = '/.lif/'+f.redirect+qs_enc(q);
+  let redirect = qs_append('/.lif/'+f.redirect, q);
   D && console.log('lpm_redirect '+lmod+' -> '+f.redirect, qs+' -> '+q);
   return {redirect};
 }
@@ -1322,10 +1322,23 @@ async function responce_tr_send({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   if (f.redirect)
     return lpm_redirect({f, qs, lmod});
-  if (q.has('raw') || file_ctype_binary(lmod))
+  let bin = !q.has('mjs') && !q.has('mjs_imp') &&
+    !q.has('cjs') && !q.has('amd') && !q.has('imp');
+  let raw = q.has('raw');
+  if (0 && bin){
+    if (!raw)
+      console.log('raw missing '+lmod);
     return {body: f.blob, ext, cache: 1};
-  if (str.is(ext, 'json', 'css', 'wasm'))
+  }
+  if (q.has('raw') || file_ctype_binary(lmod)){
+    if (!bin) console.log('XXX raw not bin '+lmod+' '+qs);
     return {body: f.blob, ext, cache: 1};
+  }
+  if (str.is(ext, 'json', 'css', 'wasm')){
+    if (!bin && !q.has('imp') && !q.has('mjs')) console.log('XXX raw not bin '+lmod+' '+qs);
+    return {body: f.blob, ext, cache: 1};
+  }
+  if (bin) console.log('XXX js is bin '+lmod);
   ext = 'js';
   let js = await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
@@ -1333,6 +1346,11 @@ async function responce_tr_send({f, qs, lmod}){
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
   let type = meta.type;
   let v;
+  // mjs - mjs importing an mjs module
+  // mjs_imp - an middle re-export module to solve 302 double import
+  // cjs - mjs importing a cjs module
+  // amd - mjs importing an amd module
+  // imp - mjs importing an mjs/cjs/amd module
   if ((q.has('mjs_imp') || q.has('mjs') || type=='mjs') &&
     (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
   {
@@ -1383,6 +1401,7 @@ async function lpm_file_resolve_follow({log, imp, mod_self}){
   return {not_exist: true, err: 'max redirects'};
 }
 
+// meta is used for cjs
 async function fetch_lpm_meta({log, imp, mod_self}){
   let v;
   let u = T_lpm_parse(imp);
