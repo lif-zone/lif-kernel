@@ -873,9 +873,9 @@ async function lpm_file_get_alt({log, lmod, alt}){
 }
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
-async function lpm_file_get_follow({log, lmod, lpm_pkg}){
+async function lpm_file_get_follow({log, lmod, lpm_pkg, alt}){
   D && console.log('lpm_file_get_follow', lmod);
-  let alt, pkg;
+  let pkg;
   let f = {lmod, lpm_pkg, log};
   pkg = f.pkg = lpm_pkg.pkg;
   lpm_pkg.log ||= log;
@@ -892,7 +892,8 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg}){
     D && console.log('redirect export '+lmod+' -> '+_uri);
     return OA(f, {redirect: _uri});
   }
-  alt = pkg_alt_get(pkg, lmod);
+  if (alt)
+    alt = pkg_alt_get(pkg, lmod);
   let f_get = await lpm_file_get_alt({log, lmod, alt});
   f.f_get = f_get; // for logging
   if (f_get.not_exist)
@@ -1146,7 +1147,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   return {redirect: _imp};
 }
 
-async function lpm_file_resolve({log, imp, mod_self}){
+async function lpm_file_resolve({log, imp, mod_self, alt}){
   D && console.log('lpm_file_resolve', imp, mod_self);
   let path = T_lpm_parse(imp).path;
   let {lpm_pkg, subdir} = await lpm_pkg_resolve(
@@ -1156,7 +1157,7 @@ async function lpm_file_resolve({log, imp, mod_self}){
   if (lpm_pkg.redirect)
     return {redirect: lpm_pkg.redirect+path};
   let lmod = lpm_pkg.lmod+(subdir||'')+path;
-  let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg});
+  let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg, alt});
   return lpm_file;
 }
 
@@ -1356,11 +1357,11 @@ async function responce_tr_send({f, qs, lmod}){
   return {err: 'invalid lpm file type '+type+' '+lmod+' '+qs};
 }
 
-async function lpm_file_resolve_follow({log, imp, mod_self}){
+async function lpm_file_resolve_follow({log, imp, mod_self, alt}){
   D && console.log('lpm_file_resolve_follow '+imp);
   let res = {}, follow = 1;
   for (let i=0; i<max_redirect; i++){
-    let f = await lpm_file_resolve({log, imp, mod_self});
+    let f = await lpm_file_resolve({log, imp, mod_self, alt});
     if (f.not_exist){
       res.not_exist = f.not_exist;
       return res;
@@ -1396,7 +1397,7 @@ async function fetch_lpm_meta({log, imp, mod_self}){
       ret.redirect = lpm_to_npm(ret.redirect);
     return ret;
   }
-  let f = await lpm_file_resolve_follow({log, imp, mod_self});
+  let f = await lpm_file_resolve_follow({log, imp, mod_self, alt: true});
   if (f.not_exist || f.redirect)
     return f;
   let type = file_ctype(f.lmod);
@@ -1433,10 +1434,12 @@ async function send_res({err, not_exist, redirect, body, ext, path, cache}){
 async function fetch_lpm_file({log, imp, mod_self, qs}){
   let f, v;
   let u = T_lpm_parse(imp);
+  let q = new URLSearchParams(qs);
+  let alt = q.has('imp') || q.has('mjs');
   if (v=str.starts(u.path, '/.lif.imp/'))
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
   else
-    f = await lpm_file_resolve({log, imp, mod_self});
+    f = await lpm_file_resolve({log, imp, mod_self, alt});
   return await responce_tr_send({f, qs, lmod: imp});
 }
 
