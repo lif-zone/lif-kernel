@@ -99,7 +99,7 @@ function storage_bucket_init(){
 }
 storage_bucket_init();
 
-let cache_ver = 24;
+let cache_ver = 26;
 async function db_open(){ // use storageBuckets
   if (db)
     return db;
@@ -455,9 +455,7 @@ function tr_import_lpm({imp, imported, lmod_self, pkg}){
     return v;
   v = lpm_imp_rel(imp, lmod_self);
   let q = {};
-  if (imported)
-    q.imported = imported.join(','); // XXX imported -> imp
-  q.imp = '';
+  q.imp = imported?.join(',') || '';
   v += qs_enc(q);
   return v;
 }
@@ -538,8 +536,7 @@ function file_tr_mjs(f, opt){
 }
 
 function mjs_import_cjs(path, q){
-  let imported = q.get('imported')?.split(',');
-  let qs = qs_enc(q);
+  let imported = q.get('imp')?.split(',').filter(i=>i);
   let js = '';
   if (q.has('worker')){
     // double space between await and import, to prevent tr import_module
@@ -557,15 +554,11 @@ function mjs_import_cjs(path, q){
   js += `export const __es_lif_cjs = true;\n`;
   js += `if (exports.__esModule && exports.default) exports = exports.default;\n`;
   js += `export default exports;\n`;
-  js += `//# sourceURL=${path}${qs}\n`;
   return js;
 }
 
 function mjs_import_amd(path, q){
-  let imported = q.get('imported')?.split(',');
-  let qs = qs_enc(q);
-  if (!qs)
-    qs = '?import_amd';
+  let imported = q.get('imp')?.split(',').filter(i=>i);
   let uri_s = json(path);
   let js = '';
   js += `let exports = await globalThis.$lif.boot.import_amd(null, [${uri_s}]);\n`;
@@ -573,7 +566,6 @@ function mjs_import_amd(path, q){
   js += `export const __esModule = exports.__esModule;\n`; // unused
   js += `export const __es_lif_cjs = true;\n`;
   js += `export default exports;\n`;
-  js += `//# sourceURL=${path}${qs}\n`;
   return js;
 }
 
