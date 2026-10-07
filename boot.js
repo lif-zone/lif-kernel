@@ -919,7 +919,7 @@ function init_worker(){
 }
 
 let lif_kernel_base = import.meta.resolve('./x').slice(0, -2);
-let boot_kernel = async()=>{
+async function boot_kernel(){
   if (boot_kernel.wait){
     console.log('lif boot: waiting to complete');
     return await boot_kernel.wait;
@@ -1004,7 +1004,7 @@ let boot_kernel = async()=>{
     console.error('ServiceWorker registration failed', err, err.stack);
     throw wait.throw(err);
   }
-};
+}
 
 async function kernel_stats(){
   if (!kernel_chan)
