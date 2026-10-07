@@ -2,8 +2,8 @@
 import {OE, html_elm, html_elm_frag_append, str, qs_append, qs_enc,
   lif_domain_parse,
 } from './util.js';
-import lif from './boot.js';
 import {hosts} from './hosts.js';
+let $lif = globalThis.$lif;
 
 function demo_index(){
   let body = document.querySelector('body');
@@ -114,7 +114,7 @@ function load_progress(){
   document.body.appendChild(elm);
   let last, diff;
   let iv = setInterval(async function(){
-    let stats = await lif.boot.kernel_stats();
+    let stats = await $lif.boot.kernel_stats();
     let all = stats?.fetch?.all;
     if (all==null || all==last)
       return;
@@ -143,7 +143,7 @@ async function life(){
     return await w.page();
   let l = load_progress();
   try {
-    return await lif.boot.boot_app({lif: {webapp: w.site}});
+    return await $lif.boot.boot_app({lif: {webapp: w.site}});
   } finally {
     l?.remove();
   }
