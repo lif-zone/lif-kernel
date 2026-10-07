@@ -835,7 +835,7 @@ async function import_worker({mod_self, imp, opt}){
   return exports_to_esm(exports);
 }
 
-function import_esm_cjs(mod){
+function import_esm_to_cjs(mod){
   if (mod.__esModule!==false)
     return mod;
   let ret = {default: mod.default};
@@ -869,7 +869,7 @@ async function import_esm(mod_self, [imp, opt={}]){
       ret = await import_worker({mod_self, imp, opt});
     else {
       ret = await /*keep*/ import(url, opt);
-      ret = import_esm_cjs(ret);
+      ret = import_esm_to_cjs(ret);
     }
     return ret;
   } catch(err){
