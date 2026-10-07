@@ -1849,6 +1849,9 @@ function do_kernel_stats(){
   return g_stats;
 }
 
+function do_ipc_fetch_init(fetch_init){
+}
+
 let boot_chan;
 export function boot(sw_boot){
   ({lif_kernel_base, local_dev_enable} = sw_boot);
@@ -1856,6 +1859,7 @@ export function boot(sw_boot){
   boot_chan.method('version', ()=>({version: lif_version}));
   boot_chan.method('app_pkg', async(arg)=>await do_app_pkg(arg));
   boot_chan.method('kernel_stats', ()=>do_kernel_stats());
+  boot_chan.method('ipc_fetch_init', fetch_init=>do_ipc_fetch_init(fetch_init));
   sw_boot.on_message = event=>{
     if (boot_chan.accept(event))
       return;

@@ -52,12 +52,11 @@ export async function ipc_fetch(){
   d('end');
 }
 
-export async function ipc_fetch_init(event){
+export async function ipc_fetch_init(fetch_init){
   d('ipc_fetch_init');
-  let {sab} = event.data.fetch_init;
+  let {sab} = fetch_init;
   ipc.read = new ipc_sync(sab.read);
   ipc.write = new ipc_sync(sab.write);
-  self.postMessage({fetch_inited: true});
   D && console.log('ipc_fetch_init');
   while (1){
     try {
