@@ -734,7 +734,7 @@ async function npm_ver_resolve({log, lmod}){
   return T_lpm_str(u);
 }
 
-async function git_ver_resolve({log, lmod, mod_self}){
+async function git_ver_resolve({log, lmod}){
   return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
     async function run(pv)
 {
@@ -745,7 +745,7 @@ async function git_ver_resolve({log, lmod, mod_self}){
   let is_c = enable_cache>=1;
   if (!u.ver || _ver=='latest')
     url = `https://api.github.com/repos/${u.name}/commits/HEAD`;
-  else if (u.ver_type=='final_commitish'){
+  else if (str.is(u.ver_type, 'final_commitish',  'final')){
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
     if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
       u.ver = v.ver;
@@ -774,12 +774,12 @@ async function git_ver_resolve({log, lmod, mod_self}){
   if (sha.length!=40 && sha.length!=64)
     throw Error('git '+url+' sha invalid: '+sha);
   u.ver = '@'+sha;
-  if (is_c && u.ver_type=='final_commitish')
+  if (is_c && str.is(u.ver_type, 'final_commitish', 'final'))
     cache_set('lpm_ver', {lmod, ver: u.ver});
   return T_lpm_str(u);
 }); }
 
-async function lpm_ver_resolve({log, lmod, mod_self}){
+async function lpm_ver_resolve({log, lmod}){
   let u = lpm_parse(lmod);
   let v;
   if (u.reg=='npm'){
@@ -796,7 +796,7 @@ async function lpm_ver_resolve({log, lmod, mod_self}){
     console.error('pkg not found: '+lmod);
     return v;
   }
-  D && console.log('module('+mod_self+') redirect ver '+lmod+' -> '+v);
+  D && console.log('redirect ver '+lmod+' -> '+v);
   return {redirect: v};
 }
 
@@ -949,6 +949,7 @@ function lpm_patch_pkg_json(lpm_pkg){
   lpm_pkg.pkg = pkg;
 }
 
+let allow_no_package_json = true;
 async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   let is_c = cache_lmod(lmod);
   let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
@@ -974,7 +975,7 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   lpm_pkg.log = log;
   lpm_pkg.parent_mod = mod_self;
   // resolve ver
-  let ver = await lpm_ver_resolve({log, lmod, mod_self: _mod_self||mod_self});
+  let ver = await lpm_ver_resolve({log, lmod});
   if (ver){
     if (ver.redirect)
       D && console.log('lpm_pkg_get '+lmod+' -> '+ver.redirect);
@@ -986,9 +987,23 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lmod: pkg_json});
   if (f.not_exist){
-    lpm_pkg.not_exist = f.not_exist;
-    console.error('lpm_pkg_get('+pkg_json+') not found');
-    return lpm_pkg;
+    let u = lpm_parse(lmod);
+    if (u.reg!='git' || u.submod || u.ver_type!='final' ||
+      !allow_no_package_json)
+    {
+      lpm_pkg.not_exist = f.not_exist;
+      console.error('lpm_pkg_get('+pkg_json+') not found');
+      return lpm_pkg;
+    }
+    let v = await git_ver_resolve({log, lmod});
+    if (!v){
+      lpm_pkg.not_exist = true;
+      console.error('lpm_pkg_get('+lmod+' raw) not found');
+      return lpm_pkg;
+    }
+    console.warn('using raw package without package.json');
+    // minimal valid package.json
+    f = {body: json({name: u.name.replaceAll('/', '-')})};
   }
   if (f.err)
     throw f.err;
