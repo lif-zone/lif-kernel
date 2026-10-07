@@ -1850,6 +1850,8 @@ function do_kernel_stats(){
 }
 
 function do_ipc_fetch_init(fetch_init){
+  // XXX implement per-tab/boot.js a sab connections with a loop to handle
+  // sync ipc via ipc_fetch.js:ipc_fetch_init
 }
 
 let boot_chan;
