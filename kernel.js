@@ -1317,8 +1317,7 @@ async function responce_tr_send({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   if (f.redirect)
     return lpm_redirect({f, qs, lmod});
-  let bin = !q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd');
-  if (bin)
+  if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
     return {body: f.blob, ext, cache: 1};
   // XXX add to import tr ?type=json/css/text
   if (str.is(ext, 'json', 'css', 'wasm', 'text'))
