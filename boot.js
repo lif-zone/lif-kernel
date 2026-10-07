@@ -135,14 +135,13 @@ function npm_imp_abs(imp, mod_self, opt){
       _url = '/.lif/'+T_lpm_lmod(v.rest)+'/.lif.imp/'+u.path;
     } else
       _url = '/.lif/'+T_npm_to_lpm(u.path);
+    q.imp = '';
   }
   let is_lif_mod = u.is.mod || is_lif;
   if (opt?.worker && is_lif_mod)
     q.worker = '';
   if (u.is.url && !is_lif_mod)
     return qs_append(u.origin+u.path, q);
-  if (opt?.raw)
-    q.raw = '';
   if (u.is.uri && !is_lif_mod)
     return qs_append(u.path, q);
   // mod
@@ -322,8 +321,6 @@ async function require_cjs_load_file_sync(m){
     return p.res;
   p.res = 'loading';
   let url = m.url;
-  if (m.url.startsWith('/.lif/'))
-    url += '?raw';
   let req;
   req = fetch_sync(url);
   if (req.status==200)
@@ -351,8 +348,6 @@ async function require_cjs_load_file_async(m){
     return p.res;
   p.res = 'loading';
   let url = m.url;
-  if (m.url.startsWith('/.lif/'))
-    url += '?raw';
   let req;
   if (p.wait)
     return await p.wait;
@@ -777,7 +772,6 @@ async function import_amd(mod_self, [imp, opt]){
     return await m.wait;
   m = modules[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
-  url += '?raw';
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -833,9 +827,7 @@ function exports_to_esm(exports){
 async function import_worker({mod_self, imp, opt}){
   let _imp = npm_2url(imp, mod_self);
   let q;
-  if (opt?.type=='script')
-    q = {raw: ''};
-  else
+  if (opt?.type!='script')
     assert(0, 'module import not yet supportedd');
   let url = qs_append(_imp, q);
   let exports = await import_module_script({mod_self, imp: _imp, url,
@@ -895,8 +887,8 @@ function import_cjs_namespace(module_ns){
 // worker
 function importScripts_single(mod_self, [mod, opt={}]){
   let _opt = {};
-  if (opt?.type=='script')
-    _opt.raw = 1;
+  if (opt?.type!='script')
+    assert(0, 'module import not yet supportedd');
   let url = npm_imp_abs(mod, mod_self, _opt);
   let res = fetch_sync(url);
   if (res.status!=200)
@@ -1176,14 +1168,14 @@ function test(){
   t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
     '/.lif/local/mod//a/file.js?mjs');
   t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
+    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js?imp');
   t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
+    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js?imp');
   t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
   t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js');
+  t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js?imp');
   t = (mod_self, lmod, v)=>
     assert_eq(v, npm_need_mod_self(mod_self, lmod));
   t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 

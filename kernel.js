@@ -99,7 +99,7 @@ function storage_bucket_init(){
 }
 storage_bucket_init();
 
-let cache_ver = 22;
+let cache_ver = 24;
 async function db_open(){ // use storageBuckets
   if (db)
     return db;
@@ -456,7 +456,8 @@ function tr_import_lpm({imp, imported, lmod_self, pkg}){
   v = lpm_imp_rel(imp, lmod_self);
   let q = {};
   if (imported)
-    q.imported = imported.join(',');
+    q.imported = imported.join(','); // XXX imported -> imp
+  q.imp = '';
   v += qs_enc(q);
   return v;
 }
@@ -466,11 +467,13 @@ function tr_mjs_import(f){
   for (let d of f.meta.imports||[]){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
+      if (imp.includes('bech')) console.log('imp', imp);
       s.splice(d.start, d.end, json(imp+'?mjs'));
       continue;
     }
     _v = tr_import_lpm({imp, imported: d.imported,
       lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
+    if (_v.includes('bech')) console.log('X imp', _v);
     if (d.imported_dyn){
       let dyn = d.imported_dyn;
       let name = f.js.slice(dyn.name_start, dyn.name_end);
@@ -824,7 +827,7 @@ async function lpm_pkg_cache_follow(lmod){
   return lpm_pkg;
 }
 
-// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw
+// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get({log, lmod}){
   let is_c = cache_lmod(lmod);
   let opt = is_c ? {} : cache_opt;
@@ -877,7 +880,7 @@ async function lpm_file_get_alt({log, lmod, alt}){
   return first; // not_exist
 }
 
-// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css?raw
+// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get_follow({log, lmod, lpm_pkg}){
   D && console.log('lpm_file_get_follow', lmod);
   let alt, pkg;
@@ -1129,7 +1132,7 @@ async function lpm_import_get({log, imp, lmod_self}){
     throw Error('lpm_import_get redirect: '+lmod_self+' -> '+lpm_pkg.redirect);
   let v;
   if (lpm_pkg.pkg.name && (v=path_starts(imp, lpm_pkg.pkg.name)))
-    return {redirect: lmod_self+v.rest+'?mjs_imp'};
+    return {redirect: lmod_self+v.rest};
   let lmod = T_npm_to_lpm(imp);
   let _imp = lpm_import_lookup({lpm_pkg, imp: lmod});
   if (!_imp)
@@ -1148,7 +1151,7 @@ async function lpm_import_get({log, imp, lmod_self}){
     mod_self: lmod_self});
   if (res.not_found)
     return res;
-  return {redirect: _imp+'?imp'};
+  return {redirect: _imp};
 }
 
 async function lpm_file_resolve({log, imp, mod_self}){
@@ -1322,53 +1325,44 @@ async function responce_tr_send({f, qs, lmod}){
   let q = new URLSearchParams(qs);
   if (f.redirect)
     return lpm_redirect({f, qs, lmod});
-  let bin = !q.has('mjs') && !q.has('mjs_imp') &&
-    !q.has('cjs') && !q.has('amd') && !q.has('imp');
-  let raw = q.has('raw');
-  if (0 && bin){
-    if (!raw)
-      console.log('raw missing '+lmod);
+  let bin = !q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd');
+  if (bin)
     return {body: f.blob, ext, cache: 1};
-  }
-  if (q.has('raw') || file_ctype_binary(lmod)){
-    if (!bin) console.log('XXX raw not bin '+lmod+' '+qs);
+  // XXX add to import tr ?type=json/css/text
+  if (str.is(ext, 'json', 'css', 'wasm', 'text'))
     return {body: f.blob, ext, cache: 1};
-  }
-  if (str.is(ext, 'json', 'css', 'wasm')){
-    if (!bin && !q.has('imp') && !q.has('mjs')) console.log('XXX raw not bin '+lmod+' '+qs);
-    return {body: f.blob, ext, cache: 1};
-  }
-  if (bin) console.log('XXX js is bin '+lmod);
   ext = 'js';
+  let v;
   let js = await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
   if (meta.err)
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
+  // XXX is passthrough for /lif-kernel/boot.js still needed?
+  if (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod}))
+    return {body: mjs_import_mjs(meta.export_default, v), ext};
   let type = meta.type;
-  let v;
   // mjs - mjs importing an mjs module
-  // mjs_imp - an middle re-export module to solve 302 double import
   // cjs - mjs importing a cjs module
   // amd - mjs importing an amd module
   // imp - mjs importing an mjs/cjs/amd module
-  if ((q.has('mjs_imp') || q.has('mjs') || type=='mjs') &&
-    (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod})))
-  {
-    return {body: mjs_import_mjs(meta.export_default, v), ext};
+  //       a middle re-export module to solve 302 double import
+  if (q.has('mjs')){
+    if (type=='cjs')
+      return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
+    if (type=='amd')
+      return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
+    return {body: file_tr_mjs(f, {worker: q.has('worker')}), ext, cache: 1};
   }
-  if (q.has('mjs_imp')){
+  if (q.has('imp') && (type=='mjs' || !type)){
     return {body: mjs_import_mjs(meta.export_default,
       '/.lif/'+lmod+'?mjs'), ext, cache: 1};
   }
-  if (q.has('mjs') && (type=='mjs' || !type))
-    return {body: file_tr_mjs(f, {worker: q.has('worker')}), ext, cache: 1};
-  if (type=='cjs' || type=='')
+  if (q.has('cjs') || (q.has('imp') && type=='cjs'))
     return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
-  if (type=='amd' || type=='')
+  if (q.has('amd') || (q.has('imp') && type=='amd'))
     return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
-  if (type=='mjs')
-    return {redirect: '/.lif/'+lmod+'?mjs_imp'};
-  return {err: 'invalid lpm file type '+type};
+  throw Error('invalid lpm file type '+type+' '+lmod+' '+qs);
+  return {err: 'invalid lpm file type '+type+' '+lmod+' '+qs};
 }
 
 async function lpm_file_resolve_follow({log, imp, mod_self}){
@@ -1601,7 +1595,7 @@ async function _kernel_fetch(event){
     console.info('req before lpm_pkg_app init '+path);
   else if (_path = pkg_web_exports_lookup(lpm_pkg_app.pkg, '.'+path)){
     if (_path.startsWith('./')){
-      _path = '/.lif/'+lpm_app+_path.slice(1)+'?raw';
+      _path = '/.lif/'+lpm_app+_path.slice(1);
       D && console.log('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }
