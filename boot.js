@@ -135,7 +135,6 @@ function npm_imp_abs(imp, mod_self, opt){
       _url = '/.lif/'+T_lpm_lmod(v.rest)+'/.lif.imp/'+u.path;
     } else
       _url = '/.lif/'+T_npm_to_lpm(u.path);
-    q.imp = '';
   }
   let is_lif_mod = u.is.mod || is_lif;
   if (opt?.worker && is_lif_mod)
@@ -146,7 +145,7 @@ function npm_imp_abs(imp, mod_self, opt){
     return qs_append(u.path, q);
   // mod
   if (opt?.type=='module')
-    q.mjs = '';
+    q.imp = '';
   if (mod_self && url_uri_type(mod_self)=='mod')
     q.mod_self = mod_self;
   return qs_append(_url, q);
@@ -1166,16 +1165,17 @@ function test(){
   t('/.lif/local/other.js', './a/file.js', {worker: 1},
     '/.lif/local/a/file.js?worker');
   t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
-    '/.lif/local/mod//a/file.js?mjs');
+    '/.lif/local/mod//a/file.js?imp');
   t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js?imp');
+    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
   t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js?imp');
+    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
   t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
   t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  t(null, 'lif-kernel/hi.js', {}, '/.lif/npm/lif-kernel/hi.js?imp');
+  t(null, 'lif-kernel/hi.js', {type: 'module'},
+    '/.lif/npm/lif-kernel/hi.js?imp');
   t = (mod_self, lmod, v)=>
     assert_eq(v, npm_need_mod_self(mod_self, lmod));
   t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 
