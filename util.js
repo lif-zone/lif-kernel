@@ -424,7 +424,9 @@ export function match_glob(glob, value){
   return match_glob_to_regex(glob).test(value);
 }
 export function qs_enc(q){
-  let _q = (''+new URLSearchParams(q))
+  if (!(q instanceof URLSearchParams))
+    q = new URLSearchParams(q);
+  let _q = (''+q)
   .replaceAll('%2F', '/').replaceAll('%40', '@').replaceAll('%3A', ':')
   .replaceAll('%2C', ',').replaceAll('=&', '&').replaceAll(/=$/g, '');
   return _q ? '?'+_q : '';
@@ -440,6 +442,13 @@ export function qs_append(url, q){
 export function qs_trim(url){
   let u = url.split('?');
   return u[0];
+}
+
+export function qs_split(url){
+  let i = url.indexOf('?');
+  if (i<0)
+    return {url, qs: ''};
+  return {url: url.slice(0, i), qs: url.slice(i)};
 }
 
 export function url_http_to_ws(url){
@@ -649,6 +658,7 @@ function test_util(){
   t('?abc+def+%0A=x', {'abc def \n': 'x'});
   t('?abc+def+%0A', {'abc def \n': ''});
   t('?a=a@:/.%2B+', {a: 'a@:/.+ '});
+  t('?a=b&c', new URLSearchParams({a: 'b', c: ''}));
   t = (v, s)=>assert_eq(v, qs_trim(s));
   t('http://site/dir', 'http://site/dir?q=21');
   t('http://site/dir', 'http://site/dir?q=21?sdsd');
@@ -665,6 +675,10 @@ function test_util(){
   t('http://site/dir?a=1&b=2', 'http://site/dir?a=1', '?b=2');
   t('http://site/dir?b=2', 'http://site/dir', 'b=2');
   t('http://site/dir', 'http://site/dir', '');
+  t = (url, v)=>assert_obj(v, qs_split(url));
+  t('http://site/dir?q=21', {url: 'http://site/dir', qs: '?q=21'});
+  t('http://site/dir', {url: 'http://site/dir', qs: ''});
+  t('/site/dir?', {url: '/site/dir', qs: '?'});
   t = (v, path)=>assert_eq(v, path_ext(path));
   t(undefined, 'dir.js/file');
   t('.js', 'dir.js/file.js');

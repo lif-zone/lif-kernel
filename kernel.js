@@ -5,7 +5,7 @@ const $lif = globalThis.$lif ||= {};
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
-  _path_ext, path_starts, qs_enc, qs_append, uri_dec,
+  _path_ext, path_starts, qs_enc, qs_append, qs_split, uri_dec,
   T_url_parse, str_to_buf, eslow, Scroll, assert_eq, assert_obj_f,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
@@ -99,7 +99,7 @@ function storage_bucket_init(){
 }
 storage_bucket_init();
 
-let cache_ver = 26;
+let cache_ver = 27;
 async function db_open(){ // use storageBuckets
   if (db)
     return db;
@@ -1446,7 +1446,8 @@ async function send_res({err, not_exist, redirect, body, ext, path, cache}){
   throw Error('invalid fetch_lpm response');
 }
 
-async function fetch_lpm_file({log, imp, mod_self, qs}){
+let enable_follow = true;
+async function _fetch_lpm_file({log, imp, mod_self, qs}){
   let f, v;
   let u = T_lpm_parse(imp);
   let q = new URLSearchParams(qs);
@@ -1455,7 +1456,20 @@ async function fetch_lpm_file({log, imp, mod_self, qs}){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
   else
     f = await lpm_file_resolve({log, imp, mod_self, alt});
-  return await responce_tr_send({f, qs, lmod: imp});
+  if (!f.redirect || !enable_follow)
+    return {...f, imp, qs}; // remember the final imp
+  if (q.has('mjs')){
+    q.delete('mjs');
+    q.set('imp', q.get('imp')||'');
+    qs = qs_enc(q);
+  }
+  let _f = await _fetch_lpm_file({log, imp: f.redirect, qs});
+  return _f;
+}
+
+async function fetch_lpm_file({log, imp, mod_self, qs}){
+  let f = await _fetch_lpm_file({log, imp, mod_self, qs});
+  return await responce_tr_send({f, qs: f.qs||qs, lmod: f.imp||imp});
 }
 
 function fetch_request_document(request){
