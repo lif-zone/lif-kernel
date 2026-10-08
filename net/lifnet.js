@@ -472,12 +472,12 @@ export function lifnet_connect(topic, params, opt={}){
     timeout = opt.timeout;
   assert(typeof topic=='string', 'invalid topic '+topic);
   // XXX after all trunks fail, should not continue waiting 5 seconds
-  this.alarm(timeout, ()=>this.return({error: 'tiemout online'}));
+  this.alarm(timeout, ()=>this.return({error: 'timeout online'}));
   let ret = yield lifnet_online({timeout});
   this.del_alarm();
   if (ret?.error)
     return ret;
-  this.alarm(timeout, ()=>this.return({error: 'tiemout topic_get'}));
+  this.alarm(timeout, ()=>this.return({error: 'timeout topic_get'}));
   ret = yield lifnet.topic_get(topic);
   this.del_alarm();
   let addr = ret?.addr;
