@@ -1399,15 +1399,21 @@ async function lpm_file_resolve_follow({log, imp, alt}){
 
 let enable_follow = true;
 
-// meta is used for cjs
-async function fetch_lpm_meta({log, imp}){
-  let v;
+async function fetch_lpm_follow({log, imp, qs}){
+  let v, f;
+  let q = new URLSearchParams(qs);
   let u = T_lpm_parse(imp);
-  let f;
+  let alt = q.has('imp') || q.has('mjs') || q.has('meta');
   if (v=str.starts(u.path, '/.lif.imp/'))
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
   else
-    f = await lpm_file_resolve_follow({log, imp, alt: true});
+    f = await lpm_file_resolve_follow({log, imp, alt});
+  return f;
+}
+
+// meta is used for cjs
+async function fetch_lpm_meta({log, imp}){
+  let f = await fetch_lpm_follow({log, imp, qs: '?meta'});
   if (f.redirect)
     f.redirect = lpm_to_npm(f.redirect);
   if (f.not_exist || f.redirect)
@@ -1421,20 +1427,10 @@ async function fetch_lpm_meta({log, imp}){
 }
 
 async function _fetch_lpm_file({log, imp, qs}){
-  let f, v;
-  let u = T_lpm_parse(imp);
-  let q = new URLSearchParams(qs);
-  let alt = q.has('imp') || q.has('mjs');
-  if (v=str.starts(u.path, '/.lif.imp/'))
-    f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
-  else {
-    f = await lpm_file_resolve_follow({log, imp, alt});
-    //f = await lpm_file_resolve({log, imp, alt});
-    //if (f2.redirects)
-    //  console.log('imp', imp, 'redirects', f2.redirects);
-  }
+  let f = await fetch_lpm_follow({log, imp, qs});
   if (!f.redirect || !enable_follow)
     return {...f, imp, qs}; // remember the final imp
+  let q = new URLSearchParams(qs);
   if (q.has('mjs')){
     q.delete('mjs');
     q.set('imp', q.get('imp')||'');
