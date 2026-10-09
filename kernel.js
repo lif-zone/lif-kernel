@@ -1379,13 +1379,12 @@ async function lpm_file_resolve_follow({log, imp, alt}){
       return res;
     }
     if (f.redirect){
-      let redirect = lpm_to_npm(f.redirect);
       if (!follow){
-        res.redirect = lpm_to_npm(redirect);
+        res.redirect = f.redirect;
         return res;
       }
       res.redirects ||= [];
-      res.redirects.push(redirect);
+      res.redirects.push(f.redirect);
       imp = f.redirect;
       continue;
     }
@@ -1398,6 +1397,8 @@ async function lpm_file_resolve_follow({log, imp, alt}){
   return {not_exist: true, err: 'max redirects'};
 }
 
+let enable_follow = true;
+
 // meta is used for cjs
 async function fetch_lpm_meta({log, imp}){
   let v;
@@ -1409,8 +1410,11 @@ async function fetch_lpm_meta({log, imp}){
     return ret;
   }
   let f = await lpm_file_resolve_follow({log, imp, alt: true});
-  if (f.not_exist || f.redirect)
+  if (f.not_exist || f.redirect){
+    if (f.redirect)
+      f.redirect = lpm_to_npm(f.redirect);
     return f;
+  }
   let type = file_ctype(f.lmod);
   if (type!='js')
     return {type};
@@ -1419,7 +1423,6 @@ async function fetch_lpm_meta({log, imp}){
   return {...meta, cache: 1};
 }
 
-let enable_follow = true;
 async function _fetch_lpm_file({log, imp, qs}){
   let f, v;
   let u = T_lpm_parse(imp);
@@ -1428,8 +1431,8 @@ async function _fetch_lpm_file({log, imp, qs}){
   if (v=str.starts(u.path, '/.lif.imp/'))
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
   else {
-    // let f2 = await lpm_file_resolve_follow({log, imp, alt});
-    f = await lpm_file_resolve({log, imp, alt});
+    f = await lpm_file_resolve_follow({log, imp, alt});
+    //f = await lpm_file_resolve({log, imp, alt});
     //if (f2.redirects)
     //  console.log('imp', imp, 'redirects', f2.redirects);
   }
