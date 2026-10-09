@@ -470,7 +470,6 @@ function tr_mjs_import(f){
     }
     _v = tr_import_lpm({imp, imported: d.imported,
       lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
-    if (_v.includes('bech')) console.log('X imp', _v);
     if (d.imported_dyn){
       let dyn = d.imported_dyn;
       let name = f.js.slice(dyn.name_start, dyn.name_end);
