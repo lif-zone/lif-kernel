@@ -465,7 +465,6 @@ function tr_mjs_import(f){
   for (let d of f.meta.imports||[]){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
-      if (imp.includes('bech')) console.log('imp', imp);
       s.splice(d.start, d.end, json(imp+'?mjs'));
       continue;
     }
@@ -1162,11 +1161,10 @@ async function lpm_import_get({log, imp, lmod_self}){
   return {redirect: _imp};
 }
 
-async function lpm_file_resolve({log, imp, mod_self, alt}){
-  D && console.log('lpm_file_resolve', imp, mod_self);
+async function lpm_file_resolve({log, imp, alt}){
+  D && console.log('lpm_file_resolve', imp);
   let path = T_lpm_parse(imp).path;
-  let {lpm_pkg, subdir} = await lpm_pkg_resolve(
-    {log, imp: T_lpm_lmod(imp), mod_self});
+  let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp)});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
   if (lpm_pkg.redirect)
@@ -1372,11 +1370,11 @@ async function responce_tr_send({f, qs, lmod}){
   return {err: 'invalid lpm file type '+type+' '+lmod+' '+qs};
 }
 
-async function lpm_file_resolve_follow({log, imp, mod_self, alt}){
+async function lpm_file_resolve_follow({log, imp, alt}){
   D && console.log('lpm_file_resolve_follow '+imp);
   let res = {}, follow = 1;
   for (let i=0; i<max_redirect; i++){
-    let f = await lpm_file_resolve({log, imp, mod_self, alt});
+    let f = await lpm_file_resolve({log, imp, alt});
     if (f.not_exist){
       res.not_exist = f.not_exist;
       return res;
@@ -1389,7 +1387,6 @@ async function lpm_file_resolve_follow({log, imp, mod_self, alt}){
       }
       res.redirects ||= [];
       res.redirects.push(redirect);
-      mod_self = null;
       imp = f.redirect;
       continue;
     }
@@ -1403,7 +1400,7 @@ async function lpm_file_resolve_follow({log, imp, mod_self, alt}){
 }
 
 // meta is used for cjs
-async function fetch_lpm_meta({log, imp, mod_self}){
+async function fetch_lpm_meta({log, imp}){
   let v;
   let u = T_lpm_parse(imp);
   if (v=str.starts(u.path, '/.lif.imp/')){
@@ -1412,7 +1409,7 @@ async function fetch_lpm_meta({log, imp, mod_self}){
       ret.redirect = lpm_to_npm(ret.redirect);
     return ret;
   }
-  let f = await lpm_file_resolve_follow({log, imp, mod_self, alt: true});
+  let f = await lpm_file_resolve_follow({log, imp, alt: true});
   if (f.not_exist || f.redirect)
     return f;
   let type = file_ctype(f.lmod);
@@ -1447,15 +1444,19 @@ async function send_res({err, not_exist, redirect, body, ext, path, cache}){
 }
 
 let enable_follow = true;
-async function _fetch_lpm_file({log, imp, mod_self, qs}){
+async function _fetch_lpm_file({log, imp, qs}){
   let f, v;
   let u = T_lpm_parse(imp);
   let q = new URLSearchParams(qs);
   let alt = q.has('imp') || q.has('mjs');
   if (v=str.starts(u.path, '/.lif.imp/'))
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
-  else
-    f = await lpm_file_resolve({log, imp, mod_self, alt});
+  else {
+    // let f2 = await lpm_file_resolve_follow({log, imp, alt});
+    f = await lpm_file_resolve({log, imp, alt});
+    //if (f2.redirects)
+    //  console.log('imp', imp, 'redirects', f2.redirects);
+  }
   if (!f.redirect || !enable_follow)
     return {...f, imp, qs}; // remember the final imp
   if (q.has('mjs')){
@@ -1467,8 +1468,8 @@ async function _fetch_lpm_file({log, imp, mod_self, qs}){
   return _f;
 }
 
-async function fetch_lpm_file({log, imp, mod_self, qs}){
-  let f = await _fetch_lpm_file({log, imp, mod_self, qs});
+async function fetch_lpm_file({log, imp, qs}){
+  let f = await _fetch_lpm_file({log, imp, qs});
   return await responce_tr_send({f, qs: f.qs||qs, lmod: f.imp||imp});
 }
 
@@ -1510,9 +1511,6 @@ async function _kernel_fetch(event){
   let path = uri_dec(u.path);
   let qs = u.search;
   let q = u.searchParams;
-  let mod_self = q.get('mod_self');
-  if (mod_self)
-    mod_self = npm_to_lpm(mod_self);
   let ext = _path_ext(path);
   let log = {
     mod: url+(ref && ref!=u.origin+'/' ? ' ref '+ref : ''),
@@ -1587,7 +1585,7 @@ async function _kernel_fetch(event){
     await app_init_wait; // XXX - try to remove. favicon can be handled later!
     slow.end();
     if (q.has('meta')){
-      let meta = await fetch_lpm_meta({log, mod_self, imp: lmod});
+      let meta = await fetch_lpm_meta({log, imp: lmod});
       if (meta.err)
         console.error('parse '+url+': '+meta.err);
       return send_res({body: json(meta), ext: 'json', path,
@@ -1596,7 +1594,7 @@ async function _kernel_fetch(event){
     let response = await cache_store_get(request);
     if (response)
       return response;
-    let res = await fetch_lpm_file({log, mod_self, imp: lmod, qs});
+    let res = await fetch_lpm_file({log, imp: lmod, qs});
     response = await send_res({...res, path});
     if (res.cache)
       await cache_store_set(request, response);
