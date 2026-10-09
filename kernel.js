@@ -1419,29 +1419,6 @@ async function fetch_lpm_meta({log, imp}){
   return {...meta, cache: 1};
 }
 
-function response_redirect({redirect, cache}){
-  return Response.redirect(redirect);
-}
-
-async function send_res({err, not_exist, redirect, body, ext, path, cache}){
-  if (err && body==undefined){
-    console.error('req '+path+': '+err);
-    return new Response(''+err, {status: 500, statusText: ''+err});
-  }
-  if (not_exist){
-    console.error('not found: '+path);
-    return new Response('not found', {status: 404, statusText: 'not found'});
-  }
-  let v;
-  if (cache)
-    cache = (v=str.starts(path, '/.lif/')) && cache_lmod(v.rest);
-  if (redirect)
-    return response_redirect({redirect, cache});
-  if (body)
-    return response_send({body, ext, cache});
-  throw Error('invalid fetch_lpm response');
-}
-
 let enable_follow = true;
 async function _fetch_lpm_file({log, imp, qs}){
   let f, v;
@@ -1470,6 +1447,29 @@ async function _fetch_lpm_file({log, imp, qs}){
 async function fetch_lpm_file({log, imp, qs}){
   let f = await _fetch_lpm_file({log, imp, qs});
   return await responce_tr_send({f, qs: f.qs||qs, lmod: f.imp||imp});
+}
+
+function response_redirect({redirect, cache}){
+  return Response.redirect(redirect);
+}
+
+async function send_res({err, not_exist, redirect, body, ext, path, cache}){
+  if (err && body==undefined){
+    console.error('req '+path+': '+err);
+    return new Response(''+err, {status: 500, statusText: ''+err});
+  }
+  if (not_exist){
+    console.error('not found: '+path);
+    return new Response('not found', {status: 404, statusText: 'not found'});
+  }
+  let v;
+  if (cache)
+    cache = (v=str.starts(path, '/.lif/')) && cache_lmod(v.rest);
+  if (redirect)
+    return response_redirect({redirect, cache});
+  if (body)
+    return response_send({body, ext, cache});
+  throw Error('invalid fetch_lpm response');
 }
 
 function fetch_request_document(request){
