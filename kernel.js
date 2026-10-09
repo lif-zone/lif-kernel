@@ -1398,8 +1398,7 @@ async function lpm_file_resolve_follow({log, imp, alt}){
 }
 
 let enable_follow = true;
-
-async function fetch_lpm_follow({log, imp, qs}){
+async function fetch_lpm_follow({log, imp, qs, follow}){
   let v, f;
   let q = new URLSearchParams(qs);
   let u = T_lpm_parse(imp);
@@ -1408,12 +1407,21 @@ async function fetch_lpm_follow({log, imp, qs}){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
   else
     f = await lpm_file_resolve_follow({log, imp, alt});
-  return f;
+  if (!follow || !f.redirect)
+    return {...f, imp, qs}; // remember the final imp+qs
+  // follow redirect
+  if (q.has('mjs')){
+    // local (inside module) imports can have alt redirect: mjs->imp
+    q.delete('mjs');
+    q.set('imp', q.get('imp')||'');
+    qs = qs_enc(q);
+  }
+  return await fetch_lpm_follow({log, imp: f.redirect, qs, follow});
 }
 
 // meta is used for cjs
 async function fetch_lpm_meta({log, imp}){
-  let f = await fetch_lpm_follow({log, imp, qs: '?meta'});
+  let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: false});
   if (f.redirect)
     f.redirect = lpm_to_npm(f.redirect);
   if (f.not_exist || f.redirect)
@@ -1426,22 +1434,8 @@ async function fetch_lpm_meta({log, imp}){
   return {...meta, cache: 1};
 }
 
-async function _fetch_lpm_file({log, imp, qs}){
-  let f = await fetch_lpm_follow({log, imp, qs});
-  if (!f.redirect || !enable_follow)
-    return {...f, imp, qs}; // remember the final imp
-  let q = new URLSearchParams(qs);
-  if (q.has('mjs')){
-    q.delete('mjs');
-    q.set('imp', q.get('imp')||'');
-    qs = qs_enc(q);
-  }
-  let _f = await _fetch_lpm_file({log, imp: f.redirect, qs});
-  return _f;
-}
-
 async function fetch_lpm_file({log, imp, qs}){
-  let f = await _fetch_lpm_file({log, imp, qs});
+  let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
   return await responce_tr_send({f, qs: f.qs||qs, lmod: f.imp||imp});
 }
 
