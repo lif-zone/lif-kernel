@@ -1432,7 +1432,18 @@ async function fetch_lpm_meta({log, imp}){
     return {type};
   await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
-  return {...meta, cache: 1};
+  return {meta, cache: 1};
+}
+
+async function fetch_lpm_meta_res({log, imp}){
+  let f = await fetch_lpm_meta({log, imp});
+  let res = {ext: 'json'};
+  if (f.meta)
+    res.body = json(f.meta);
+  else
+    res.body = json(f);
+  res.cache = f.cache;
+  return res;
 }
 
 async function fetch_lpm_file({log, imp, qs}){
@@ -1574,17 +1585,16 @@ async function _kernel_fetch(event){
     let slow = eslow('app_init');
     await app_init_wait; // XXX - try to remove. favicon can be handled later!
     slow.end();
-    if (q.has('meta')){
-      let meta = await fetch_lpm_meta({log, imp: lmod});
-      if (meta.err)
-        console.error('parse '+url+': '+meta.err);
-      return send_res({body: json(meta), ext: 'json', path,
-        cache: meta.cache});
-    }
     let response = await cache_store_get(request);
     if (response)
       return response;
-    let res = await fetch_lpm_file({log, imp: lmod, qs});
+    let res;
+    if (q.has('meta'))
+      res = await fetch_lpm_meta_res({log, imp: lmod, qs});
+    else
+      res = await fetch_lpm_file({log, imp: lmod, qs});
+    if (res.err)
+      console.error('req '+url+': '+res.err);
     response = await send_res({...res, path});
     if (res.cache)
       await cache_store_set(request, response);
