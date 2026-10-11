@@ -1403,25 +1403,26 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
   let q = new URLSearchParams(qs);
   let u = T_lpm_parse(imp);
   let alt = q.has('imp') || q.has('mjs') || q.has('meta');
-  if (v=str.starts(u.path, '/.lif.imp/'))
+  if (v=str.starts(u.path, '/.lif.imp/')){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
-  else
-    f = await lpm_file_resolve_follow({log, imp, alt});
-  if (!follow || !f.redirect)
-    return {...f, imp, qs}; // remember the final imp+qs
-  // follow redirect
-  if (q.has('mjs')){
+    if (!follow || !f.redirect)
+      return f;
+    imp = f.redirect;
+  }
+  f = await lpm_file_resolve_follow({log, imp, alt});
+  if (f.redirect && q.has('mjs')){
     // local (inside module) imports can have alt redirect: mjs->imp
+    // qs fixup is needed to later serve the redirect, not the file itself
     q.delete('mjs');
     q.set('imp', q.get('imp')||'');
     qs = qs_enc(q);
   }
-  return await fetch_lpm_follow({log, imp: f.redirect, qs, follow});
+  return {...f, imp, qs}; // remember the final imp+qs
 }
 
 // meta is used for cjs
 async function fetch_lpm_meta({log, imp}){
-  let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: false});
+  let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: enable_follow});
   if (f.redirect)
     f.redirect = lpm_to_npm(f.redirect);
   if (f.not_exist || f.redirect)
