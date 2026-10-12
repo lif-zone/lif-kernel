@@ -99,7 +99,7 @@ function storage_bucket_init(){
 }
 storage_bucket_init();
 
-let cache_ver = 27;
+let cache_ver = 28;
 async function db_open(){ // use storageBuckets
   if (db)
     return db;
@@ -1352,6 +1352,7 @@ async function responce_tr_send({f, qs, lmod}){
   if (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod}))
     return {body: mjs_import_mjs(meta.export_default, v), ext};
   let type = meta.type;
+  let worker = q.has('worker');
   // mjs - mjs importing an mjs module
   // cjs - mjs importing a cjs module
   // amd - mjs importing an amd module
@@ -1362,11 +1363,11 @@ async function responce_tr_send({f, qs, lmod}){
       return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
     if (type=='amd')
       return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
-    return {body: file_tr_mjs(f, {worker: q.has('worker')}), ext, cache: 1};
+    return {body: file_tr_mjs(f, {worker}), ext, cache: 1};
   }
   if (q.has('imp') && (type=='mjs' || !type)){
     return {body: mjs_import_mjs(meta.export_default,
-      '/.lif/'+lmod+'?mjs'), ext, cache: 1};
+      '/.lif/'+lmod+'?mjs'+(worker?'&worker':'')), ext, cache: 1};
   }
   if (q.has('cjs') || (q.has('imp') && type=='cjs'))
     return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
@@ -1437,6 +1438,11 @@ async function fetch_lpm_meta({log, imp}){
     return {type};
   await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
+  meta = {...meta};
+  if (f.redirect){
+    meta.redirect = f.redirect;
+    meta.redirects = f.redirects;
+  }
   return {meta, cache: 1};
 }
 
