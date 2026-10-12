@@ -2,7 +2,7 @@
 let ast_version = '2026.9.4';
 export const version = ast_version;
 let D = 0; // Debug
-const {assert_obj} = await import('./util.js');
+const {assert, assert_obj} = await import('./util.js');
 const Babel = await globalThis.import_npm('@babel/standalone@7.29.1/babel.js');
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
@@ -68,12 +68,10 @@ function ast_get_if_cond(path){
   if (has_if==1)
     return cond;
 }
-function ast_get_scope_type(path, opt={}){
-  let p;
-  for (p=path; p; p=p.parentPath){
-    if (opt.try && p.type=='TryStatement')
-      return {type: 'try'};
-    let b = p.scope.block;
+function ast_get_scope_type(path){
+  let p, cond, child, has_if = 0, b;
+  for (child=p=path; p; child=p, p=p.parentPath){
+    b = p.scope.block;
     if (b.type=='FunctionExpression' ||
       b.type=='ArrowFunctionExpression' ||
       b.type=='FunctionDeclaration' ||
@@ -81,14 +79,28 @@ function ast_get_scope_type(path, opt={}){
     {
       return {type: b.async ? 'async' : 'sync'};
     }
-    if (opt.try && b.type=='CatchClause')
-      return {type: 'catch'};
-    if (b.type=='Program'){
-      if (opt.if)
-        return {type: 'program', cond: ast_get_if_cond(path)};
-      return {type: 'program'};
+    if (p.type=='IfStatement'){
+      let n = p.node;
+      let nc = child.node;
+      let _static;
+      traverse(n.test, {enter(p){
+        _static = ast_is_static(p);
+        p.stop();
+      }}, p.scope);
+      cond = {else: n.consequent!=nc, static: _static,
+        start: n.test.start, end: n.test.end};
+      has_if++;
+    }
+    if (p.type=='CatchClause'){
+      cond = 'catch';
+      has_if++;
     }
   }
+  assert(b.type=='Program');
+  let ret = {type: 'program'};
+  if (has_if)
+    ret.cond = has_if==1 ? cond : 'var';
+  return ret;
 }
 
 let array_unique = a=>[...new Set(a)];
@@ -148,7 +160,6 @@ function tr_js_to_ast(js){
       if (s.type!='StringLiteral')
         return;
       let v = s.value;
-      let {type} = ast_get_scope_type(path, {try: 1});
       let imported = [], ns_spec, has_dyn;
       n.specifiers?.forEach(spec=>{
         if (spec.type=='ImportSpecifier')
@@ -175,7 +186,7 @@ function tr_js_to_ast(js){
         name_end: ns_spec.local.end,
         stmt_end: n.end,
       } : undefined;
-      let imports = {module: v, start: s.start, end: s.end, type};
+      let imports = {module: v, start: s.start, end: s.end};
       if (imported.length)
         imports.imported = imported;
       if (imported_dyn)
@@ -188,7 +199,6 @@ function tr_js_to_ast(js){
       if (s.type!='StringLiteral')
         return;
       let v = s.value;
-      let {type} = ast_get_scope_type(path, {try: 1});
       let imported = [], ns_spec, has_dyn;
       n.specifiers?.forEach(spec=>{
         if (spec.type=='ExportSpecifier')
@@ -229,7 +239,7 @@ function tr_js_to_ast(js){
         name_end: ns_spec.exported.end,
         stmt_end: n.end,
       } : undefined;
-      let imports = {module: v, start: s.start, end: s.end, type};
+      let imports = {module: v, start: s.start, end: s.end};
       if (imported.length)
         imports.imported = imported;
       if (imported_dyn)
@@ -296,9 +306,9 @@ function tr_js_to_ast(js){
           !path.scope.getBinding('require'))
         {
           v = n.arguments[0].value;
-          let {type, cond} = ast_get_scope_type(path, {try: 1, if: 1});
-          ast.requires.push({module: v, start: n.start, end: n.end, type,
-            cond});
+          let type_cond = ast_get_scope_type(path);
+          ast.requires.push({module: v, start: n.start, end: n.end,
+            ...type_cond});
           has.require = true;
         }
         if (n.callee.type=='Import' && !keep_comment(path))
@@ -391,87 +401,82 @@ function test_ast(){
   t = (js, v)=>assert_obj(v, tr_js_to_meta(js));
   t(`import "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', module: 'lif', start: 7, end: 12}]
+      {module: 'lif', start: 7, end: 12}]
     });
   t(`import a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', module: 'lif', start: 14, end: 19}]
+      {module: 'lif', start: 14, end: 19}]
     });
   t(`import {a, b} from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['a', 'b'], module: 'lif', start: 19,
-        end: 24}]
+      {imported: ['a', 'b'], module: 'lif', start: 19, end: 24}]
     });
   t(`export {a, b} from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['a', 'b'], module: 'lif', start: 19,
+      {imported: ['a', 'b'], module: 'lif', start: 19,
         end: 24}]
     });
   t(`export * from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', module: 'lif', start: 14, end: 19}]
+      {module: 'lif', start: 14, end: 19}]
     });
   t(`import * as a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', module: 'lif', start: 19, end: 24}]
+      {module: 'lif', start: 19, end: 24}]
     });
   t(`export * as a from "lif";`,
     {type: 'mjs', imports: [
-      {type: 'program', module: 'lif', start: 19, end: 24}]
+      {module: 'lif', start: 19, end: 24}]
     });
   t(`import * as a from "lif"; let b = a.A || a.AA;`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['A', 'AA'], module: 'lif',
+      {imported: ['A', 'AA'], module: 'lif',
         start: 19, end: 24}]
     });
   t(`export * as a from "lif"; let b = a.A || a.AA;`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['A', 'AA'], module: 'lif',
+      {imported: ['A', 'AA'], module: 'lif',
         start: 19, end: 24}]
     });
   t(`import * as a from "lif"; let b = a['xx'];`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['xx'], module: 'lif',
+      {imported: ['xx'], module: 'lif',
         start: 19, end: 24}]
     });
   t(`export * as a from "lif"; let b = a['xx'];`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['xx'], module: 'lif',
+      {imported: ['xx'], module: 'lif',
         start: 19, end: 24}]
     });
   t(`import * as a from "lif"; let b = a[x]; let x;`,
     {type: 'mjs', imports: [
-      {type: 'program',
-        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+      {imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
         module: 'lif', start: 19, end: 24}]
     });
   t(`export * as a from "lif"; let b = a[x]; let x;`,
     {type: 'mjs', imports: [
-      {type: 'program',
-        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+      {imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
         module: 'lif', start: 19, end: 24}]
     });
   t(`import * as a from "lif"; let b = a['xx'+'yy'];`,
     {type: 'mjs', imports: [
-      {type: 'program',
-        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+      {imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
         module: 'lif', start: 19, end: 24}]
     });
   t(`export * as a from "lif"; let b = a['xx'+'yy'];`,
     {type: 'mjs', imports: [
-      {type: 'program',
-        imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
+      {imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
         module: 'lif', start: 19, end: 24}]
     });
   t(`import * as a from "lif"; let b = a['xx'] || a[x]; let x;`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['xx'],
+      {imported: ['xx'],
         imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
         module: 'lif', start: 19, end: 24}]
     });
   t(`export * as a from "lif"; let b = a['xx'] || a[x]; let x;`,
     {type: 'mjs', imports: [
-      {type: 'program', imported: ['xx'],
+      {imported: ['xx'],
         imported_dyn: {name_start: 12, name_end: 13, stmt_end: 25},
         module: 'lif', start: 19, end: 24}]
     });
@@ -519,6 +524,30 @@ function test_ast(){
   t(`function load(){ let a = require("a-js"); }`,
     {type: 'cjs', requires: [
       {module: 'a-js', type: 'sync', start: 25, end: 40}
+    ]});
+  t(`try { let mod = require('mod.js'); } catch(err){}`,
+    {type: 'cjs', requires: [
+      {module: 'mod.js', type: 'program', start: 16, end: 33}
+    ]});
+  t(`try {} catch(err){ let mod = require('mod.js'); }`,
+    {type: 'cjs', requires: [
+      {module: 'mod.js', type: 'program', start: 29, end: 46, cond: 'catch'}
+    ]});
+  t(`try {} finally { let mod = require('mod.js'); }`,
+    {type: 'cjs', requires: [
+      {module: 'mod.js', type: 'program', start: 27, end: 44}
+    ]});
+  t(`function f(){ try { let mod = require('mod.js'); } catch(err){}; }`,
+    {type: 'cjs', requires: [
+      {module: 'mod.js', type: 'sync', start: 30, end: 47}
+    ]});
+  t(`function f(){ try {} catch(err){ let mod = require('mod.js'); }; }`,
+    {type: 'cjs', requires: [
+      {module: 'mod.js', type: 'sync', start: 43, end: 60}
+    ]});
+  t(`async function f(){ try {} catch(err){ let mod = require('mod.js'); }; }`,
+    {type: 'cjs', requires: [
+      {module: 'mod.js', type: 'async', start: 49, end: 66}
     ]});
 }
 test_ast();
