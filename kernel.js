@@ -1420,7 +1420,7 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
   f = await lpm_file_resolve_follow({log, imp, alt, follow});
   if (redirect && !f.redirect)
     f.redirect ||= redirect;
-  return {...f, imp, qs}; // remember the final imp+qs
+  return f;
 }
 
 // meta is used for cjs
