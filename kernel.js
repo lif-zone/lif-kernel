@@ -1329,12 +1329,13 @@ async function responce_tr_send({f, qs, lmod}){
   let ext = _path_ext(lmod);
   let q = new URLSearchParams(qs);
   if (f.redirect){
+    if (f.body==undefined)
+      return lpm_redirect({f, qs, lmod});
     if (q.has('mjs')){
-      0 && console.log('mjs shortcut '+lmod+qs+' -> '+f.redirect);
-      //return {body: mjs_import_mjs(meta.export_default,
-      //  '/.lif/'+lmod+'?mjs'), ext, cache: 1};
+      q.delete('mjs');
+      q.set('imp', '');
     }
-    return lpm_redirect({f, qs, lmod});
+    lmod = f.redirect;
   }
   if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
     return {body: f.blob, ext, cache: 1};
@@ -1375,9 +1376,9 @@ async function responce_tr_send({f, qs, lmod}){
   return {err: 'invalid lpm file type '+type+' '+lmod+' '+qs};
 }
 
-async function lpm_file_resolve_follow({log, imp, alt}){
+async function lpm_file_resolve_follow({log, imp, alt, follow}){
   D && console.log('lpm_file_resolve_follow '+imp);
-  let res = {}, follow = 1;
+  let res = {};
   for (let i=0; i<max_redirect; i++){
     let f = await lpm_file_resolve({log, imp, alt});
     if (f.not_exist){
@@ -1395,8 +1396,9 @@ async function lpm_file_resolve_follow({log, imp, alt}){
       continue;
     }
     if (res.redirects){
-      res.redirect = res.redirects.at(-1);
-      return res;
+      f.redriects = res.redirects;
+      f.redirect = res.redirects.at(-1);
+      return f;
     }
     return f;
   }
@@ -1415,20 +1417,9 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
       return f;
     imp = redirect = f.redirect;
   }
-  f = await lpm_file_resolve_follow({log, imp, alt});
-  if (redirect && !f.redirect){
-    0 && console.log('redirect /.lif.imp/ '+_imp+qs+' -> '+redirect+qs);
+  f = await lpm_file_resolve_follow({log, imp, alt, follow});
+  if (redirect && !f.redirect)
     f.redirect ||= redirect;
-  }
-  if (0 && f.redirect && q.has('mjs')){
-    // local (inside module) imports can have alt redirect: mjs->imp
-    // qs fixup is needed to later serve the redirect, not the file itself
-    q.delete('mjs');
-    q.set('imp', q.get('imp')||'');
-    qs = qs_enc(q);
-    imp = f.redirect;
-    delete f.redirect;
-  }
   return {...f, imp, qs}; // remember the final imp+qs
 }
 
@@ -1437,8 +1428,10 @@ async function fetch_lpm_meta({log, imp}){
   let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: enable_follow});
   if (f.redirect)
     f.redirect = lpm_to_npm(f.redirect);
-  if (f.not_exist || f.redirect)
+  if (f.not_exist || (f.redirect && f.body==undefined))
     return f;
+  if (f.redirect)
+    return {redirect: f.redirect};
   let type = file_ctype(f.lmod);
   if (type!='js')
     return {type};
@@ -1460,7 +1453,7 @@ async function fetch_lpm_meta_res({log, imp}){
 
 async function fetch_lpm_file({log, imp, qs}){
   let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
-  return await responce_tr_send({f, qs: f.qs||qs, lmod: f.imp||imp});
+  return await responce_tr_send({f, qs, lmod: imp});
 }
 
 function response_redirect({redirect, cache}){
