@@ -1328,8 +1328,14 @@ async function responce_tr_send({f, qs, lmod}){
     return {not_exist: true};
   let ext = _path_ext(lmod);
   let q = new URLSearchParams(qs);
-  if (f.redirect)
+  if (f.redirect){
+    if (q.has('mjs')){
+      0 && console.log('mjs shortcut '+lmod+qs+' -> '+f.redirect);
+      //return {body: mjs_import_mjs(meta.export_default,
+      //  '/.lif/'+lmod+'?mjs'), ext, cache: 1};
+    }
     return lpm_redirect({f, qs, lmod});
+  }
   if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
     return {body: f.blob, ext, cache: 1};
   // XXX add to import tr ?type=json/css/text
@@ -1399,7 +1405,7 @@ async function lpm_file_resolve_follow({log, imp, alt}){
 
 let enable_follow = true;
 async function fetch_lpm_follow({log, imp, qs, follow}){
-  let v, f;
+  let v, f, redirect, _imp = imp;
   let q = new URLSearchParams(qs);
   let u = T_lpm_parse(imp);
   let alt = q.has('imp') || q.has('mjs') || q.has('meta');
@@ -1407,15 +1413,21 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
     if (!follow || !f.redirect)
       return f;
-    imp = f.redirect;
+    imp = redirect = f.redirect;
   }
   f = await lpm_file_resolve_follow({log, imp, alt});
-  if (f.redirect && q.has('mjs')){
+  if (redirect && !f.redirect){
+    0 && console.log('redirect /.lif.imp/ '+_imp+qs+' -> '+redirect+qs);
+    f.redirect ||= redirect;
+  }
+  if (0 && f.redirect && q.has('mjs')){
     // local (inside module) imports can have alt redirect: mjs->imp
     // qs fixup is needed to later serve the redirect, not the file itself
     q.delete('mjs');
     q.set('imp', q.get('imp')||'');
     qs = qs_enc(q);
+    imp = f.redirect;
+    delete f.redirect;
   }
   return {...f, imp, qs}; // remember the final imp+qs
 }
