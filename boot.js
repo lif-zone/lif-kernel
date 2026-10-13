@@ -20,7 +20,7 @@ lif.lif_loaded = true;
 lif.assert = assert;
 lif.Buffer = Buffer;
 let sha256 = (await import('./sha256.js')).default;
-let modules = {};
+let mod_t = {};
 let kernel_chan;
 let npm_root;
 
@@ -185,7 +185,7 @@ function npm_need_mod_self(mod_self, lmod){
 
 function require_cjs_get_mod(id){
   let m;
-  assert(m = modules[id], 'module '+id+' not loaded');
+  assert(m = mod_t[id], 'module '+id+' not loaded');
   return m;
 }
 
@@ -489,8 +489,8 @@ function require_cjs_load_sync({mod_self, imp, p}){
   D>=2 && console.log('sync load', mod_self, imp);
   let m;
   if (!p){
-    if (!(m=modules[imp])){
-      m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
+    if (!(m=mod_t[imp])){
+      m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
         is_json: imp.endsWith('.json'),
         exports: {}};
     }
@@ -577,7 +577,7 @@ function define_amd_require(m, reqs){
         assert(0, 'amd require() not yet implemented correctly');
         if (!cb){
           // sync require - only to previously loaded modules
-          let _m = modules[_imp];
+          let _m = mod_t[_imp];
           if (_m)
             return _m.exports;
           throw Error('amd sync require('+_imp+') not already loaded');
@@ -606,9 +606,9 @@ function define_amd_multi(id, reqs, factory, m){
   // _mod_id is ignored. 1st define() in file should ignore it, or maybe
   // create an alias for it.
   if (!m){
-    if (modules[id])
+    if (mod_t[id])
       throw Error('define('+_id+') already defined');
-    m = modules[id] = {id, loaded: false, parent: {}, wait: ewait(),
+    m = mod_t[id] = {id, loaded: false, parent: {}, wait: ewait(),
       exports: {}};
   }
   // TODO not yet implemented loading of multi-define() per file AMD
@@ -659,8 +659,8 @@ async function require_cjs_load_async({mod_self, imp, p, loading}){
   D>=2 && console.log('async load check ', mod_self, imp);
   let m;
   if (!p){
-    if (!(m=modules[imp])){
-      m = modules[imp] = {id: imp, url: npm_2url(imp), parent: {},
+    if (!(m=mod_t[imp])){
+      m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
         is_json: imp.endsWith('.json'), exports: {}};
     }
     mod_self ||= '';
@@ -724,7 +724,7 @@ async function require_cjs_load_async({mod_self, imp, p, loading}){
 function require_cjs_sync(mod_self, imp){
   imp = npm_base(mod_self, imp);
   D && console.log('require_cjs_sync '+(mod_self||'')+' -> '+imp);
-  let p = modules[imp]?.parent[mod_self];
+  let p = mod_t[imp]?.parent[mod_self];
   let m;
   if (!p)
     console.log('dynamic sync require('+imp+') in '+mod_self);
@@ -757,7 +757,7 @@ function fetch_opt(url){
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
 }
 function define_amd_get_mod(imp){
-  let m = modules[imp];
+  let m = mod_t[imp];
   assert(m, 'module not found: '+imp);
   return m;
 }
@@ -767,9 +767,9 @@ async function import_amd(mod_self, [imp, opt]){
   imp = npm_base(mod_self, imp);
   let url = npm_2url(imp);
   let m;
-  if (m = modules[imp])
+  if (m = mod_t[imp])
     return await m.wait;
-  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
+  m = mod_t[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
   try {
     let response = await fetch(url, fetch_opt(url));
@@ -792,11 +792,11 @@ async function import_amd(mod_self, [imp, opt]){
 // worker
 let import_module_script = async({mod_self, imp, url})=>{
   let m;
-  if (m = modules[imp]){
+  if (m = mod_t[imp]){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
     return await m.wait;
   }
-  m = modules[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
+  m = mod_t[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
   try {
     let response = await fetch(url, fetch_opt(url));
