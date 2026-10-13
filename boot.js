@@ -1026,7 +1026,7 @@ async function kernel_stats(){
 }
 
 async function run_html(npm_self, webapp){
-  let _webapp = npm_base(webapp, npm_self);
+  let _webapp = npm_base(npm_self, webapp);
   console.log('run_html start '+_webapp);
   let url = '/.lif/'+npm_to_lpm(_webapp);
   let html = await T_fetch_text(url);
