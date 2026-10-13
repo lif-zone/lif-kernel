@@ -408,7 +408,7 @@ async function require_cjs_load_requires_async(m, loading){
       continue;
     let slow = eslow(15000, 'require_cjs_load_require('+m.id+' -> '
       +req.module+')');
-    await require_cjs_load_async({npm_self: m.id, imp: req.module, loading});
+    await require_cjs_load_follow_async({npm_self: m.id, imp: req.module, loading});
     slow.end();
   }
   m.load_requires = 1;
@@ -654,10 +654,8 @@ function import_amd_run_define(m, loading){
     console.log('AMD module '+m.id+' did not call define()');
 }
 
-async function require_cjs_load_async({npm_self, imp, p, loading}){
+async function require_cjs_load_follow_async({npm_self, imp, p, loading}){
   imp = npm_base(npm_self, imp);
-  let slow = eslow(15000, 'require_cjs_load_async('+imp+')');
-  try {
   D>=2 && console.log('async load check ', npm_self, imp);
   let m;
   if (!p){
@@ -687,15 +685,19 @@ async function require_cjs_load_async({npm_self, imp, p, loading}){
   if (p.res!='done')
     return m;
   if (p.meta.redirect){
-    p.redirect = await require_cjs_load_async({npm_self: null,
+    p.redirect = await require_cjs_load_follow_async({npm_self: null,
       imp: p.meta.redirect, loading});
     return p.redirect;
   }
   if (npm_self){
-    p.redirect = await require_cjs_load_async({npm_self: null, imp, loading});
+    p.redirect = await require_cjs_load_follow_async({npm_self: null, imp, loading});
     return p.redirect;
   }
   m.meta = p.meta;
+  await require_cjs_load_async({m, loading});
+  return m;
+}
+async function require_cjs_load_async({m, loading}){
   m.type = m.meta.type;
   await require_cjs_load_file_async(m);
   if (m.file.res!='done')
@@ -721,7 +723,6 @@ async function require_cjs_load_async({npm_self, imp, p, loading}){
   }
   await require_cjs_load_requires_async(m, loading);
   return m;
-  } finally { slow.end(); }
 }
 
 function require_cjs_sync(npm_self, imp){
@@ -742,7 +743,7 @@ function lpm_base(mod_self, imp){
 async function require_cjs_async(npm_self, imp){
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_async '+(npm_self||'')+' -> '+imp);
-  let m = await require_cjs_load_async({npm_self, imp, loading: []});
+  let m = await require_cjs_load_follow_async({npm_self, imp, loading: []});
   require_cjs_run(m);
   return m.exports;
 }
