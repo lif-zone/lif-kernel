@@ -487,17 +487,16 @@ function require_cjs_run(m){
 function require_cjs_load_follow_sync({npm_self, imp, p}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
+  npm_self ||= '';
   let m;
   if (!(m=mod_t[imp])){
     m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
-      is_json: imp.endsWith('.json'),
+      is_json: imp.endsWith('.json'), first_npm_self: npm_self,
       exports: {}};
     mod_add_lmod(m);
   }
-  npm_self ||= '';
   if (!(p=m.parent[npm_self]))
     p = m.parent[npm_self] = {m, npm_self};
-  m.first_npm_self ??= npm_self;
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires || p.loading)
@@ -657,16 +656,15 @@ function import_amd_run_define(m, loading){
 async function require_cjs_load_follow_async({npm_self, imp, p, loading}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
+  npm_self ||= '';
   let m;
   if (!(m=mod_t[imp])){
     m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
-      is_json: imp.endsWith('.json'), exports: {}};
+      is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
     mod_add_lmod(m);
   }
-  npm_self ||= '';
   if (!(p = m.parent[npm_self]))
     p = m.parent[npm_self] = {m, npm_self};
-  m.first_npm_self ??= npm_self;
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires)
