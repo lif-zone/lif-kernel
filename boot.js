@@ -498,6 +498,7 @@ function require_cjs_load_follow_sync({npm_self, imp, p}){
     npm_self ||= '';
     if (!(p=m.parent[npm_self]))
       p = m.parent[npm_self] = {m, npm_self};
+    m.first_npm_self ??= npm_self;
   } else {
     m = p.m;
     imp = m.id;
@@ -533,7 +534,7 @@ function require_cjs_load_sync({m}){
   if (str.is(m.type, 'mjs', 'amd')){
     // TODO: add support for sync amd
     console.error('cannot load '+m.type+' sync '+
-      m.id+(npm_self?' from '+npm_self:''));
+      m.id+(m.first_npm_self?' from '+m.first_npm_self:''));
     return m;
   }
   require_cjs_load_requires_sync(m);
@@ -672,6 +673,7 @@ async function require_cjs_load_follow_async({npm_self, imp, p, loading}){
     npm_self ||= '';
     if (!(p = m.parent[npm_self]))
       p = m.parent[npm_self] = {m, npm_self};
+    m.first_npm_self ??= npm_self;
   } else {
     m = p.m;
     imp = m.id;
