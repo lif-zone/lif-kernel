@@ -120,7 +120,7 @@ async function db_open(){ // use storageBuckets
 let enable_cache = 1;
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
-  return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
+  return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
 function cache_lmod(lmod){
   if (!enable_cache)

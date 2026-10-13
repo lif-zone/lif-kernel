@@ -760,7 +760,7 @@ let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
 let enable_cache_idb = 0; // 0 - no cache, 1 - cache, 'debug' - dev debug
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
-  return no_cache ? {headers: {'Cache-Control': 'no-cache'}}: {};
+  return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
 function define_amd_get_mod(imp){
   let m = mod_t[imp];
