@@ -1,6 +1,7 @@
 // LIF bootloader: Boot the kernel and then load the application
 let lif_version = '2026.9.30';
 let D = globalThis.localStorage?.getItem('lif_boot_D'); // Debug
+let in_test;
 
 import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
@@ -160,8 +161,8 @@ function npm_2url(url, npm_self){
   return '/.lif/'+T_npm_to_lpm(u.path); // XXX /.lif/$mod_self/.lif.imp/$u.path
 }
 
-function npm_base(npm_self, url){
-  let u = T_npm_url_base(url, npm_self);
+function npm_base(npm_self, imp){
+  let u = T_npm_url_base(imp, npm_self);
   let v;
   if ((u.is.uri || u.is.url && u.origin==location.origin) &&
     (v=str.starts(u.path, '/.lif/')))
@@ -169,7 +170,20 @@ function npm_base(npm_self, url){
     return lpm_to_npm(v.rest);
   }
   if (u.is.url)
-    return u.is.blob || u.is.data ? url : u.origin+u.path;
+    return u.is.blob || u.is.data ? imp : u.origin+u.path;
+  return u.path;
+}
+
+function uri_base(uri_self, imp){
+  let u = T_npm_url_base(imp, uri_self);
+  let v;
+  if ((u.is.uri || u.is.url && u.origin==location.origin) &&
+    (v=str.starts(u.path, '/.lif/')))
+  {
+    return lpm_to_npm(v.rest);
+  }
+  if (u.is.url)
+    return u.is.blob || u.is.data ? imp : u.origin+u.path;
   return u.path;
 }
 
@@ -1117,7 +1131,8 @@ function mainthread_setup(){
 
 function test(){
   let t;
-  t = (npm_self, url, v)=>assert_eq(v, npm_base(npm_self, url));
+  in_test = 1;
+  t = (npm_self, imp, v)=>assert_eq(v, npm_base(npm_self, imp));
   t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
   t('.lif/local/other.js', './a/file.js', '.lif/local/a/file.js');
   t('.lif/local/mod/', './a/file.js', '.lif/local/mod//a/file.js');
@@ -1142,6 +1157,35 @@ function test(){
   t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
   t('mod@1.2.3', 'node:path', 'node:path');
   t('mod@1.2.3', 'node:path/a/b', 'node:path/a/b');
+  t = (uri_self, imp, v)=>0 && assert_eq(v, uri_base(uri_self, imp));
+  t('/.lif/npm/mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
+  t('/.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
+  t('/.lif/local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
+  t('/.lif/npm/react@1.2.3', 'mod/file.js',
+    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
+  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js',
+    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
+  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
+  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
+  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
+  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
+  t('http://a.b/c', 'b/file.js', 'b/file.js');
+  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
+  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
+  t('http://a.b/c/', '/b/file.js', '/b/file.js');
+  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
+  t(null, location.origin+'/b/file.js', '/b/file.js');
+  t(null, location.origin+'/.lif/npm/react', '/.lif/npm/react');
+  t(null, location.origin+'/.lif/local/dir', '/.lif/local/dir');
+  t('/a.b/c/', '/b/file.js', '/b/file.js');
+  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
+  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
+  t(null, '/.lif/npm/mod', '/.lif/npm/mod');
+  t(null, '/.lif/local/mod/a', '/.lif/local/mod/a');
+  t('/.lif/npm/mod@1.2.3', 'node:path',
+    '/.lif/npm/mod@1.2.3/.lif.imp/node:path');
+  t('/.lif/npm/mod@1.2.3', 'node:path/a/b',
+    '/.lif/npm/mod@1.2.3/.lif.imp/node:path/a/b');
   t = (npm_self, url, v)=>assert_eq(v, npm_2url(url, npm_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
   t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
@@ -1198,6 +1242,7 @@ function test(){
     '/.lif/npm/buffer@6.1.0/.lif.imp/buffer@6.0.3/index.js');
   t('buffer@6.0.3/other.js', 'npm/buffer@6.0.3/index.js',
     '/.lif/npm/buffer@6.0.3/index.js');
+  in_test = 0;
 }
 test();
 
