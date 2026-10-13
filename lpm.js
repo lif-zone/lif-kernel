@@ -509,6 +509,7 @@ export function T_npm_url_base(url_uri, base_uri){
       u.is.blob = 1;
     else if (u.protocol=='data:')
       u.is.data = 1;
+    // XXX: add handling node:util which is 'node:' protocol
     is.url = 1;
     return u;
   }
