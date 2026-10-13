@@ -425,7 +425,7 @@ async function import_amd_load_requires(m, loading){
   }
   m.load_requires = reqs;
 }
-function define_amd_run(m, p){
+function define_amd_run(m){
   if (m.run)
     return m.run;
   m.run = 'running';
@@ -440,11 +440,11 @@ function define_amd_run(m, p){
   m.loaded = true;
   return m.run = 'done';
 }
-function require_cjs_run(m, p){
+function require_cjs_run(m){
   if (m.run)
     return m.run;
   if (m.type=='amd')
-    return define_amd_run(m, p);
+    return define_amd_run(m);
   m.run = 'running';
   if (m.is_json){
     m.exports = m.file.json;
@@ -493,6 +493,7 @@ function require_cjs_load_sync({mod_self, imp, p}){
       m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
         is_json: imp.endsWith('.json'),
         exports: {}};
+      mod_add_lmod(m);
     }
     mod_self ||= '';
     if (!(p=m.parent[mod_self]))
@@ -610,6 +611,7 @@ function define_amd_multi(id, reqs, factory, m){
       throw Error('define('+_id+') already defined');
     m = mod_t[id] = {id, loaded: false, parent: {}, wait: ewait(),
       exports: {}};
+    mod_add_lmod(m);
   }
   // TODO not yet implemented loading of multi-define() per file AMD
   return m;
@@ -662,6 +664,7 @@ async function require_cjs_load_async({mod_self, imp, p, loading}){
     if (!(m=mod_t[imp])){
       m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
         is_json: imp.endsWith('.json'), exports: {}};
+      mod_add_lmod(m);
     }
     mod_self ||= '';
     if (!(p = m.parent[mod_self]))
@@ -762,6 +765,11 @@ function define_amd_get_mod(imp){
   return m;
 }
 
+function mod_add_lmod(m){
+  m.lmod = T_npm_to_lpm(m.id);
+  m.lmod_self = m.mod_self && T_npm_to_lpm(m.mod_self);
+}
+
 async function import_amd(mod_self, [imp, opt]){
   D && console.log('import_amd', imp, mod_self);
   imp = npm_base(mod_self, imp);
@@ -771,6 +779,7 @@ async function import_amd(mod_self, [imp, opt]){
     return await m.wait;
   m = mod_t[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
+  mod_add_lmod(m);
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -798,6 +807,7 @@ let import_module_script = async({mod_self, imp, url})=>{
   }
   m = mod_t[imp] = {id: imp, url, wait: ewait(), mod_self, parent: {},
     exports: {}, loaded: false};
+  mod_add_lmod(m);
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
