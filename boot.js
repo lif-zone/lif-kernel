@@ -373,7 +373,7 @@ function require_cjs_load_requires_sync(m){
   for (let req of m.meta.requires||[]){
     if (!require_cjs_cond_static(req, m.script))
       continue;
-    require_cjs_load_sync({npm_self: m.id, imp: req.module});
+    require_cjs_load_follow_sync({npm_self: m.id, imp: req.module});
   }
   m.load_requires = 1;
 }
@@ -484,7 +484,7 @@ function require_cjs_run(m){
   return m.run = 'done';
 }
 
-function require_cjs_load_sync({npm_self, imp, p}){
+function require_cjs_load_follow_sync({npm_self, imp, p}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   let m;
@@ -513,14 +513,19 @@ function require_cjs_load_sync({npm_self, imp, p}){
   if (p.res!='done')
     return m;
   if (p.meta.redirect){
-    p.redirect = require_cjs_load_sync({npm_self: null, imp: p.meta.redirect});
+    p.redirect = require_cjs_load_follow_sync({npm_self: null, imp: p.meta.redirect});
     return p.redirect;
   }
   if (npm_self){
-    p.redirect = require_cjs_load_sync({npm_self: null, imp});
+    p.redirect = require_cjs_load_follow_sync({npm_self: null, imp});
     return p.redirect;
   }
   m.meta = p.meta;
+  require_cjs_load_sync({m});
+  return m;
+}
+
+function require_cjs_load_sync({m}){
   m.type = m.meta.type;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
@@ -732,7 +737,7 @@ function require_cjs_sync(npm_self, imp){
   let m;
   if (!p)
     console.log('dynamic sync require('+imp+') in '+npm_self);
-  m = require_cjs_load_sync({p, npm_self, imp});
+  m = require_cjs_load_follow_sync({p, npm_self, imp});
   require_cjs_run(m);
   return m.exports;
 }
