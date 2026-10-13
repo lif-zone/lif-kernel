@@ -183,9 +183,9 @@ function npm_need_mod_self(mod_self, lmod){
   return T_lpm_lmod(lmod)!=T_lpm_lmod(lmod_self);
 }
 
-function require_cjs_get_mod(url){
+function require_cjs_get_mod(id){
   let m;
-  assert(m = modules[url], 'module '+url+' not loaded');
+  assert(m = modules[id], 'module '+id+' not loaded');
   return m;
 }
 
