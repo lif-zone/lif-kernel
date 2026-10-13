@@ -488,22 +488,16 @@ function require_cjs_load_follow_sync({npm_self, imp, p}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   let m;
-  if (!p){
-    if (!(m=mod_t[imp])){
-      m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
-        is_json: imp.endsWith('.json'),
-        exports: {}};
-      mod_add_lmod(m);
-    }
-    npm_self ||= '';
-    if (!(p=m.parent[npm_self]))
-      p = m.parent[npm_self] = {m, npm_self};
-    m.first_npm_self ??= npm_self;
-  } else {
-    m = p.m;
-    imp = m.id;
-    npm_self = p.npm_self;
+  if (!(m=mod_t[imp])){
+    m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
+      is_json: imp.endsWith('.json'),
+      exports: {}};
+    mod_add_lmod(m);
   }
+  npm_self ||= '';
+  if (!(p=m.parent[npm_self]))
+    p = m.parent[npm_self] = {m, npm_self};
+  m.first_npm_self ??= npm_self;
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires || p.loading)
@@ -664,21 +658,15 @@ async function require_cjs_load_follow_async({npm_self, imp, p, loading}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
   let m;
-  if (!p){
-    if (!(m=mod_t[imp])){
-      m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
-        is_json: imp.endsWith('.json'), exports: {}};
-      mod_add_lmod(m);
-    }
-    npm_self ||= '';
-    if (!(p = m.parent[npm_self]))
-      p = m.parent[npm_self] = {m, npm_self};
-    m.first_npm_self ??= npm_self;
-  } else {
-    m = p.m;
-    imp = m.id;
-    npm_self = p.npm_self;
+  if (!(m=mod_t[imp])){
+    m = mod_t[imp] = {id: imp, url: npm_2url(imp), parent: {},
+      is_json: imp.endsWith('.json'), exports: {}};
+    mod_add_lmod(m);
   }
+  npm_self ||= '';
+  if (!(p = m.parent[npm_self]))
+    p = m.parent[npm_self] = {m, npm_self};
+  m.first_npm_self ??= npm_self;
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires)
