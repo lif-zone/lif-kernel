@@ -1097,7 +1097,7 @@ function test_lpm(){
     'git/github.com/user/repo/mod/', '/dir/file.js');
   t('git/github.com/user/repo@ver/mod//dir/file.js',
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
-  t = (v, arg)=>assert_obj_f(v, T_npm_url_base(...arg));
+  t = (v, url_uri, base)=>assert_obj_f(v, T_npm_url_base(url_uri, base));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     ['http://dns/a/b', 'http://oth/c/d']);
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
