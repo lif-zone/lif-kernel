@@ -314,23 +314,23 @@ async function require_cjs_load_meta_async(p){
 }
 
 async function require_cjs_load_file_sync(m){
-  let p = m.file ||= {};
-  function do_ret(res){ return p.res = res; }
-  if (p.res=='done' || p.res=='err')
-    return p.res;
-  p.res = 'loading';
+  let f = m.file ||= {};
+  function do_ret(res){ return f.res = res; }
+  if (f.res=='done' || f.res=='err')
+    return f.res;
+  f.res = 'loading';
   let url = m.url;
   let req;
   req = fetch_sync(url);
   if (req.status==200)
-    m.script = p.text = req.text;
+    m.script = f.text = req.text;
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
   }
   try {
     if (m.is_json)
-      m.json = p.json = JSON.parse(p.text);
+      m.json = f.json = JSON.parse(f.text);
   } catch(err){
     console.error('invalid json module: '+url);
     return do_ret('err');
@@ -339,28 +339,28 @@ async function require_cjs_load_file_sync(m){
 }
 
 async function require_cjs_load_file_async(m){
-  let p = m.file ||= {};
+  let f = m.file ||= {};
   function do_ret(res){
-    return p.wait.return(p.res = res);
+    return f.wait.return(f.res = res);
   }
-  if (p.res=='done' || p.res=='err')
-    return p.res;
-  p.res = 'loading';
+  if (f.res=='done' || f.res=='err')
+    return f.res;
+  f.res = 'loading';
   let url = m.url;
   let req;
-  if (p.wait)
-    return await p.wait;
-  p.wait = ewait();
+  if (f.wait)
+    return await f.wait;
+  f.wait = ewait();
   req = await fetch(url);
   if (req.status==200)
-    m.script = p.text = await req.text();
+    m.script = f.text = await req.text();
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
   }
   try {
     if (m.is_json)
-      m.json = p.json = JSON.parse(p.text);
+      m.json = f.json = JSON.parse(f.text);
   } catch(err){
     return do_ret('err');
   }
