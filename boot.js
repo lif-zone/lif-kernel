@@ -735,11 +735,9 @@ async function require_cjs_load_async({m, loading}){
 function require_cjs_sync(npm_self, imp){
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
-  let p = mod_t[imp]?.parent[npm_self];
-  let m;
-  if (!p)
+  if (!mod_t[imp]?.parent[npm_self])
     console.log('dynamic sync require('+imp+') in '+npm_self);
-  m = require_cjs_load_follow_sync({p, npm_self, imp});
+  let m = require_cjs_load_follow_sync({npm_self, imp});
   require_cjs_run(m);
   return m.exports;
 }
