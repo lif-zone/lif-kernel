@@ -1099,37 +1099,37 @@ function test_lpm(){
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
   t = (v, url_uri, base)=>assert_obj_f(v, T_npm_url_base(url_uri, base));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
-    ['http://dns/a/b', 'http://oth/c/d']);
+    'http://dns/a/b', 'http://oth/c/d');
   t({path: '/c/a/b', origin: 'http://oth', is: {url: 1, rel: 1}},
-    ['./a/b', 'http://oth/c/d']);
-  t({path: '/c/d', is: {uri: 1}}, ['/c/d', '/dir/a/b']);
-  t({path: '/c//d', is: {uri: 1}}, ['/c//d', '/dir/a/b']);
-  t({path: '/dir/a/c/d', is: {uri: 1, rel: 1}}, ['./c/d', '/dir/a/b']);
-  t({path: '/dir/c/d', is: {uri: 1, rel: 1}}, ['../c/d', '/dir/a/b']);
-  t({path: '/c/d', is: {uri: 1, rel: 1}}, ['../../../../c/d', '/dir/a/b']);
-  t({path: 'mod/c/d', is: {mod: 1}}, ['mod/c/d', 'mod/a/b']);
-  t({path: 'mod/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod/a/b']);
-  t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, ['../c/d', 'mod/a/b']);
-  t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, ['../../../c/d', 'mod/a/b']);
+    './a/b', 'http://oth/c/d');
+  t({path: '/c/d', is: {uri: 1}}, '/c/d', '/dir/a/b');
+  t({path: '/c//d', is: {uri: 1}}, '/c//d', '/dir/a/b');
+  t({path: '/dir/a/c/d', is: {uri: 1, rel: 1}}, './c/d', '/dir/a/b');
+  t({path: '/dir/c/d', is: {uri: 1, rel: 1}}, '../c/d', '/dir/a/b');
+  t({path: '/c/d', is: {uri: 1, rel: 1}}, '../../../../c/d', '/dir/a/b');
+  t({path: 'mod/c/d', is: {mod: 1}}, 'mod/c/d', 'mod/a/b');
+  t({path: 'mod/a/c/d', is: {mod: 1, rel: 1}}, './c/d', 'mod/a/b');
+  t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, '../c/d', 'mod/a/b');
+  t({path: 'mod/c/d', is: {mod: 1, rel: 1}}, '../../../c/d', 'mod/a/b');
   t({path: '@mod/v/c/d', is: {mod: 1, rel: 1}},
-    ['../../../c/d', '@mod/v/a/b']);
+    '../../../c/d', '@mod/v/a/b');
   t({path: 'mod@1.2.3/c/c/d', is: {mod: 1, rel: 1}},
-    ['./c/d', 'mod@1.2.3/c/a']);
+    './c/d', 'mod@1.2.3/c/a');
   t({path: 'mod@1.2.3/c/d', is: {mod: 1, rel_ver: 1}},
-    ['mod/c/d', 'mod@1.2.3/c/a']);
-  t({path: 'mod@4.5.6/c/d', is: {mod: 1}}, ['mod@4.5.6/c/d', 'mod@1.2.3/c/a']);
-  t({path: 'mod/c/d', is: {mod: 1}}, ['mod/c/d', 'other@1.2.3/c/a']);
+    'mod/c/d', 'mod@1.2.3/c/a');
+  t({path: 'mod@4.5.6/c/d', is: {mod: 1}}, 'mod@4.5.6/c/d', 'mod@1.2.3/c/a');
+  t({path: 'mod/c/d', is: {mod: 1}}, 'mod/c/d', 'other@1.2.3/c/a');
   t({path: '.lif/git/github.com/user/repo@v1.2.3/c/d',
       is: {mod: 1, rel_ver: 1}},
-    ['.lif/git/github.com/user/repo/c/d',
-      '.lif/git/github.com/user/repo@v1.2.3/c/a']);
+    '.lif/git/github.com/user/repo/c/d',
+    '.lif/git/github.com/user/repo@v1.2.3/c/a');
   t({path: '.lif/git/github.com/user/repo/c/d', is: {mod: 1}},
-    ['.lif/git/github.com/user/repo/c/d',
-      '.lif/git/github.com/other/repo@v1.2.3/c/a']);
-  t({path: 'mod/sub//a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', 'mod/sub//a/b']);
-  t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, ['./c/d', '@mod/sub/a/b']);
+    '.lif/git/github.com/user/repo/c/d',
+    '.lif/git/github.com/other/repo@v1.2.3/c/a');
+  t({path: 'mod/sub//a/c/d', is: {mod: 1, rel: 1}}, './c/d', 'mod/sub//a/b');
+  t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, './c/d', '@mod/sub/a/b');
   t({path: '.lif/git/github.com/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
-    ['./c/d', '.lif/git/github.com/user/repo@1.2.3/a/b']);
+    './c/d', '.lif/git/github.com/user/repo@1.2.3/a/b');
   t = (webapp, v)=>assert_eq(v, webapp_to_lpm(webapp));
   t('lif:local/file.js', 'local/file.js');
   t('local/file.js', 'local/file.js');
