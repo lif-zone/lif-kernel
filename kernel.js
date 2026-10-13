@@ -209,7 +209,7 @@ function _gh_ver(u){
     return 'latest';
   return ver;
 }
-let lpm_cdn = {
+let reg_cdn = {
   npm: {
     src: [
       {
@@ -363,8 +363,8 @@ let lpm_cdn = {
   }]},
 };
 
-let lpm_get_cdn = u=>{
-  let cdn = lpm_cdn;
+let reg_get_cdn = u=>{
+  let cdn = reg_cdn;
   if (typeof u=='string')
     u = T_lpm_parse(u);
   switch (u.reg){
@@ -638,7 +638,7 @@ async function reg_get({log, lmod, opt}){
   //   http://unpkg.com/react@18.3.0/index.js
   //   http://cdn.jsdelivr.net/npm/react@18.3.0/index.js
   let pkg, v;
-  reg.cdn = lpm_get_cdn(u);
+  reg.cdn = reg_get_cdn(u);
   let src = reg.cdn.src;
   if (u.path=='/--ver'){
     get_ver = true;
@@ -1339,7 +1339,7 @@ async function responce_tr_send({f, qs, lmod}){
   }
   if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
     return {body: f.blob, ext, cache: 1};
-  // XXX add to import tr ?type=json/css/text
+  // XXX add tr import "mod?type=json" with {type: "json"} for json/css/text
   if (str.is(ext, 'json', 'css', 'wasm', 'text'))
     return {body: f.blob, ext, cache: 1};
   ext = 'js';
