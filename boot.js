@@ -484,7 +484,7 @@ function require_cjs_run(m){
   return m.run = 'done';
 }
 
-function require_cjs_load_follow_sync({npm_self, imp, p}){
+function require_cjs_load_follow_sync({npm_self, imp}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   npm_self ||= '';
@@ -495,6 +495,7 @@ function require_cjs_load_follow_sync({npm_self, imp, p}){
       exports: {}};
     mod_add_lmod(m);
   }
+  let p;
   if (!(p=m.parent[npm_self]))
     p = m.parent[npm_self] = {m, npm_self};
   if (p.redirect)
@@ -653,7 +654,7 @@ function import_amd_run_define(m, loading){
     console.log('AMD module '+m.id+' did not call define()');
 }
 
-async function require_cjs_load_follow_async({npm_self, imp, p, loading}){
+async function require_cjs_load_follow_async({npm_self, imp, loading}){
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
   npm_self ||= '';
@@ -663,6 +664,7 @@ async function require_cjs_load_follow_async({npm_self, imp, p, loading}){
       is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
     mod_add_lmod(m);
   }
+  let p;
   if (!(p = m.parent[npm_self]))
     p = m.parent[npm_self] = {m, npm_self};
   if (p.redirect)
