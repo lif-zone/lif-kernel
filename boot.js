@@ -520,6 +520,26 @@ function require_cjs_run(m){
   return m.run = 'done';
 }
 
+function mod_add_lmod(m){
+  m.lmod = T_npm_to_lpm(m.imp);
+  m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
+}
+
+function mod_add(_m){
+  assert(!mod_t[_m.id]);
+  let m = {
+    id: _m.id,
+    imp: _m.imp,
+    url: npm_2url(_m.imp),
+    parent: {},
+    is_json: _m.id.endsWith('.json'),
+    first_npm_self: _m.npm_self,
+    exports: {},
+  };
+  mod_add_lmod(m);
+  return m;
+}
+
 function require_cjs_load_follow_sync({npm_self, imp}){
   let id = npm_to_id(npm_self, imp);
   imp = npm_base(npm_self, imp);
@@ -527,7 +547,7 @@ function require_cjs_load_follow_sync({npm_self, imp}){
   npm_self ||= '';
   let m;
   if (!(m=mod_t[id])){
-    m = mod_t[id] = {id, imp, url: npm_2url(imp), parent: {},
+    m = mod_t[id] = {id, imp, url: id, parent: {},
       is_json: imp.endsWith('.json'), first_npm_self: npm_self,
       exports: {}};
     mod_add_lmod(m);
@@ -701,7 +721,7 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
   npm_self ||= '';
   let m;
   if (!(m=mod_t[id])){
-    m = mod_t[id] = {id, imp, url: npm_2url(imp), parent: {},
+    m = mod_t[id] = {id, imp, url: id, parent: {},
       is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
     mod_add_lmod(m);
   }
@@ -805,20 +825,15 @@ function define_amd_get_mod(imp){
   return m;
 }
 
-function mod_add_lmod(m){
-  m.lmod = T_npm_to_lpm(m.imp);
-  m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
-}
-
 async function import_amd(npm_self, [imp, opt]){
   D && console.log('import_amd', imp, npm_self);
   let id = npm_to_id(npm_self, imp);
+  let url = id;
   imp = npm_base(npm_self, imp);
-  let url = npm_2url(imp);
   let m;
   if (m = mod_t[id])
     return await m.wait;
-  m = mod_t[id] = {id, imp, url, wait: ewait(), npm_self, parent: {},
+  m = mod_t[id] = {id, imp, url: id, wait: ewait(), npm_self, parent: {},
     exports: {}, loaded: false};
   mod_add_lmod(m);
   try {
@@ -840,7 +855,7 @@ async function import_amd(npm_self, [imp, opt]){
 }
 
 // worker
-let import_module_script = async({npm_self, imp, url})=>{
+async function import_module_script({npm_self, imp, url}){
   let id = npm_to_id(npm_self, imp);
   let m;
   if (m = mod_t[id]){
@@ -869,7 +884,7 @@ let import_module_script = async({npm_self, imp, url})=>{
   await m.wait;
   m.loaded = true;
   return m.wait.return(m.exports);
-};
+}
 
 function exports_to_esm(exports){
   return {...exports, default: exports};
@@ -1091,7 +1106,7 @@ async function run_html(npm_self, webapp){
   console.log('run_html complete');
 }
 
-let boot_app = async(boot_pkg)=>{
+async function boot_app(boot_pkg){
   // init kernel
   await boot_kernel();
   if (!boot_pkg)
@@ -1131,7 +1146,7 @@ let boot_app = async(boot_pkg)=>{
   }
   console.log('boot: boot complete: '+webapp);
   return ret;
-};
+}
 
 function mainthread_setup(){
   function imp_url(url, opt){
