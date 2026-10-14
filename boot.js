@@ -574,12 +574,6 @@ function require_cjs_load_sync({m}){
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
     return m;
-  if (str.is(m.type, 'mjs', 'amd')){
-    // TODO: add support for sync amd
-    console.error('cannot load '+m.type+' sync '+
-      m.url+(m.first_npm_self?' from '+m.first_npm_self:''));
-    return m;
-  }
   require_cjs_load_requires_sync(m);
   return m;
 }
@@ -739,9 +733,6 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
 }
 async function require_cjs_load_async({m, loading}){
   m.type = m.meta.type;
-  await require_cjs_load_file_async(m); // XXX load only if !mjs
-  if (m.file.res!='done')
-    return m;
   if (m.type=='mjs'){
     if (m.wait)
       return await m.wait;
@@ -753,6 +744,9 @@ async function require_cjs_load_async({m, loading}){
     m.run = 'done';
     return m.wait.return(m);
   }
+  await require_cjs_load_file_async(m);
+  if (m.file.res!='done')
+    return m;
   if (m.type=='amd'){
     if (m.wait)
       return await m.wait;
