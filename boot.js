@@ -203,9 +203,11 @@ function npm_uri_imp(uri_self, imp){
 function npm_to_id(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
-  return npm_uri_imp(uri_self, imp);
+  let id = npm_uri_imp(uri_self, imp);
+  if (id.includes('/.lif.imp/')) // XXX temp hack
+    return '/.lif/'+npm_to_lpm(imp);
+  return id;
 }
-
 
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
 function npm_need_mod_self(npm_self, lmod){
