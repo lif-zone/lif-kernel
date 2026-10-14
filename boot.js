@@ -208,27 +208,11 @@ function npm_to_url(npm_self, imp){
 }
 
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
-function npm_need_mod_self(npm_self, lmod){
-  if (!npm_self)
-    return;
-  let lmod_self = npm_to_lpm(npm_self);
-  if (!lmod_self)
-    return true;
-  return T_lpm_lmod(lmod)!=T_lpm_lmod(lmod_self);
-}
 
 function require_cjs_get_mod(url){
   let m;
   assert(m = mod_t[url], 'module '+url+' not loaded');
   return m;
-}
-
-function npm_imp_url({npm_self, lmod}){
-  let lpm;
-  let lmod_self = npm_self && npm_to_lpm(npm_self);
-  if (npm_self && T_lpm_lmod(lmod)!=(lpm=T_lpm_lmod(lmod_self)))
-    return '/.lif/'+lpm+'/.lif.imp/'+lpm_to_npm(lmod);
-  return '/.lif/'+lmod; // m.url
 }
 
 function require_cjs_load_meta_sync(m){
@@ -1231,23 +1215,7 @@ function test(){
   t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
   t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
   t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  t(null, 'lif-kernel/hi.js', {type: 'module'},
-    '/.lif/npm/lif-kernel/hi.js?imp');
-  t = (npm_self, lmod, v)=>
-    assert_eq(v, npm_need_mod_self(npm_self, lmod));
-  t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 
-    true);
-  t('base64-js/index.js', 'npm/buffer@6.0.3/index.js', true);
-  t('buffer@6.1.0/other.js', 'npm/buffer@6.0.3/index.js', true);
-  t('buffer@6.0.3/other.js', 'npm/buffer@6.0.3/index.js', false);
-  t = (npm_self, lmod, v)=>
-    assert_eq(v, npm_imp_url({npm_self, lmod}));
-  t('react-dom@19.2.6/cjs/react-dom-client.development.js', 'npm/react', 
-    '/.lif/npm/react-dom@19.2.6/.lif.imp/react');
-  t('buffer@6.1.0/other.js', 'npm/buffer@6.0.3/index.js',
-    '/.lif/npm/buffer@6.1.0/.lif.imp/buffer@6.0.3/index.js');
-  t('buffer@6.0.3/other.js', 'npm/buffer@6.0.3/index.js',
-    '/.lif/npm/buffer@6.0.3/index.js');
+  t(null, 'lif-kernel/hi.js', {type: 'module'}, '/.lif/npm/lif-kernel/hi.js?imp');
   in_test = 0;
 }
 test();
