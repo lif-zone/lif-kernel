@@ -231,12 +231,11 @@ function npm_imp_url({npm_self, lmod}){
   return '/.lif/'+lmod; // m.url
 }
 
-function require_cjs_load_meta_sync(p){
-  let m = p;
-  function do_ret(res){ return p.res = res; }
-  if (p.res=='done' || p.res=='err')
-    return p.res;
-  p.res = 'loading';
+function require_cjs_load_meta_sync(m){
+  function do_ret(res){ return m.res = res; }
+  if (m.res=='done' || m.res=='err')
+    return m.res;
+  m.res = 'loading';
   let v;
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
@@ -251,7 +250,7 @@ function require_cjs_load_meta_sync(p){
   }
   let text = req.text;
   try {
-    p.meta = JSON.parse(text);
+    m.meta = JSON.parse(text);
   } catch(err){
     return do_ret('err');
   }
@@ -291,17 +290,16 @@ function sha256_hex(v){
   return sha256.digest(v).toHex();
 }
 
-async function require_cjs_load_meta_async(p){
-  let m = p;
+async function require_cjs_load_meta_async(m){
   function do_ret(res){
-    p.res = res;
-    if (p.meta_wait)
-      p.meta_wait.return(res);
-    return p.res;
+    m.res = res;
+    if (m.meta_wait)
+      m.meta_wait.return(res);
+    return m.res;
   }
-  if (p.res=='done' || p.res=='err')
-    return p.res;
-  p.res = 'loading';
+  if (m.res=='done' || m.res=='err')
+    return m.res;
+  m.res = 'loading';
   let v;
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
@@ -309,9 +307,9 @@ async function require_cjs_load_meta_async(p){
   let qs = {meta: '', follow: ''};
   let url = m.url+qs_enc(qs);
   let req;
-  if (p.meta_wait)
-    return await p.meta_wait;
-  p.meta_wait = ewait();
+  if (m.meta_wait)
+    return await m.meta_wait;
+  m.meta_wait = ewait();
   let meta_c;
   lookup: {
     if (!enable_cache_idb || !lpm_is_perm(lmod))
@@ -327,7 +325,7 @@ async function require_cjs_load_meta_async(p){
       break lookup;
     if (enable_cache_idb=='debug')
       break lookup;
-    p.meta = meta_c;
+    m.meta = meta_c;
     return do_ret('done');
   }
   req = await fetch(url);
@@ -337,13 +335,13 @@ async function require_cjs_load_meta_async(p){
   }
   let text = await req.text();
   try {
-    p.meta = JSON.parse(text);
+    m.meta = JSON.parse(text);
   } catch(err){
     assert(0, 'invalid json meta '+url);
     return do_ret('err');
   }
   if (enable_cache_idb=='debug' && meta_c)
-    assert.obj(p.meta, meta_c);
+    assert.obj(m.meta, meta_c);
   return do_ret('done');
 }
 
@@ -552,21 +550,19 @@ function require_cjs_load_follow_sync({npm_self, imp}){
       exports: {}};
     mod_add_lmod(m);
   }
-  let p = m;
-  if (p.redirect)
-    return p.redirect;
-  if (m.run || m.load_requires || p.loading)
+  if (m.redirect)
+    return m.redirect;
+  if (m.run || m.load_requires || m.loading)
     return m;
-  p.loading = 1;
+  m.loading = 1;
   D && console.log('sync load', npm_self, url);
-  require_cjs_load_meta_sync(p);
-  if (p.res!='done')
+  require_cjs_load_meta_sync(m);
+  if (m.res!='done')
     return m;
-  if (p.meta.redirect){
-    p.redirect = require_cjs_load_follow_sync({npm_self: null, imp: p.meta.redirect});
-    return p.redirect;
+  if (m.meta.redirect){
+    m.redirect = require_cjs_load_follow_sync({npm_self: null, imp: m.meta.redirect});
+    return m.redirect;
   }
-  m.meta = p.meta;
   require_cjs_load_sync({m});
   return m;
 }
@@ -719,25 +715,23 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
       is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
     mod_add_lmod(m);
   }
-  let p = m;
-  if (p.redirect)
-    return p.redirect;
+  if (m.redirect)
+    return m.redirect;
   if (m.run || m.load_requires)
     return m;
   loading = [...loading];
-  if (loading.includes(p))
+  if (loading.includes(m))
     return m;
-  loading.push(p);
+  loading.push(m);
   D && console.log('async load', npm_self, imp);
-  await require_cjs_load_meta_async(p);
-  if (p.res!='done')
+  await require_cjs_load_meta_async(m);
+  if (m.res!='done')
     return m;
-  if (p.meta.redirect){
-    p.redirect = await require_cjs_load_follow_async({npm_self: null,
-      imp: p.meta.redirect, loading});
-    return p.redirect;
+  if (m.meta.redirect){
+    m.redirect = await require_cjs_load_follow_async({npm_self: null,
+      imp: m.meta.redirect, loading});
+    return m.redirect;
   }
-  m.meta = p.meta;
   await require_cjs_load_async({m, loading});
   return m;
 }
