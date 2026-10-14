@@ -204,8 +204,6 @@ function npm_to_url(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
   let url = npm_uri_imp(uri_self, imp);
-  if (0 && url.includes('/.lif.imp/')) // XXX temp hack
-    return '/.lif/'+npm_to_lpm(imp);
   return url;
 }
 
@@ -570,12 +568,6 @@ function require_cjs_load_follow_sync({npm_self, imp}){
     return m;
   if (p.meta.redirect){
     p.redirect = require_cjs_load_follow_sync({npm_self: null, imp: p.meta.redirect});
-    if (p.redirect==p.m) debugger;
-    return p.redirect;
-  }
-  if (0 && npm_self){
-    p.redirect = require_cjs_load_follow_sync({npm_self: null, imp});
-    if (p.redirect==p.m) debugger;
     return p.redirect;
   }
   m.meta = p.meta;
@@ -749,12 +741,6 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
   if (p.meta.redirect){
     p.redirect = await require_cjs_load_follow_async({npm_self: null,
       imp: p.meta.redirect, loading});
-    if (p.redirect==p.m) debugger;
-    return p.redirect;
-  }
-  if (0 && npm_self){
-    p.redirect = await require_cjs_load_follow_async({npm_self: null, imp, loading});
-    if (p.redirect==p.m) debugger;
     return p.redirect;
   }
   m.meta = p.meta;
