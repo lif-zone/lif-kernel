@@ -242,9 +242,7 @@ function require_cjs_load_meta_sync(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  let url = m.url;
-  assert(url==m.url);
-  url += qs_enc(qs);
+  let url = m.url+qs_enc(qs);
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -309,8 +307,7 @@ async function require_cjs_load_meta_async(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  let url = m.url;
-  url += qs_enc(qs);
+  let url = m.url+qs_enc(qs);
   let req;
   if (p.meta_wait)
     return await p.meta_wait;
