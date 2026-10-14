@@ -793,7 +793,7 @@ function require_cjs_sync(npm_self, imp){
   let url = npm_to_url(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
-  if (!mod_t[url]?.parent[npm_self])
+  if (!mod_t[url]?.parent[url])
     console.log('dynamic sync require('+imp+') in '+npm_self);
   let m = require_cjs_load_follow_sync({npm_self, imp});
   require_cjs_run(m);
