@@ -523,6 +523,7 @@ function require_cjs_run(m){
 function mod_add_lmod(m){
   m.lmod = T_npm_to_lpm(m.imp);
   m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
+  assert(npm_2url(m.imp)==m.id);
 }
 
 function mod_add(_m){
@@ -530,12 +531,13 @@ function mod_add(_m){
   let m = {
     id: _m.id,
     imp: _m.imp,
-    url: npm_2url(_m.imp),
+    url: _m.url||_m.id,
     parent: {},
     is_json: _m.id.endsWith('.json'),
     first_npm_self: _m.npm_self,
     exports: {},
   };
+  assert(npm_2url(_m.imp)==_m.id);
   mod_add_lmod(m);
   return m;
 }
@@ -855,8 +857,9 @@ async function import_amd(npm_self, [imp, opt]){
 }
 
 // worker
-async function import_module_script({npm_self, imp, url}){
+async function import_module_script({npm_self, imp}){
   let id = npm_to_id(npm_self, imp);
+  let url = id;
   let m;
   if (m = mod_t[id]){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
@@ -891,13 +894,9 @@ function exports_to_esm(exports){
 }
 
 async function import_worker({npm_self, imp, opt}){
-  let _imp = npm_2url(imp, npm_self);
-  let q;
   if (opt?.type!='script')
     assert(0, 'module import not yet supportedd');
-  let url = qs_append(_imp, q);
-  let exports = await import_module_script({npm_self, imp: _imp, url,
-    opt: {worker: 1}});
+  let exports = await import_module_script({npm_self, imp, opt: {worker: 1}});
   return exports_to_esm(exports);
 }
 
