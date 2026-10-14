@@ -153,7 +153,7 @@ function npm_imp_abs(imp, npm_self, opt){
   return qs_append(_url, q);
 }
 
-function npm_2url(url, npm_self){
+function npm_2url(url, npm_self){ // equivalent to m.url (before /.lif.imp/
   let u = T_npm_url_base(url, npm_self);
   if (u.is.url)
     return u.is.blob || u.is.data ? url : u.origin+u.path;
