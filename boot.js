@@ -204,7 +204,7 @@ function npm_to_url(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
   let url = npm_uri_imp(uri_self, imp);
-  if (url.includes('/.lif.imp/')) // XXX temp hack
+  if (0 && url.includes('/.lif.imp/')) // XXX temp hack
     return '/.lif/'+npm_to_lpm(imp);
   return url;
 }
@@ -244,7 +244,9 @@ function require_cjs_load_meta_sync(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  let url = npm_imp_url({npm_self: p.npm_self, lmod})+qs_enc(qs);
+  let url = p.m.url;
+  assert(url==p.m.url);
+  url += qs_enc(qs);
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -309,7 +311,8 @@ async function require_cjs_load_meta_async(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  let url = npm_imp_url({npm_self: p.npm_self, lmod})+qs_enc(qs);
+  let url = p.m.url;
+  url += qs_enc(qs);
   let req;
   if (p.wait)
     return await p.wait;
@@ -523,7 +526,7 @@ function require_cjs_run(m){
 function mod_add_lmod(m){
   m.lmod = T_npm_to_lpm(m.imp);
   m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
-  assert(npm_2url(m.imp)==m.url);
+  //assert(npm_2url(m.imp)==m.url);
 }
 
 function mod_add(_m){
@@ -536,7 +539,7 @@ function mod_add(_m){
     first_npm_self: _m.npm_self,
     exports: {},
   };
-  assert(npm_2url(_m.imp)==_m.url);
+  //assert(npm_2url(_m.imp)==_m.url);
   mod_add_lmod(m);
   return m;
 }
@@ -554,8 +557,8 @@ function require_cjs_load_follow_sync({npm_self, imp}){
     mod_add_lmod(m);
   }
   let p;
-  if (!(p=m.parent[npm_self]))
-    p = m.parent[npm_self] = {m, npm_self};
+  if (!(p=m.parent[url]))
+    p = m.parent[url] = {m};
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires || p.loading)
@@ -567,10 +570,12 @@ function require_cjs_load_follow_sync({npm_self, imp}){
     return m;
   if (p.meta.redirect){
     p.redirect = require_cjs_load_follow_sync({npm_self: null, imp: p.meta.redirect});
+    if (p.redirect==p.m) debugger;
     return p.redirect;
   }
-  if (npm_self){
+  if (0 && npm_self){
     p.redirect = require_cjs_load_follow_sync({npm_self: null, imp});
+    if (p.redirect==p.m) debugger;
     return p.redirect;
   }
   m.meta = p.meta;
@@ -727,8 +732,8 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
     mod_add_lmod(m);
   }
   let p;
-  if (!(p = m.parent[npm_self]))
-    p = m.parent[npm_self] = {m, npm_self};
+  if (!(p=m.parent[url]))
+    p = m.parent[url] = {m};
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires)
@@ -744,10 +749,12 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
   if (p.meta.redirect){
     p.redirect = await require_cjs_load_follow_async({npm_self: null,
       imp: p.meta.redirect, loading});
+    if (p.redirect==p.m) debugger;
     return p.redirect;
   }
-  if (npm_self){
+  if (0 && npm_self){
     p.redirect = await require_cjs_load_follow_async({npm_self: null, imp, loading});
+    if (p.redirect==p.m) debugger;
     return p.redirect;
   }
   m.meta = p.meta;
