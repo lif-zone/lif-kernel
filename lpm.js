@@ -442,7 +442,7 @@ export function url_uri_type(url_uri){
   return 'mod';
 }
 
-function __uri_parse(uri, base){
+export function __uri_parse(uri, base){
   if (base && base[0]!='/')
     throw Error('invalid base '+base);
   let u = T_url_parse(uri, 'xxx://x'+(base||''));

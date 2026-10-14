@@ -10,7 +10,7 @@ import {ewait, esleep, eslow, assert_eq, str,
 } from './util.js';
 import {
   T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_lmod, T_lpm_to_npm,
-  npm_to_lpm, lpm_to_npm, npm_norm, lpm_is_perm,
+  npm_to_lpm, lpm_to_npm, npm_norm, lpm_is_perm, __uri_parse,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -174,17 +174,23 @@ function npm_base(npm_self, imp){
   return u.path;
 }
 
-function uri_base(uri_self, imp){
-  let u = T_npm_url_base(imp, uri_self);
-  let v;
-  if ((u.is.uri || u.is.url && u.origin==location.origin) &&
-    (v=str.starts(u.path, '/.lif/')))
-  {
-    return lpm_to_npm(v.rest);
+function npm_uri_imp(uri_self, imp){
+  assert(!uri_self || uri_self[0]=='/');
+  let t = url_uri_type(imp);
+  if (t=='url' || t=='uri')
+    return imp;
+  if (t=='rel'){
+    if (!uri_self)
+      throw Error('npm_uri_imp('+imp+') rel without base');
+    let u = __uri_parse(imp, uri_self);
+    return u.path;
   }
-  if (u.is.url)
-    return u.is.blob || u.is.data ? imp : u.origin+u.path;
-  return u.path;
+  assert(t=='mod');
+  if (uri_self){
+    let lmod_self = T_lpm_lmod(str.starts(uri_self, '/.lif/').rest);
+    return '/.lif/'+lmod_self+'/.lif.imp/'+imp;
+  }
+  return '/.lif/'+T_npm_to_lpm(imp);
 }
 
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
@@ -1157,34 +1163,28 @@ function test(){
   t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
   t('mod@1.2.3', 'node:path', 'node:path');
   t('mod@1.2.3', 'node:path/a/b', 'node:path/a/b');
-  t = (uri_self, imp, v)=>0 && assert_eq(v, uri_base(uri_self, imp));
-  t('/.lif/npm/mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
-  t('/.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
-  t('/.lif/local/mod/', './a/file.js', '/.lif/local/mod//a/file.js');
-  t('/.lif/npm/react@1.2.3', 'mod/file.js',
-    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
-  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js',
-    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
-  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
-  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
-  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
-  t('http://a.b/c', 'b/file.js', 'b/file.js');
-  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
-  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
-  t('http://a.b/c/', '/b/file.js', '/b/file.js');
-  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
-  t(null, location.origin+'/b/file.js', '/b/file.js');
-  t(null, location.origin+'/.lif/npm/react', '/.lif/npm/react');
-  t(null, location.origin+'/.lif/local/dir', '/.lif/local/dir');
-  t('/a.b/c/', '/b/file.js', '/b/file.js');
-  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
-  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t(null, '/.lif/npm/mod', '/.lif/npm/mod');
-  t(null, '/.lif/local/mod/a', '/.lif/local/mod/a');
-  t('/.lif/npm/mod@1.2.3', 'node:path',
+  t = (uri_self, imp, v)=>assert_eq(v, npm_uri_imp(uri_self, imp));
+  t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/local/other', './a/f', '/.lif/local/a/f');
+  t('/.lif/local/other/x', './a/f', '/.lif/local/other/a/f');
+  t('/.lif/local/mod//x', './a/f', '/.lif/local/mod//a/f');
+  t('/.lif/local/mod//x/y', './a/f', '/.lif/local/mod//x/a/f');
+  t('/.lif/npm/mod@1.2.3/x', 'mod/f', '/.lif/npm/mod@1.2.3/.lif.imp/mod/f');
+  t('/.lif/npm/mod@1.2.3/x', 'mod@4.5.6/f',
+    '/.lif/npm/mod@1.2.3/.lif.imp/mod@4.5.6/f');
+  t(null, 'mod/f', '/.lif/npm/mod/f');
+  t('/.lif/npm/mod@1.2.3/x', 'http://x.y/z', 'http://x.y/z');
+  t('/.lif/npm/mod@1.2.3/x', 'https://x.y/z', 'https://x.y/z');
+  t('/.lif/npm/mod@1.2.3/x', 'blob:abcd', 'blob:abcd');
+  t('/.lif/npm/mod@1.2.3/x', 'blob:http://x.y/z', 'blob:http://x.y/z');
+  t('/.lif/npm/mod@1.2.3/x', 'node:util',
+    '/.lif/npm/mod@1.2.3/.lif.imp/node:util');
+  t(null, 'node:util', '/.lif/npm/node:util');
+  t('/.lif/npm/mod@1.2.3/c/d', './a/f', '/.lif/npm/mod@1.2.3/c/a/f');
+  t('/.lif/npm/mod@1.2.3/c/d', '../a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x', 'node:path',
     '/.lif/npm/mod@1.2.3/.lif.imp/node:path');
-  t('/.lif/npm/mod@1.2.3', 'node:path/a/b',
+  t('/.lif/npm/mod@1.2.3/x', 'node:path/a/b',
     '/.lif/npm/mod@1.2.3/.lif.imp/node:path/a/b');
   t = (npm_self, url, v)=>assert_eq(v, npm_2url(url, npm_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
