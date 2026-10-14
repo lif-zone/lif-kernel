@@ -555,9 +555,8 @@ function require_cjs_load_sync({m}){
     return;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
-    return m;
+    return;
   require_cjs_load_requires_sync(m);
-  return m;
 }
 
 function amd_define_args(args){
@@ -723,7 +722,7 @@ async function require_cjs_load_async({m, loading}){
   }
   await require_cjs_load_file_async(m);
   if (m.file.res!='done')
-    return m;
+    return;
   if (m.type=='amd'){
     if (m.wait)
       return await m.wait;
@@ -733,7 +732,6 @@ async function require_cjs_load_async({m, loading}){
     return m.wait.return(m);
   }
   await require_cjs_load_requires_async(m, loading);
-  return m;
 }
 
 function require_cjs_sync(npm_self, imp){
