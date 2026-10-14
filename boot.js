@@ -232,7 +232,7 @@ function npm_imp_url({npm_self, lmod}){
 }
 
 function require_cjs_load_meta_sync(p){
-  let m = p.m;
+  let m = p;
   function do_ret(res){ return p.res = res; }
   if (p.res=='done' || p.res=='err')
     return p.res;
@@ -242,8 +242,8 @@ function require_cjs_load_meta_sync(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  let url = p.m.url;
-  assert(url==p.m.url);
+  let url = m.url;
+  assert(url==m.url);
   url += qs_enc(qs);
   let req;
   req = fetch_sync(url);
@@ -294,11 +294,11 @@ function sha256_hex(v){
 }
 
 async function require_cjs_load_meta_async(p){
-  let m = p.m;
+  let m = p;
   function do_ret(res){
     p.res = res;
-    if (p.wait)
-      p.wait.return(res);
+    if (p.meta_wait)
+      p.meta_wait.return(res);
     return p.res;
   }
   if (p.res=='done' || p.res=='err')
@@ -309,12 +309,12 @@ async function require_cjs_load_meta_async(p){
     return do_ret('done');
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
-  let url = p.m.url;
+  let url = m.url;
   url += qs_enc(qs);
   let req;
-  if (p.wait)
-    return await p.wait;
-  p.wait = ewait();
+  if (p.meta_wait)
+    return await p.meta_wait;
+  p.meta_wait = ewait();
   let meta_c;
   lookup: {
     if (!enable_cache_idb || !lpm_is_perm(lmod))
@@ -482,6 +482,8 @@ function require_cjs_run(m){
     return m.run;
   if (m.type=='amd')
     return define_amd_run(m);
+  if (m.type=='mjs')
+    throw Error('cannot dynamic sync require('+m.url+') mjs from '+m.first_npm_self);
   m.run = 'running';
   if (m.is_json){
     m.exports = m.file.json;
@@ -532,7 +534,6 @@ function mod_add(_m){
   let m = {
     url: _m.url,
     imp: _m.imp,
-    parent: {},
     is_json: _m.url.endsWith('.json'),
     first_npm_self: _m.npm_self,
     exports: {},
@@ -549,14 +550,12 @@ function require_cjs_load_follow_sync({npm_self, imp}){
   npm_self ||= '';
   let m;
   if (!(m=mod_t[url])){
-    m = mod_t[url] = {url, imp, parent: {},
+    m = mod_t[url] = {url, imp,
       is_json: imp.endsWith('.json'), first_npm_self: npm_self,
       exports: {}};
     mod_add_lmod(m);
   }
-  let p;
-  if (!(p=m.parent[url]))
-    p = m.parent[url] = {m};
+  let p = m;
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires || p.loading)
@@ -667,7 +666,7 @@ function define_amd_multi(url, reqs, factory, m){
   if (!m){
     if (mod_t[url])
       throw Error('define('+_id+') already defined');
-    m = mod_t[url] = {url, imp, loaded: false, parent: {}, wait: ewait(),
+    m = mod_t[url] = {url, imp, loaded: false, wait: ewait(),
       exports: {}};
     mod_add_lmod(m);
   }
@@ -719,13 +718,11 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
   npm_self ||= '';
   let m;
   if (!(m=mod_t[url])){
-    m = mod_t[url] = {url, imp, parent: {},
+    m = mod_t[url] = {url, imp,
       is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
     mod_add_lmod(m);
   }
-  let p;
-  if (!(p=m.parent[url]))
-    p = m.parent[url] = {m};
+  let p = m;
   if (p.redirect)
     return p.redirect;
   if (m.run || m.load_requires)
@@ -749,7 +746,7 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
 }
 async function require_cjs_load_async({m, loading}){
   m.type = m.meta.type;
-  await require_cjs_load_file_async(m);
+  await require_cjs_load_file_async(m); // XXX load only if !mjs
   if (m.file.res!='done')
     return m;
   if (m.type=='mjs'){
@@ -779,7 +776,7 @@ function require_cjs_sync(npm_self, imp){
   let url = npm_to_url(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
-  if (!mod_t[url]?.parent[url])
+  if (!mod_t[url])
     console.log('dynamic sync require('+imp+') in '+npm_self);
   let m = require_cjs_load_follow_sync({npm_self, imp});
   require_cjs_run(m);
@@ -826,7 +823,7 @@ async function import_amd(npm_self, [imp, opt]){
   let m;
   if (m = mod_t[url])
     return await m.wait;
-  m = mod_t[url] = {url, imp, wait: ewait(), npm_self, parent: {},
+  m = mod_t[url] = {url, imp, wait: ewait(), npm_self,
     exports: {}, loaded: false};
   mod_add_lmod(m);
   try {
@@ -855,7 +852,7 @@ async function import_module_script({npm_self, imp}){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
     return await m.wait;
   }
-  m = mod_t[url] = {url, imp, wait: ewait(), npm_self, parent: {},
+  m = mod_t[url] = {url, imp, wait: ewait(), npm_self,
     exports: {}, loaded: false};
   mod_add_lmod(m);
   try {
