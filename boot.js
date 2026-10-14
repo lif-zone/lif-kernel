@@ -551,6 +551,8 @@ function require_cjs_load_follow_sync({npm_self, imp}){
 
 function require_cjs_load_sync({m}){
   m.type = m.meta.type;
+  if (m.type=='mjs')
+    return;
   require_cjs_load_file_sync(m);
   if (m.file.res!='done')
     return m;
