@@ -520,23 +520,23 @@ function require_cjs_run(m){
   return m.run = 'done';
 }
 
-function mod_add_lmod(m){
-  m.lmod = T_npm_to_lpm(m.imp);
-  m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
-  m.file = {};
-  m._meta = {};
-}
-
 function mod_add(_m){
   assert(!mod_t[_m.url]);
-  let m = {
+  let m = mod_t[_m.url] = {
     url: _m.url,
     imp: _m.imp,
     is_json: _m.url.endsWith('.json'),
     first_npm_self: _m.npm_self,
     exports: {},
   };
-  mod_add_lmod(m);
+  if (_m.loaded!=undefined)
+    m.loaded = _m.loaded;
+  if (_m.wait!=undefined)
+    m.wait = _m.wait;
+  m.lmod = T_npm_to_lpm(m.imp);
+  m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
+  m.file = {};
+  m._meta = {};
   return m;
 }
 
@@ -546,12 +546,8 @@ function require_cjs_load_follow_sync({npm_self, imp}){
   D>=2 && console.log('sync load', npm_self, imp);
   npm_self ||= '';
   let m;
-  if (!(m=mod_t[url])){
-    m = mod_t[url] = {url, imp,
-      is_json: imp.endsWith('.json'), first_npm_self: npm_self,
-      exports: {}};
-    mod_add_lmod(m);
-  }
+  if (!(m=mod_t[url]))
+    m = mod_add({url, imp, npm_self});
   if (m.redirect)
     return m.redirect;
   if (m.run || m.load_requires || m.loading)
@@ -655,9 +651,7 @@ function define_amd_multi(url, reqs, factory, m){
   if (!m){
     if (mod_t[url])
       throw Error('define('+_id+') already defined');
-    m = mod_t[url] = {url, imp, loaded: false, wait: ewait(),
-      exports: {}};
-    mod_add_lmod(m);
+    mod_add({url, imp, loaded: false, wait: ewait()});
   }
   // TODO not yet implemented loading of multi-define() per file AMD
   return m;
@@ -706,11 +700,8 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
   D>=2 && console.log('async load check ', npm_self, imp);
   npm_self ||= '';
   let m;
-  if (!(m=mod_t[url])){
-    m = mod_t[url] = {url, imp,
-      is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
-    mod_add_lmod(m);
-  }
+  if (!(m=mod_t[url]))
+    m = mod_add({url, imp, npm_self});
   if (m.redirect)
     return m.redirect;
   if (m.run || m.load_requires)
@@ -810,9 +801,7 @@ async function import_amd(npm_self, [imp, opt]){
   let m;
   if (m = mod_t[url])
     return await m.wait;
-  m = mod_t[url] = {url, imp, wait: ewait(), npm_self,
-    exports: {}, loaded: false};
-  mod_add_lmod(m);
+  m = mod_add({url, imp, wait: ewait(), npm_self, loaded: false});
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -839,9 +828,7 @@ async function import_module_script({npm_self, imp}){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
     return await m.wait;
   }
-  m = mod_t[url] = {url, imp, wait: ewait(), npm_self,
-    exports: {}, loaded: false};
-  mod_add_lmod(m);
+  m = mod_add({url, imp, wait: ewait(), npm_self, loaded: false});
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
