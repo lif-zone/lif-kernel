@@ -200,13 +200,13 @@ function npm_uri_imp(uri_self, imp){
   }
   return '/.lif/'+T_npm_to_lpm(imp);
 }
-function npm_to_id(npm_self, imp){
+function npm_to_url(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
-  let id = npm_uri_imp(uri_self, imp);
-  if (id.includes('/.lif.imp/')) // XXX temp hack
+  let url = npm_uri_imp(uri_self, imp);
+  if (url.includes('/.lif.imp/')) // XXX temp hack
     return '/.lif/'+npm_to_lpm(imp);
-  return id;
+  return url;
 }
 
 let url_expand = Tf(url=>(new URL(url, location)).href || url);
@@ -219,9 +219,9 @@ function npm_need_mod_self(npm_self, lmod){
   return T_lpm_lmod(lmod)!=T_lpm_lmod(lmod_self);
 }
 
-function require_cjs_get_mod(id){
+function require_cjs_get_mod(url){
   let m;
-  assert(m = mod_t[id], 'module '+id+' not loaded');
+  assert(m = mod_t[url], 'module '+url+' not loaded');
   return m;
 }
 
@@ -442,7 +442,7 @@ async function require_cjs_load_requires_async(m, loading){
   for (let req of m.meta.requires||[]){
     if (!require_cjs_cond_static(req, m.script))
       continue;
-    let slow = eslow(15000, 'require_cjs_load_require('+m.id+' -> '
+    let slow = eslow(15000, 'require_cjs_load_require('+m.url+' -> '
       +req.module+')');
     await require_cjs_load_follow_async({npm_self: m.imp, imp: req.module, loading});
     slow.end();
@@ -470,7 +470,7 @@ function define_amd_run(m){
       m.exports = m.define.factory(...m.load_requires);
   } catch(err){
     m.run = 'err';
-    console.error('define('+m.id+') failed eval', err);
+    console.error('define('+m.url+') failed eval', err);
     return m.run;
   }
   m.loaded = true;
@@ -500,7 +500,7 @@ function require_cjs_run(m){
   // dont put \n before script to keep original line locations synced
   let js =
     `'use strict'; `
-    +`let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.id)}); `
+    +`let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.url)}); `
     +`let exports = module.exports; `
     +`let require = module.require; `
     +`let __dirname = ${json(path_dir(m.imp))}; `
@@ -513,7 +513,7 @@ function require_cjs_run(m){
     eval?.(js); // script return value is ignored
   } catch(err){
     m.run = 'err';
-    console.error('require('+m.id+') failed eval', err);
+    console.error('require('+m.url+') failed eval', err);
     return m.run;
   }
   m.loaded = true;
@@ -523,33 +523,32 @@ function require_cjs_run(m){
 function mod_add_lmod(m){
   m.lmod = T_npm_to_lpm(m.imp);
   m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
-  assert(npm_2url(m.imp)==m.id);
+  assert(npm_2url(m.imp)==m.url);
 }
 
 function mod_add(_m){
-  assert(!mod_t[_m.id]);
+  assert(!mod_t[_m.url]);
   let m = {
-    id: _m.id,
+    url: _m.url,
     imp: _m.imp,
-    url: _m.url||_m.id,
     parent: {},
-    is_json: _m.id.endsWith('.json'),
+    is_json: _m.url.endsWith('.json'),
     first_npm_self: _m.npm_self,
     exports: {},
   };
-  assert(npm_2url(_m.imp)==_m.id);
+  assert(npm_2url(_m.imp)==_m.url);
   mod_add_lmod(m);
   return m;
 }
 
 function require_cjs_load_follow_sync({npm_self, imp}){
-  let id = npm_to_id(npm_self, imp);
+  let url = npm_to_url(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   npm_self ||= '';
   let m;
-  if (!(m=mod_t[id])){
-    m = mod_t[id] = {id, imp, url: id, parent: {},
+  if (!(m=mod_t[url])){
+    m = mod_t[url] = {url, imp, parent: {},
       is_json: imp.endsWith('.json'), first_npm_self: npm_self,
       exports: {}};
     mod_add_lmod(m);
@@ -562,7 +561,7 @@ function require_cjs_load_follow_sync({npm_self, imp}){
   if (m.run || m.load_requires || p.loading)
     return m;
   p.loading = 1;
-  D && console.log('sync load', npm_self, id);
+  D && console.log('sync load', npm_self, url);
   require_cjs_load_meta_sync(p);
   if (p.res!='done')
     return m;
@@ -587,7 +586,7 @@ function require_cjs_load_sync({m}){
   if (str.is(m.type, 'mjs', 'amd')){
     // TODO: add support for sync amd
     console.error('cannot load '+m.type+' sync '+
-      m.id+(m.first_npm_self?' from '+m.first_npm_self:''));
+      m.url+(m.first_npm_self?' from '+m.first_npm_self:''));
     return m;
   }
   require_cjs_load_requires_sync(m);
@@ -595,7 +594,7 @@ function require_cjs_load_sync({m}){
 }
 
 function amd_define_args(args){
-  let id, reqs, factory;
+  let url, reqs, factory;
   let reqs_default = ['require', 'exports', 'module'];
   let exports_val; /* not supported */
   if (args.length==1){
@@ -606,7 +605,7 @@ function amd_define_args(args){
   } else if (args.length==2){
     if (typeof args[0]=='string'){
       // define('my_mod', function(require, exports, module){...});
-      id = args[0];
+      url = args[0];
       reqs = reqs_default;
     } else {
       // define(['imp1', 'imp2'], function(imp1, imp2){...});
@@ -615,7 +614,7 @@ function amd_define_args(args){
     factory = args[1];
   } else if (args.length==3)
     // define('my_mod', ['imp1', 'imp2'], function(imp1, imp2){...});
-    [id, reqs, factory] = args;
+    [url, reqs, factory] = args;
   else
     throw Error('define() invalid num args');
   if (typeof factory!='function'){
@@ -623,7 +622,7 @@ function amd_define_args(args){
     exports_val = factory;
     factory = undefined;
   }
-  return {id, reqs, factory};
+  return {url, reqs, factory};
 }
 
 // AMD async require(['imp1', 'imp2'], function(imp1, imp2){...})
@@ -637,8 +636,8 @@ function define_amd_require(m, reqs){
         assert(0, 'amd require() not yet implemented correctly');
         if (!cb){
           // sync require - only to previously loaded modules
-          let id = npm_to_id(m.imp, _imp);
-          let _m = mod_t[id];
+          let url = npm_to_url(m.imp, _imp);
+          let _m = mod_t[url];
           if (_m)
             return _m.exports;
           throw Error('amd sync require('+_imp+') not already loaded');
@@ -660,18 +659,18 @@ function define_amd_require(m, reqs){
   return _reqs;
 }
 
-function define_amd_multi(id, reqs, factory, m){
-  let imp = id;
-  id = npm_to_id(m.imp, imp);
-  let _id = id+(id!=m.id ? ' from '+m.id : '');
+function define_amd_multi(url, reqs, factory, m){
+  let imp = url;
+  url = npm_to_url(m.imp, imp);
+  let _id = url+(url!=m.url ? ' from '+m.url : '');
   assert(0, 'multi AMD define('+_id+') per-file not supported yet');
-  // TOOO validate/normalize id vs m.id -> npm module, and call
+  // TOOO validate/normalize url vs m.url -> npm module, and call
   // _mod_id is ignored. 1st define() in file should ignore it, or maybe
   // create an alias for it.
   if (!m){
-    if (mod_t[id])
+    if (mod_t[url])
       throw Error('define('+_id+') already defined');
-    m = mod_t[id] = {id, imp, loaded: false, parent: {}, wait: ewait(),
+    m = mod_t[url] = {url, imp, loaded: false, parent: {}, wait: ewait(),
       exports: {}};
     mod_add_lmod(m);
   }
@@ -685,12 +684,12 @@ function import_amd_run_define(m, loading){
   // implementation of AMD define()
   let called = 0;
   let eval_completed = false;
-  m.define = function(id, reqs, factory){
-    ({id, reqs, factory} = amd_define_args(arguments));
+  m.define = function(url, reqs, factory){
+    ({url, reqs, factory} = amd_define_args(arguments));
     let _m = m;
-    assert(!eval_completed, 'got define('+m.id+') after script completed');
+    assert(!eval_completed, 'got define('+m.url+') after script completed');
     if (called++)
-      _m = define_amd_multi(id, reqs, factory, m);
+      _m = define_amd_multi(url, reqs, factory, m);
     m.define.reqs = define_amd_require(_m, reqs);
     m.define.factory = factory;
   };
@@ -713,17 +712,17 @@ function import_amd_run_define(m, loading){
     eval_completed = true;
   }
   if (!m.define.reqs)
-    console.log('AMD module '+m.id+' did not call define()');
+    console.log('AMD module '+m.url+' did not call define()');
 }
 
 async function require_cjs_load_follow_async({npm_self, imp, loading}){
-  let id = npm_to_id(npm_self, imp);
+  let url = npm_to_url(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
   npm_self ||= '';
   let m;
-  if (!(m=mod_t[id])){
-    m = mod_t[id] = {id, imp, url: id, parent: {},
+  if (!(m=mod_t[url])){
+    m = mod_t[url] = {url, imp, parent: {},
       is_json: imp.endsWith('.json'), exports: {}, first_npm_self: npm_self};
     mod_add_lmod(m);
   }
@@ -784,10 +783,10 @@ async function require_cjs_load_async({m, loading}){
 }
 
 function require_cjs_sync(npm_self, imp){
-  let id = npm_to_id(npm_self, imp);
+  let url = npm_to_url(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
-  if (!mod_t[id]?.parent[npm_self])
+  if (!mod_t[url]?.parent[npm_self])
     console.log('dynamic sync require('+imp+') in '+npm_self);
   let m = require_cjs_load_follow_sync({npm_self, imp});
   require_cjs_run(m);
@@ -821,21 +820,20 @@ function fetch_opt(url){
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
 function define_amd_get_mod(imp){
-  let id = npm_to_id(null, imp);
-  let m = mod_t[id];
+  let url = npm_to_url(null, imp);
+  let m = mod_t[url];
   assert(m, 'module not found: '+imp);
   return m;
 }
 
 async function import_amd(npm_self, [imp, opt]){
   D && console.log('import_amd', imp, npm_self);
-  let id = npm_to_id(npm_self, imp);
-  let url = id;
+  let url = npm_to_url(npm_self, imp);
   imp = npm_base(npm_self, imp);
   let m;
-  if (m = mod_t[id])
+  if (m = mod_t[url])
     return await m.wait;
-  m = mod_t[id] = {id, imp, url: id, wait: ewait(), npm_self, parent: {},
+  m = mod_t[url] = {url, imp, wait: ewait(), npm_self, parent: {},
     exports: {}, loaded: false};
   mod_add_lmod(m);
   try {
@@ -858,14 +856,13 @@ async function import_amd(npm_self, [imp, opt]){
 
 // worker
 async function import_module_script({npm_self, imp}){
-  let id = npm_to_id(npm_self, imp);
-  let url = id;
+  let url = npm_to_url(npm_self, imp);
   let m;
-  if (m = mod_t[id]){
+  if (m = mod_t[url]){
     assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
     return await m.wait;
   }
-  m = mod_t[id] = {id, imp, url, wait: ewait(), npm_self, parent: {},
+  m = mod_t[url] = {url, imp, wait: ewait(), npm_self, parent: {},
     exports: {}, loaded: false};
   mod_add_lmod(m);
   try {
