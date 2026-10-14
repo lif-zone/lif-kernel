@@ -464,7 +464,7 @@ function require_cjs_run(m){
   if (m.type=='amd')
     return define_amd_run(m);
   if (m.type=='mjs')
-    throw Error('cannot dynamic sync require('+m.url+') mjs from '+m.first_npm_self);
+    throw Error('cannot dynamic sync require('+m.url+') mjs from '+m.parent);
   m.run = 'running';
   if (m.is_json){
     m.exports = m.file.json;
@@ -510,7 +510,7 @@ function mod_add(_m){
     url: _m.url,
     imp: _m.imp,
     is_json: _m.url.endsWith('.json'),
-    first_npm_self: _m.npm_self,
+    parent: _m.npm_self,
     exports: {},
   };
   if (_m.loaded!=undefined)
@@ -518,7 +518,6 @@ function mod_add(_m){
   if (_m.wait!=undefined)
     m.wait = _m.wait;
   m.lmod = T_npm_to_lpm(m.imp);
-  m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
   m.file = {};
   m._meta = {};
   return m;
@@ -808,10 +807,8 @@ async function import_amd(npm_self, [imp, opt]){
 async function import_module_script({npm_self, imp}){
   let url = npm_to_url(npm_self, imp);
   let m;
-  if (m = mod_t[url]){
-    assert(m.url==url, 'different url for '+imp+': '+m.url+' -> '+url);
+  if (m = mod_t[url])
     return await m.wait;
-  }
   m = mod_add({url, imp, wait: ewait(), npm_self, loaded: false});
   try {
     let response = await fetch(url, fetch_opt(url));
