@@ -232,11 +232,11 @@ function npm_imp_url({npm_self, lmod}){
 }
 
 function require_cjs_load_meta_sync(m){
-  let _meta = m._meta ||= {};
-  function do_ret(res){ return _meta.res = res; }
-  if (_meta.res=='done' || _meta.res=='err')
-    return _meta.res;
-  _meta.res = 'loading';
+  let _m = m._meta;
+  function do_ret(res){ return _m.res = res; }
+  if (_m.res=='done' || _m.res=='err')
+    return _m.res;
+  _m.res = 'loading';
   let v;
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
@@ -292,16 +292,16 @@ function sha256_hex(v){
 }
 
 async function require_cjs_load_meta_async(m){
-  let _meta = m._meta ||= {};
+  let _m = m._meta;
   function do_ret(res){
-    _meta.res = res;
-    if (_meta.wait)
-      _meta.wait.return(res);
-    return _meta.res;
+    _m.res = res;
+    if (_m.wait)
+      _m.wait.return(res);
+    return _m.res;
   }
-  if (_meta.res=='done' || _meta.res=='err')
-    return _meta.res;
-  _meta.res = 'loading';
+  if (_m.res=='done' || _m.res=='err')
+    return _m.res;
+  _m.res = 'loading';
   let v;
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
@@ -309,9 +309,9 @@ async function require_cjs_load_meta_async(m){
   let qs = {meta: '', follow: ''};
   let url = m.url+qs_enc(qs);
   let req;
-  if (_meta.wait)
-    return await _meta.wait;
-  _meta.wait = ewait();
+  if (_m.wait)
+    return await _m.wait;
+  _m.wait = ewait();
   let meta_c;
   lookup: {
     if (!enable_cache_idb || !lpm_is_perm(lmod))
@@ -348,7 +348,7 @@ async function require_cjs_load_meta_async(m){
 }
 
 async function require_cjs_load_file_sync(m){
-  let f = m.file ||= {};
+  let f = m.file;
   function do_ret(res){ return f.res = res; }
   if (f.res=='done' || f.res=='err')
     return f.res;
@@ -373,7 +373,7 @@ async function require_cjs_load_file_sync(m){
 }
 
 async function require_cjs_load_file_async(m){
-  let f = m.file ||= {};
+  let f = m.file;
   function do_ret(res){
     return f.wait.return(f.res = res);
   }
@@ -523,7 +523,8 @@ function require_cjs_run(m){
 function mod_add_lmod(m){
   m.lmod = T_npm_to_lpm(m.imp);
   m.lmod_self = m.npm_self && T_npm_to_lpm(m.npm_self);
-  //assert(npm_2url(m.imp)==m.url);
+  m.file = {};
+  m._meta = {};
 }
 
 function mod_add(_m){
@@ -535,7 +536,6 @@ function mod_add(_m){
     first_npm_self: _m.npm_self,
     exports: {},
   };
-  //assert(npm_2url(_m.imp)==_m.url);
   mod_add_lmod(m);
   return m;
 }
