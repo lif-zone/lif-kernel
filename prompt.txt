@@ -201,3 +201,7 @@ CLAUDE: Track `last` count, update elm.textContent only when stats.fetch.all cha
 USER: Add favicon.ico logo to the left of the Loading text, sized to match the text.
 
 CLAUDE: Added 14px img element with favicon.ico before the text node. Changed text updates to modify the text node instead of elm.textContent to preserve the img.
+---
+USER: Implement the XXX in hi.js load_progress().failed() - show refresh emoji + first 3 lines of error, clicking calls load_retry().
+
+CLAUDE: Replaced the XXX with implementation: clears the loader, shows a 🔄 emoji and "Error loading:" with first 3 lines of the error. Clicking anywhere on the element calls load_retry().
