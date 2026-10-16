@@ -804,12 +804,12 @@ async function import_amd(npm_self, [imp, opt]){
 }
 
 // worker
-async function import_module_script({npm_self, imp}){
-  let url = npm_to_url(npm_self, imp);
+async function import_module_script({uri_self, imp}){
+  let url = npm_to_url(uri_self, imp);
   let m;
   if (m = mod_t[url])
     return await m.wait;
-  m = mod_add({url, imp, wait: ewait(), npm_self, loaded: false});
+  m = mod_add({url, imp, wait: ewait(), npm_self: uri_self, loaded: false});
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -835,10 +835,10 @@ function exports_to_esm(exports){
   return {...exports, default: exports};
 }
 
-async function import_worker({npm_self, imp, opt}){
+async function import_worker({uri_self, imp, opt}){
   if (opt?.type!='script')
     assert(0, 'module import not yet supportedd');
-  let exports = await import_module_script({npm_self, imp, opt: {worker: 1}});
+  let exports = await import_module_script({uri_self, imp, opt: {worker: 1}});
   return exports_to_esm(exports);
 }
 
@@ -863,26 +863,26 @@ function url_to_path(url){
   return u.path;
 }
 
-async function import_esm(npm_self, [imp, opt={}]){
-  let _npm_self = npm_self;
-  npm_self = url_to_path(npm_self);
-  let url = npm_imp_abs(imp, npm_self, {...opt, type: 'module'});
+async function import_esm(uri_self, [imp, opt={}]){
+  let _uri_self = uri_self;
+  uri_self = url_to_path(uri_self);
+  let url = npm_imp_abs(imp, uri_self, {...opt, type: 'module'});
   url = url_expand(url);
-  console.log('XXX npm_self '+_npm_self+' -> '+npm_self+' imp '+imp+'-> '+url);
+  console.log('XXX uri_self '+_uri_self+' -> '+uri_self+' imp '+imp+'-> '+url);
   let slow;
   try {
     slow = eslow(15000, 'import_esm('+url+')');
     D && console.log('boot.js: import '+url);
     let ret;
     if (is_worker && opt?.type=='script')
-      ret = await import_worker({npm_self, imp, opt});
+      ret = await import_worker({uri_self, imp, opt});
     else {
       ret = await /*keep*/ import(url, opt);
       ret = import_esm_to_cjs(ret);
     }
     return ret;
   } catch(err){
-    console.error('import_esm('+url+' '+npm_self+')', err);
+    console.error('import_esm('+url+' '+uri_self+')', err);
     throw err;
   } finally {
     slow.end();
