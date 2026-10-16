@@ -864,9 +864,11 @@ function url_to_path(url){
 }
 
 async function import_esm(npm_self, [imp, opt={}]){
+  let _npm_self = npm_self;
   npm_self = url_to_path(npm_self);
   let url = npm_imp_abs(imp, npm_self, {...opt, type: 'module'});
   url = url_expand(url);
+  console.log('XXX npm_self '+_npm_self+' -> '+npm_self+' imp '+imp+'-> '+url);
   let slow;
   try {
     slow = eslow(15000, 'import_esm('+url+')');
