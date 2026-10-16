@@ -860,6 +860,8 @@ function url_to_path(url){
   let u = url_parse(url);
   if (!u)
     return url;
+  if (u.origin!=location.origin)
+    return url;
   return u.path;
 }
 
