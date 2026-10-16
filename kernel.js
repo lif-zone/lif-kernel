@@ -116,6 +116,54 @@ async function db_open(){ // use storageBuckets
   return db;
 }
 
+function ecache_delete(del_all){
+  function cc(table){
+    if (del_all){
+      table = {};
+      return;
+    }
+    // delete only local
+    for (let [k, v] of OE(table)){
+      if (str.starts(k, 'local/'))
+        delete table[k];
+    }
+  }
+  cc(lpm_pkg_t);
+  cc(lpm_pkg_ver_t);
+  cc(lpm_file_t);
+  cc(reg_file_t);
+}
+
+async function caches_delete_all() {
+  return await caches.keys().then(names=>
+    Promise.all(names.map(name => caches.delete(name)))
+  );
+}
+
+function db_delete(){
+  ecache_delete(true);
+  let name = 'lif-cache';
+  try {
+    // should be await, be did without so it will start the operation
+    navigator.storageBuckets.delete("lif-cache");
+  } catch(err){
+    console.log('failed deleting storageBucket '+name);
+  }
+  name = 'lif-kernel-'+cache_ver;
+  try {
+    // should be await, be did without so it will start the operation
+    storage_bucket.indexedDB.deleteDatabase(name);
+  } catch(err){
+    console.log('failed deleting indexedDB '+name);
+  }
+  try {
+    // should be await, be did without so it will start the operation
+    caches_delete_all();
+  } catch(err){
+    console.log('failed deleting caches');
+  }
+}
+
 // 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
 let enable_cache = 1;
 function fetch_opt(url){
@@ -1557,16 +1605,7 @@ async function _kernel_fetch(event){
   // LIF requests
   let v;
   if (path=='/.lif/cache_clear'){ // clear cache command
-    function cc(table){
-      for (let [k, v] of OE(table)){
-        if (str.starts(k, 'local/'))
-          delete table[k];
-      }
-    }
-    cc(lpm_pkg_t);
-    cc(lpm_pkg_ver_t);
-    cc(lpm_file_t);
-    cc(reg_file_t);
+    db_delete();
     return send_res({body: json({ok: true, msg: 'cache cleared'}),
       ext: 'json', path});
   }
