@@ -1,6 +1,6 @@
 // LICENSE_CODE JPL hi world!
 import {OE, html_elm, html_elm_frag_append, str, qs_append, qs_enc,
-  lif_domain_parse,
+  lif_domain_parse, esleep,
 } from './util.js';
 import {hosts} from './hosts.js';
 let $lif = globalThis.$lif;
@@ -101,11 +101,59 @@ async function webapp_resolve(){
   return {redirect: ''+u};
 }
 
-function load_progress(){
+async function sw_unregister(){
+  if (!navigator.serviceWorker.controller)
+    return;
+  console.log('force reload - unreegister sw');
+  let reg = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(reg.map(r=>r.update()));
+  await Promise.all(reg.map(r=>r.unregister()));
+}
+
+async function wait_timeout(timeout, promise){
+  let ret;
+  await Promise.any([
+    (async function(){ ret = await promise; })(),
+    esleep(timeout),
+  ]);
+  return ret;
+}
+
+function div_loader(){
   let elm = html_elm('div', {id: 'lif-loader', style:
     'position:fixed;top:0;left:0;width:100%;height:100%;display:flex;'
     +'align-items:center;justify-content:center;font-family:sans-serif;'
     +'color:#888;font-size:14px'});
+  document.body.appendChild(elm);
+  return elm;
+}
+
+async function do_load_retry(){
+  if (!await wait_timeout(2000, fetch('/.lif/cache_clear')))
+    console.log('failed /.lif/cache_clear');
+  await wait_timeout(2000, sw_unregister());
+  window.location.reload(true);
+}
+async function load_retry(err){
+  let elm = div_loader();
+  document.body.appendChild(elm);
+  elm.innerHTML = '';
+  elm.style.flexDirection = 'column';
+  elm.style.gap = '8px';
+  elm.style.cursor = 'pointer';
+  let err_lines = (''+err).split('\n').slice(0, 3).join('\n');
+  let refresh = html_elm('div', {style: 'font-size:24px'});
+  refresh.textContent = '🔄';
+  let msg = html_elm('div', {style:
+    'white-space:pre-wrap;max-width:600px'});
+  msg.textContent = 'Error loading:\n'+err_lines;
+  elm.appendChild(refresh);
+  elm.appendChild(msg);
+  elm.onclick = ()=>do_load_retry();
+}
+
+function load_progress(){
+  let elm = div_loader();
   let img = html_elm('img', {src: '/.lif/npm/lif-kernel/favicon.ico',
     style: 'height:14px;width:14px;margin-right:6px'});
   if (0) elm.appendChild(img);
@@ -123,13 +171,21 @@ function load_progress(){
     last = all;
     txt.textContent = 'Loading… '+(all-diff);
   }, 100);
-  return {
+  let op = {
     elm,
+    failed: function(err){
+      this.remove();
+      load_retry(err);
+    },
     remove: function(){
+      if (this.removed)
+        return;
+      this.removed = true;
       clearInterval(iv);
       elm.remove();
     },
   };
+  return op;
 }
 async function life(){
   let w = await webapp_resolve();
@@ -144,6 +200,8 @@ async function life(){
   let l = load_progress();
   try {
     return await $lif.boot.boot_app({lif: {webapp: w.site}});
+  } catch(err){
+    l?.failed(err);
   } finally {
     l?.remove();
   }
