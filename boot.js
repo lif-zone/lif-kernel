@@ -119,8 +119,8 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-function npm_imp_abs(imp, npm_self, opt){
-  let u = T_npm_url_base(imp, npm_self);
+function npm_imp_abs(imp, uri_self, opt){
+  let u = T_npm_url_base(imp, uri_self);
   let q = {};
   if (u.is.blob)
     return imp;
@@ -130,10 +130,10 @@ function npm_imp_abs(imp, npm_self, opt){
   if (is_lif)
     _url = u.path;
   else if (u.is.mod){
-    if (npm_self){
+    if (uri_self){
       let v;
-      if (!(v=str.starts(npm_self, '/.lif/')))
-        throw Error('npm import url: invalid npm_self: '+npm_self);
+      if (!(v=str.starts(uri_self, '/.lif/')))
+        throw Error('npm import url: invalid uri_self: '+uri_self);
       _url = '/.lif/'+T_lpm_lmod(v.rest)+'/.lif.imp/'+u.path;
     } else
       _url = '/.lif/'+T_npm_to_lpm(u.path);
@@ -148,8 +148,6 @@ function npm_imp_abs(imp, npm_self, opt){
   // mod
   if (opt?.type=='module')
     q.imp = '';
-  if (npm_self && url_uri_type(npm_self)=='mod')
-    q.npm_self = npm_self;
   return qs_append(_url, q);
 }
 
@@ -896,11 +894,11 @@ function import_cjs_namespace(module_ns){
 }
 
 // worker
-function importScripts_single(npm_self, [mod, opt={}]){
+function importScripts_single(uri_self, [mod, opt={}]){
   let _opt = {};
   if (opt?.type!='script')
     assert(0, 'module import not yet supportedd');
-  let url = npm_imp_abs(mod, npm_self, _opt);
+  let url = npm_imp_abs(mod, uri_self, _opt);
   let res = fetch_sync(url);
   if (res.status!=200)
     throw Error('failed fetch '+url);
@@ -912,9 +910,9 @@ function importScripts_single(npm_self, [mod, opt={}]){
     `; ${script}\n//# sourceURL=${url}\n`);
 }
 
-function _importScripts(npm_self, mods){
+function _importScripts(uri_self, mods){
   for (let m of mods)
-    importScripts_single(npm_self, [m, {worker: 1, type: 'script'}]);
+    importScripts_single(uri_self, [m, {worker: 1, type: 'script'}]);
 }
 
 function new_importScripts(...mods){
@@ -1096,8 +1094,8 @@ async function boot_app(boot_pkg){
 function mainthread_setup(){
   function imp_url(url, opt){
     url = url.href || url;
-    let npm_self = npm_root && npm_2url(npm_root);
-    let _url = npm_imp_abs(url, npm_self, {worker: 1, type: opt?.type});
+    let uri_self = npm_root && npm_2url(npm_root);
+    let _url = npm_imp_abs(url, uri_self, {worker: 1, type: opt?.type});
     return _url;
   }
   class lif_Worker extends Worker {
@@ -1199,7 +1197,7 @@ function test(){
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t = (npm_self, imp, opt, v)=>assert_eq(v, npm_imp_abs(imp, npm_self, opt));
+  t = (uri_self, imp, opt, v)=>assert_eq(v, npm_imp_abs(imp, uri_self, opt));
   t('/.lif/npm/mod@1.2.3/file', './a/file.js', {},
     '/.lif/npm/mod@1.2.3/a/file.js');
   t('/dir/dir2/file', './a/file.js', {},
