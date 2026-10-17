@@ -1452,8 +1452,6 @@ async function fetch_lpm_meta({log, imp}){
   if (f.not_exist || (f.redirect && !f.redirect_file))
     return f;
   let _f = f.redirect ? f.redirect_file : f;
-  if (0 && f.redirect)
-    return f; //{redirect: f.redirect};
   let type = file_ctype(_f.lmod);
   if (type!='js')
     return {type};
