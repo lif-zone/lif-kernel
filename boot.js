@@ -119,14 +119,6 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-function npm_imp_uri_qs(uri_self, imp, opt){
-  let {url: _imp, qs} = qs_split(imp);
-  let uri = npm_imp_uri(uri_self, _imp);
-  let q = Object.fromEntries((new URLSearchParams(qs)).entries());
-  OA(q, npm_imp_q(opt));
-  return uri+qs_enc(q);;
-}
-
 function npm_2url(url, npm_self){ // equivalent to m.url (before /.lif.imp/
   let u = T_npm_url_base(url, npm_self);
   if (u.is.url)
@@ -193,7 +185,13 @@ function npm_to_url(npm_self, imp){
   return url;
 }
 
-let url_expand = Tf(url=>(new URL(url, location)).href || url);
+function npm_imp_uri_qs(uri_self, imp, opt){
+  let {url: _imp, qs} = qs_split(imp);
+  let uri = npm_imp_uri(uri_self, _imp);
+  let q = Object.fromEntries((new URLSearchParams(qs)).entries());
+  OA(q, npm_imp_q(opt));
+  return uri+qs_enc(q);;
+}
 
 function require_cjs_get_mod(url){
   let m;
