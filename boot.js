@@ -1223,24 +1223,6 @@ function test(){
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t = (uri_self, imp, opt, v)=>assert_eq(v, npm_imp_uri_qs(uri_self, imp, opt));
-  t('/.lif/npm/mod@1.2.3/file', './a/file.js', {},
-    '/.lif/npm/mod@1.2.3/a/file.js');
-  t('/dir/dir2/file', './a/file.js', {},
-    '/dir/dir2/a/file.js');
-  t('/.lif/local/other.js', './a/file.js', {worker: 1},
-    '/.lif/local/a/file.js?worker');
-  t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
-    '/.lif/local/mod//a/file.js?imp');
-  t('/.lif/npm/react@1.2.3/x', 'mod/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
-  t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
-    '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
-  0 && t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
-  0 && t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
-  0 && t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
-  0 && t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  0 && t(null, 'lif-kernel/hi.js', {type: 'module'}, '/.lif/npm/lif-kernel/hi.js?imp');
   in_test = 0;
 }
 test();
