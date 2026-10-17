@@ -1180,6 +1180,53 @@ async function lpm_file_resolve({log, imp, alt}){
   return lpm_file;
 }
 
+async function lpm_pkg_resolve_follow({log, imp}){
+  try {
+    let _imp = imp, res;
+    for (; imp;){
+      let res = await lpm_pkg_resolve({log, imp});
+      let {lpm_pkg} = res;
+      if (lpm_pkg.not_exist)
+        return res;
+      if (!(imp = lpm_pkg.redirect))
+        return res;
+    }
+    return res;
+  } catch(err){
+    console.error(err);
+    throw err;
+  }
+}
+
+async function lpm_file_resolve_follow({log, imp, alt, follow}){
+  D && console.log('lpm_file_resolve_follow '+imp);
+  let res = {};
+  for (let i=0; i<max_redirect; i++){
+    let f = await lpm_file_resolve({log, imp, alt});
+    if (f.not_exist){
+      res.not_exist = f.not_exist;
+      return res;
+    }
+    if (f.redirect){
+      if (!follow){
+        res.redirect = f.redirect;
+        return res;
+      }
+      res.redirects ||= [];
+      res.redirects.push(f.redirect);
+      imp = f.redirect;
+      continue;
+    }
+    if (res.redirects){
+      f.redriects = res.redirects;
+      f.redirect = res.redirects.at(-1);
+      return f;
+    }
+    return f;
+  }
+  return {not_exist: true, err: 'max redirects'};
+}
+
 let coi_set_headers = h=>{
   // COI: Cross-Origin-Isolation, required for SharedArrayBuffer
   h['cross-origin-embedder-policy'] = 'require-corp';
@@ -1383,35 +1430,6 @@ async function responce_tr_send({f, qs, lmod}){
     return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
   throw Error('invalid lpm file type '+type+' '+lmod+' '+qs);
   return {err: 'invalid lpm file type '+type+' '+lmod+' '+qs};
-}
-
-async function lpm_file_resolve_follow({log, imp, alt, follow}){
-  D && console.log('lpm_file_resolve_follow '+imp);
-  let res = {};
-  for (let i=0; i<max_redirect; i++){
-    let f = await lpm_file_resolve({log, imp, alt});
-    if (f.not_exist){
-      res.not_exist = f.not_exist;
-      return res;
-    }
-    if (f.redirect){
-      if (!follow){
-        res.redirect = f.redirect;
-        return res;
-      }
-      res.redirects ||= [];
-      res.redirects.push(f.redirect);
-      imp = f.redirect;
-      continue;
-    }
-    if (res.redirects){
-      f.redriects = res.redirects;
-      f.redirect = res.redirects.at(-1);
-      return f;
-    }
-    return f;
-  }
-  return {not_exist: true, err: 'max redirects'};
 }
 
 let enable_follow = true;
@@ -1760,24 +1778,6 @@ function test_kernel(){
   // XXX obsolete comment? check 'package.json' is not modified, even if pkg is null
 }
 test_kernel();
-
-async function lpm_pkg_resolve_follow(opt){
-  try {
-    let imp, res;
-    for (imp = opt.imp; imp;){
-      let res = await lpm_pkg_resolve({...opt, imp});
-      let {lpm_pkg} = res;
-      if (lpm_pkg.not_exist)
-        return res;
-      if (!(imp = lpm_pkg.redirect))
-        return res;
-    }
-    return res;
-  } catch(err){
-    console.error(err);
-    throw err;
-  }
-}
 
 async function webapp_load({log, lmod_self, webapp}){
   let lmod_webapp = T_npm_to_lpm(webapp);
