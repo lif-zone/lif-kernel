@@ -205,14 +205,6 @@ function npm_2url(url){
   return '/.lif/'+T_npm_to_lpm(u.path);
 }
 
-function npm_imp_uri_npm(npm_self, imp){
-  assert(!npm_self || npm_self[0]=='/');
-  let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
-    '/.lif/'+npm_to_lpm(npm_self);
-  let url = npm_imp_uri(uri_self, imp);
-  return url;
-}
-
 function require_cjs_get_mod(url){
   let m;
   assert(m = mod_t[url], 'module '+url+' not loaded');
@@ -521,14 +513,13 @@ function mod_add(_m){
     m.loaded = _m.loaded;
   if (_m.wait!=undefined)
     m.wait = _m.wait;
-  m.lmod = T_npm_to_lpm(m.imp);
   m.file = {};
   m._meta = {};
   return m;
 }
 
 function require_cjs_load_follow_sync({npm_self, imp}){
-  let url = npm_imp_uri_npm(npm_self, imp);
+  let url = npm_imp_uri(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   npm_self ||= '';
@@ -683,7 +674,7 @@ function import_amd_run_define(m, loading){
 }
 
 async function require_cjs_load_follow_async({npm_self, imp, loading}){
-  let url = npm_imp_uri_npm(npm_self, imp);
+  let url = npm_imp_uri(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
   npm_self ||= '';
@@ -738,7 +729,7 @@ async function require_cjs_load_async({m, loading}){
 }
 
 function require_cjs_sync(npm_self, imp){
-  let url = npm_imp_uri_npm(npm_self, imp);
+  let url = npm_imp_uri(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
   if (!mod_t[url])
