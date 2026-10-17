@@ -1595,9 +1595,6 @@ async function _kernel_fetch(event){
       return send_res({err: 'no webapp while loading', path});
     let lmod = v.rest;
     log.imp = lmod;
-    let slow = eslow('app_init');
-    await app_init_wait; // XXX - try to remove. favicon can be handled later!
-    slow.end();
     let response = await cache_store_get(request);
     if (response)
       return response;
