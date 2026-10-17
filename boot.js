@@ -141,6 +141,17 @@ function npm_base(npm_self, imp){
   return u.path;
 }
 
+function url_to_path_no_qs(url){
+  if (!url)
+    return url;
+  if (url[0]=='/')
+    return url.split('?')[0];
+  let u = url_parse(url);
+  if (u.origin!=location.origin)
+    throw Error('invalid uri - expected / local: '+url);
+  return u.path;
+}
+
 function npm_imp_uri(uri_self, imp){
   if (uri_self){
     uri_self = url_to_path_no_qs(uri_self);
@@ -175,6 +186,15 @@ function npm_imp_uri(uri_self, imp){
     return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
   }
   return '/.lif/'+T_npm_to_lpm(imp);
+}
+
+function npm_imp_q(opt){
+  let q = {};
+  if (opt?.worker)
+    q.worker = '';
+  if (opt?.type=='module')
+    q.imp = '';
+  return q;
 }
 
 function npm_imp_uri_qs(uri_self, imp, opt){
@@ -837,29 +857,8 @@ function import_esm_to_cjs(mod){
   return ret;
 }
 
-function url_to_path_no_qs(url){
-  if (!url)
-    return url;
-  if (url[0]=='/')
-    return url.split('?')[0];
-  let u = url_parse(url);
-  if (u.origin!=location.origin)
-    throw Error('invalid uri - expected / local: '+url);
-  return u.path;
-}
-
-function npm_imp_q(opt){
-  let q = {};
-  if (opt?.worker)
-    q.worker = '';
-  if (opt?.type=='module')
-    q.imp = '';
-  return q;
-}
-
 async function import_esm(uri_self, [imp, opt={}]){
-  let uri = npm_imp_uri(uri_self, imp);
-  let url = qs_append(uri, npm_imp_q({...opt, type: 'module'}));
+  let url = npm_imp_uri_qs(uri_self, imp, {...opt, type: 'module'});
   let slow;
   try {
     slow = eslow(15000, 'import_esm('+url+')');
