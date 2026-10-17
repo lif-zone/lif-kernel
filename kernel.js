@@ -1779,14 +1779,14 @@ function test_kernel(){
 }
 test_kernel();
 
-async function webapp_load({log, lmod_self, webapp}){
+async function webapp_load({log, webapp}){
   let lmod_webapp = T_npm_to_lpm(webapp);
   let _lpm_app = T_lpm_lmod(lmod_webapp);
   let _lpm_pkg_app;
   let slow = eslow('app_pg lpm_get');
   try {
     ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve_follow({log,
-      imp: _lpm_app, mod_self: lmod_self}));
+      imp: _lpm_app}));
   } catch(err){
     console.error('webapp_load  '+webapp, err);
     return {err};
@@ -1795,7 +1795,7 @@ async function webapp_load({log, lmod_self, webapp}){
   }
   if (_lpm_pkg_app.not_exist){
     console.error('webapp_load not found: '+webapp);
-    return {err: 'app not found: '+_lpm_app+' ('+lmod_self+')'};
+    return {err: 'app not found: '+_lpm_app};
   }
   lpm_app = _lpm_app;
   lpm_pkg_app = _lpm_pkg_app;
@@ -1862,7 +1862,7 @@ async function do_app_pkg(boot_pkg){
     app_init_wait.return();
     return {ok: true};
   }
-  let res = await webapp_load({log, lmod_self: lmod_root, webapp});
+  let res = await webapp_load({log, webapp});
   app_init_wait.return();
   return res;
 }
