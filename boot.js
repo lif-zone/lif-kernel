@@ -119,20 +119,7 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-function npm_base(npm_self, imp){
-  let u = T_npm_url_base(imp, npm_self);
-  let v;
-  if ((u.is.uri || u.is.url && u.origin==location.origin) &&
-    (v=str.starts(u.path, '/.lif/')))
-  {
-    return lpm_to_npm(v.rest);
-  }
-  if (u.is.url)
-    return u.is.blob || u.is.data ? imp : u.origin+u.path;
-  return u.path;
-}
-
-function url_to_path_no_qs(url){
+function url_self_clean(url){
   if (!url)
     return url;
   url = qs_trim(url);
@@ -145,11 +132,8 @@ function url_to_path_no_qs(url){
 }
 
 function npm_imp_uri(uri_self, imp){
-  if (uri_self){
-    uri_self = url_to_path_no_qs(uri_self);
-    if (uri_self[0]!='/')
-      throw Error('invalid uri_self '+uri_self);
-  }
+  if (uri_self)
+    uri_self = url_self_clean(uri_self);
   let t = url_uri_type(imp);
   if (t=='url'){
     let u = T_url_parse(imp);
@@ -197,7 +181,7 @@ function npm_imp_uri_qs(uri_self, imp, opt){
   return uri+qs_enc(q);;
 }
 
-function npm_2url(url){
+function npm_to_uri(url){
   let u = T_npm_url_base(url);
   if (u.is.url)
     return u.is.blob || u.is.data ? url : u.origin+u.path;
@@ -737,9 +721,6 @@ function require_cjs_sync(npm_self, imp){
   return m.exports;
 }
 
-function lpm_base(mod_self, imp){
-  return T_npm_to_lpm(npm_base(mod_self && T_lpm_to_npm(mod_self), imp));
-}
 async function require_cjs_async(npm_self, imp){
   D && console.log('require_cjs_async '+(npm_self||'')+' -> '+imp);
   let m = await require_cjs_load_follow_async({npm_self, imp, loading: []});
@@ -998,10 +979,9 @@ async function kernel_stats(){
   return await kernel_chan.call('kernel_stats');
 }
 
-async function run_html(npm_self, webapp){
-  let _webapp = npm_base(npm_self, webapp);
-  console.log('run_html start '+_webapp);
-  let url = '/.lif/'+npm_to_lpm(_webapp);
+async function run_html(webapp){
+  console.log('run_html start '+webapp);
+  let url = '/.lif/'+npm_to_lpm(webapp);
   let html = await T_fetch_text(url);
   let parser = new DOMParser();
   let doc = parser.parseFromString(html, 'text/html');
@@ -1041,7 +1021,6 @@ async function boot_app(boot_pkg){
   slow.end();
   if (!webapp)
     return;
-  let npm_self = webapp;
   if (res.webapp && res.webapp!=webapp){
     console.log('resolved: '+webapp+' -> '+res.webapp);
     webapp = res.webapp;
@@ -1054,7 +1033,7 @@ async function boot_app(boot_pkg){
   let ret;
   try {
     if (ext=='html')
-      ret = await run_html(npm_self, webapp);
+      ret = await run_html(webapp);
     else if (str.is(ext, 'js', 'jsx', 'ts', 'tsx'))
       ret = await import_esm(null, [webapp]);
     else
@@ -1070,7 +1049,7 @@ async function boot_app(boot_pkg){
 function mainthread_setup(){
   function imp_url(url, opt){
     url = url.href || url;
-    let uri_self = npm_root && npm_2url(npm_root);
+    let uri_self = npm_root && npm_to_uri(npm_root);
     let _url = npm_imp_uri_qs(uri_self, url, {worker: 1, type: opt?.type});
     return _url;
   }
@@ -1097,32 +1076,7 @@ function mainthread_setup(){
 function test(){
   let t;
   in_test = 1;
-  t = (npm_self, imp, v)=>assert_eq(v, npm_base(npm_self, imp));
-  t('mod@1.2.3', './a/file.js', 'mod@1.2.3/a/file.js');
-  t('.lif/local/other.js', './a/file.js', '.lif/local/a/file.js');
-  t('.lif/local/mod/', './a/file.js', '.lif/local/mod//a/file.js');
-  t('react@1.2.3', 'mod/file.js', 'mod/file.js');
-  t('react@1.2.3', 'mod@4.5.6/file.js', 'mod@4.5.6/file.js');
-  t('http://a.b/c', 'http:/x.y/z', 'http://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', 'https://x.y/z');
-  t('http://a.b/c', 'blob:http://x.y/z', 'blob:http://x.y/z');
-  t('http://a.b/c', 'blob:https://x.y/z', 'blob:https://x.y/z');
-  t('http://a.b/c', 'b/file.js', 'b/file.js');
-  t('http://a.b/c', './b/file.js', 'http://a.b/b/file.js');
-  t('http://a.b/c/', './b/file.js', 'http://a.b/c/b/file.js');
-  t('http://a.b/c/', '/b/file.js', '/b/file.js');
-  t('http://a.b/c/d/', '../b/file.js', 'http://a.b/c/b/file.js');
-  t(null, location.origin+'/b/file.js', location.origin+'/b/file.js');
-  t(null, location.origin+'/.lif/npm/react', 'react');
-  t(null, location.origin+'/.lif/local/dir', '.lif/local/dir');
-  t('/a.b/c/', '/b/file.js', '/b/file.js');
-  t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
-  t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t(null, '/.lif/npm/mod', 'mod');
-  t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
-  t('mod@1.2.3', 'node:path', 'node:path');
-  t('mod@1.2.3', 'node:path/a/b', 'node:path/a/b');
-  t = (url, v)=>assert_eq(v, url_to_path_no_qs(url));
+  t = (url, v)=>assert_eq(v, url_self_clean(url));
   t(null, null);
   t('/path', '/path');
   t('/path?qs', '/path');
@@ -1180,7 +1134,7 @@ function test(){
     '/.lif/local/mod//a/file.js?imp');
   t(null, 'lif-kernel/hi.js', {type: 'module'},
     '/.lif/npm/lif-kernel/hi.js?imp');
-  t = (url, v)=>assert_eq(v, npm_2url(url));
+  t = (url, v)=>assert_eq(v, npm_to_uri(url));
   t('mod/file.js', '/.lif/npm/mod/file.js');
   t('mod@4.5.6/file.js', '/.lif/npm/mod@4.5.6/file.js');
   t('http:/x.y/z', 'http://x.y/z');
