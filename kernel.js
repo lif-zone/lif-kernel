@@ -845,25 +845,6 @@ async function lpm_ver_resolve({log, lmod}){
   return {redirect: v};
 }
 
-async function lpm_pkg_cache(lmod){
-  let lpm_pkg = ecache.get_sync(lpm_pkg_t, lmod);
-  assert(lpm_pkg, 'lpm lmod not in cache: '+lmod);
-  return lpm_pkg;
-}
-async function lpm_pkg_cache_follow(lmod){
-  let _lmod = lmod;
-  let lpm_pkg = ecache.get_sync(lpm_pkg_t, _lmod);
-  for (let i=0; lpm_pkg?.redirect && i<max_redirect; i++){
-    _lmod = lpm_pkg.redirect;
-    lpm_pkg = ecache.get_sync(lpm_pkg_t, _lmod);
-  }
-  if (!lpm_pkg)
-    console.info('lmod('+lmod+') follow not found: '+_lmod);
-  if (lpm_pkg?.redirect)
-    return; //throw Error('lpm_pkg_cache_follow max redirect: '+lmod);
-  return lpm_pkg;
-}
-
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get({log, lmod}){
   let is_c = cache_lmod(lmod);
