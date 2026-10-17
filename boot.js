@@ -178,12 +178,6 @@ function npm_imp_uri(uri_self, imp){
   }
   return '/.lif/'+T_npm_to_lpm(imp)+qs;
 }
-function npm_to_url(npm_self, imp){
-  let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
-    '/.lif/'+npm_to_lpm(npm_self);
-  let url = npm_imp_uri(uri_self, imp);
-  return url;
-}
 
 function npm_imp_uri_qs(uri_self, imp, opt){
   let {url: _imp, qs} = qs_split(imp);
@@ -191,6 +185,13 @@ function npm_imp_uri_qs(uri_self, imp, opt){
   let q = Object.fromEntries((new URLSearchParams(qs)).entries());
   OA(q, npm_imp_q(opt));
   return uri+qs_enc(q);;
+}
+
+function npm_to_url(npm_self, imp){
+  let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
+    '/.lif/'+npm_to_lpm(npm_self);
+  let url = npm_imp_uri(uri_self, imp);
+  return url;
 }
 
 function require_cjs_get_mod(url){
