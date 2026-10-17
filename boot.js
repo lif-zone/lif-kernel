@@ -135,8 +135,9 @@ function npm_base(npm_self, imp){
 function url_to_path_no_qs(url){
   if (!url)
     return url;
+  url = qs_trim(url);
   if (url[0]=='/')
-    return url.split('?')[0];
+    return url;
   let u = T_url_parse(url);
   if (u.origin!=location.origin)
     throw Error('invalid uri - expected / local: '+url);
