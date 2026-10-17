@@ -1516,6 +1516,25 @@ async function fetch_pass(request, type){
   }
 }
 
+function modules_list(path){
+  let res = {};
+  if (lpm_pkg_app)
+    res.app_id = lpm_pkg_app.id;
+  if (lpm_pkg_root)
+    res.root_id = lpm_pkg_root.id;
+  res.root = {};
+  add(res.root, lpm_pkg_root.child);
+  let lpm_self = lpm_pkg_app || lpm_pkg_root;
+  function add(res, root){
+    for (let pkg of OV(root)){
+      res[pkg.id] = {};
+      add(res[pkg.id], pkg.child);
+    }
+  }
+  console.log(res);
+  return send_res({body: json(res), ext: 'json', path});
+}
+
 let g_stats = {
   fetch: {
     all: 0,
@@ -1569,24 +1588,8 @@ async function _kernel_fetch(event){
     return send_res({body: json({ok: true, msg: 'cache cleared'}),
       ext: 'json', path});
   }
-  if (path=='/.lif/modules'){ // show modules
-    let res = {};
-    if (lpm_pkg_app)
-      res.app_id = lpm_pkg_app.id;
-    if (lpm_pkg_root)
-      res.root_id = lpm_pkg_root.id;
-    res.root = {};
-    add(res.root, lpm_pkg_root.child);
-    let lpm_self = lpm_pkg_app || lpm_pkg_root;
-    function add(res, root){
-      for (let pkg of OV(root)){
-        res[pkg.id] = {};
-        add(res[pkg.id], pkg.child);
-      }
-    }
-    console.log(res);
-    return send_res({body: json(res), ext: 'json', path});
-  }
+  if (path=='/.lif/modules') // show modules
+    return modules_list(path);
   if (v=str.starts(path, '/.lif/')){
     if (!lpm_pkg_app)
       return send_res({err: 'no webapp while loading', path});
