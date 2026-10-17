@@ -372,7 +372,7 @@ function require_cjs_load_requires_sync(m){
   for (let req of m.meta.requires||[]){
     if (!require_cjs_cond_static(req, m.script))
       continue;
-    require_cjs_load_follow_sync({npm_self: m.url, imp: req.module});
+    require_cjs_load_follow_sync({uri_self: m.url, imp: req.module});
   }
   m.load_requires = 1;
 }
@@ -407,7 +407,7 @@ async function require_cjs_load_requires_async(m, loading){
       continue;
     let slow = eslow(15000, 'require_cjs_load_require('+m.url+' -> '
       +req.module+')');
-    await require_cjs_load_follow_async({npm_self: m.url, imp: req.module, loading});
+    await require_cjs_load_follow_async({uri_self: m.url, imp: req.module, loading});
     slow.end();
   }
   m.load_requires = 1;
@@ -491,7 +491,7 @@ function mod_add(_m){
     url: _m.url,
     imp: _m.imp,
     is_json: _m.url.endsWith('.json'),
-    parent: _m.npm_self,
+    parent: _m.uri_self,
     exports: {},
   };
   if (_m.loaded!=undefined)
@@ -503,24 +503,24 @@ function mod_add(_m){
   return m;
 }
 
-function require_cjs_load_follow_sync({npm_self, imp}){
-  let url = npm_imp_uri(npm_self, imp);
-  D>=2 && console.log('sync load', npm_self, imp);
-  npm_self ||= '';
+function require_cjs_load_follow_sync({uri_self, imp}){
+  let url = npm_imp_uri(uri_self, imp);
+  D>=2 && console.log('sync load', uri_self, imp);
+  uri_self ||= '';
   let m;
   if (!(m=mod_t[url]))
-    m = mod_add({url, imp, npm_self});
+    m = mod_add({url, imp, uri_self});
   if (m.redirect)
     return m.redirect;
   if (m.run || m.load_requires || m.loading)
     return m;
   m.loading = 1;
-  D && console.log('sync load', npm_self, url);
+  D && console.log('sync load', uri_self, url);
   require_cjs_load_meta_sync(m);
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
-    m.redirect = require_cjs_load_follow_sync({npm_self: null, imp: m.meta.redirect});
+    m.redirect = require_cjs_load_follow_sync({uri_self: null, imp: m.meta.redirect});
     return m.redirect;
   }
   require_cjs_load_sync({m});
@@ -657,13 +657,13 @@ function import_amd_run_define(m, loading){
     console.log('AMD module '+m.url+' did not call define()');
 }
 
-async function require_cjs_load_follow_async({npm_self, imp, loading}){
-  let url = npm_imp_uri(npm_self, imp);
-  D>=2 && console.log('async load check ', npm_self, imp);
-  npm_self ||= '';
+async function require_cjs_load_follow_async({uri_self, imp, loading}){
+  let url = npm_imp_uri(uri_self, imp);
+  D>=2 && console.log('async load check ', uri_self, imp);
+  uri_self ||= '';
   let m;
   if (!(m=mod_t[url]))
-    m = mod_add({url, imp, npm_self});
+    m = mod_add({url, imp, uri_self});
   if (m.redirect)
     return m.redirect;
   if (m.run || m.load_requires)
@@ -672,12 +672,12 @@ async function require_cjs_load_follow_async({npm_self, imp, loading}){
   if (loading.includes(m))
     return m;
   loading.push(m);
-  D && console.log('async load', npm_self, imp);
+  D && console.log('async load', uri_self, imp);
   await require_cjs_load_meta_async(m);
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
-    m.redirect = await require_cjs_load_follow_async({npm_self: null,
+    m.redirect = await require_cjs_load_follow_async({uri_self: null,
       imp: m.meta.redirect, loading});
     return m.redirect;
   }
@@ -711,26 +711,26 @@ async function require_cjs_load_async({m, loading}){
   await require_cjs_load_requires_async(m, loading);
 }
 
-function require_cjs_sync(npm_self, imp){
-  let url = npm_imp_uri(npm_self, imp);
-  D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
+function require_cjs_sync(uri_self, imp){
+  let url = npm_imp_uri(uri_self, imp);
+  D && console.log('require_cjs_sync '+(uri_self||'')+' -> '+imp);
   if (!mod_t[url])
-    console.log('dynamic sync require('+imp+') in '+npm_self);
-  let m = require_cjs_load_follow_sync({npm_self, imp});
+    console.log('dynamic sync require('+imp+') in '+uri_self);
+  let m = require_cjs_load_follow_sync({uri_self, imp});
   require_cjs_run(m);
   return m.exports;
 }
 
-async function require_cjs_async(npm_self, imp){
-  D && console.log('require_cjs_async '+(npm_self||'')+' -> '+imp);
-  let m = await require_cjs_load_follow_async({npm_self, imp, loading: []});
+async function require_cjs_async(uri_self, imp){
+  D && console.log('require_cjs_async '+(uri_self||'')+' -> '+imp);
+  let m = await require_cjs_load_follow_async({uri_self, imp, loading: []});
   require_cjs_run(m);
   return m.exports;
 }
 
-function createRequire(npm_self){
+function createRequire(uri_self){
   return function require_cjs_sync_mod(imp){
-    return require_cjs_sync(npm_self, imp);
+    return require_cjs_sync(uri_self, imp);
   };
 }
 
@@ -748,13 +748,13 @@ function define_amd_get_mod(url){
   return m;
 }
 
-async function import_amd(npm_self, [imp, opt]){
-  D && console.log('import_amd', imp, npm_self);
-  let url = npm_imp_uri(npm_self, imp);
+async function import_amd(uri_self, [imp, opt]){
+  D && console.log('import_amd', imp, uri_self);
+  let url = npm_imp_uri(uri_self, imp);
   let m;
   if (m = mod_t[url])
     return await m.wait;
-  m = mod_add({url, imp, wait: ewait(), npm_self, loaded: false});
+  m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
@@ -779,7 +779,7 @@ async function import_module_script({uri_self, imp}){
   let m;
   if (m = mod_t[url])
     return await m.wait;
-  m = mod_add({url, imp, wait: ewait(), npm_self: uri_self, loaded: false});
+  m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
     let response = await fetch(url, fetch_opt(url));
     if (response.status!=200)
