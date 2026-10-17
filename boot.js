@@ -6,7 +6,7 @@ let in_test;
 import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   uri_enc, qs_enc, qs_append, qs_trim, qs_split, json, json_cp, str_to_buf,
-  html_elm, version as util_version, url_parse,
+  html_elm, version as util_version, T_url_parse,
 } from './util.js';
 import {
   T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_lmod, T_lpm_to_npm,
@@ -119,15 +119,6 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-function npm_2url(url){
-  let u = T_npm_url_base(url);
-  if (u.is.url)
-    return u.is.blob || u.is.data ? url : u.origin+u.path;
-  if (u.is.uri)
-    return u.path;
-  return '/.lif/'+T_npm_to_lpm(u.path);
-}
-
 function npm_base(npm_self, imp){
   let u = T_npm_url_base(imp, npm_self);
   let v;
@@ -146,7 +137,7 @@ function url_to_path_no_qs(url){
     return url;
   if (url[0]=='/')
     return url.split('?')[0];
-  let u = url_parse(url);
+  let u = T_url_parse(url);
   if (u.origin!=location.origin)
     throw Error('invalid uri - expected / local: '+url);
   return u.path;
@@ -160,7 +151,7 @@ function npm_imp_uri(uri_self, imp){
   }
   let t = url_uri_type(imp);
   if (t=='url'){
-    let u = url_parse(imp);
+    let u = T_url_parse(imp);
     if (u.origin==location.origin)
       return u.path;
     return imp;
@@ -205,7 +196,16 @@ function npm_imp_uri_qs(uri_self, imp, opt){
   return uri+qs_enc(q);;
 }
 
-function npm_to_url(npm_self, imp){
+function npm_2url(url){
+  let u = T_npm_url_base(url);
+  if (u.is.url)
+    return u.is.blob || u.is.data ? url : u.origin+u.path;
+  if (u.is.uri)
+    return u.path;
+  return '/.lif/'+T_npm_to_lpm(u.path);
+}
+
+function npm_imp_uri_npm(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
   let url = npm_imp_uri(uri_self, imp);
@@ -527,7 +527,7 @@ function mod_add(_m){
 }
 
 function require_cjs_load_follow_sync({npm_self, imp}){
-  let url = npm_to_url(npm_self, imp);
+  let url = npm_imp_uri_npm(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   npm_self ||= '';
@@ -604,7 +604,7 @@ function define_amd_require(m, reqs){
         assert(0, 'amd require() not yet implemented correctly');
         if (!cb){
           // sync require - only to previously loaded modules
-          let url = npm_to_url(m.imp, _imp);
+          let url = npm_imp_uri_npm(m.imp, _imp);
           let _m = mod_t[url];
           if (_m)
             return _m.exports;
@@ -629,7 +629,7 @@ function define_amd_require(m, reqs){
 
 function define_amd_multi(url, reqs, factory, m){
   let imp = url;
-  url = npm_to_url(m.imp, imp);
+  url = npm_imp_uri_npm(m.imp, imp);
   let _id = url+(url!=m.url ? ' from '+m.url : '');
   assert(0, 'multi AMD define('+_id+') per-file not supported yet');
   // TOOO validate/normalize url vs m.url -> npm module, and call
@@ -682,7 +682,7 @@ function import_amd_run_define(m, loading){
 }
 
 async function require_cjs_load_follow_async({npm_self, imp, loading}){
-  let url = npm_to_url(npm_self, imp);
+  let url = npm_imp_uri_npm(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
   npm_self ||= '';
@@ -737,7 +737,7 @@ async function require_cjs_load_async({m, loading}){
 }
 
 function require_cjs_sync(npm_self, imp){
-  let url = npm_to_url(npm_self, imp);
+  let url = npm_imp_uri_npm(npm_self, imp);
   imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
   if (!mod_t[url])
@@ -774,7 +774,7 @@ function fetch_opt(url){
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
 function define_amd_get_mod(imp){
-  let url = npm_to_url(null, imp);
+  let url = npm_imp_uri_npm(null, imp);
   let m = mod_t[url];
   assert(m, 'module not found: '+imp);
   return m;
@@ -782,7 +782,7 @@ function define_amd_get_mod(imp){
 
 async function import_amd(npm_self, [imp, opt]){
   D && console.log('import_amd', imp, npm_self);
-  let url = npm_to_url(npm_self, imp);
+  let url = npm_imp_uri_npm(npm_self, imp);
   imp = npm_base(npm_self, imp);
   let m;
   if (m = mod_t[url])
@@ -808,7 +808,7 @@ async function import_amd(npm_self, [imp, opt]){
 
 // worker
 async function import_module_script({uri_self, imp}){
-  let url = npm_to_url(uri_self, imp);
+  let url = npm_imp_uri_npm(uri_self, imp);
   let m;
   if (m = mod_t[url])
     return await m.wait;
