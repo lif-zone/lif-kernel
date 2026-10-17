@@ -1207,15 +1207,15 @@ async function lpm_file_resolve_follow({log, imp, alt, follow}){
         res.redirect = f.redirect;
         return res;
       }
+      res.redirect = f.redirect;
       res.redirects ||= [];
       res.redirects.push(f.redirect);
       imp = f.redirect;
       continue;
     }
     if (res.redirects){
-      f.redriects = res.redirects;
-      f.redirect = res.redirects.at(-1);
-      return f;
+      res.redirect_file = f;
+      return res;
     }
     return f;
   }
@@ -1379,13 +1379,14 @@ async function responce_tr_send({f, qs, lmod}){
   let ext = _path_ext(lmod);
   let q = new URLSearchParams(qs);
   if (f.redirect){
-    if (f.body==undefined)
+    if (!f.redirect_file)
       return lpm_redirect({f, qs, lmod});
     if (q.has('mjs')){
       q.delete('mjs');
       q.set('imp', '');
     }
     lmod = f.redirect;
+    f = f.redirect_file;
   }
   if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
     return {body: f.blob, ext, cache: 1};
@@ -1441,7 +1442,7 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
   }
   f = await lpm_file_resolve_follow({log, imp, alt, follow});
   if (redirect && !f.redirect)
-    f.redirect ||= redirect;
+    f = {redirect_file: f, redirect};
   return f;
 }
 
@@ -1450,7 +1451,7 @@ async function fetch_lpm_meta({log, imp}){
   let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: enable_follow});
   if (f.redirect)
     f.redirect = lpm_to_npm(f.redirect);
-  if (f.not_exist || (f.redirect && f.body==undefined))
+  if (f.not_exist || (f.redirect && !f.redirect_file))
     return f;
   if (f.redirect)
     return {redirect: f.redirect};
