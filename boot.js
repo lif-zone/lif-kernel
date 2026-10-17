@@ -1186,14 +1186,21 @@ function test(){
     '/.lif/npm/mod@1.2.3/.lif.imp/node:path');
   t('/.lif/npm/mod@1.2.3/x', 'node:path/a/b',
     '/.lif/npm/mod@1.2.3/.lif.imp/node:path/a/b');
-  t = (uri_self, imp, v)=>assert_eq(v, npm_imp_uri_qs(uri_self, imp));
-  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x?qs', 
+  t = (uri_self, imp, opt, v)=>
+    assert_eq(v, npm_imp_uri_qs(uri_self, imp, opt));
+  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x?qs', {},
     '/.lif/npm/mod@4.5.6/x?qs');
-  t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
-  t('/.lif/npm/mod@1.2.3/x?qs', './a/f', '/.lif/npm/mod@1.2.3/a/f');
-  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', '/.lif/npm/mod@1.2.3/a/f?qs');
-  t(location.origin+'/.lif/npm/mod@1.2.3/x?qs', './a/f',
+  t('/.lif/npm/mod@1.2.3/x', './a/f', {}, '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x?qs', './a/f', {}, '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', {}, '/.lif/npm/mod@1.2.3/a/f?qs');
+  t(location.origin+'/.lif/npm/mod@1.2.3/x?qs', './a/f', {},
     '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/local/other.js', './a/file.js', {worker: 1},
+    '/.lif/local/a/file.js?worker');
+  t('/.lif/local/mod//x', './a/file.js', {type: 'module'},
+    '/.lif/local/mod//a/file.js?imp');
+  t(null, 'lif-kernel/hi.js', {type: 'module'},
+    '/.lif/npm/lif-kernel/hi.js?imp');
   t = (npm_self, url, v)=>assert_eq(v, npm_2url(url, npm_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
   t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
