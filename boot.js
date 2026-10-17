@@ -520,6 +520,8 @@ function require_cjs_load_follow_sync({uri_self, imp}){
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
+    if (m.meta.redirect_file)
+      require_cjs_meta_add({imp: m.meta.redirect, uri_self, meta: m.meta.redirect_file});
     m.redirect = require_cjs_load_follow_sync({imp: m.meta.redirect});
     return m.redirect;
   }
@@ -657,6 +659,16 @@ function import_amd_run_define(m, loading){
     console.log('AMD module '+m.url+' did not call define()');
 }
 
+function require_cjs_meta_add({imp, uri_self, meta}){
+  let url = npm_imp_uri(uri_self, imp);
+  if (mod_t[url])
+    return;
+  let m = mod_add({url, imp, uri_self});
+  m.meta = meta;
+  m._meta = {res: 'done'};
+  return m;
+}
+
 async function require_cjs_load_follow_async({uri_self, imp, loading}){
   let url = npm_imp_uri(uri_self, imp);
   D>=2 && console.log('async load check ', uri_self, imp);
@@ -677,6 +689,8 @@ async function require_cjs_load_follow_async({uri_self, imp, loading}){
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
+    if (m.meta.redirect_file)
+      require_cjs_meta_add({imp: m.meta.redirect, uri_self, meta: m.meta.redirect_file});
     m.redirect = await require_cjs_load_follow_async({
       imp: m.meta.redirect, loading});
     return m.redirect;

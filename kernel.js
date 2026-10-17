@@ -99,7 +99,7 @@ function storage_bucket_init(){
 }
 storage_bucket_init();
 
-let cache_ver = 28;
+let cache_ver = 29;
 async function db_open(){ // use storageBuckets
   if (db)
     return db;
@@ -1199,14 +1199,12 @@ async function lpm_file_resolve_follow({log, imp, alt, follow}){
   for (let i=0; i<max_redirect; i++){
     let f = await lpm_file_resolve({log, imp, alt});
     if (f.not_exist){
-      res.not_exist = f.not_exist;
+      res.not_exist = f.not_exist; // can have both redirect+not_exist
       return res;
     }
     if (f.redirect){
-      if (!follow){
-        res.redirect = f.redirect;
-        return res;
-      }
+      if (!follow)
+        return {redirect: f.redirect};
       res.redirect = f.redirect;
       res.redirects ||= [];
       res.redirects.push(f.redirect);
@@ -1442,7 +1440,7 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
   }
   f = await lpm_file_resolve_follow({log, imp, alt, follow});
   if (redirect && !f.redirect)
-    f = {redirect_file: f, redirect};
+    return {redirect_file: f, redirect};
   return f;
 }
 
@@ -1453,18 +1451,16 @@ async function fetch_lpm_meta({log, imp}){
     f.redirect = lpm_to_npm(f.redirect);
   if (f.not_exist || (f.redirect && !f.redirect_file))
     return f;
-  if (f.redirect)
-    return {redirect: f.redirect};
-  let type = file_ctype(f.lmod);
+  let _f = f.redirect ? f.redirect_file : f;
+  if (0 && f.redirect)
+    return f; //{redirect: f.redirect};
+  let type = file_ctype(_f.lmod);
   if (type!='js')
     return {type};
-  await file_tsx_to_js(f);
-  let meta = await file_js_to_meta(f);
-  meta = {...meta};
-  if (f.redirect){
-    meta.redirect = f.redirect;
-    meta.redirects = f.redirects;
-  }
+  await file_tsx_to_js(_f);
+  let meta = await file_js_to_meta(_f);
+  if (f.redirect)
+    return {redirect: f.redirect, redirects: f.redirects, redirect_file: meta};
   return {meta, cache: 1};
 }
 
