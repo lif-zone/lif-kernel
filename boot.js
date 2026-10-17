@@ -774,7 +774,7 @@ function fetch_opt(url){
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
 function define_amd_get_mod(imp){
-  let url = npm_imp_uri_npm(null, imp);
+  let url = npm_imp_uri(null, imp);
   let m = mod_t[url];
   assert(m, 'module not found: '+imp);
   return m;
@@ -782,7 +782,7 @@ function define_amd_get_mod(imp){
 
 async function import_amd(npm_self, [imp, opt]){
   D && console.log('import_amd', imp, npm_self);
-  let url = npm_imp_uri_npm(npm_self, imp);
+  let url = npm_imp_uri(npm_self, imp);
   imp = npm_base(npm_self, imp);
   let m;
   if (m = mod_t[url])
@@ -808,7 +808,7 @@ async function import_amd(npm_self, [imp, opt]){
 
 // worker
 async function import_module_script({uri_self, imp}){
-  let url = npm_imp_uri_npm(uri_self, imp);
+  let url = npm_imp_uri(uri_self, imp);
   let m;
   if (m = mod_t[url])
     return await m.wait;
