@@ -6,7 +6,7 @@ let in_test;
 import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
   uri_enc, qs_enc, qs_append, qs_trim, json, json_cp, str_to_buf,
-  html_elm, version as util_version, url_parse,
+  html_elm, version as util_version, T_url_parse,
 } from './util.js';
 import {
   T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_lmod, T_lpm_to_npm,
@@ -174,7 +174,11 @@ function npm_base(npm_self, imp){
 }
 
 function npm_uri_imp(uri_self, imp){
-  assert(!uri_self || uri_self[0]=='/');
+  if (uri_self){
+    uri_self = url_to_path_no_qs(uri_self);
+    if (uri_self[0]!='/')
+      throw Error('invalid uri_self '+uri_self);
+  }
   let t = url_uri_type(imp);
   if (t=='url' || t=='uri')
     return imp;
@@ -852,23 +856,29 @@ function import_esm_to_cjs(mod){
   return ret;
 }
 
-function url_to_path(url){
-  if (!url || url[0]=='/')
+function url_to_path_no_qs(url){
+  if (!url)
     return url;
-  let u = url_parse(url);
-  if (!u)
-    return url;
+  if (url[0]=='/')
+    return url.split('?')[0];
+  let u = T_url_parse(url);
   if (u.origin!=location.origin)
-    return url;
+    throw Error('invalid uri - expected / local: '+url);
   return u.path;
 }
 
+function npm_imp_q(opt){
+  let q = {};
+  if (opt?.worker)
+    q.worker = '';
+  if (opt?.type=='module')
+    q.imp = '';
+  return q;
+}
+
 async function import_esm(uri_self, [imp, opt={}]){
-  let _uri_self = uri_self;
-  uri_self = url_to_path(uri_self);
-  let url = npm_imp_abs(imp, uri_self, {...opt, type: 'module'});
-  url = url_expand(url);
-  console.log('XXX uri_self '+_uri_self+' -> '+uri_self+' imp '+imp+'-> '+url);
+  let uri = npm_uri_imp(uri_self, imp);
+  let url = qs_append(uri, npm_imp_q({...opt, type: 'module'}));
   let slow;
   try {
     slow = eslow(15000, 'import_esm('+url+')');
@@ -1146,8 +1156,18 @@ function test(){
   t(null, '/.lif/local/mod/a', '.lif/local/mod/a');
   t('mod@1.2.3', 'node:path', 'node:path');
   t('mod@1.2.3', 'node:path/a/b', 'node:path/a/b');
+  t = (url, v)=>assert_eq(v, url_to_path_no_qs(url));
+  t(null, null);
+  t('/path', '/path');
+  t('/path?qs', '/path');
+  t(location.origin+'/dir/file?qs', '/dir/file');
   t = (uri_self, imp, v)=>assert_eq(v, npm_uri_imp(uri_self, imp));
   t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x?qs', './a/f', '/.lif/npm/mod@1.2.3/a/f');
+  // XXX should be /.lif/npm/mod@1.2.3/a/f?qs ?
+  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', '/.lif/npm/mod@1.2.3/a/f');
+  t(location.origin+'/.lif/npm/mod@1.2.3/x?qs', './a/f',
+    '/.lif/npm/mod@1.2.3/a/f');
   t('/.lif/local/other', './a/f', '/.lif/local/a/f');
   t('/.lif/local/other/x', './a/f', '/.lif/local/other/a/f');
   t('/.lif/local/mod//x', './a/f', '/.lif/local/mod//a/f');
