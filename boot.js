@@ -520,7 +520,7 @@ function require_cjs_load_follow_sync({uri_self, imp}){
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
-    m.redirect = require_cjs_load_follow_sync({uri_self: null, imp: m.meta.redirect});
+    m.redirect = require_cjs_load_follow_sync({imp: m.meta.redirect});
     return m.redirect;
   }
   require_cjs_load_sync({m});
@@ -677,7 +677,7 @@ async function require_cjs_load_follow_async({uri_self, imp, loading}){
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
-    m.redirect = await require_cjs_load_follow_async({uri_self: null,
+    m.redirect = await require_cjs_load_follow_async({
       imp: m.meta.redirect, loading});
     return m.redirect;
   }
