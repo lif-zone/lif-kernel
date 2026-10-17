@@ -206,6 +206,7 @@ function npm_2url(url){
 }
 
 function npm_imp_uri_npm(npm_self, imp){
+  assert(!npm_self || npm_self[0]=='/');
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
   let url = npm_imp_uri(uri_self, imp);
@@ -394,7 +395,7 @@ function require_cjs_load_requires_sync(m){
   for (let req of m.meta.requires||[]){
     if (!require_cjs_cond_static(req, m.script))
       continue;
-    require_cjs_load_follow_sync({npm_self: m.imp, imp: req.module});
+    require_cjs_load_follow_sync({npm_self: m.url, imp: req.module});
   }
   m.load_requires = 1;
 }
@@ -429,7 +430,7 @@ async function require_cjs_load_requires_async(m, loading){
       continue;
     let slow = eslow(15000, 'require_cjs_load_require('+m.url+' -> '
       +req.module+')');
-    await require_cjs_load_follow_async({npm_self: m.imp, imp: req.module, loading});
+    await require_cjs_load_follow_async({npm_self: m.url, imp: req.module, loading});
     slow.end();
   }
   m.load_requires = 1;
@@ -441,7 +442,7 @@ async function import_amd_load_requires(m, loading){
   for (let req of m.define.reqs||[]){
     let e;
     if (!(e = req.e))
-      e = await require_cjs_async(m.imp, req.imp);
+      e = await require_cjs_async(m.url, req.imp);
     reqs.push(e);
   }
   m.load_requires = reqs;
@@ -474,10 +475,10 @@ function require_cjs_run(m){
     return m.run = 'done';
   }
   m.require = function(imp){
-    return require_cjs_sync(m.imp, imp);
+    return require_cjs_sync(m.url, imp);
   };
   m.require.require_async = async function(imp){
-    return await require_cjs_async(m.imp, imp);
+    return await require_cjs_async(m.url, imp);
   };
   m.require.module = m; // debug
   let script = m.script;
@@ -490,8 +491,8 @@ function require_cjs_run(m){
     +`let module = globalThis.$lif.boot.require_cjs_get_mod(${json(m.url)}); `
     +`let exports = module.exports; `
     +`let require = module.require; `
-    +`let __dirname = ${json(path_dir(m.imp))}; `
-    +`let __filename = ${json(path_file(m.imp))}; `
+    +`let __dirname = ${json(path_dir(m.url))}; `
+    +`let __filename = ${json(path_file(m.url))}; `
     +`(function(){ `
     +`${script}\n`
     +`})();\n`
@@ -604,15 +605,15 @@ function define_amd_require(m, reqs){
         assert(0, 'amd require() not yet implemented correctly');
         if (!cb){
           // sync require - only to previously loaded modules
-          let url = npm_imp_uri_npm(m.imp, _imp);
+          let url = npm_imp_uri(m.url, _imp);
           let _m = mod_t[url];
           if (_m)
             return _m.exports;
           throw Error('amd sync require('+_imp+') not already loaded');
-          return require_cjs_sync(m.imp, _imp);
+          return require_cjs_sync(m.url, _imp);
         }
         (async function __amd_require(){
-          let exports = await require_cjs_async(m.imp, _imp);
+          let exports = await require_cjs_async(m.url, _imp);
           cb(exports);
         })();
       }};
@@ -629,7 +630,7 @@ function define_amd_require(m, reqs){
 
 function define_amd_multi(url, reqs, factory, m){
   let imp = url;
-  url = npm_imp_uri_npm(m.imp, imp);
+  url = npm_imp_uri(m.url, imp);
   let _id = url+(url!=m.url ? ' from '+m.url : '');
   assert(0, 'multi AMD define('+_id+') per-file not supported yet');
   // TOOO validate/normalize url vs m.url -> npm module, and call
@@ -664,7 +665,7 @@ function import_amd_run_define(m, loading){
   m.define.module = m; // debug
   // dont put \n before script to keep original line locations synced
   let js =
-    `let define = globalThis.$lif.boot.define_amd_get_mod(${json(m.imp)}).define; `
+    `let define = globalThis.$lif.boot.define_amd_get_mod(${json(m.url)}).define; `
     +`(function(){ `
     +`${m.script}\n`
     +`}());\n`
@@ -773,10 +774,10 @@ function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
-function define_amd_get_mod(imp){
-  let url = npm_imp_uri(null, imp);
+function define_amd_get_mod(url){
+  // let url = npm_imp_uri(null, imp);
   let m = mod_t[url];
-  assert(m, 'module not found: '+imp);
+  assert(m, 'module not found: '+url);
   return m;
 }
 
