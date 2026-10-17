@@ -147,22 +147,20 @@ function npm_imp_uri(uri_self, imp){
     if (uri_self[0]!='/')
       throw Error('invalid uri_self '+uri_self);
   }
-  let {url, qs} = qs_split(imp);
-  imp = url;
   let t = url_uri_type(imp);
   if (t=='url'){
     let u = url_parse(imp);
     if (u.origin==location.origin)
-      return u.path+qs;
-    return imp+qs;
+      return u.path;
+    return imp;
   }
   if (t=='uri')
-    return imp+qs;
+    return imp;
   if (t=='rel'){
     if (!uri_self)
       throw Error('npm_imp_uri('+imp+') rel without base');
     let u = __uri_parse(imp, uri_self);
-    return u.path+qs;
+    return u.path;
   }
   assert(t=='mod');
   if (uri_self){
@@ -170,13 +168,13 @@ function npm_imp_uri(uri_self, imp){
     let u_self = T_lpm_parse(lmod_self);
     let u = T_npm_parse(imp);
     if (u.lmod==u_self.lmod)
-      return '/.lif/'+T_npm_to_lpm(imp)+qs;
+      return '/.lif/'+T_npm_to_lpm(imp);
     let with_ver = lpm_ver_from_base(u, u_self);
     if (with_ver)
-      return '/.lif/'+with_ver+qs;
-    return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp+qs;
+      return '/.lif/'+with_ver;
+    return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
   }
-  return '/.lif/'+T_npm_to_lpm(imp)+qs;
+  return '/.lif/'+T_npm_to_lpm(imp);
 }
 
 function npm_imp_uri_qs(uri_self, imp, opt){
@@ -1151,11 +1149,8 @@ function test(){
     '/.lif/npm/mod@4.5.6/x');
   t('/.lif/npm/mod@1.2.3/x', location.origin+'/.lif/npm/mod@4.5.6/x', 
     '/.lif/npm/mod@4.5.6/x');
-  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x?qs', 
-    '/.lif/npm/mod@4.5.6/x?qs');
   t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
   t('/.lif/npm/mod@1.2.3/x?qs', './a/f', '/.lif/npm/mod@1.2.3/a/f');
-  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', '/.lif/npm/mod@1.2.3/a/f?qs');
   t(location.origin+'/.lif/npm/mod@1.2.3/x?qs', './a/f',
     '/.lif/npm/mod@1.2.3/a/f');
   t('/.lif/local/other', './a/f', '/.lif/local/a/f');
