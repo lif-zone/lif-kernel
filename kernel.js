@@ -978,7 +978,8 @@ function lpm_patch_pkg_json(lpm_pkg){
 let allow_no_package_json = true;
 async function lpm_pkg_get({log, lmod, mod_self}){
   let is_c = cache_lmod(lmod);
-  let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
+  // let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
+  let opt; // lpm_pkg cleared upon every page load
   return await ecache({table: lpm_pkg_t, id: lmod, opt},
     async function run(lpm_pkg)
 {
@@ -994,8 +995,9 @@ async function lpm_pkg_get({log, lmod, mod_self}){
     lpm_self = lpm_pkg_app || lpm_pkg_root;
   assert(lpm_self, 'module('+lmod+') req before app set');
   // add to tree
+  for (let p=lpm_self; p; p = p.parent)
+    assert(lpm_pkg!=lpm_self, 'cyclic lpm_self');
   lpm_pkg.parent = lpm_self;
-  assert(lpm_self.child, 'there is a lurking bug here');
   lpm_self.child.push(lpm_pkg);
   lpm_pkg.child = [];
   lpm_pkg.log = log;
