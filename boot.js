@@ -119,40 +119,12 @@ async function boot_worker_sync_connect(){
   slow.end();
 }
 
-function npm_imp_abs(imp, uri_self, opt){
-  let uri = npm_uri_imp(uri_self, imp);
-  let url = qs_append(uri, npm_imp_q(opt));
-  return url;
-
-  let u = T_npm_url_base(imp, uri_self);
-  let q = {};
-  if (u.is.blob)
-    return imp;
-  let _url;
-  let is_lif = (u.is.uri || u.is.url && u.origin==location.origin) &&
-    u.path.startsWith('/.lif/');
-  if (is_lif)
-    _url = u.path;
-  else if (u.is.mod){
-    if (uri_self){
-      let v;
-      if (!(v=str.starts(uri_self, '/.lif/')))
-        throw Error('npm import url: invalid uri_self: '+uri_self);
-      _url = '/.lif/'+T_lpm_lmod(v.rest)+'/.lif.imp/'+u.path;
-    } else
-      _url = '/.lif/'+T_npm_to_lpm(u.path);
-  }
-  let is_lif_mod = u.is.mod || is_lif;
-  if (opt?.worker && is_lif_mod)
-    q.worker = '';
-  if (u.is.url && !is_lif_mod)
-    return qs_append(u.origin+u.path, q);
-  if (u.is.uri && !is_lif_mod)
-    return qs_append(u.path, q);
-  // mod
-  if (opt?.type=='module')
-    q.imp = '';
-  return qs_append(_url, q);
+function npm_imp_uri_qs(uri_self, imp, opt){
+  let {url: _imp, qs} = qs_split(imp);
+  let uri = npm_imp_uri(uri_self, _imp);
+  let q = Object.fromEntries((new URLSearchParams(qs)).entries());
+  OA(q, npm_imp_q(opt));
+  return uri+qs_enc(q);;
 }
 
 function npm_2url(url, npm_self){ // equivalent to m.url (before /.lif.imp/
@@ -177,7 +149,7 @@ function npm_base(npm_self, imp){
   return u.path;
 }
 
-function npm_uri_imp(uri_self, imp){
+function npm_imp_uri(uri_self, imp){
   if (uri_self){
     uri_self = url_to_path_no_qs(uri_self);
     if (uri_self[0]!='/')
@@ -196,7 +168,7 @@ function npm_uri_imp(uri_self, imp){
     return imp+qs;
   if (t=='rel'){
     if (!uri_self)
-      throw Error('npm_uri_imp('+imp+') rel without base');
+      throw Error('npm_imp_uri('+imp+') rel without base');
     let u = __uri_parse(imp, uri_self);
     return u.path+qs;
   }
@@ -217,7 +189,7 @@ function npm_uri_imp(uri_self, imp){
 function npm_to_url(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
     '/.lif/'+npm_to_lpm(npm_self);
-  let url = npm_uri_imp(uri_self, imp);
+  let url = npm_imp_uri(uri_self, imp);
   return url;
 }
 
@@ -889,7 +861,7 @@ function npm_imp_q(opt){
 }
 
 async function import_esm(uri_self, [imp, opt={}]){
-  let uri = npm_uri_imp(uri_self, imp);
+  let uri = npm_imp_uri(uri_self, imp);
   let url = qs_append(uri, npm_imp_q({...opt, type: 'module'}));
   let slow;
   try {
@@ -920,7 +892,7 @@ function importScripts_single(uri_self, [mod, opt={}]){
   let _opt = {};
   if (opt?.type!='script')
     assert(0, 'module import not yet supportedd');
-  let url = npm_imp_abs(mod, uri_self, _opt);
+  let url = npm_imp_uri_qs(uri_self, mod, _opt);
   let res = fetch_sync(url);
   if (res.status!=200)
     throw Error('failed fetch '+url);
@@ -1117,7 +1089,7 @@ function mainthread_setup(){
   function imp_url(url, opt){
     url = url.href || url;
     let uri_self = npm_root && npm_2url(npm_root);
-    let _url = npm_imp_abs(url, uri_self, {worker: 1, type: opt?.type});
+    let _url = npm_imp_uri_qs(uri_self, url, {worker: 1, type: opt?.type});
     return _url;
   }
   class lif_Worker extends Worker {
@@ -1173,7 +1145,7 @@ function test(){
   t('/path', '/path');
   t('/path?qs', '/path');
   t(location.origin+'/dir/file?qs', '/dir/file');
-  t = (uri_self, imp, v)=>assert_eq(v, npm_uri_imp(uri_self, imp));
+  t = (uri_self, imp, v)=>assert_eq(v, npm_imp_uri(uri_self, imp));
   t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x', 
     '/.lif/npm/mod@4.5.6/x');
   t(location.origin+'/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x', 
@@ -1214,6 +1186,14 @@ function test(){
     '/.lif/npm/mod@1.2.3/.lif.imp/node:path');
   t('/.lif/npm/mod@1.2.3/x', 'node:path/a/b',
     '/.lif/npm/mod@1.2.3/.lif.imp/node:path/a/b');
+  t = (uri_self, imp, v)=>assert_eq(v, npm_imp_uri_qs(uri_self, imp));
+  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x?qs', 
+    '/.lif/npm/mod@4.5.6/x?qs');
+  t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x?qs', './a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', '/.lif/npm/mod@1.2.3/a/f?qs');
+  t(location.origin+'/.lif/npm/mod@1.2.3/x?qs', './a/f',
+    '/.lif/npm/mod@1.2.3/a/f');
   t = (npm_self, url, v)=>assert_eq(v, npm_2url(url, npm_self));
   t('mod@1.2.3', './a/file.js', '/.lif/npm/mod@1.2.3/a/file.js');
   t('.lif/local/other.js', './a/file.js', '/.lif/local/a/file.js');
@@ -1236,7 +1216,7 @@ function test(){
   t('/a.b/c/', '/b/file.js', '/b/file.js');
   t('/a.b/c/', './b/file.js', '/a.b/c/b/file.js');
   t('/a.b/c/', '../b/file.js', '/a.b/b/file.js');
-  t = (uri_self, imp, opt, v)=>assert_eq(v, npm_imp_abs(imp, uri_self, opt));
+  t = (uri_self, imp, opt, v)=>assert_eq(v, npm_imp_uri_qs(uri_self, imp, opt));
   t('/.lif/npm/mod@1.2.3/file', './a/file.js', {},
     '/.lif/npm/mod@1.2.3/a/file.js');
   t('/dir/dir2/file', './a/file.js', {},
