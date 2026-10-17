@@ -520,7 +520,6 @@ function mod_add(_m){
 
 function require_cjs_load_follow_sync({npm_self, imp}){
   let url = npm_imp_uri(npm_self, imp);
-  imp = npm_base(npm_self, imp);
   D>=2 && console.log('sync load', npm_self, imp);
   npm_self ||= '';
   let m;
@@ -675,7 +674,6 @@ function import_amd_run_define(m, loading){
 
 async function require_cjs_load_follow_async({npm_self, imp, loading}){
   let url = npm_imp_uri(npm_self, imp);
-  imp = npm_base(npm_self, imp);
   D>=2 && console.log('async load check ', npm_self, imp);
   npm_self ||= '';
   let m;
@@ -730,7 +728,6 @@ async function require_cjs_load_async({m, loading}){
 
 function require_cjs_sync(npm_self, imp){
   let url = npm_imp_uri(npm_self, imp);
-  imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_sync '+(npm_self||'')+' -> '+imp);
   if (!mod_t[url])
     console.log('dynamic sync require('+imp+') in '+npm_self);
@@ -743,7 +740,6 @@ function lpm_base(mod_self, imp){
   return T_npm_to_lpm(npm_base(mod_self && T_lpm_to_npm(mod_self), imp));
 }
 async function require_cjs_async(npm_self, imp){
-  imp = npm_base(npm_self, imp);
   D && console.log('require_cjs_async '+(npm_self||'')+' -> '+imp);
   let m = await require_cjs_load_follow_async({npm_self, imp, loading: []});
   require_cjs_run(m);
@@ -752,8 +748,8 @@ async function require_cjs_async(npm_self, imp){
 
 function createRequire(npm_self){
   return function require_cjs_sync_mod(imp){
-    npm_self = qs_trim(npm_self);
-    npm_self = npm_base(npm_self, npm_self);
+    npm_self = qs_trim(npm_self); // XXX rm
+    npm_self = npm_base(npm_self, npm_self); // XXX rm
     return require_cjs_sync(npm_self, imp);
   };
 }
@@ -775,7 +771,6 @@ function define_amd_get_mod(url){
 async function import_amd(npm_self, [imp, opt]){
   D && console.log('import_amd', imp, npm_self);
   let url = npm_imp_uri(npm_self, imp);
-  imp = npm_base(npm_self, imp);
   let m;
   if (m = mod_t[url])
     return await m.wait;
