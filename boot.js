@@ -748,8 +748,6 @@ async function require_cjs_async(npm_self, imp){
 
 function createRequire(npm_self){
   return function require_cjs_sync_mod(imp){
-    npm_self = qs_trim(npm_self); // XXX rm
-    npm_self = npm_base(npm_self, npm_self); // XXX rm
     return require_cjs_sync(npm_self, imp);
   };
 }
