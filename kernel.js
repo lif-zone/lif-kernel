@@ -1130,8 +1130,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   // located import, and it got changed
   if (_imp && _imp!=imp)
     return {lpm_pkg: {redirect: _imp}};
-  let subdir = T_lpm_parse(imp).path;
-  return {lpm_pkg, subdir};
+  return {lpm_pkg};
 }
 
 async function lpm_import_get({log, imp, lmod_self}){
@@ -1170,12 +1169,12 @@ async function lpm_import_get({log, imp, lmod_self}){
 async function lpm_file_resolve({log, imp, alt}){
   D && console.log('lpm_file_resolve', imp);
   let path = T_lpm_parse(imp).path;
-  let {lpm_pkg, subdir} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp)});
+  let {lpm_pkg} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp)});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
   if (lpm_pkg.redirect)
     return {redirect: lpm_pkg.redirect+path};
-  let lmod = lpm_pkg.lmod+(subdir||'')+path;
+  let lmod = lpm_pkg.lmod+path;
   let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg, alt});
   return lpm_file;
 }
