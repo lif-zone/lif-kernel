@@ -1448,7 +1448,7 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
 async function fetch_lpm_meta({log, imp}){
   let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: enable_follow});
   if (f.redirect)
-    f.redirect = lpm_to_npm(f.redirect);
+    f.redirect = '/.lif/'+f.redirect;
   if (f.not_exist || (f.redirect && !f.redirect_file))
     return f;
   let _f = f.redirect ? f.redirect_file : f;
