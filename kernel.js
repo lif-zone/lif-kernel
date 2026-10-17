@@ -1813,6 +1813,9 @@ async function webapp_load({log, webapp}){
   return res;
 }
 
+async function init_pkg_root(){
+}
+
 // builtin nodejs APIs in browser: browserify:
 // versions of npm shims
 // https://github.com/browserify/browserify/blob/master/package.json
@@ -1829,8 +1832,8 @@ async function do_app_pkg(boot_pkg){
   lpm_pkg_app = undefined;
   lpm_app_date = Date.now();
   lpm_pkg_root = undefined;
+  lpm_pkg_t = {};
   if (refrash_clear_cache){
-    lpm_pkg_t = {};
     lpm_pkg_ver_t = {};
     lpm_file_t = {};
   }
