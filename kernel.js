@@ -1107,15 +1107,14 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     // same module, empty ver and base completes it? use base to complete ver
     let _imp = lpm_ver_from_base(imp, lmod_self);
     if (_imp && _imp!=imp)
-      return {lpm_pkg: {redirect: _imp}};
+      return {redirect: _imp};
     // different modules: load pkg, and lookup imports.
     lpm_self = await lpm_pkg_resolve({log, imp: lmod_self});
     if (lpm_self.not_exist)
-      return {lpm_pkg: {not_exist: true}};
-    lpm_self = lpm_self.lpm_pkg;
+      return {not_exist: true};
     // same package?
     if (lmod_self==imp)
-      return {lpm_pkg: lpm_self};
+      return lpm_self;
   } else
     lpm_self = lpm_pkg_app || lpm_pkg_root;
   // lookup for imports in parent
@@ -1129,15 +1128,13 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     _imp = lpm_local_dev_redirect(_imp);
   // located import, and it got changed
   if (_imp && _imp!=imp)
-    return {lpm_pkg: {redirect: _imp}};
-  return {lpm_pkg};
+    return {redirect: _imp};
+  return lpm_pkg;
 }
 
 async function lpm_import_get({log, imp, lmod_self}){
   D && console.log('lpm_import_get', imp, lmod_self);
   let lpm_pkg = await lpm_pkg_resolve({log, imp: lmod_self});
-  if (lpm_pkg.lpm_pkg)
-    lpm_pkg = lpm_pkg.lpm_pkg;
   if (lpm_pkg.not_exist)
     return lpm_pkg;
   if (lpm_pkg.redirect)
@@ -1169,7 +1166,7 @@ async function lpm_import_get({log, imp, lmod_self}){
 async function lpm_file_resolve({log, imp, alt}){
   D && console.log('lpm_file_resolve', imp);
   let path = T_lpm_parse(imp).path;
-  let {lpm_pkg} = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp)});
+  let lpm_pkg = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp)});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
   if (lpm_pkg.redirect)
@@ -1181,16 +1178,15 @@ async function lpm_file_resolve({log, imp, alt}){
 
 async function lpm_pkg_resolve_follow({log, imp}){
   try {
-    let _imp = imp, res;
+    let _imp = imp, lpm_pkg;
     for (; imp;){
-      let res = await lpm_pkg_resolve({log, imp});
-      let {lpm_pkg} = res;
+      lpm_pkg = await lpm_pkg_resolve({log, imp});
       if (lpm_pkg.not_exist)
-        return res;
+        return lpm_pkg;
       if (!(imp = lpm_pkg.redirect))
-        return res;
+        return lpm_pkg;
     }
-    return res;
+    return lpm_pkg;
   } catch(err){
     console.error(err);
     throw err;
@@ -1784,8 +1780,7 @@ async function webapp_load({log, webapp}){
   let _lpm_pkg_app;
   let slow = eslow('app_pg lpm_get');
   try {
-    ({lpm_pkg: _lpm_pkg_app} = await lpm_pkg_resolve_follow({log,
-      imp: _lpm_app}));
+    _lpm_pkg_app = await lpm_pkg_resolve_follow({log, imp: _lpm_app});
   } catch(err){
     console.error('webapp_load  '+webapp, err);
     return {err};
