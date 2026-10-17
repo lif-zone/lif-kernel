@@ -976,7 +976,7 @@ function lpm_patch_pkg_json(lpm_pkg){
 }
 
 let allow_no_package_json = true;
-async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
+async function lpm_pkg_get({log, lmod, mod_self}){
   let is_c = cache_lmod(lmod);
   let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
   return await ecache({table: lpm_pkg_t, id: lmod, opt},
@@ -1122,7 +1122,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   let lmod = _imp || imp;
   // load the module, even if redirect later, so its loaded with mod_self
   let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
-    mod_self: lpm_self.lmod, _mod_self: mod_self});
+    mod_self: lpm_self.lmod});
   // local dev: allow to force modules to load from local
   if (local_dev_enable)
     _imp = lpm_local_dev_redirect(_imp);
