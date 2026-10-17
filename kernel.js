@@ -1048,30 +1048,6 @@ async function lpm_pkg_get({log, lmod, mod_self, _mod_self}){
   return lpm_pkg;
 }); }
 
-// XXX this is only used to lookup parent mod_self
-async function lpm_pkg_get_follow({log, lmod}){
-  D && console.log('lpm_pkg_get_folow', lmod);
-  let v;
-  let lpm_self = lpm_pkg_app || lpm_pkg_root;
-  let lookup = pkg_import_lookup({lmod_self: lpm_self.lmod, pkg: lpm_self.pkg,
-    imp: lmod});
-  let _lmod = lookup.over || lookup.reg;
-  if (_lmod && _lmod!=lmod){
-    D && console.log('redirect ver or other lpm '+lmod+' -> '+_lmod);
-    lmod = _lmod;
-  }
-  let lpm_pkg = await lpm_pkg_get({log, lmod});
-  if (lpm_pkg.not_exist)
-    return lpm_pkg;
-  if (_lmod = lpm_pkg.redirect){
-    console.log('redirect ver: '+lmod+' -> '+_lmod);
-    lpm_pkg = lpm_pkg_get({log, lmod: _lmod});
-    if (lpm_pkg.redirect)
-      throw Error('too many redirects: '+lmod+' -> '+lpm_pkg.redirect);
-  }
-  return lpm_pkg;
-}
-
 let local_dev_redirect_t = {
   'git/github.com/lif-zone/lif-coin@latest': 'local/lif-coin/',
   'git/github.com/lif-zone/lif-kernel@latest': 'local/lif-kernel/',
@@ -1133,9 +1109,10 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     if (_imp && _imp!=imp)
       return {lpm_pkg: {redirect: _imp}};
     // different modules: load pkg, and lookup imports.
-    lpm_self = await lpm_pkg_get_follow({log, lmod: lmod_self});
+    lpm_self = await lpm_pkg_resolve({log, imp: lmod_self});
     if (lpm_self.not_exist)
       return {lpm_pkg: {not_exist: true}};
+    lpm_self = lpm_self.lpm_pkg;
     // same package?
     if (lmod_self==imp)
       return {lpm_pkg: lpm_self};
@@ -1159,7 +1136,9 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
 
 async function lpm_import_get({log, imp, lmod_self}){
   D && console.log('lpm_import_get', imp, lmod_self);
-  let lpm_pkg = await lpm_pkg_get_follow({log, lmod: lmod_self});
+  let lpm_pkg = await lpm_pkg_resolve({log, imp: lmod_self});
+  if (lpm_pkg.lpm_pkg)
+    lpm_pkg = lpm_pkg.lpm_pkg;
   if (lpm_pkg.not_exist)
     return lpm_pkg;
   if (lpm_pkg.redirect)
