@@ -553,7 +553,7 @@ function file_tr_mjs_worker(f, opt){
     let import_lif = function(){
       return globalThis.$lif.boot.import_esm(import.meta.url, arguments);
     };
-    let mod = await import_lif(${json('/.lif/'+f.lmod+'?worker')});
+    let mod = await import_lif(${json('/.lif/'+f.lmod)});
     globalThis.removeEventListener('message', lif_worker.cb);
     lif_worker.queue.forEach(e=>globalThis.dispatchEvent(e));
   `;

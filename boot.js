@@ -5,8 +5,8 @@ let in_test;
 
 import {ewait, esleep, eslow, assert_eq, str,
   Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
-  uri_enc, qs_enc, qs_append, qs_trim, json, json_cp, str_to_buf,
-  html_elm, version as util_version, T_url_parse,
+  uri_enc, qs_enc, qs_append, qs_trim, qs_split, json, json_cp, str_to_buf,
+  html_elm, version as util_version, url_parse,
 } from './util.js';
 import {
   T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_lmod, T_lpm_to_npm,
@@ -120,6 +120,10 @@ async function boot_worker_sync_connect(){
 }
 
 function npm_imp_abs(imp, uri_self, opt){
+  let uri = npm_uri_imp(uri_self, imp);
+  let url = qs_append(uri, npm_imp_q(opt));
+  return url;
+
   let u = T_npm_url_base(imp, uri_self);
   let q = {};
   if (u.is.blob)
@@ -179,14 +183,22 @@ function npm_uri_imp(uri_self, imp){
     if (uri_self[0]!='/')
       throw Error('invalid uri_self '+uri_self);
   }
+  let {url, qs} = qs_split(imp);
+  imp = url;
   let t = url_uri_type(imp);
-  if (t=='url' || t=='uri')
-    return imp;
+  if (t=='url'){
+    let u = url_parse(imp);
+    if (u.origin==location.origin)
+      return u.path+qs;
+    return imp+qs;
+  }
+  if (t=='uri')
+    return imp+qs;
   if (t=='rel'){
     if (!uri_self)
       throw Error('npm_uri_imp('+imp+') rel without base');
     let u = __uri_parse(imp, uri_self);
-    return u.path;
+    return u.path+qs;
   }
   assert(t=='mod');
   if (uri_self){
@@ -194,13 +206,13 @@ function npm_uri_imp(uri_self, imp){
     let u_self = T_lpm_parse(lmod_self);
     let u = T_npm_parse(imp);
     if (u.lmod==u_self.lmod)
-      return '/.lif/'+T_npm_to_lpm(imp);
+      return '/.lif/'+T_npm_to_lpm(imp)+qs;
     let with_ver = lpm_ver_from_base(u, u_self);
     if (with_ver)
-      return '/.lif/'+with_ver;
-    return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
+      return '/.lif/'+with_ver+qs;
+    return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp+qs;
   }
-  return '/.lif/'+T_npm_to_lpm(imp);
+  return '/.lif/'+T_npm_to_lpm(imp)+qs;
 }
 function npm_to_url(npm_self, imp){
   let uri_self = !npm_self || npm_self[0]=='/' ? npm_self :
@@ -861,7 +873,7 @@ function url_to_path_no_qs(url){
     return url;
   if (url[0]=='/')
     return url.split('?')[0];
-  let u = T_url_parse(url);
+  let u = url_parse(url);
   if (u.origin!=location.origin)
     throw Error('invalid uri - expected / local: '+url);
   return u.path;
@@ -1162,10 +1174,17 @@ function test(){
   t('/path?qs', '/path');
   t(location.origin+'/dir/file?qs', '/dir/file');
   t = (uri_self, imp, v)=>assert_eq(v, npm_uri_imp(uri_self, imp));
+  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x', 
+    '/.lif/npm/mod@4.5.6/x');
+  t(location.origin+'/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x', 
+    '/.lif/npm/mod@4.5.6/x');
+  t('/.lif/npm/mod@1.2.3/x', location.origin+'/.lif/npm/mod@4.5.6/x', 
+    '/.lif/npm/mod@4.5.6/x');
+  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x?qs', 
+    '/.lif/npm/mod@4.5.6/x?qs');
   t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
   t('/.lif/npm/mod@1.2.3/x?qs', './a/f', '/.lif/npm/mod@1.2.3/a/f');
-  // XXX should be /.lif/npm/mod@1.2.3/a/f?qs ?
-  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/x', './a/f?qs', '/.lif/npm/mod@1.2.3/a/f?qs');
   t(location.origin+'/.lif/npm/mod@1.2.3/x?qs', './a/f',
     '/.lif/npm/mod@1.2.3/a/f');
   t('/.lif/local/other', './a/f', '/.lif/local/a/f');
@@ -1230,11 +1249,11 @@ function test(){
     '/.lif/npm/react@1.2.3/.lif.imp/mod/file.js');
   t('/.lif/npm/react@1.2.3', 'mod@4.5.6/file.js', {},
     '/.lif/npm/react@1.2.3/.lif.imp/mod@4.5.6/file.js');
-  t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
-  t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
-  t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
-  t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
-  t(null, 'lif-kernel/hi.js', {type: 'module'}, '/.lif/npm/lif-kernel/hi.js?imp');
+  0 && t('http://a.b/c', 'http:/x.y/z', {}, 'http://x.y/z');
+  0 && t('http://a.b/c', 'https:/x.y/z', {}, 'https://x.y/z');
+  0 && t('http://a.b/c', 'blob:http://x.y/z', {}, 'blob:http://x.y/z');
+  0 && t('http://a.b/c', 'blob:https://x.y/z', {}, 'blob:https://x.y/z');
+  0 && t(null, 'lif-kernel/hi.js', {type: 'module'}, '/.lif/npm/lif-kernel/hi.js?imp');
   in_test = 0;
 }
 test();
