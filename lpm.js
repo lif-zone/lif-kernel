@@ -17,62 +17,6 @@ export function lpm_in_test(set){
   in_test += set ? +1 : -1;
 }
 
-// https://www.iana.org/assignments/uri-schemes/prov/gitoid
-// https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-// gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://github.com/pinheadmz/bcoin/blob/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://raw.githubusercontent.com/pinheadmz/bcoin/05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://cdn.jsdelivr.net/gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-//   https://cdn.statically.io/gh/pinheadmz/bcoin@05794f5cb35eb322965d33a045ab68dffc63b21a/lib/bcoin-browser.js
-// gh/pinheadmz/bcoin/HEAD/lib/bcoin-browser.js
-//   https://github.com/pinheadmz/bcoin/blob/HEAD/lib/bcoin-browser.js
-//   https://raw.githubusercontent.com/pinheadmz/bcoin/HEAD/lib/bcoin-browser.js
-//   https://cdn.jsdelivr.net/gh/pinheadmz/bcoin@HEAD/lib/bcoin-browser.js
-//   https://cdn.statically.io/gh/pinheadmz/bcoin@HEAD/lib/bcoin-browser.js
-// Docs:
-//   https://statically.io/ - gh GitHub, gl GitLab, 
-//   https://www.jsdelivr.com/github - link converter
-// Tools: Purge: https://www.jsdelivr.com/tools/purge
-// IPFS
-//   https://ipfs.io/ipfs/QmZULkCELmmk5XNfCgTnCyFgAVxBRBXyDHGGMVoLFLiXEN
-//   https://cloudflare-ipfs.com/ipfs/QmZULkCELmmk5XNfCgTnCyFgAVxBRBXyDHGGMVoLFLiXEN
-//   https://ipfs.io/ipfs/QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/wiki/Mars.html
-//   https://ipfs.io/ipfs/bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/Vincent_van_Gogh.html
-//   https://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq.ipfs.dweb.link/wiki/
-// Docs:
-//   https://docs.ipfs.tech/how-to/address-ipfs-on-web/#path-gateway
-//   https://gist.github.com/olizilla/81cee26ffa3ae103e4766d2ae0d2f04b
-//
-// npm/MOD/PATH
-// npm/MOD@VER/PATH
-// npm/@SCOPE/MOD/PATH
-// npm/@SCOPE/MOD@VER/PATH
-//   SOURCE https://registry.npmjs.com/MOD
-//   https://unpkg.com/MOD@VER/PATH
-//   https://cdn.jsdelivr.net/npm/MOD@VER/PATH
-// git/github.com/USER/REPO/PATH
-// git/github.com/USER/REPO@VER/PATH
-//   SOURCE https://github.com/USER/REPO/blob/VER/PATH
-//   https://raw.githubusercontent.com/USER/REPO/VER/PATH
-//   https://statically.io/gh/USER/REPO@VER/PATH
-//   https://cdn.jsdelivr.net/gh/USER/REPO@HEAD/PATH
-// git/gitlab.com/USER/REPO@VER/PATH
-//   https://statically.io/gl/USER/REPO@VER/PATH
-// http/SITE/PATH
-// http/SITE@PORT/PATH
-//   http://SITE:PORT/PATH
-// https/SITE/PATH
-// https/SITE@PORT/PATH
-//   http://SITE:PORT/PATH
-// ipfs/CID/PATH
-//   https://ipfs.io/ipfs/CID
-//   https://cloudflare-ipfs.com/ipfs/CID
-// ipns/NAME/PATH
-// bitcoin/BLOCK
-// lifcoin/BLOCK
-// bittorrent/IH/PATH
-//  magnet:?xt=urn:btih:IH 
-//
 // try to support this one day:
 // import {groupBy} from 'npm:lodash@4.17.21';
 

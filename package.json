@@ -46,6 +46,7 @@
     "ipc.js",
     "ipc_fetch.js",
     "rpc.js",
+    "reg.js",
     "lpm.js",
     "ast.js",
     "semver.js",
