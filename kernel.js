@@ -25,6 +25,8 @@ const json = JSON.stringify;
 const sha256 = await import('./sha256.js');
 let lif_kernel_base;
 
+let g_indexedDB = globalThis.indexedDB;
+let g_caches = globalThis.caches;
 // micro idb npm implementation, that works also on storageBuckets
 function idb_wrap(request){
   return new Promise((resolve, reject)=>{
@@ -40,7 +42,6 @@ function idb_wrap_db(raw_db){
       .objectStore(table).put(val, key));
   return raw_db;
 }
-let g_indexedDB = globalThis.indexedDB;
 let idb_api = {
   openDB: async function(name, version, callbacks={}){
     const {upgrade} = callbacks;
@@ -60,11 +61,12 @@ async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
     return;
-  storage_bucket = await storageBuckets.open('lif-cache', {
+  storage_bucket = await storageBuckets.open('lif-cache-'+cache_ver, {
     persisted: false,
     durability: 'relaxed',
   });
   g_indexedDB = storage_bucket.indexedDB;
+  g_caches = storage_bucket.caches;
 }
 await storage_bucket_init();
 
@@ -120,26 +122,24 @@ function ecache_delete(del_all){
 }
 
 async function caches_delete_all() {
-  return await caches.keys().then(names=>
-    Promise.all(names.map(name => caches.delete(name)))
+  return await g_caches.keys().then(names=>
+    Promise.all(names.map(name => g_caches.delete(name)))
   );
 }
 
 function db_delete(){
   ecache_delete(true);
-  let name = 'lif-cache';
   try {
     // should be await, be did without so it will start the operation
-    navigator.storageBuckets.delete("lif-cache");
+    navigator.storageBuckets.delete('lif-cache-'+cache_ver);
   } catch(err){
-    console.log('failed deleting storageBucket '+name);
+    console.log('failed deleting storageBucket');
   }
-  name = 'lif-kernel-'+cache_ver;
   try {
     // should be await, be did without so it will start the operation
-    storage_bucket.indexedDB.deleteDatabase(name);
+    g_indexedDB.deleteDatabase('lif-kernel-'+cache_ver);
   } catch(err){
-    console.log('failed deleting indexedDB '+name);
+    console.log('failed deleting indexedDB');
   }
   try {
     // should be await, be did without so it will start the operation
@@ -1251,7 +1251,7 @@ async function cache_store_init(){
   let cs = cache_store;
   if (!cs.enable || cs.inited)
     return;
-  cs.cache = await globalThis.caches.open('lif-cache-v'+cache_ver);
+  cs.cache = await g_caches.open('lif-cache-v'+cache_ver);
   cs.inited = true;
 }
 await cache_store_init();
