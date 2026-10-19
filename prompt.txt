@@ -205,3 +205,7 @@ CLAUDE: Added 14px img element with favicon.ico before the text node. Changed te
 USER: Implement the XXX in hi.js load_progress().failed() - show refresh emoji + first 3 lines of error, clicking calls load_retry().
 
 CLAUDE: Replaced the XXX with implementation: clears the loader, shows a 🔄 emoji and "Error loading:" with first 3 lines of the error. Clicking anywhere on the element calls load_retry().
+---
+USER: Replace the idb npm dependency in kernel.js with a minimal own wrapper providing db.get() and db.put().
+
+CLAUDE: Removed `import_npm('idb@8.0.3')`. Added `idb_wrap(request)` (promisifies IDBRequest) and `idb_wrap_db(raw_db)` (adds `.get(table, key)` and `.put(table, val, key)` convenience methods). Both the default indexedDB path and the storageBuckets path now use these helpers instead of idb. Removed unused `deleteDB` from idb_api. The `blocked`/`blocking`/`terminated` callbacks were also removed as they were never used.

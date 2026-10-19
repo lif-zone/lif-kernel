@@ -23,9 +23,50 @@ const clog = console.log.bind(console);
 const cerr = console.error.bind(console);
 const json = JSON.stringify;
 const sha256 = await import('./sha256.js');
-const idb = await globalThis.import_npm('idb@8.0.3/build/index.cjs');
-
 let lif_kernel_base;
+
+// micro idb npm implementation, that works also on storageBuckets
+function idb_wrap(request){
+  return new Promise((resolve, reject)=>{
+    request.onsuccess = ()=>resolve(request.result);
+    request.onerror = ()=>reject(request.error);
+  });
+}
+function idb_wrap_db(raw_db){
+  raw_db.get = (table, key)=>
+    idb_wrap(raw_db.transaction(table).objectStore(table).get(key));
+  raw_db.put = (table, val, key)=>
+    idb_wrap(raw_db.transaction(table, 'readwrite')
+      .objectStore(table).put(val, key));
+  return raw_db;
+}
+let g_indexedDB = globalThis.indexedDB;
+let idb_api = {
+  openDB: async function(name, version, callbacks={}){
+    const {upgrade} = callbacks;
+    const request = g_indexedDB.open(name, version);
+    if (upgrade){
+      request.addEventListener('upgradeneeded', event=>{
+        upgrade(request.result, event.oldVersion, event.newVersion,
+          request.transaction, event);
+      });
+    }
+    return idb_wrap_db(await idb_wrap(request));
+  },
+};
+
+let storage_bucket;
+async function storage_bucket_init(){
+  let storageBuckets = navigator.storageBuckets; // chrome >=122
+  if (!storageBuckets)
+    return;
+  storage_bucket = await storageBuckets.open('lif-cache', {
+    persisted: false,
+    durability: 'relaxed',
+  });
+  g_indexedDB = storage_bucket.indexedDB;
+}
+await storage_bucket_init();
 
 let db;
 function db_upgrade(db, table, opt){
@@ -42,62 +83,6 @@ function db_upgrade(db, table, opt){
       db.createObjectStore(table, opt);
   }
 }
-
-let storage_bucket;
-let idb_api = {
-  openDB: idb.openDB.bind(idb.openDB),
-  deleteDB: idb.deleteDB.bind(idb.deleteDB),
-};
-function storage_bucket_init(){
-  let storageBuckets = navigator.storageBuckets; // chrome >=122
-  if (!storageBuckets)
-    return;
-  idb_api = {
-    openDB: async function(name, version, callbacks={}) {
-      storage_bucket ||= await storageBuckets.open('lif-cache', {
-        persisted: false,
-        durability: 'relaxed',
-      });
-      const {upgrade, blocked, blocking, terminated} = callbacks;
-      const request = storage_bucket.indexedDB.open(name, version);
-      if (upgrade){
-        request.addEventListener('upgradeneeded', event=>{
-          upgrade(
-            idb.wrap(request.result),
-            event.oldVersion,
-            event.newVersion,
-            idb.wrap(request.transaction),
-            event,
-          );
-        });
-      }
-      if (blocked){
-        request.addEventListener('blocked', event=>{
-          blocked(event.oldVersion, event.newVersion, event);
-        });
-      }
-      const db = await idb.wrap(request);
-      if (blocking){
-        db.addEventListener('versionchange', event=>{
-          blocking(event.oldVersion, event.newVersion, event);
-        });
-      }
-      if (terminated)
-        db.addEventListener('close', ()=>terminated());
-      return db;
-    },
-    deleteDB: async function(name, {blocked}={}){
-      const request = storage_bucket.indexedDB.deleteDatabase(name);
-      if (blocked){
-        request.addEventListener('blocked', event=>{
-          blocked(event.oldVersion, event.newVersion, event);
-        });
-      }
-      return idb.wrap(request);
-    }
-  };
-}
-storage_bucket_init();
 
 let cache_ver = 29;
 async function db_open(){ // use storageBuckets
