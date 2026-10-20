@@ -91,8 +91,10 @@ const {T_lpm_parse, lpm_ver_missing} = await import('./lpm.js');
 //   https://ipfs.io/ipfs/CID
 //   https://cloudflare-ipfs.com/ipfs/CID
 // ipns/NAME/PATH
-// bitcoin/BLOCK
-// lifcoin/BLOCK
+// bitcoin/block/BLOCK
+// bitcoin/ordinal/ID
+// lifcoin/block/BLOCK
+// lifcoin/ordinal/ID
 // bittorrent/IH/PATH
 //  magnet:?xt=urn:btih:IH 
 
@@ -265,6 +267,16 @@ let reg_cdn = {
     name: 'http',
     url: u=>`http://${u.host}${u.submod_path}`,
   }]},
+  bitcoin: {ordinal: {src: [
+    {
+      name: 'ordiscan.com',
+      url: u=>`https://ordiscan.com/content/${u.ordinal}`,
+    },
+    {
+      name: 'ord.io',
+      url: u=>`https://ord.io/content/${u.ordinal}`,
+    },
+  ]}},
 };
 
 let reg_get_cdn = u=>{
@@ -278,6 +290,8 @@ let reg_get_cdn = u=>{
   case 'local': return cdn.local;
   case 'https': return cdn.https;
   case 'http': return cdn.http;
+  case 'bitcoin': return cdn.bitcoin[u.btctype];
+  case 'lifcoin': return cdn.lifcoin[u.liftype];
   }
   throw Error('invalid reg '+u.reg);
 };

@@ -1123,7 +1123,19 @@ async function fetch_lpm_meta_res({log, imp}){
   return res;
 }
 
+async function fetch_lpm_raw({log, lmod}){
+  let reg = await reg_get({log, lmod});
+  if (reg.err)
+    return reg;
+  if (reg.not_exist)
+    return reg;
+  return {body: reg.blob, cache: 1};
+}
+
 async function fetch_lpm_file({log, imp, qs}){
+  let u = T_lpm_parse(imp);
+  if (str.is(u.reg, 'bitcoin', 'lifcoin'))
+    return await fetch_lpm_raw({log, lmod: imp});
   let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
   return await responce_tr_send({f, qs, lmod: imp});
 }

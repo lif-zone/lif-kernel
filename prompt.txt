@@ -209,3 +209,7 @@ CLAUDE: Replaced the XXX with implementation: clears the loader, shows a 🔄 em
 USER: Replace the idb npm dependency in kernel.js with a minimal own wrapper providing db.get() and db.put().
 
 CLAUDE: Removed `import_npm('idb@8.0.3')`. Added `idb_wrap(request)` (promisifies IDBRequest) and `idb_wrap_db(raw_db)` (adds `.get(table, key)` and `.put(table, val, key)` convenience methods). Both the default indexedDB path and the storageBuckets path now use these helpers instead of idb. Removed unused `deleteDB` from idb_api. The `blocked`/`blocking`/`terminated` callbacks were also removed as they were never used.
+---
+USER: Add support for bitcoin/lifcoin ordinal inscriptions in reg.js, fetched via /.lif/bitcoin/ordinal/ID. Raw fetch only, no JS/package resolution.
+
+CLAUDE: Added ordinal CDN sources to reg_cdn (ordiscan.com, ord.io) for bitcoin and lifcoin. Updated reg_get_cdn to handle bitcoin/lifcoin registries via btctype/liftype. Added fetch_lpm_raw() in kernel.js for raw blob fetching, and short-circuits fetch_lpm_file for bitcoin/lifcoin registries to bypass package resolution pipeline.
