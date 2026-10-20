@@ -104,14 +104,38 @@ export function T_lpm_parse(lpm){
   case 'bittorrent':
     l.infohash = next('InfoHash');
     break;
-  case 'lifcoin':
-    l.blockid = next('BlockID');
-    l.lmod = l.reg+'/'+l.blockid;
-    break;
-  case 'bitcoin':
-    l.blockid = next('BlockID');
-    l.lmod = l.reg+'/'+l.blockid;
-    break;
+  case 'lifcoin': {
+    l.liftype = next('liftype');
+    let lmod = l.reg+'/'+l.liftype;
+    switch (l.liftype){
+    case 'block':
+      l.blockid = next('BlockID');
+      l.lmod = lmod+'/'+l.blockid;
+      break;
+    case 'ordinal':
+      l.ordinal = next('OrdinalID');
+      l.lmod = lmod+'/'+l.ordinal;
+      break;
+    default:
+      throw Error('unsupported lifcoin type '+l.liftype);
+    }
+    break; }
+  case 'bitcoin': {
+    l.btctype = next('btctype');
+    let lmod = l.reg+'/'+l.btctype;
+    switch (l.btctype){
+    case 'block':
+      l.blockid = next('BlockID');
+      l.lmod = lmod+'/'+l.blockid;
+      break;
+    case 'ordinal':
+      l.ordinal = next('OrdinalID');
+      l.lmod = lmod+'/'+l.ordinal;
+      break;
+    default:
+      throw Error('unsupported bitcoin type '+l.btctype);
+    }
+    break; }
   case 'ethereum':
     throw Error('unsupported ethereum '+lpm);
     break;
@@ -141,28 +165,42 @@ export function T_lpm_parse(lpm){
 }
 export const lpm_parse = Tf(T_lpm_parse);
 export function T_lpm_str(l){
+  let submod_path = l.submod+l.path;
   switch (l.reg){
   case 'npm':
-    return l.reg+'/'+l.name+l.ver+l.submod+l.path;
+    return l.reg+'/'+l.name+l.ver+submod_path;
   case 'git':
-    return l.reg+'/'+l.host+'/'+l.name+l.ver+l.submod+l.path;
+    return l.reg+'/'+l.host+'/'+l.name+l.ver+submod_path;
   case 'bittorrent':
-    return l.reg+'/'+l.infohash+l.submod+l.path;
+    return l.reg+'/'+l.infohash+submod_path;
   case 'lifcoin':
-    return l.reg+'/'+l.blockid+l.submod+l.path;
+    switch (l.liftype){
+    case 'block':
+      return l.reg+'/block/'+l.blockid;
+    case 'ordinal':
+      return l.reg+'/ordinal/'+l.ordinal;
+    throw Error('invalid liftype: '+l.liftype);
+    }
+    break;
   case 'bitcoin':
-    return l.reg+'/'+l.blockid+l.submod+l.path;
+    switch (l.btctype){
+    case 'block':
+      return l.reg+'/block/'+l.blockid;
+    case 'ordinal':
+      return l.reg+'/ordinal/'+l.ordinal;
+    throw Error('invalid btctype: '+l.btctype);
+    }
     break;
   case 'ethereum':
     throw Error('unsupported ethereum');
   case 'ipfs':
-    return l.reg+'/'+l.cid+l.submod+l.path;
+    return l.reg+'/'+l.cid+submod_path;
   case 'ipns':
-    return l.reg+'/'+l.name+l.submod+l.path;
+    return l.reg+'/'+l.name+submod_path;
   case 'local':
-    return l.reg+l.submod+l.path;
+    return l.reg+submod_path;
   case 'https': case 'http':
-    return l.reg+'/'+l.host+'/'+l.submod+l.path;
+    return l.reg+'/'+l.host+'/'+submod_path;
   default:
     throw Error('invalid registry: '+l.reg);
   }
@@ -1042,6 +1080,11 @@ function test_lpm(){
     'git/github.com/user/repo/mod/', '/dir/file.js');
   t('git/github.com/user/repo@ver/mod//dir/file.js',
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
+  t = (lpm, lmod, path)=>assert_eq(lpm, T_lpm_str(T_lpm_parse(lpm)));
+  t('lifcoin/ordinal/1234');
+  t('bitcoin/ordinal/1234');
+  t('lifcoin/block/1234');
+  t('bitcoin/block/1234');
   t = (v, url_uri, base)=>assert_obj_f(v, T_npm_url_base(url_uri, base));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     'http://dns/a/b', 'http://oth/c/d');
