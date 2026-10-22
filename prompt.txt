@@ -213,3 +213,7 @@ CLAUDE: Removed `import_npm('idb@8.0.3')`. Added `idb_wrap(request)` (promisifie
 USER: Add support for bitcoin/lifcoin ordinal inscriptions in reg.js, fetched via /.lif/bitcoin/ordinal/ID. Raw fetch only, no JS/package resolution.
 
 CLAUDE: Added ordinal CDN sources to reg_cdn (ordiscan.com, ord.io) for bitcoin and lifcoin. Updated reg_get_cdn to handle bitcoin/lifcoin registries via btctype/liftype. Added fetch_lpm_raw() in kernel.js for raw blob fetching, and short-circuits fetch_lpm_file for bitcoin/lifcoin registries to bypass package resolution pipeline.
+---
+USER: Ordinals store content-type in bitcoin. Cache and return it. Use 'ctype' naming. Add opt.ctype flag to reg_get to conditionally capture it.
+
+CLAUDE: reg.js: reg_http_get captures response content-type as `ctype`. reg_get only stores `reg.ctype` when `opt.ctype` is true. kernel.js: fetch_lpm_raw passes `opt: {ctype: true}` and forwards `ctype` through send_res → response_send. response_send uses `ctype` directly when provided, falls back to ext-based lookup otherwise.

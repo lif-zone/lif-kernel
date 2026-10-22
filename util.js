@@ -543,6 +543,8 @@ Scroll.prototype.out = function(){
 };
 
 export async function ecache({table, id, opt}, fn){
+  if (opt?.cache=='pass')
+    return await fn({id}); // bypass with dummy entry
   let t, ret, refresh_tm = opt?.refresh_tm;
   if (t = table[id]){
     if (!(refresh_tm && t.tm<refresh_tm))

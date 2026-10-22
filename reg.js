@@ -345,6 +345,7 @@ export async function reg_http_get({log, url}){
     console.log(err);
     return {status: response.status, err, fail_cdn: true};
   }
+  let ctype = response.headers.get('content-type');
   try {
     blob = await response.blob();
   } catch(err){
@@ -352,7 +353,7 @@ export async function reg_http_get({log, url}){
     console.log(err);
     return {err, fail_cdn: true};
   }
-  return {blob};
+  return {blob, ctype};
 }
 export async function reg_git_get({log, lmod}){ assert(0); }
 export async function reg_bittorrent_get({log, lmod}){ assert(0); }
@@ -417,6 +418,8 @@ export async function reg_get({log, lmod, opt}){
     reg.err = ret ? ret.err : 'all cdns failed';
     return reg;
   }
+  if (opt?.ctype)
+    reg.ctype = ret.ctype;
   reg.body = await reg.blob.text();
   D && console.log('fetch OK '+lmod);
   return reg;

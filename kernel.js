@@ -64,7 +64,7 @@ async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
     return;
-  storage_bucket = await storageBuckets.open('lif-cache-'+cache_ver, {
+  storage_bucket = await storageBuckets.open('lif-bucket-'+cache_ver, {
     persisted: false,
     durability: 'relaxed',
   });
@@ -494,9 +494,10 @@ async function lpm_ver_resolve({log, lmod}){
 }
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
-async function lpm_file_get({log, lmod}){
-  let is_c = cache_lmod(lmod);
-  let opt = is_c ? {} : cache_opt;
+async function lpm_file_get({log, lmod, opt={}}){
+  let is_c = opt.cache!='pass' && cache_lmod(lmod);
+  if (is_c)
+    opt = {...opt, ...cache_opt};
   return await ecache({table: lpm_file_t, id: lmod, opt},
     async function run(lpm_file)
 {
@@ -513,15 +514,19 @@ async function lpm_file_get({log, lmod}){
     return reg;
   if (reg.not_exist){
     f = {lmod, not_exist: true};
-    is_c && cache_set('lpm_file', f);
+    0 && is_c && cache_set('lpm_file', f);
     return f;
   }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
   lpm_file.body = reg.body;
-  let h_body = sha256_hex(lpm_file.body);
-  is_c && cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
-    h_body, url: lpm_file.url});
+  if (opt.ctype)
+    lpm_file.ctype = reg.ctype;
+  if (is_c){
+    let h_body = sha256_hex(lpm_file.body);
+    cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
+      h_body, url: lpm_file.url});
+  }
   return lpm_file;
 }); }
 
@@ -880,13 +885,17 @@ let coi_set_headers = h=>{
 // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
 // image, json, manifest, object, paintworklet, report, script,
 // sharedworker, style, track, video, worker, xslt
-function response_send({body, ext, cache}){
-  let v, opt = {}, ctype = ctype_get(ext), h = {};
+function response_send({body, ext, ctype, cache}){
+  let v, opt = {}, h = {};
   if (!ctype){
-    D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext));
-    ctype = ctype_get('text');
+    let ct = ctype_get(ext);
+    if (!ct){
+      D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext));
+      ct = ctype_get('text');
+    }
+    ctype = ct.ctype;
   }
-  h['content-type'] = ctype.ctype;
+  h['content-type'] = ctype;
   // added 'immutable' - but did not seem to assist in caching
   h['cache-control'] = cache ? 'public, max-age=31536000' : 'no-cache';
   if (cache){
@@ -1123,19 +1132,10 @@ async function fetch_lpm_meta_res({log, imp}){
   return res;
 }
 
-async function fetch_lpm_raw({log, lmod}){
-  let reg = await reg_get({log, lmod});
-  if (reg.err)
-    return reg;
-  if (reg.not_exist)
-    return reg;
-  return {body: reg.blob, cache: 1};
-}
-
 async function fetch_lpm_file({log, imp, qs}){
   let u = T_lpm_parse(imp);
   if (str.is(u.reg, 'bitcoin', 'lifcoin'))
-    return await fetch_lpm_raw({log, lmod: imp});
+    return await lpm_file_get({log, lmod: imp, opt: {ctype: true, cache: 'pass'}});
   let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
   return await responce_tr_send({f, qs, lmod: imp});
 }
@@ -1144,7 +1144,8 @@ function response_redirect({redirect, cache}){
   return Response.redirect(redirect);
 }
 
-async function send_res({err, not_exist, redirect, body, ext, path, cache}){
+async function send_res({err, not_exist, redirect, body, ext, ctype, path,
+  cache}){
   if (err && body==undefined){
     console.error('req '+path+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
@@ -1159,7 +1160,7 @@ async function send_res({err, not_exist, redirect, body, ext, path, cache}){
   if (redirect)
     return response_redirect({redirect, cache});
   if (body)
-    return response_send({body, ext, cache});
+    return response_send({body, ext, ctype, cache});
   throw Error('invalid fetch_lpm response');
 }
 
