@@ -1262,8 +1262,6 @@ async function _kernel_fetch(event){
   if (path=='/.lif/modules') // show modules
     return modules_list(path);
   if (v=str.starts(path, '/.lif/')){
-    if (!lpm_pkg_app)
-      return send_res({err: 'no webapp while loading', path});
     let lmod = v.rest;
     log.imp = lmod;
     let response = await cache_store_get(request);
