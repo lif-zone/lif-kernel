@@ -112,9 +112,9 @@ export function T_lpm_parse(lpm){
       l.blockid = next('BlockID');
       l.lmod = lmod+'/'+l.blockid;
       break;
-    case 'ordinal':
-      l.ordinal = next('OrdinalID');
-      l.lmod = lmod+'/'+l.ordinal;
+    case 'inscription':
+      l.inscription = next('OrdinalID');
+      l.lmod = lmod+'/'+l.inscription;
       break;
     default:
       throw Error('unsupported lifcoin type '+l.liftype);
@@ -128,9 +128,9 @@ export function T_lpm_parse(lpm){
       l.blockid = next('BlockID');
       l.lmod = lmod+'/'+l.blockid;
       break;
-    case 'ordinal':
-      l.ordinal = next('OrdinalID');
-      l.lmod = lmod+'/'+l.ordinal;
+    case 'inscription':
+      l.inscription = next('OrdinalID');
+      l.lmod = lmod+'/'+l.inscription;
       break;
     default:
       throw Error('unsupported bitcoin type '+l.btctype);
@@ -177,8 +177,8 @@ export function T_lpm_str(l){
     switch (l.liftype){
     case 'block':
       return l.reg+'/block/'+l.blockid;
-    case 'ordinal':
-      return l.reg+'/ordinal/'+l.ordinal;
+    case 'inscription':
+      return l.reg+'/inscription/'+l.inscription;
     throw Error('invalid liftype: '+l.liftype);
     }
     break;
@@ -186,8 +186,8 @@ export function T_lpm_str(l){
     switch (l.btctype){
     case 'block':
       return l.reg+'/block/'+l.blockid;
-    case 'ordinal':
-      return l.reg+'/ordinal/'+l.ordinal;
+    case 'inscription':
+      return l.reg+'/inscription/'+l.inscription;
     throw Error('invalid btctype: '+l.btctype);
     }
     break;
@@ -1081,8 +1081,8 @@ function test_lpm(){
   t('git/github.com/user/repo@ver/mod//dir/file.js',
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
   t = (lpm, lmod, path)=>assert_eq(lpm, T_lpm_str(T_lpm_parse(lpm)));
-  t('lifcoin/ordinal/1234');
-  t('bitcoin/ordinal/1234');
+  t('lifcoin/inscription/1234');
+  t('bitcoin/inscription/1234');
   t('lifcoin/block/1234');
   t('bitcoin/block/1234');
   t = (v, url_uri, base)=>assert_obj_f(v, T_npm_url_base(url_uri, base));

@@ -92,9 +92,9 @@ const {T_lpm_parse, lpm_ver_missing} = await import('./lpm.js');
 //   https://cloudflare-ipfs.com/ipfs/CID
 // ipns/NAME/PATH
 // bitcoin/block/BLOCK
-// bitcoin/ordinal/ID
+// bitcoin/inscription/ID
 // lifcoin/block/BLOCK
-// lifcoin/ordinal/ID
+// lifcoin/inscription/ID
 // bittorrent/IH/PATH
 //  magnet:?xt=urn:btih:IH 
 
@@ -267,14 +267,14 @@ let reg_cdn = {
     name: 'http',
     url: u=>`http://${u.host}${u.submod_path}`,
   }]},
-  bitcoin: {ordinal: {src: [
+  bitcoin: {inscription: {src: [
     {
       name: 'ordiscan.com',
-      url: u=>`https://ordiscan.com/content/${u.ordinal}`,
+      url: u=>`https://ordiscan.com/content/${u.inscription}`,
     },
     {
       name: 'ord.io',
-      url: u=>`https://ord.io/content/${u.ordinal}`,
+      url: u=>`https://ord.io/content/${u.inscription}`,
     },
   ]}},
 };
@@ -301,7 +301,7 @@ let reg_get_cdn = u=>{
 // /content/99dfe03e22d556dc6e12209403936f840ff0eb542d075cfb0efa7f794192862bi0
 // ID = /[a-z0-9]{66}/
 // /content/ID
-// /.lif/bitcoin/ordinal/content/ID
+// /.lif/bitcoin/inscription/ID
 // fetch from:
 // https://ordiscan.com/content/547a6709441bc5c9d206150ce5fb7605c28a90c46bd6e4330c4420cb41477aeai0
 // A nice HTML orginal 3D world, movable by mouse:
