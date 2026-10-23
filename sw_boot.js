@@ -134,6 +134,9 @@ async function import_npm(npm){
 }
 globalThis.import_npm = import_npm;
 
+const mod_map = {
+  events: './compat/events.js',
+};
 const json = JSON.stringify;
 let sw_q = new URLSearchParams(location.search);
 let lif_kernel_base = sw_boot.lif_kernel_base = sw_q.get('lif_kernel_base');
@@ -141,6 +144,9 @@ let local_dev_enable = sw_boot.local_dev_enable = sw_q.get('local_dev_enable');
 let import_modules = {};
 async function import_module(url, mod_self=lif_kernel_base+'/'){
   let imod;
+  let v;
+  if (v=mod_map[url])
+    url = v;
   url = (new URL(url, mod_self)).href;
   if (imod = import_modules[url])
     return await imod.wait;
