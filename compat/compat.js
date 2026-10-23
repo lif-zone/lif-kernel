@@ -57,10 +57,10 @@ export const clearImmediate = is_node ? globalThis.clearImmediate : function(id)
     delete callbacks[id];
 };
 
-const exports = {
+const _exports = {
   setImmediate,
   clearImmediate,
   assert,
   process,
 };
-export default exports;
+export default _exports;
