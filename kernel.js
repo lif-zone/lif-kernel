@@ -1472,9 +1472,6 @@ async function webapp_load({log, webapp}){
   return res;
 }
 
-async function init_pkg_root(){
-}
-
 // builtin nodejs APIs in browser: browserify:
 // versions of npm shims
 // https://github.com/browserify/browserify/blob/master/package.json
