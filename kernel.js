@@ -1164,11 +1164,20 @@ async function send_res({err, not_exist, redirect, body, ext, ctype, path,
   throw Error('invalid fetch_lpm response');
 }
 
+function request_is_doc(request){
+  return str.is(request.destination, 'document', 'iframe', 'frame') ||
+    request.mode=='navigate';
+}
+
 function fetch_request_document(request){
-  if (request.destination!='document')
+  if (!request_is_doc(request))
     return request;
   const headers = new Headers(request.headers);
-  headers.set("lif-dest", 'document');
+  let v;
+  if ((v=headers.has('sec-fetch-dest'))!=null)
+    headers.set("lif-dest", v);
+  if ((v=headers.has('sec-fetch-mode'))!=null)
+    headers.set("lif-mode", v);
   return new Request(request, {headers});
 }
 
@@ -1228,7 +1237,7 @@ async function _kernel_fetch(event){
   };
   let is_reload = str.is(request.cache, 'no-cache', 'reload') ||
     request.mode=='navigate';
-  let is_doc = str.is(request.destination, 'document', 'iframe', 'frame');
+  let is_doc = request_is_doc(request);
   D && console.log('sw '+log.mod);
   // external and non GET requests
   g_stats.fetch.all++;
