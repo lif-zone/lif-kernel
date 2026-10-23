@@ -993,10 +993,7 @@ async function kernel_stats(){
   return await kernel_chan.call('kernel_stats');
 }
 
-async function run_html(webapp){
-  console.log('run_html start '+webapp);
-  let url = '/.lif/'+npm_to_lpm(webapp);
-  let html = await T_fetch_text(url);
+function run_html_text(html){
   let parser = new DOMParser();
   let doc = parser.parseFromString(html, 'text/html');
   document.head.innerHTML = doc.head.innerHTML;
@@ -1016,6 +1013,13 @@ async function run_html(webapp){
   }
   script_execute(document.head);
   script_execute(document.body);
+}
+
+async function run_html(webapp){
+  console.log('run_html start '+webapp);
+  let url = '/.lif/'+npm_to_lpm(webapp);
+  let html = await T_fetch_text(url);
+  run_html_text(html);
   console.log('run_html complete');
 }
 
