@@ -420,7 +420,6 @@ export async function reg_get({log, lmod, opt}){
   }
   if (opt?.ctype)
     reg.ctype = ret.ctype;
-  reg.body = await reg.blob.text();
   D && console.log('fetch OK '+lmod);
   return reg;
 }); }

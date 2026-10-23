@@ -185,7 +185,10 @@ function cache_refresh(){
 }
 
 function sha256_hex(v){
-  v = new sha256.Buffer(str_to_buf(v));
+  if (typeof v=='string')
+    v = new sha256.Buffer(str_to_buf(v));
+  else if (v instanceof ArrayBuffer)
+    v = new sha256.Buffer(v);
   return sha256.digest(v).toHex();
 }
 
@@ -403,8 +406,9 @@ async function npm_ver_get({log, lmod}){
     return get;
   if (get.err)
     throw get.err;
+  let body = await get.blob.text();
   try {
-    pv.pkg_ver = JSON.parse(get.body);
+    pv.pkg_ver = JSON.parse(body);
     pv.src_ver = get.src_ver;
     return pv;
   } catch(err){
@@ -519,12 +523,12 @@ async function lpm_file_get({log, lmod, opt={}}){
   }
   // create result lpm file, and cache it
   lpm_file.blob = reg.blob;
-  lpm_file.body = reg.body;
   if (opt.ctype)
     lpm_file.ctype = reg.ctype;
   if (is_c){
-    let h_body = sha256_hex(lpm_file.body);
-    cache_set('lpm_file', {lmod, body: lpm_file.body, blob: lpm_file.blob,
+    const buf = await lpm_file.blob.arrayBuffer();
+    let h_body = sha256_hex(buf);
+    cache_set('lpm_file', {lmod, blob: lpm_file.blob,
       h_body, url: lpm_file.url});
   }
   return lpm_file;
@@ -582,7 +586,6 @@ async function lpm_file_get_follow({log, lmod, lpm_pkg, alt}){
     return OA(f, {redirect: lmod+f_get.alt});
   }
   f.blob = f_get.blob;
-  f.body = f_get.body;
   f.h_body = f_get.h_body;
   f.url = f_get.url; // for logging
   f.cache = f_get.cache;
@@ -684,15 +687,14 @@ async function lpm_pkg_get({log, lmod, mod_self}){
     }
     console.warn('using raw package without package.json');
     // minimal valid package.json
-    f = {body: json({name: u.name.replaceAll('/', '-')})};
+    f = {blob: new Blob([json({name: u.name.replaceAll('/', '-')})])};
   }
   if (f.err)
     throw f.err;
   lpm_pkg.blob = f.blob;
-  lpm_pkg.body = f.body;
-  lpm_pkg._body = f.body;
+  let body = await lpm_pkg.blob.text();
   try {
-    lpm_pkg.pkg = JSON.parse(lpm_pkg.body);
+    lpm_pkg.pkg = JSON.parse(body);
   } catch(err){
     throw Error('lmod('+pkg_json+') invalid JSON: '+err);
     lpm_pkg.pkg = {};
@@ -789,7 +791,7 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
 
 async function lpm_import_get({log, imp, lmod_self}){
   D && console.log('lpm_import_get', imp, lmod_self);
-  let lpm_pkg = await lpm_pkg_resolve({log, imp: lmod_self});
+  let lpm_pkg = await lpm_pkg_resolve_follow({log, imp: lmod_self});
   if (lpm_pkg.not_exist)
     return lpm_pkg;
   if (lpm_pkg.redirect)
@@ -1006,11 +1008,12 @@ async function file_tsx_to_js(f){
   let v;
   if (v=pkg_transform_type(f.lpm_pkg.pkg, path))
     type = v;
+  let body = await f.blob.text();
   if (str.is(type, 'jsx', 'ts', 'tsx')){
     ({js: f.js, h_js: f.h_js} = await tr_tsx_to_js_cache({
-      tsx: f.body, h_tsx: f.h_body, type}));
+      tsx: body, h_tsx: f.h_body, type}));
   } else {
-    f.js = f.body;
+    f.js = body;
     f.h_js = f.h_body;
   }
   return f.js;
