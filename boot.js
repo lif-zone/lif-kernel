@@ -997,27 +997,6 @@ function run_html_text(html){
   document.open();
   document.write(html);
   document.close();
-  return;
-  let parser = new DOMParser();
-  let doc = parser.parseFromString(html, 'text/html');
-  document.head.innerHTML = doc.head.innerHTML;
-  document.body.innerHTML = doc.body.innerHTML;
-  function script_execute(e){
-    let script = e.querySelectorAll('script');
-    for (let i=0; script[i]; i++){
-      // required to bring <script> to life
-      let f = document.createRange().createContextualFragment(
-        script[i].outerHTML);
-      // TODO need to modify type=module scripts:
-      // src=mod --> src=/.lif/../mod?mjs
-      // inline scripts: need to parse their ast contents and update imports
-      e.appendChild(f);
-      // need to wait after appendChild() for load/fail to complete
-      script[i].parentNode.removeChild(script[i]);
-    }
-  }
-  script_execute(document.head);
-  script_execute(document.body);
 }
 
 async function run_html(webapp){
