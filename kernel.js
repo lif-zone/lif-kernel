@@ -1524,9 +1524,10 @@ function do_kernel_stats(){
   return g_stats;
 }
 
-function do_ipc_fetch_init(fetch_init){
-  // XXX implement per-tab/boot.js a sab connections with a loop to handle
-  // sync ipc via ipc_fetch.js:ipc_fetch_init
+async function fetch_fn(url, opt){
+  let event = {request: new Request(url, opt)};
+  let response = await _kernel_fetch(event);
+  return response;
 }
 
 let boot_chan;
@@ -1536,7 +1537,6 @@ export function boot(sw_boot){
   boot_chan.method('version', ()=>({version: lif_version}));
   boot_chan.method('app_pkg', async(arg)=>await do_app_pkg(arg));
   boot_chan.method('kernel_stats', ()=>do_kernel_stats());
-  boot_chan.method('ipc_fetch_init', fetch_init=>do_ipc_fetch_init(fetch_init));
   sw_boot.on_message = event=>{
     if (boot_chan.accept(event))
       return;
