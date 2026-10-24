@@ -23,7 +23,7 @@ export async function ipc_fetch(){
   slow = eslow(15000, d('ipc_fetch('+url+') fetch()'));
   let response;
   try {
-    let response = await fetch(req.url, req.opt);
+    response = await fetch(req.url, req.opt);
   } catch(err){
     console.error('sync ipc_fetch failed: '+err);
     response = {status: 0};
