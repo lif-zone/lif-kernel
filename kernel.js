@@ -1113,15 +1113,19 @@ async function fetch_lpm_meta({log, imp}){
     f.redirect = '/.lif/'+f.redirect;
   if (f.not_exist || (f.redirect && !f.redirect_file))
     return f;
-  let _f = f.redirect ? f.redirect_file : f;
-  let type = file_ctype(_f.lmod);
+  let do_ret = ret=>ret;
+  if (f.redirect){
+    let _f = f;
+    f = f.redirect_file;
+    do_ret = ret=>({redirect: _f.redirect, redirects: _f.redirects,
+      redirect_file: ret.meta, cache: ret.cache});
+  }
+  let type = file_ctype(f.lmod);
   if (type!='js')
-    return {meta: type}; // error not js/jsx/ts/tsx
-  await file_tsx_to_js(_f);
-  let meta = await file_js_to_meta(_f);
-  if (f.redirect)
-    return {redirect: f.redirect, redirects: f.redirects, redirect_file: meta};
-  return {meta, cache: 1};
+    return do_ret({meta: {type}}); // error not js/jsx/ts/tsx
+  await file_tsx_to_js(f);
+  let meta = await file_js_to_meta(f);
+  return do_ret({meta, cache: 1});
 }
 
 async function fetch_lpm_meta_res({log, imp}){
