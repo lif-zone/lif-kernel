@@ -1116,7 +1116,7 @@ async function fetch_lpm_meta({log, imp}){
   let _f = f.redirect ? f.redirect_file : f;
   let type = file_ctype(_f.lmod);
   if (type!='js')
-    return {type}; // error not js
+    return {meta: type}; // error not js/jsx/ts/tsx
   await file_tsx_to_js(_f);
   let meta = await file_js_to_meta(_f);
   if (f.redirect)
