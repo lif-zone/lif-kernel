@@ -236,11 +236,27 @@ async function e_db_req(req){
   return await wait;
 }
 
+let cache_ver = 29;
+let storage_bucket;
+let g_indexedDB = globalThis.indexedDB;
+async function storage_bucket_init(){
+  let storageBuckets = navigator.storageBuckets; // chrome >=122
+  if (!storageBuckets)
+    return;
+  storage_bucket = await storageBuckets.open('lif-bucket-'+cache_ver, {
+    persisted: false,
+    durability: 'relaxed',
+  });
+  g_indexedDB = storage_bucket.indexedDB;
+}
+await storage_bucket_init();
 async function db_open(){
   if (db!==undefined)
-    return db;
+    return await db;
   // version 0 = never create
-  return db = (await e_db_req(indexedDB.open('lif-kernel')))||null;
+  db = e_db_req(g_indexedDB.open('lif-kernel-'+cache_ver));
+  db = (await db)||null;
+  return db;
 }
 
 async function cache_get(table, k){
