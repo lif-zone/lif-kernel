@@ -1147,8 +1147,10 @@ function response_redirect({redirect, cache}){
   return Response.redirect(redirect);
 }
 
-async function send_res({err, not_exist, redirect, body, ext, ctype, path,
-  cache}){
+async function send_res({err, not_exist, redirect, blob, body, ext, ctype,
+  path, cache})
+{
+  body ||= blob;
   if (err && body==undefined){
     console.error('req '+path+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
