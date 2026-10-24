@@ -298,8 +298,12 @@ async function require_cjs_load_meta_async(m){
     if (!enable_cache_idb || !lpm_is_perm(lmod))
       break lookup;
     let f_raw = await cache_get('lpm_file', [lmod]);
-    if (!f_raw || f_raw.not_exist || f_raw.redirect)
+    if (!f_raw || f_raw.not_exist)
       break lookup;
+    if (f_raw.redirect){
+      m.meta = f_raw;
+      return do_ret('done');
+    }
     let f_js = await cache_get('tsx_to_js', [f_raw.h_body]);
     if (!f_js)
       f_js = {h_js: f_raw.h_body}; // if plain js
