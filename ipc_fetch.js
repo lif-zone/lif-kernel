@@ -21,7 +21,13 @@ export async function ipc_fetch(){
   let req = JSON.parse(b);
   let url = req.url;
   slow = eslow(15000, d('ipc_fetch('+url+') fetch()'));
-  let response = await fetch(req.url, req.opt);
+  let response;
+  try {
+    let response = await fetch(req.url, req.opt);
+  } catch(err){
+    console.error('sync ipc_fetch failed: '+err);
+    response = {status: 0};
+  }
   slow.end();
   D && console.log('ipc_fetch '+url, response);
   let res = {status: response.status};
