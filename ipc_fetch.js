@@ -25,7 +25,7 @@ export async function ipc_fetch(){
   try {
     response = await fetch(req.url, req.opt);
   } catch(err){
-    console.error('sync ipc_fetch failed: '+err);
+    console.error('sync ipc_fetch '+req.url+': '+err);
     response = {status: 0};
   }
   slow.end();
