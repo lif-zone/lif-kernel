@@ -945,7 +945,7 @@ async function cache_store_set(request, response){
   let cs = cache_store;
   if (!cs.enable || request.method!='GET')
     return;
-  if (!response.headers.get('etag'))
+  if (0 && !response.headers.get('etag'))
     return;
   D && console.log('cache_store set', request.url);
   await cs.cache.put(request, response.clone());
@@ -1294,7 +1294,7 @@ async function _kernel_fetch(event){
       console.error('req '+url+': '+res.err);
     response = await send_res({...res, path});
     if (res.cache)
-      await cache_store_set(request, response);
+      cache_store_set(request, response); // background: no need to await
     return response;
   }
   if (is_doc){
