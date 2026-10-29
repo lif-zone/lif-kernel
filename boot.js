@@ -294,8 +294,8 @@ async function require_cjs_load_meta_async(m){
     return await _m.wait;
   _m.wait = ewait();
   let meta_c;
-  lookup: {
-    if (!enable_cache_idb || !lpm_is_perm(lmod))
+  lookup: if (enable_cache_idb){
+    if (!lpm_is_perm(lmod))
       break lookup;
     let f_raw = await cache_get('lpm_file', [lmod]);
     if (!f_raw || f_raw.not_exist)
@@ -370,7 +370,20 @@ async function require_cjs_load_file_async(m){
   if (f.wait)
     return await f.wait;
   f.wait = ewait();
-  req = await fetch(url);
+  lookup: if (enable_cache_idb){
+    let v;
+    if (!(v=str.starts(m.url, '/.lif/')))
+      break lookup;
+    let lmod = v.rest;
+    if (!lpm_is_perm(lmod))
+      break lookup;
+    let f_raw = await cache_get('lpm_file', [lmod]);
+    if (!f_raw || f_raw.not_exist || f_raw.redirect)
+      break lookup;
+    req = f_raw.blob;
+    req.status = 200;
+  }
+  req ||= await fetch(url);
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
