@@ -148,6 +148,7 @@ function db_delete(){
 
 // 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
 let cache_enable = 1;
+let cache_not_exist = 1;
 reg_cache_enable(cache_enable);
 
 function cache_lmod(lmod){
@@ -518,7 +519,7 @@ async function lpm_file_get({log, lmod, opt={}}){
     return reg;
   if (reg.not_exist){
     f = {lmod, not_exist: true};
-    0 && is_c && cache_set('lpm_file', f);
+    cache_not_exist && is_c && cache_set('lpm_file', f);
     return f;
   }
   // create result lpm file, and cache it

@@ -239,6 +239,7 @@ async function e_db_req(req){
 let cache_ver = 29;
 let storage_bucket;
 let g_indexedDB = globalThis.indexedDB;
+let g_caches = globalThis.caches;
 async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
@@ -248,23 +249,42 @@ async function storage_bucket_init(){
     durability: 'relaxed',
   });
   g_indexedDB = storage_bucket.indexedDB;
+  g_caches = storage_bucket.caches;
 }
 await storage_bucket_init();
 async function db_open(){
-  if (db!==undefined)
-    return await db;
+  if (db)
+    return db;
   // version 0 = never create
-  db = e_db_req(g_indexedDB.open('lif-kernel-'+cache_ver));
-  db = (await db)||null;
+  db = await e_db_req(g_indexedDB.open('lif-kernel-'+cache_ver));
   return db;
 }
 
 async function cache_get(table, k){
-  let db = await db_open();
-  if (!db)
+  let _db = db || await db_open();
+  if (!_db)
     return;
-  return await e_db_req(db.transaction(table, 'readonly')
+  return await e_db_req(_db.transaction(table, 'readonly')
     .objectStore(table).get(k));
+}
+
+let caches_db;
+async function caches_open(){
+  if (caches_db!==undefined)
+    return await caches_db;
+  // version 0 = never create
+  caches_db = await g_caches.open('lif-cache-v'+cache_ver);
+  return caches_db;
+}
+
+async function fetch_caches(url){
+  if (!enable_cache_fetch)
+    return await fetch(url);
+  let cdb = caches_db || await caches_open();
+  let res = await cdb.match(url);
+  if (res)
+    return res;
+  return await fetch(url);
 }
 
 function sha256_hex(v){
@@ -315,7 +335,7 @@ async function require_cjs_load_meta_async(m){
     m.meta = meta_c;
     return do_ret('done');
   }
-  req = await fetch(url);
+  req = await fetch_caches(url);
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
@@ -383,7 +403,7 @@ async function require_cjs_load_file_async(m){
     req = f_raw.blob;
     req.status = 200;
   }
-  req ||= await fetch(url);
+  req ||= await fetch_caches(url);
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
@@ -784,6 +804,11 @@ function createRequire(uri_self){
 // web worker importScripts()/require() implementation
 let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
 let enable_cache_idb = 0; // 0 - no cache, 1 - cache, 'debug' - dev debug
+let enable_cache_fetch = 0;
+function fetch_cache(...arg){
+  caches.get();
+  return fetch(...arg);
+}
 function fetch_opt(url){
   let no_cache = url.startsWith('/') ? !enable_cache : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
