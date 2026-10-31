@@ -277,13 +277,26 @@ async function caches_open(){
   return caches_db;
 }
 
-async function fetch_caches(url){
-  if (!enable_cache_fetch)
+let enable_cache = 1; // problematic until /.lif.imp/ and /.lif/local handled
+let cache_miss = 0;
+let cache_try = 0;
+async function fetch_cache(url){
+  if (!enable_cache)
     return await fetch(url);
+  cache_try++;
+  // skip cache tests if nothing is found in cache 5 times (recheck everry 10)
+  if (cache_miss>5 && !(cache_try%10))
+    return await fetch(url);
+  // XXX need to add code to disable caching of /.lif/local/ and handle
+  // revalidation of /.lif.imp/ and similar dynamic URLs, according to
+  // page refresh detected in kernel
   let cache = caches_db || await caches_open();
   let res = await cache.match(url);
-  if (res)
+  if (res){
+    cache_miss = 0;
     return res;
+  }
+  cache_miss++;
   return await fetch(url);
 }
 
@@ -312,7 +325,7 @@ async function require_cjs_load_meta_async(m){
   if (_m.wait)
     return await _m.wait;
   _m.wait = ewait();
-  let req = await fetch_caches(url);
+  let req = await fetch_cache(url);
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
@@ -364,7 +377,7 @@ async function require_cjs_load_file_async(m){
   if (f.wait)
     return await f.wait;
   f.wait = ewait();
-  let req = await fetch_caches(url);
+  let req = await fetch_cache(url);
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
@@ -763,16 +776,6 @@ function createRequire(uri_self){
 }
 
 // web worker importScripts()/require() implementation
-let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
-let enable_cache_fetch = 0;
-function fetch_cache(...arg){
-  caches.get();
-  return fetch(...arg);
-}
-function fetch_opt(url){
-  let no_cache = url.startsWith('/') ? !enable_cache : false;
-  return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
-}
 function define_amd_get_mod(url){
   // let url = npm_imp_uri(null, imp);
   let m = mod_t[url];
@@ -788,7 +791,7 @@ async function import_amd(uri_self, [imp, opt]){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await fetch(url, fetch_opt(url));
+    let response = await fetch_cache(url);
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
@@ -813,7 +816,7 @@ async function import_module_script({uri_self, imp}){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await fetch(url, fetch_opt(url));
+    let response = await fetch_cache(url);
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
