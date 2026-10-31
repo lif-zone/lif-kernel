@@ -515,6 +515,7 @@ async function lpm_file_get({log, lmod, opt={}}){
   let in_filelist = reg_filelist_has(lmod);
   if (in_filelist==false)
     return {lmod, not_exist: true};
+  // fetch the file
   lpm_file.lmod = lmod;
   lpm_file.log = log;
   let reg = await reg_get({log, lmod, opt});
