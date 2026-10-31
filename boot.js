@@ -280,8 +280,8 @@ async function caches_open(){
 async function fetch_caches(url){
   if (!enable_cache_fetch)
     return await fetch(url);
-  let cdb = caches_db || await caches_open();
-  let res = await cdb.match(url);
+  let cache = caches_db || await caches_open();
+  let res = await cache.match(url);
   if (res)
     return res;
   return await fetch(url);
