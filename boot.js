@@ -223,7 +223,7 @@ function require_cjs_load_meta_sync(m){
   return do_ret('done');
 }
 
-let db;
+let idb_db;
 async function e_db_req(req){
   if (!req)
     return req;
@@ -253,18 +253,18 @@ async function storage_bucket_init(){
 }
 await storage_bucket_init();
 async function db_open(){
-  if (db)
-    return db;
+  if (idb_db)
+    return idb_db;
   // version 0 = never create
-  db = await e_db_req(g_indexedDB.open('lif-kernel-'+cache_ver));
-  return db;
+  idb_db = await e_db_req(g_indexedDB.open('lif-kernel-'+cache_ver));
+  return idb_db;
 }
 
 async function cache_get(table, k){
-  let _db = db || await db_open();
-  if (!_db)
+  let db = idb_db || await db_open();
+  if (!db)
     return;
-  return await e_db_req(_db.transaction(table, 'readonly')
+  return await e_db_req(db.transaction(table, 'readonly')
     .objectStore(table).get(k));
 }
 
