@@ -309,33 +309,10 @@ async function require_cjs_load_meta_async(m){
   let lmod = v.rest;
   let qs = {meta: '', follow: ''};
   let url = m.url+qs_enc(qs);
-  let req;
   if (_m.wait)
     return await _m.wait;
   _m.wait = ewait();
-  let meta_c;
-  lookup: if (enable_cache_idb){
-    if (!lpm_is_perm(lmod))
-      break lookup;
-    let f_raw = await cache_get('lpm_file', [lmod]);
-    if (!f_raw || f_raw.not_exist)
-      break lookup;
-    if (f_raw.redirect){
-      m.meta = f_raw;
-      return do_ret('done');
-    }
-    let f_js = await cache_get('tsx_to_js', [f_raw.h_body]);
-    if (!f_js)
-      f_js = {h_js: f_raw.h_body}; // if plain js
-    meta_c = await cache_get('js_to_meta', [f_js.h_js]);
-    if (!meta_c)
-      break lookup;
-    if (enable_cache_idb=='debug')
-      break lookup;
-    m.meta = meta_c;
-    return do_ret('done');
-  }
-  req = await fetch_caches(url);
+  let req = await fetch_caches(url);
   if (req.status!=200){
     console.error('no mod meta: '+url);
     return do_ret('err');
@@ -347,8 +324,6 @@ async function require_cjs_load_meta_async(m){
     assert(0, 'invalid json meta '+url);
     return do_ret('err');
   }
-  if (enable_cache_idb=='debug' && meta_c)
-    assert.obj(m.meta, meta_c);
   return do_ret('done');
 }
 
@@ -386,24 +361,10 @@ async function require_cjs_load_file_async(m){
     return f.res;
   f.res = 'loading';
   let url = m.url;
-  let req;
   if (f.wait)
     return await f.wait;
   f.wait = ewait();
-  lookup: if (enable_cache_idb){
-    let v;
-    if (!(v=str.starts(m.url, '/.lif/')))
-      break lookup;
-    let lmod = v.rest;
-    if (!lpm_is_perm(lmod))
-      break lookup;
-    let f_raw = await cache_get('lpm_file', [lmod]);
-    if (!f_raw || f_raw.not_exist || f_raw.redirect)
-      break lookup;
-    req = f_raw.blob;
-    req.status = 200;
-  }
-  req ||= await fetch_caches(url);
+  let req = await fetch_caches(url);
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
@@ -803,7 +764,6 @@ function createRequire(uri_self){
 
 // web worker importScripts()/require() implementation
 let enable_cache = 2; // 0 no-cache, 1 cache remote, 2 cache remote and local
-let enable_cache_idb = 0; // 0 - no cache, 1 - cache, 'debug' - dev debug
 let enable_cache_fetch = 0;
 function fetch_cache(...arg){
   caches.get();
