@@ -217,3 +217,7 @@ CLAUDE: Added ordinal CDN sources to reg_cdn (ordiscan.com, ord.io) for bitcoin 
 USER: Ordinals store content-type in bitcoin. Cache and return it. Use 'ctype' naming. Add opt.ctype flag to reg_get to conditionally capture it.
 
 CLAUDE: reg.js: reg_http_get captures response content-type as `ctype`. reg_get only stores `reg.ctype` when `opt.ctype` is true. kernel.js: fetch_lpm_raw passes `opt: {ctype: true}` and forwards `ctype` through send_res → response_send. response_send uses `ctype` directly when provided, falls back to ext-based lookup otherwise.
+---
+USER: Add file listing support to reg.js for NPM packages. Fetch the file list once per package (via src_files CDN), then use it to skip non-existent alternatives in lpm_file_get_alt instead of fetching each one.
+
+CLAUDE: reg.js: Added `reg_filelist_get({log, lmod})` that fetches the package file list from jsdelivr/unpkg (src_files), flattens the nested directory tree into a Set of paths, and caches in `reg_filelist_t`. Added `reg_filelist_has(lmod)` that checks if a file path exists in the cached set (returns undefined if no filelist available). kernel.js: Imported new functions. Call `await reg_filelist_get` in `lpm_pkg_get` after fetching package.json. In `lpm_file_get_alt`, when filelist is available and multiple alternatives exist, narrow down to the matching alternative before fetching, avoiding unnecessary HTTP requests.

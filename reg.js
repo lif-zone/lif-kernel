@@ -4,7 +4,7 @@ export const version = reg_version;
 let D = 0; // Debug
 
 const {str, assert, OE, ecache, eslow} = await import('./util.js');
-const {T_lpm_parse, lpm_ver_missing} = await import('./lpm.js');
+const {T_lpm_parse, T_lpm_lmod, lpm_ver_missing} = await import('./lpm.js');
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
@@ -24,7 +24,9 @@ const {T_lpm_parse, lpm_ver_missing} = await import('./lpm.js');
 // https://registry.npmjs.com/lif-kernel/1.0.6
 // https://registry.npmjs.com/lif-kernel/latest
 // https://registry.npmmirror.com/lif-kernel
+// https://registry.npmmirror.com/lif-kernel/1.0.6
 // https://registry.yarnpkg.com/lif-kernel
+// https://registry.yarnpkg.com/lif-kernel/1.0.6
 // NPM filelist:
 // https://data.jsdelivr.com/v1/packages/npm/lif-kernel@1.0.6
 // https://unpkg.com/lif-kernel@1.0.6/?meta
@@ -355,6 +357,59 @@ export async function reg_http_get({log, url}){
   }
   return {blob, ctype};
 }
+let reg_filelist_t = {};
+function filelist_flatten(files, prefix, set){
+  for (let f of files){
+    if (f.type=='file')
+      set.add(prefix+'/'+f.name);
+    else if (f.type=='directory' && f.files)
+      filelist_flatten(f.files, prefix+'/'+f.name, set);
+  }
+}
+let enable_filelist = 0;
+export async function reg_filelist_get({log, lmod}){
+  if (!enable_filelist)
+    return;
+  let pkg_lmod = T_lpm_lmod(lmod);
+  if (reg_filelist_t[pkg_lmod]!=null)
+    return reg_filelist_t[pkg_lmod];
+  let cdn = reg_get_cdn(lmod);
+  if (!cdn.src_files){
+    reg_filelist_t[pkg_lmod] = false;
+    return false;
+  }
+  let reg;
+  try {
+    reg = await reg_get({log, lmod: pkg_lmod+'/--files'});
+  } catch(e){
+    D && console.log('filelist fetch failed '+pkg_lmod+': '+e);
+    reg_filelist_t[pkg_lmod] = false;
+    return false;
+  }
+  if (reg.err || reg.not_exist || !reg.blob){
+    reg_filelist_t[pkg_lmod] = false;
+    return false;
+  }
+  let body;
+  try { body = JSON.parse(await reg.blob.text()); }
+  catch(e){
+    reg_filelist_t[pkg_lmod] = false;
+    return false;
+  }
+  let set = new Set();
+  filelist_flatten(body.files||[], '', set);
+  reg_filelist_t[pkg_lmod] = set;
+  return set;
+}
+export function reg_filelist_has(lmod){
+  let u = T_lpm_parse(lmod);
+  let pkg_lmod = T_lpm_lmod(lmod);
+  let set = reg_filelist_t[pkg_lmod];
+  if (!set)
+    return;
+  return set.has(u.path);
+}
+
 export async function reg_git_get({log, lmod}){ assert(0); }
 export async function reg_bittorrent_get({log, lmod}){ assert(0); }
 export async function reg_get({log, lmod, opt}){
@@ -423,5 +478,4 @@ export async function reg_get({log, lmod, opt}){
   D && console.log('fetch OK '+lmod);
   return reg;
 }); }
-
 

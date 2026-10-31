@@ -18,6 +18,7 @@ const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
   pkg_transform_type, npm_ver_lookup, patch_json,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
+  reg_filelist_get, reg_filelist_has,
 } = await import('./reg.js');
 const {tr_tsx_to_js, tr_js_to_meta} = await import('./ast.js');
 const {qw} = str;
@@ -510,6 +511,10 @@ async function lpm_file_get({log, lmod, opt={}}){
   let f = is_c && await cache_get('lpm_file', [lmod]);
   if (f)
     return f;
+  // use filelist to skip non-existent alternatives
+  let in_filelist = reg_filelist_has(lmod);
+  if (in_filelist==false)
+    return {lmod, not_exist: true};
   lpm_file.lmod = lmod;
   lpm_file.log = log;
   let reg = await reg_get({log, lmod, opt});
@@ -703,6 +708,8 @@ async function lpm_pkg_get({log, lmod, mod_self}){
   }
   // check for package.json overrides
   lpm_patch_pkg_json(lpm_pkg);
+  // fetch file list (best-effort, speeds up alt resolution)
+  await reg_filelist_get({log, lmod});
   return lpm_pkg;
 }); }
 
