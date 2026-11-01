@@ -154,7 +154,8 @@ class Trunk_uplink extends Trunk {
     });
     this.last = Date.now();
     D && console.log('lifnet trunk connect attempt '+this.url);
-    let rpc = this.rpc = new rpc_websocket({D: 1, pre: this.lifnet.client_name});
+    let rpc = this.rpc = new rpc_websocket(
+      {D: 1, pre: this.lifnet.client_name});
     rpc.on('error', err=>et.return(
       {error: 'lifnet trunk error '+this.url+' '+err}));
     rpc.on('close', ()=>et.return({error: 'closed'}));
@@ -299,7 +300,7 @@ export class Lifnet extends EventEmitter {
         trunk.close();
     }
   }
-  connect(rg_id, method, params){
+  _connect(rg_id, method, params){
     let sock = new rpc_sock({D: 1, pre: 'rg'+rg_id+':'+method});
     this.base_methods(sock);
     let wait = (async()=>{
@@ -409,6 +410,64 @@ export class Lifnet extends EventEmitter {
       this.trunk_uplink_add(uplink);
     }
   }
+  // lifnet_connect is the equivalent of TCP connect('domain.com:80'),
+  // where domain.com:80 is the server/potic, and it resolves to/ IPs/RGs,
+  //and tries them one by one.
+  connect(topic, params, opt={}){
+    return etask(function*(et)
+  {
+    let timeout = 3000;
+    if (opt.timeout!=null)
+      timeout = opt.timeout;
+    assert(typeof topic=='string', 'invalid topic '+topic);
+    // XXX after all trunks fail, should not continue waiting 5 seconds
+    et.alarm(timeout, ()=>et.return({error: 'timeout online'}));
+    let ret = yield lifnet_online({timeout});
+    et.del_alarm();
+    if (ret?.error)
+      return ret;
+    et.alarm(timeout, ()=>et.return({error: 'timeout topic_get'}));
+    ret = yield this.topic_get(topic);
+    et.del_alarm();
+    let addr = ret?.addr;
+    if (!addr)
+      return {error: 'lifnet error: failed get topic '+topic};
+    if (!addr.length){
+      if (this.status!='online')
+        return {error: 'lifnet offline'};
+      return {error: 'no '+topic+' servers online'};
+    }
+    let rg, sock, _error, res;
+    let rg_addr = [];
+    for (let id of addr){
+      let _rg = g_rg[id] ||= {id};
+      if (opt.rg_block?.(_rg))
+        continue;
+      rg_addr.push(_rg);
+    }
+    rg_addr.sort((a, b)=>(a.error_tm||0) - (b.error_tm||0));
+    for (let _rg of rg_addr){
+      let {sock: _sock, wait} = this._connect(_rg.id, topic, params);
+      wait = etask.wait_ext(wait);
+      et.alarm(timeout, ()=>wait.return({error: 'timeout connect'}));
+      let _ret = yield wait;
+      et.del_alarm();
+      if (_ret?.error){
+        console.log('failed connecting to '+_rg.id);
+        _rg.error_tm = Date.now();
+        _rg.error = _ret.error;
+        _error = _ret.error;
+        continue;
+      }
+      sock = _sock;
+      rg = _rg;
+      ret = _ret;
+      break;
+    }
+    if (!rg)
+      return {error: 'no good '+topic+' servers online: '+_error};
+    return {sock, rg, ret};
+  }.bind(this)); }
 }
 
 let g_rg = {};
@@ -461,65 +520,6 @@ export async function lifnet_online({timeout}={}){
   return await wait;
 }
 
-// lifnet_connect is the equivalent of TCP connect('domain.com:80'),
-// where domain.com:80 is the server/potic, and it resolves to/ IPs/RGs,
-//and tries them one by one.
-export function lifnet_connect(topic, params, opt={}){
-  return etask(function*()
-{
-  let timeout = 3000;
-  if (opt.timeout!=null)
-    timeout = opt.timeout;
-  assert(typeof topic=='string', 'invalid topic '+topic);
-  // XXX after all trunks fail, should not continue waiting 5 seconds
-  this.alarm(timeout, ()=>this.return({error: 'timeout online'}));
-  let ret = yield lifnet_online({timeout});
-  this.del_alarm();
-  if (ret?.error)
-    return ret;
-  this.alarm(timeout, ()=>this.return({error: 'timeout topic_get'}));
-  ret = yield lifnet.topic_get(topic);
-  this.del_alarm();
-  let addr = ret?.addr;
-  if (!addr)
-    return {error: 'lifnet error: failed get topic '+topic};
-  if (!addr.length){
-    if (lifnet.status!='online')
-      return {error: 'lifnet offline'};
-    return {error: 'no '+topic+' servers online'};
-  }
-  let rg, sock, _error, res;
-  let rg_addr = [];
-  for (let id of addr){
-    let _rg = g_rg[id] ||= {id};
-    if (opt.rg_block?.(_rg))
-      continue;
-    rg_addr.push(_rg);
-  }
-  rg_addr.sort((a, b)=>(a.error_tm||0) - (b.error_tm||0));
-  for (let _rg of rg_addr){
-    let {sock: _sock, wait} = lifnet.connect(_rg.id, topic, params);
-    wait = etask.wait_ext(wait);
-    this.alarm(timeout, ()=>wait.return({error: 'timeout connect'}));
-    let _ret = yield wait;
-    this.del_alarm();
-    if (_ret?.error){
-      console.log('failed connecting to '+_rg.id);
-      _rg.error_tm = Date.now();
-      _rg.error = _ret.error;
-      _error = _ret.error;
-      continue;
-    }
-    sock = _sock;
-    rg = _rg;
-    ret = _ret;
-    break;
-  }
-  if (!rg)
-    return {error: 'no good '+topic+' servers online: '+_error};
-  return {sock, rg, ret};
-}); }
-
 function lifnet_listen_close(opt){
   lifnet.listen(opt.method);
   if (opt.topic)
@@ -546,7 +546,7 @@ export function lifnet_listen(topic, fn){
 
 export async function lifnet_call(topic, params){
   lifnet_init();
-  let {sock, ret, error} = await lifnet_connect(topic, params);
+  let {sock, ret, error} = await lifnet.connect(topic, params);
   sock?.close();
   return {ret, error};
 }

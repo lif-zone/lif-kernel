@@ -3,7 +3,7 @@
 import {Buffer, ewait, OA} from '../util.js';
 import {rpc_sock} from '../rpc.js';
 import EventEmitter from '../compat/events.js';
-import {lifnet_init, lifnet_connect, lifnet_call} from './lifnet.js';
+import {lifnet, lifnet_init, lifnet_call} from './lifnet.js';
 
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {method, headers, body})
@@ -21,7 +21,7 @@ class Lif_response {
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
   lifnet_init();
-  let {sock, error} = lifnet_connect('http/out');
+  let {sock, error} = lifnet.connect('http/out');
   if (error)
     throw new Error(error);
   let res = await http_sock_c(sock, {url, method, headers, body});

@@ -4,7 +4,7 @@ import {fileURLToPath} from 'url';
 import path from 'path';
 import '../compat/browser_env.js';
 import {url_http_to_ws, qs_enc} from '../util.js';
-import {lifnet, lifnet_connect, lifnet_listen} from './lifnet.js';
+import {lifnet, lifnet_listen} from './lifnet.js';
 import {leaf_rpc_websocket_out, leaf_fetch_out, leaf_websocket_out,
   leaf_http_out, leaf_tcp_out, leaf_dns_out,
 } from './tcpip_s.js';

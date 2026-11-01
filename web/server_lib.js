@@ -15,7 +15,7 @@ import {WebSocketServer} from 'ws';
 import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add,
   trunk_router,
 } from '../net/trunk.js';
-import {lifnet, lifnet_connect, lifnet_call, lifnet_init_router,
+import {lifnet, lifnet_call, lifnet_init_router,
 } from '../net/lifnet.js';
 const efs = fs.promises;
 
@@ -70,7 +70,7 @@ async function lifnet_lif_kv_handler(req, res){
 async function rpc_websocket_pipe_lif(ws, topic){ // obsolete
   let c = new rpc_websocket({D: 1, jsonrpc: '2.0'});
   c.accept({ws});
-  let {sock: s, error} = await lifnet_connect(topic);
+  let {sock: s, error} = await lifnet.connect(topic);
   if (error)
     return c.close();
   rpc_sock_pipe(c, s);
