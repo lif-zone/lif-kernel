@@ -281,7 +281,7 @@ let reg_cdn = {
   ]}},
 };
 
-let reg_get_cdn = u=>{
+function reg_get_cdn(u){
   let cdn = reg_cdn;
   if (typeof u=='string')
     u = T_lpm_parse(u);
@@ -296,7 +296,7 @@ let reg_get_cdn = u=>{
   case 'lifcoin': return cdn.lifcoin[u.liftype];
   }
   throw Error('invalid reg '+u.reg);
-};
+}
 
 // bitcoin ordinals: 
 // /content/547a6709441bc5c9d206150ce5fb7605c28a90c46bd6e4330c4420cb41477aeai0
@@ -367,10 +367,11 @@ function filelist_flatten(files, prefix, t){
   }
 }
 let enable_filelist = 1;
-export async function reg_filelist_get({log, lmod}){
+async function reg_filelist_get({log, lmod}){
   if (!enable_filelist)
     return;
-  let pkg_lmod = T_lpm_lmod(lmod);
+  let u = T_lpm_parse(lmod);
+  let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
   let t;
   if (t=reg_filelist_t[pkg_lmod])
     return await t.wait;
@@ -378,8 +379,9 @@ export async function reg_filelist_get({log, lmod}){
     if (err)
       console.warn('reg_filelist fetch failed '+lmod+': '+err);
     t.err = err;
-    t.wait.return();
+    t.wait.return(t);
     t.wait = null;
+    return t;
   }
   t = reg_filelist_t[pkg_lmod] = {files: null, wait: ewait()};
   let cdn = reg_get_cdn(lmod);
@@ -405,11 +407,13 @@ export async function reg_filelist_get({log, lmod}){
   filelist_flatten(body.files||[], '', t);
   return do_ret();
 }
-export function reg_filelist_has(lmod){
+async function reg_filelist_has({log, lmod}){
   let u = T_lpm_parse(lmod);
-  let pkg_lmod = T_lpm_lmod(lmod);
-  let t = reg_filelist_t[pkg_lmod];
-  if (!t?.files)
+  let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
+  let t;
+  if (!(t=reg_filelist_t[pkg_lmod]))
+    t = await reg_filelist_get({log, lmod});
+  if (!t.files)
     return;
   return t.files[u.path] || false;
 }
@@ -449,6 +453,14 @@ export async function reg_get({log, lmod, opt}){
   } else {
     if (lpm_ver_missing(u))
       throw Error('reg_get missing ver: '+lmod);
+    // check filelist to avoid unnecessary fetches for alt searches
+    if (reg.cdn.src_files){
+      let fl = await reg_filelist_has({log, lmod});
+      if (fl==false){
+        reg.not_exist = true;
+        return reg;
+      }
+    }
   }
   let ret;
   src.sort((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
