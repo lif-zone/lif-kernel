@@ -15,8 +15,7 @@ import {WebSocketServer} from 'ws';
 import {ws_trunk_accept, rpc_methods_lifnet_trunk, trunk_peer_add,
   trunk_router,
 } from '../net/trunk.js';
-import {lifnet, lifnet_call, lifnet_init_router,
-} from '../net/lifnet.js';
+import {lifnet} from '../net/lifnet.js';
 const efs = fs.promises;
 
 let lifcoin_node_url = 'http://localhost:8432';
@@ -60,7 +59,7 @@ function http_pipe({req, res, url}){
 async function lifnet_lif_kv_handler(req, res){
   let url = new URL(req.url, 'http://x');
   let key = url.searchParams.get('key');
-  let {ret, error} = await lifnet_call('lifcoin/lif_kv', {key});
+  let {ret, error} = await lifnet.call('lifcoin/lif_kv', {key});
   if (error)
     return res_err(res, 500, 'proxy error: '+error);
   let {result} = ret;
@@ -77,7 +76,7 @@ async function rpc_websocket_pipe_lif(ws, topic){ // obsolete
 }
 
 async function http_pipe_lif(req, res, topic, param){
-  let {ret, error} = await lifnet_call(topic, param);
+  let {ret, error} = await lifnet.call(topic, param);
   if (error)
     return res_err(res, 500, 'proxy error: '+error);
   let {result} = ret;
@@ -357,7 +356,7 @@ async function run(opt){
     : 'leaf';
   lifnet.set_opt(lifnet_opt);
   if (g_opt.lifnet_trunk)
-    lifnet_init_router(trunk_router());
+    lifnet.init_router(trunk_router());
   start_web();
   for (let url of (g_opt.peers||[]))
     trunk_peer_add(url);

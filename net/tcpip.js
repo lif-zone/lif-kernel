@@ -3,7 +3,7 @@
 import {Buffer, ewait, OA} from '../util.js';
 import {rpc_sock} from '../rpc.js';
 import EventEmitter from '../compat/events.js';
-import {lifnet, lifnet_init, lifnet_call} from './lifnet.js';
+import {lifnet} from './lifnet.js';
 
 // fetch()-compatible API over rpc_sock
 // Usage: lif_fetch(url, {method, headers, body})
@@ -20,7 +20,6 @@ class Lif_response {
 }
 
 export async function lif_fetch(url, {method='GET', headers={}, body}={}){
-  lifnet_init();
   let {sock, error} = lifnet.connect('http/out');
   if (error)
     throw new Error(error);
@@ -125,7 +124,7 @@ export class lif_WebSocket extends browser_EventEmitter {
 // DNS lookup via lif_rg dns/out proxy
 // Returns {addrs: [{address, family}]} or {error}
 export async function lif_dns_lookup(host, {family=4}={}){
-  return await lifnet_call('dns/out', {host, family});
+  return await lifnet.call('dns/out', {host, family});
 }
 
 // JSON-RPC over WebSocket via jsonrpc/out proxy — client-side mirror of rpc_sock_jsonrpc_out

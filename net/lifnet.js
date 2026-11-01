@@ -219,7 +219,7 @@ class Trunk_router extends Trunk {
   }
 }
 
-export class Lifnet extends EventEmitter {
+export class _Lifnet extends EventEmitter {
   method_fn = {};
   trunk_t = {};
   pub_t = {};
@@ -300,7 +300,7 @@ export class Lifnet extends EventEmitter {
         trunk.close();
     }
   }
-  _connect(rg_id, method, params){
+  connect(rg_id, method, params){
     let sock = new rpc_sock({D: 1, pre: 'rg'+rg_id+':'+method});
     this.base_methods(sock);
     let wait = (async()=>{
@@ -402,12 +402,40 @@ export class Lifnet extends EventEmitter {
     this.method_fn[method] = {fn, is_listen: true};
     this.rpc_method_set(method);
   }
+}
+
+export class Lifnet extends EventEmitter {
+  _;
+  inited;
+  constructor(_lifnet){
+    this._ = _lifnet || new _Lifnet();
+  }
+  init(){
+    if (this.inited)
+      return this;
+    this.inited = true;
+    if (is_node){
+      this._.trunk_uplink_add('ws://localhost:1842/.lif.net');
+      0 && this._.trunk_uplink_add(uplink_default);
+    } else
+      this._.trunk_uplink_add(url_http_to_ws(location.origin+'/.lif.net'));
+    return this;
+  }
+  init_router(rpc){
+    this.inited = true;
+    this._.trunk_add_router(rpc);
+  }
+  _listen_close(opt){
+    this._.listen(opt.method);
+    if (opt.topic)
+      this._.topic_unpub(opt.topic);
+  }
   set_opt(opt={}){
     if (opt.client_name)
-      this.client_name = opt.client_name;
+      this._.client_name = opt.client_name;
     if (opt.uplink){
       let uplink = opt.uplink=='default' ? uplink_default : opt.uplink;
-      this.trunk_uplink_add(uplink);
+      this._.trunk_uplink_add(uplink);
     }
   }
   // lifnet_connect is the equivalent of TCP connect('domain.com:80'),
@@ -422,18 +450,18 @@ export class Lifnet extends EventEmitter {
     assert(typeof topic=='string', 'invalid topic '+topic);
     // XXX after all trunks fail, should not continue waiting 5 seconds
     et.alarm(timeout, ()=>et.return({error: 'timeout online'}));
-    let ret = yield lifnet_online({timeout});
+    let ret = yield this.online({timeout});
     et.del_alarm();
     if (ret?.error)
       return ret;
     et.alarm(timeout, ()=>et.return({error: 'timeout topic_get'}));
-    ret = yield this.topic_get(topic);
+    ret = yield this._.topic_get(topic);
     et.del_alarm();
     let addr = ret?.addr;
     if (!addr)
       return {error: 'lifnet error: failed get topic '+topic};
     if (!addr.length){
-      if (this.status!='online')
+      if (this._.status!='online')
         return {error: 'lifnet offline'};
       return {error: 'no '+topic+' servers online'};
     }
@@ -447,7 +475,7 @@ export class Lifnet extends EventEmitter {
     }
     rg_addr.sort((a, b)=>(a.error_tm||0) - (b.error_tm||0));
     for (let _rg of rg_addr){
-      let {sock: _sock, wait} = this._connect(_rg.id, topic, params);
+      let {sock: _sock, wait} = this._.connect(_rg.id, topic, params);
       wait = etask.wait_ext(wait);
       et.alarm(timeout, ()=>wait.return({error: 'timeout connect'}));
       let _ret = yield wait;
@@ -468,6 +496,43 @@ export class Lifnet extends EventEmitter {
       return {error: 'no good '+topic+' servers online: '+_error};
     return {sock, rg, ret};
   }.bind(this)); }
+  async online({timeout}={}){
+    this.init();
+    if (this._.status=='online')
+      return;
+    let wait = ewait();
+    if (timeout){
+      (async()=>{
+        await etask.sleep(timeout);
+        wait.return({error: 'lifnet connect timeout'});
+      })();
+    }
+    wait_pipe(wait, this._.trunk_connect());
+    return await wait;
+  }
+  listen(topic, fn){
+    this.init();
+    let opt = {};
+    if (typeof topic=='string')
+      opt = {topic, method: topic, auto_close: true};
+    else {
+      opt = {...topic};
+      opt.method ??= opt.topic;
+      opt.auto_close ??= true;
+    }
+    if (!fn)
+      return this._._listen_close(topic);
+    this._._listen(opt.method, fn);
+    if (opt.topic)
+      this._.topic_pub(opt.topic, opt.data);
+    return {close: ()=>this._._listen_close(opt)};
+  }
+  async call(topic, params){
+    this.init();
+    let {sock, ret, error} = await this._.connect(topic, params);
+    sock?.close();
+    return {ret, error};
+  }
 }
 
 let g_rg = {};
@@ -476,27 +541,6 @@ export function rg_id_get(){
   return g_rg_id;
 }
 export const lifnet = new Lifnet();
-let lifnet_inited;
-function lifnet_init(){
-  if (lifnet_inited)
-    return lifnet;
-  lifnet_inited = true;
-  if (is_node){
-    lifnet.trunk_uplink_add('ws://localhost:1842/.lif.net');
-    0 && lifnet.trunk_uplink_add(uplink_default);
-  } else
-    lifnet.trunk_uplink_add(url_http_to_ws(location.origin+'/.lif.net'));
-  return lifnet;
-}
-
-export function lifnet_init_router(rpc){
-  lifnet_inited = true;
-  lifnet.trunk_add_router(rpc);
-}
-export function lifnet_get(){
-  lifnet_init();
-  return lifnet;
-}
 
 async function wait_pipe(wait, wait_val){
   try {
@@ -504,50 +548,5 @@ async function wait_pipe(wait, wait_val){
   } catch(err){
     wait.throw(err);
   }
-}
-export async function lifnet_online({timeout}={}){
-  lifnet_init();
-  if (lifnet.status=='online')
-    return;
-  let wait = ewait();
-  if (timeout){
-    (async()=>{
-      await etask.sleep(timeout);
-      wait.return({error: 'lifnet connect timeout'});
-    })();
-  }
-  wait_pipe(wait, lifnet.trunk_connect());
-  return await wait;
-}
-
-function lifnet_listen_close(opt){
-  lifnet.listen(opt.method);
-  if (opt.topic)
-    lifnet.topic_unpub(opt.topic);
-}
-export function lifnet_listen(topic, fn){
-  lifnet_init();
-  let opt = {};
-  if (typeof topic=='string')
-    opt = {topic, method: topic, auto_close: true};
-  else {
-    opt = {...topic};
-    opt.method ??= opt.topic;
-    opt.auto_close ??= true;
-  }
-  const lifnet = lifnet_get();
-  if (!fn)
-    return lifnet_listen_close(topic);
-  lifnet.listen(opt.method, fn);
-  if (opt.topic)
-    lifnet.topic_pub(opt.topic, opt.data);
-  return {close: ()=>lifnet_listen_close(opt)};
-}
-
-export async function lifnet_call(topic, params){
-  lifnet_init();
-  let {sock, ret, error} = await lifnet.connect(topic, params);
-  sock?.close();
-  return {ret, error};
 }
 
