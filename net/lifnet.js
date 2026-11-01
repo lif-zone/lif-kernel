@@ -401,6 +401,14 @@ export class Lifnet extends EventEmitter {
     this.method_fn[method] = {fn, is_listen: true};
     this.rpc_method_set(method);
   }
+  set_opt(opt={}){
+    if (opt.client_name)
+      this.client_name = opt.client_name;
+    if (opt.uplink){
+      let uplink = opt.uplink=='default' ? uplink_default : opt.uplink;
+      this.trunk_uplink_add(uplink);
+    }
+  }
 }
 
 let g_rg = {};
@@ -425,14 +433,6 @@ function lifnet_init(){
 export function lifnet_init_router(rpc){
   lifnet_inited = true;
   lifnet.trunk_add_router(rpc);
-}
-export function lifnet_set(opt={}){
-  if (opt.client_name)
-    lifnet.client_name = opt.client_name;
-  if (opt.uplink){
-    let uplink = opt.uplink=='default' ? uplink_default : opt.uplink;
-    lifnet.trunk_uplink_add(uplink);
-  }
 }
 export function lifnet_get(){
   lifnet_init();
