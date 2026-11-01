@@ -3,7 +3,7 @@ let reg_version = '2026.10.19';
 export const version = reg_version;
 let D = 0; // Debug
 
-const {str, assert, OE, ecache, eslow} = await import('./util.js');
+const {str, assert, OE, ecache, eslow, ewait} = await import('./util.js');
 const {T_lpm_parse, T_lpm_lmod, lpm_ver_missing} = await import('./lpm.js');
 
 // br: lif-os/pages/index.tsx
@@ -11,7 +11,7 @@ const {T_lpm_parse, T_lpm_lmod, lpm_ver_missing} = await import('./lpm.js');
 // sw: /lif-os/pages/index.tsx
 //
 // req:         react 
-// rewrite:     /.lif/npm/react?self=/lif-os/components/file.js
+// rewrite:     /.lif/npm/lif-os/.lif.imp/react?imp
 // kernel 302:  /.lif/npm/react@0.18.1
 // out:         https://unpkg.com/react
 //
@@ -358,56 +358,60 @@ export async function reg_http_get({log, url}){
   return {blob, ctype};
 }
 let reg_filelist_t = {};
-function filelist_flatten(files, prefix, set){
+function filelist_flatten(files, prefix, t){
   for (let f of files){
     if (f.type=='file')
-      set.add(prefix+'/'+f.name);
+      t.files[prefix+'/'+f.name] = true;
     else if (f.type=='directory' && f.files)
-      filelist_flatten(f.files, prefix+'/'+f.name, set);
+      filelist_flatten(f.files, prefix+'/'+f.name, t);
   }
 }
-let enable_filelist = 0;
+let enable_filelist = 1;
 export async function reg_filelist_get({log, lmod}){
   if (!enable_filelist)
     return;
   let pkg_lmod = T_lpm_lmod(lmod);
-  if (reg_filelist_t[pkg_lmod]!=null)
-    return reg_filelist_t[pkg_lmod];
-  let cdn = reg_get_cdn(lmod);
-  if (!cdn.src_files){
-    reg_filelist_t[pkg_lmod] = false;
-    return false;
+  let t;
+  if (t=reg_filelist_t[pkg_lmod])
+    return await t.wait;
+  function do_ret(err){
+    if (err)
+      console.warn('reg_filelist fetch failed '+lmod+': '+err);
+    t.err = err;
+    t.wait.return();
+    t.wait = null;
   }
+  t = reg_filelist_t[pkg_lmod] = {files: null, wait: ewait()};
+  let cdn = reg_get_cdn(lmod);
+  if (!cdn.src_files)
+    return do_ret('no_src');
   let reg;
   try {
     reg = await reg_get({log, lmod: pkg_lmod+'/--files'});
   } catch(e){
-    D && console.log('filelist fetch failed '+pkg_lmod+': '+e);
-    reg_filelist_t[pkg_lmod] = false;
-    return false;
+    return do_ret(''+e);
   }
-  if (reg.err || reg.not_exist || !reg.blob){
-    reg_filelist_t[pkg_lmod] = false;
-    return false;
-  }
+  if (reg.err)
+    return do_ret(reg.err);
+  if (reg.not_exist)
+    return do_ret('not_found');
+  assert(reg.blob);
   let body;
   try { body = JSON.parse(await reg.blob.text()); }
   catch(e){
-    reg_filelist_t[pkg_lmod] = false;
-    return false;
+    return do_ret('parse err');
   }
-  let set = new Set();
-  filelist_flatten(body.files||[], '', set);
-  reg_filelist_t[pkg_lmod] = set;
-  return set;
+  t.files = {};
+  filelist_flatten(body.files||[], '', t);
+  return do_ret();
 }
 export function reg_filelist_has(lmod){
   let u = T_lpm_parse(lmod);
   let pkg_lmod = T_lpm_lmod(lmod);
-  let set = reg_filelist_t[pkg_lmod];
-  if (!set)
+  let t = reg_filelist_t[pkg_lmod];
+  if (!t?.files)
     return;
-  return set.has(u.path);
+  return t.files[u.path] || false;
 }
 
 export async function reg_git_get({log, lmod}){ assert(0); }

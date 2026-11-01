@@ -509,7 +509,7 @@ async function lpm_file_get({log, lmod, opt={}}){
 {
   D && console.log('lpm_file_get', lmod);
   let f = is_c && await cache_get('lpm_file', [lmod]);
-  if (f)
+  if (f && !(cache_not_exist || !f.not_exist))
     return f;
   // use filelist to skip non-existent alternatives
   let in_filelist = reg_filelist_has(lmod);
