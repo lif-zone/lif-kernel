@@ -14,7 +14,7 @@ import net from 'net';
 import dns from 'dns/promises';
 import http from 'http';
 import https from 'https';
-import {lifnet_online, lifnet_listen} from './lifnet.js';
+import {lifnet} from './lifnet.js';
 
 function ip_to_array(ip){
   let p = ip.split('.');
@@ -351,7 +351,7 @@ export async function ws_on_connect_pipe(ws, url){ // XXX unused
 }
 
 export async function leaf_rpc_websocket_out(topic, url){
-  await lifnet_listen(topic, async({msg, sock})=>{
+  await lifnet.listen(topic, async({msg, sock})=>{
     if (!url){
       url = msg.params?.url;
       // XXX - need to validate URL/allowed ip/dns resolve

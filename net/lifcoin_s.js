@@ -4,7 +4,7 @@ import {fileURLToPath} from 'url';
 import path from 'path';
 import '../compat/browser_env.js';
 import {url_http_to_ws, qs_enc} from '../util.js';
-import {lifnet, lifnet_listen} from './lifnet.js';
+import {lifnet} from './lifnet.js';
 import {leaf_rpc_websocket_out, leaf_fetch_out, leaf_websocket_out,
   leaf_http_out, leaf_tcp_out, leaf_dns_out,
 } from './tcpip_s.js';
@@ -14,11 +14,11 @@ function node_is_main(mod_self){
 }
 
 export function leaf_ip_out(){
-  lifnet_listen('tcp/out', leaf_tcp_out); // unused
-  lifnet_listen('http/out', leaf_http_out); // unused
-  lifnet_listen('websocket/out', leaf_websocket_out); // unused
+  lifnet.listen('tcp/out', leaf_tcp_out); // unused
+  lifnet.listen('http/out', leaf_http_out); // unused
+  lifnet.listen('websocket/out', leaf_websocket_out); // unused
   leaf_rpc_websocket_out('rpc/websocket/out'); // unused
-  lifnet_listen('dns/out', leaf_dns_out); // unused
+  lifnet.listen('dns/out', leaf_dns_out); // unused
 }
 
 const lifcoin_node_url = 'http://localhost:8432';
@@ -70,10 +70,10 @@ export function leaf_lifcoin_out(){
   ];
   for (let s of electrum_servers)
     leaf_rpc_websocket_out('bitcoin/electrum', s);
-  lifnet_listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
-  lifnet_listen('lifcoin_test/lif_kv', leaf_liftest_lif_kv_out);
-  lifnet_listen('lifcoin/node', leaf_lifcoin_node_out); // unused
-  lifnet_listen('lifcoin/blockstream', leaf_lifcoin_blockstream_out);
+  lifnet.listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
+  lifnet.listen('lifcoin_test/lif_kv', leaf_liftest_lif_kv_out);
+  lifnet.listen('lifcoin/node', leaf_lifcoin_node_out); // unused
+  lifnet.listen('lifcoin/blockstream', leaf_lifcoin_blockstream_out);
 }
 
 async function start_leaf(opt={}){
