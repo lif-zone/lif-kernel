@@ -408,6 +408,7 @@ export class Lifnet extends EventEmitter {
   _;
   inited;
   constructor(_lifnet){
+    super();
     this._ = _lifnet || new _Lifnet();
   }
   init(){
