@@ -426,7 +426,7 @@ export class Lifnet extends EventEmitter {
     this.inited = true;
     this._.trunk_add_router(rpc);
   }
-  _listen_close(opt){
+  listen_close(opt){
     this._.listen(opt.method);
     if (opt.topic)
       this._.topic_unpub(opt.topic);
@@ -522,11 +522,11 @@ export class Lifnet extends EventEmitter {
       opt.auto_close ??= true;
     }
     if (!fn)
-      return this._._listen_close(topic);
-    this._._listen(opt.method, fn);
+      return this._.listen_close(topic);
+    this._.listen(opt.method, fn);
     if (opt.topic)
       this._.topic_pub(opt.topic, opt.data);
-    return {close: ()=>this._._listen_close(opt)};
+    return {close: ()=>this._.listen_close(opt)};
   }
   async call(topic, params){
     this.init();
