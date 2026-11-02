@@ -530,7 +530,7 @@ export class Lifnet extends EventEmitter {
   }
   async call(topic, params){
     this.init();
-    let {sock, ret, error} = await this._.connect(topic, params);
+    let {sock, ret, error} = await this.connect(topic, params);
     sock?.close();
     return {ret, error};
   }
