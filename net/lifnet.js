@@ -522,11 +522,11 @@ export class Lifnet extends EventEmitter {
       opt.auto_close ??= true;
     }
     if (!fn)
-      return this._.listen_close(topic);
+      return this.listen_close(topic);
     this._.listen(opt.method, fn);
     if (opt.topic)
       this._.topic_pub(opt.topic, opt.data);
-    return {close: ()=>this._.listen_close(opt)};
+    return {close: ()=>this.listen_close(opt)};
   }
   async call(topic, params){
     this.init();
