@@ -129,8 +129,8 @@ function div_loader(){
 }
 
 async function do_load_retry(){
-  if (!await wait_timeout(2000, fetch('/.lif/cache_clear')))
-    console.log('failed /.lif/cache_clear');
+  if (!await wait_timeout(2000, fetch('/.lif/kernel/cache_clear')))
+    console.log('failed /.lif/kernel/cache_clear');
   await wait_timeout(2000, sw_unregister());
   window.location.reload(true);
 }

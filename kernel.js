@@ -1207,12 +1207,12 @@ async function fetch_pass(request, type){
   }
 }
 
-function lif_admin_clear_cache(){
+function lif_kernel_cache_clear(){
   db_delete();
   return {ok: true, msg: 'cache cleared'};
 }
 
-function lif_admin_modules(){
+function lif_kernel_modules(){
   let res = {};
   if (lpm_pkg_app)
     res.app_id = lpm_pkg_app.id;
@@ -1231,22 +1231,24 @@ function lif_admin_modules(){
   return res;
 }
 
-async function lif_admin(path){
-  let res;
-  if (path=='/.lif/version')
-    res = {version: lif_version};
-  else if (path=='/.lif/status')
-    res = {version: lif_version, status: 'loading/loaded'};
-  else if (path=='/.lif/app_pkg')
-    res = await do_app_pkg(); // XXX boot_pkg arg
-  else if (path=='/.lif/kernel_stats')
-    res = do_kernel_stats();
-  else if (path=='/.lif/cache_clear') // manual clear cache
-    res = lif_admin_clear_cache();
-  else if (path=='/.lif/modules') // show loaded modules
-    res = lif_admin_modules();
-  else
+async function lif_kernel_admin(path){
+  if (!path.startsWith('/.lif/kernel/'))
     return;
+  let res;
+  if (path=='/.lif/kernel/version')
+    res = {version: lif_version};
+  else if (path=='/.lif/kernel/status')
+    res = {version: lif_version, status: 'loading/loaded'};
+  else if (path=='/.lif/kernel/app_pkg')
+    res = await do_app_pkg(); // XXX boot_pkg arg
+  else if (path=='/.lif/kernel/stats')
+    res = do_kernel_stats();
+  else if (path=='/.lif/kernel/cache_clear') // manual clear cache
+    res = lif_kernel_cache_clear();
+  else if (path=='/.lif/kernel/modules') // show loaded modules
+    res = lif_kernel_modules();
+  else
+    res = {ok: false, 'error': 'path not found'};
   return send_res({body: json(res), ext: 'json', path});
 }
 
@@ -1298,7 +1300,7 @@ async function _kernel_fetch(event){
   // LIF+local GET requests
   // LIF requests
   let v;
-  if (v=await lif_admin(path))
+  if (v=await lif_kernel_admin(path))
     return v;
   if (v=str.starts(path, '/.lif/')){
     let lmod = v.rest;
