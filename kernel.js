@@ -1207,13 +1207,12 @@ async function fetch_pass(request, type){
   }
 }
 
-function clear_cache(path){
+function lif_admin_clear_cache(path){
   db_delete();
-  return send_res({body: json({ok: true, msg: 'cache cleared'}),
-    ext: 'json', path});
+  return {ok: true, msg: 'cache cleared'};
 }
 
-function modules_list(path){
+function lif_admin_modules(path){
   let res = {};
   if (lpm_pkg_app)
     res.app_id = lpm_pkg_app.id;
@@ -1229,6 +1228,21 @@ function modules_list(path){
     }
   }
   console.log(res);
+  return res;
+}
+
+function lif_admin(path){
+  let res;
+  if (path=='/.lif/version')
+    res = {version: lif_version};
+  else if (path=='/.lif/status')
+    res = {version: lif_version, status: 'loading/loaded'};
+  else if (path=='/.lif/cache_clear') // manual clear cache
+    res = lif_admin_clear_cache(path);
+  else if (path=='/.lif/modules') // show loaded modules
+    res = lif_admin_modules(path);
+  else
+    return;
   return send_res({body: json(res), ext: 'json', path});
 }
 
@@ -1280,10 +1294,8 @@ async function _kernel_fetch(event){
   // LIF+local GET requests
   // LIF requests
   let v;
-  if (path=='/.lif/cache_clear') // clear cache command
-    return clear_cache(path);
-  if (path=='/.lif/modules') // show modules
-    return modules_list(path);
+  if (v=lif_admin(path))
+    return v;
   if (v=str.starts(path, '/.lif/')){
     let lmod = v.rest;
     log.imp = lmod;
