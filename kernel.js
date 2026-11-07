@@ -1207,12 +1207,12 @@ async function fetch_pass(request, type){
   }
 }
 
-function lif_admin_clear_cache(path){
+function lif_admin_clear_cache(){
   db_delete();
   return {ok: true, msg: 'cache cleared'};
 }
 
-function lif_admin_modules(path){
+function lif_admin_modules(){
   let res = {};
   if (lpm_pkg_app)
     res.app_id = lpm_pkg_app.id;
@@ -1238,9 +1238,9 @@ function lif_admin(path){
   else if (path=='/.lif/status')
     res = {version: lif_version, status: 'loading/loaded'};
   else if (path=='/.lif/cache_clear') // manual clear cache
-    res = lif_admin_clear_cache(path);
+    res = lif_admin_clear_cache();
   else if (path=='/.lif/modules') // show loaded modules
-    res = lif_admin_modules(path);
+    res = lif_admin_modules();
   else
     return;
   return send_res({body: json(res), ext: 'json', path});
