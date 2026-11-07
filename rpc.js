@@ -337,8 +337,10 @@ export class rpc_sock extends rpc_base {
         _msg.id = inner_id;
       if (inner_id!=null || _msg.method!=null)
         this.emit_msg(_msg, opt);
-      if (msg.close)
+      if (msg.close){
+        console.log('XXX '+this.pre+': msg.close received', msg);
         this.emit_close();
+      }
     });
     this.emit_connect();
   }
@@ -391,6 +393,7 @@ export class rpc_sock extends rpc_base {
       } catch(err){ CEL(err);
         res = {error: ''+err};
       }
+      console.log('XXX static_listen', res);
       if ('error' in res)
         sock.emit_error(res.error);
       sock.send({...res, id: seq});
@@ -398,8 +401,11 @@ export class rpc_sock extends rpc_base {
     });
   }
   close(){
-    if (this._id)
+    if (this._id){
+      if (this.state=='close')
+        console.log('XXX close() an already closed sock');
       this.send({close: true});
+    }
     super.close();
   }
 }
