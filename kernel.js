@@ -1207,6 +1207,12 @@ async function fetch_pass(request, type){
   }
 }
 
+function clear_cache(path){
+  db_delete();
+  return send_res({body: json({ok: true, msg: 'cache cleared'}),
+    ext: 'json', path});
+}
+
 function modules_list(path){
   let res = {};
   if (lpm_pkg_app)
@@ -1274,11 +1280,8 @@ async function _kernel_fetch(event){
   // LIF+local GET requests
   // LIF requests
   let v;
-  if (path=='/.lif/cache_clear'){ // clear cache command
-    db_delete();
-    return send_res({body: json({ok: true, msg: 'cache cleared'}),
-      ext: 'json', path});
-  }
+  if (path=='/.lif/cache_clear') // clear cache command
+    return clear_cache(path);
   if (path=='/.lif/modules') // show modules
     return modules_list(path);
   if (v=str.starts(path, '/.lif/')){
