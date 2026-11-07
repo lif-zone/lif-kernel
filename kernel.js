@@ -1231,13 +1231,15 @@ function lif_admin_modules(){
   return res;
 }
 
-function lif_admin(path){
+async function lif_admin(path){
   let res;
   if (path=='/.lif/version')
     res = {version: lif_version};
   else if (path=='/.lif/status')
     res = {version: lif_version, status: 'loading/loaded'};
-  else if (path=='/.lif/stats')
+  else if (path=='/.lif/app_pkg')
+    res = await do_app_pkg(); // XXX boot_pkg arg
+  else if (path=='/.lif/kernel_stats')
     res = do_kernel_stats();
   else if (path=='/.lif/cache_clear') // manual clear cache
     res = lif_admin_clear_cache();
@@ -1296,7 +1298,7 @@ async function _kernel_fetch(event){
   // LIF+local GET requests
   // LIF requests
   let v;
-  if (v=lif_admin(path))
+  if (v=await lif_admin(path))
     return v;
   if (v=str.starts(path, '/.lif/')){
     let lmod = v.rest;
