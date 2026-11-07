@@ -1235,6 +1235,7 @@ async function lif_kernel_admin(request, path){
   if (!path.startsWith('/.lif/kernel/'))
     return;
   function do_err(err){
+    return send_res({body: json({error: err}), ext: 'json', path});
   }
   if (!str.is(request.method, 'GET', 'HEAD', 'POST'))
     return do_err('lif_kernel_admin invalid method '+request.method);
