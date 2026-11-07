@@ -246,7 +246,7 @@ function http_listener(req, res){
     return res_err(res, 404, 'invalid /.lif/ uri');
   if (spa)
     return res_send_file(res, map_uri({uri: '/', opt: g_opt}));
-  console.log(req.headers);
+  0 && console.log(req.headers);
   return res_err(res, 404, 'no map found');
 }
 
