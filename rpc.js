@@ -42,9 +42,8 @@ export class rpc_base extends EventEmitter {
   }
   async T_call(method, params){
     let res = await this._call(method, params);
-    if ('error' in res){
+    if ('error' in res)
       throw res.error;
-    }
     return res.result;
   }
   async U_call(method, params){
@@ -77,7 +76,7 @@ export class rpc_base extends EventEmitter {
       this.D && console.log(this.pre+id+'>> '+method, params);
       let ret = await req.wait;
       if ('error' in ret){
-        assert(ret.error, 'invalid false error val: '+ret.error);
+        assert(ret.error!==undefined, 'invalid false error val: '+ret.error);
         res = ret;
       } else if ('result' in ret)
         res = ret;
@@ -140,7 +139,8 @@ export class rpc_base extends EventEmitter {
     }
     res = {...res, id};
     if (this.D || 'error' in res){
-      console.log(this.pre+_id+'<< '+(res.error ? 'err ' : '')+method, /*params,*/
+      console.log(this.pre+_id+'<< '
+        +(res.error!==undefined ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
     this.send(res, opt);
