@@ -1237,6 +1237,8 @@ function lif_admin(path){
     res = {version: lif_version};
   else if (path=='/.lif/status')
     res = {version: lif_version, status: 'loading/loaded'};
+  else if (path=='/.lif/stats')
+    res = do_kernel_stats();
   else if (path=='/.lif/cache_clear') // manual clear cache
     res = lif_admin_clear_cache();
   else if (path=='/.lif/modules') // show loaded modules
