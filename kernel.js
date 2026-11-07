@@ -1333,13 +1333,14 @@ async function _kernel_fetch(event){
 
 async function kernel_fetch(event){
   let slow;
+  let url = event.request.url;
   try {
-    slow = eslow(15000, '_kernel_fetch '+event.request.url);
+    slow = eslow(15000, '_kernel_fetch '+url);
     let res = await _kernel_fetch(event);
     slow.end();
     return res;
   } catch(err){
-    console.error('kernel_fetch err', err);
+    console.error('kernel_fetch err '+url, err);
     slow.end();
     return new Response(''+err, {status: 500, statusText: ''+err});
   }
