@@ -386,7 +386,7 @@ export class rpc_sock extends rpc_base {
       let res;
       try {
         res = await fn({msg, sock});
-        if (!res || !('result' in res))
+        if (!res || !(('result' in res) || res.error!==undefined))
           res = {result: res};
       } catch(err){ CEL(err);
         res = {error: ''+err};
