@@ -1231,24 +1231,39 @@ function lif_kernel_modules(){
   return res;
 }
 
-async function lif_kernel_admin(path){
+async function lif_kernel_admin(request, path){
   if (!path.startsWith('/.lif/kernel/'))
     return;
+  function do_err(err){
+  }
+  if (!str.is(request.method, 'GET', 'HEAD', 'POST'))
+    return do_err('lif_kernel_admin invalid method '+request.method);
+  let args;
+  if (request.method=='POST'){
+    const req = request.clone();
+    try {
+      args = await req.json();
+    } catch(err){
+      return do_err('json error: '+err);
+    }
+  }
   let res;
   if (path=='/.lif/kernel/version')
     res = {version: lif_version};
   else if (path=='/.lif/kernel/status')
     res = {version: lif_version, status: 'loading/loaded'};
-  else if (path=='/.lif/kernel/app_pkg')
-    res = await do_app_pkg(); // XXX boot_pkg arg
-  else if (path=='/.lif/kernel/stats')
+  else if (path=='/.lif/kernel/app_pkg'){
+    if (!args)
+      return do_err('pkg_app missing args');
+    res = await do_app_pkg(args);
+  } else if (path=='/.lif/kernel/stats')
     res = do_kernel_stats();
   else if (path=='/.lif/kernel/cache_clear') // manual clear cache
     res = lif_kernel_cache_clear();
   else if (path=='/.lif/kernel/modules') // show loaded modules
     res = lif_kernel_modules();
   else
-    res = {ok: false, 'error': 'path not found'};
+    return do_err('lif_kernel_admin path not found '+path);
   return send_res({body: json(res), ext: 'json', path});
 }
 
@@ -1275,11 +1290,14 @@ async function _kernel_fetch(event){
   let is_reload = str.is(request.cache, 'no-cache', 'reload') ||
     request.mode=='navigate';
   let is_doc = request_is_doc(request);
+  let v;
   D && console.log('sw '+log.mod);
   // external and non GET requests
   g_stats.fetch.all++;
   if (external)
     return fetch_pass(request, 'external');
+  if (v=await lif_kernel_admin(request, path))
+    return v;
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-get');
   g_stats.fetch.lif++;
@@ -1299,9 +1317,6 @@ async function _kernel_fetch(event){
   }
   // LIF+local GET requests
   // LIF requests
-  let v;
-  if (v=await lif_kernel_admin(path))
-    return v;
   if (v=str.starts(path, '/.lif/')){
     let lmod = v.rest;
     log.imp = lmod;
