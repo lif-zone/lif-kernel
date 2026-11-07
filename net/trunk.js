@@ -185,12 +185,16 @@ export function rpc_methods_lifnet_trunk(rpc){
     if (!rg)
       return {error: 'rg_id not locally connected: '+rg_id};
     let c = {rpc, sock};
-    let s = {rpc: rg, sock: new rpc_sock()};
+    let s = {rpc: rg, sock: new rpc_sock({D: 1,
+      pre: 'peer_rconnect:'+rg_id})};
     let br_id = g_br_id++;
     br_t[br_id] = {br_id, time: date_time(), c, s};
     rpc_sock_pipe(c.sock, s.sock);
     c.sock.on('close', ()=>delete br_t[br_id]);
-    return await s.sock.connect(s.rpc, method, params);
+    let ret = await s.sock.connect(s.rpc, method, params);
+    if (ret?.error)
+      console.error('peer_rconnect failed rg='+rg_id+' method='+method+': '+ret.error);
+    return ret;
   });
   rpc_sock.listen(rpc, 'rconnect', rpc_sock_rconnect);
   rpc.on('close', ()=>{

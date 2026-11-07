@@ -198,9 +198,9 @@ export class rpc_base extends EventEmitter {
     this.error = err || 'rpc error';
     this._wait_open.throw('error');
     this.emit('error', err);
-    this.emit_close();
+    this.destroy();
   }
-  emit_close(){
+  destroy(){
     if (this.state=='close')
       return;
     this.D && console.log(this.pre+'>! close');
@@ -246,7 +246,7 @@ export class rpc_base extends EventEmitter {
     this.id_fn[id] = fn;
   }
   close(){
-    this.emit_close();
+    this.destroy();
   }
 }
 rpc_base.sym_filter = Symbol('filter');
@@ -310,17 +310,17 @@ export class rpc_sock extends rpc_base {
     msg = {...msg, id};
     this.rpc.send(msg, opt);
   }
-  emit_close(){
+  destroy(){
     if (this._id && this.rpc)
       this.rpc.on_id(JSON.stringify(this._id[0]));
-    super.emit_close();
+    super.destroy();
   }
   set_events(){
     let key = JSON.stringify(this._id[0]);
     this.rpc.on_id(key, ({msg, opt, close})=>{
       if (close){
         this.D && console.log(this.pre+': parent close closing id', this._id);
-        return this.emit_close();
+        return this.destroy();
       }
       let rest = msg.id.slice(1);
       let inner_id;
@@ -339,7 +339,7 @@ export class rpc_sock extends rpc_base {
         this.emit_msg(_msg, opt);
       if (msg.close){
         console.log('XXX '+this.pre+': msg.close received', msg);
-        this.emit_close();
+        this.destroy();
       }
     });
     this.emit_connect();
@@ -427,7 +427,7 @@ export class ipc_postmessage extends rpc_base {
       this.emit_msg(data);
     });
     this.port.addEventListener('error', event=>this.emit_error(event.data));
-    this.port.addEventListener('close', event=>this.emit_close());
+    this.port.addEventListener('close', event=>this.destroy());
     this.port.start();
     this.emit_connect();
   }
@@ -543,7 +543,7 @@ export class rpc_websocket extends rpc_base {
         'ws error '+err.message;
       this.emit_error(_err);
     });
-    this.ws.on('close', ()=>this.emit_close());
+    this.ws.on('close', ()=>this.destroy());
   }
   async connect(opt){
     this.is_connect = true;
