@@ -56,7 +56,7 @@ export async function rpc_sock_rconnect({msg, sock}){
     let s = {rpc: rg, sock: new rpc_sock()};
     rpc_sock_pipe(c.sock, s.sock, {close: false});
     let ret = await s.sock.connect(s.rpc, method, params);
-    if (ret?.error!==undefined)
+    if (ret?.error)
       return ret;
     let br_id = g_br_id++;
     br_t[br_id] = {br_id, time: date_time(), c, s};
@@ -75,7 +75,7 @@ export async function rpc_sock_rconnect({msg, sock}){
   rpc_sock_pipe(c.sock, s.sock, {close: false});
   let ret = await s.sock.connect(peer, 'peer_rconnect',
     {rg_id, method, params});
-  if (ret?.error!==undefined)
+  if (ret?.error)
     return ret;
   let br_id = g_br_id++;
   br_t[br_id] = {br_id, time: date_time(), c, s};
@@ -268,7 +268,7 @@ async function _peer_connect(url){
       rg_ids: Object.keys(rg_conn),
       topics: my_topics_snapshot(),
     });
-    if (ret.error!==undefined)
+    if (ret.error)
       throw new Error(ret.error);
     if (ret.trunk_id==g_rg_id){
       console.log('trunk peer '+url+': disconnecting from self');
