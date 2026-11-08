@@ -15,7 +15,7 @@ const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
   lpm_parse, T_lpm_lmod, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, lpm_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
-  pkg_transform_type, npm_ver_lookup, patch_json,
+  pkg_transform_type, npm_ver_lookup, patch_json, lpm_is_perm,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
 } = await import('./reg.js');
@@ -1321,9 +1321,11 @@ async function _kernel_fetch(event){
   if (v=str.starts(path, '/.lif/')){
     let lmod = v.rest;
     log.imp = lmod;
-    let response = await cache_store_get(request);
-    if (response)
-      return response;
+    if (lpm_is_perm(lmod)){
+      let response = await cache_store_get(request);
+      if (response)
+        return response;
+    }
     let res;
     if (q.has('meta'))
       res = await fetch_lpm_meta_res({log, imp: lmod, qs});
@@ -1331,7 +1333,7 @@ async function _kernel_fetch(event){
       res = await fetch_lpm_file({log, imp: lmod, qs});
     if (res.err)
       console.error('req '+url+': '+res.err);
-    response = await send_res({...res, path});
+    let response = await send_res({...res, path});
     if (res.cache)
       cache_store_set(request, response); // background: no need to await
     return response;

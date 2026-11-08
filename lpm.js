@@ -446,9 +446,9 @@ export function lpm_ver_final(u){
 }
 export function lpm_is_perm(u){
   u = _lpm_parse(u);
-  return str.is(u.reg, 'npm', 'git') ? u.ver_type=='final' :
-    str.is(u.reg, 'local', 'https', 'http') ? false :
-    true;
+  if (str.is(u.reg, 'npm', 'git'))
+    return u.ver_type=='final' && !u.path.startsWith('/.lif.imp/');
+  return str.is(u.reg, 'local', 'https', 'http') ? false : true;
 }
 
 export function _lpm_parse(lpm){
@@ -1140,6 +1140,7 @@ function test_lpm(){
     assert_eq(v.type, lpm_ver_type(lpm));
   };
   t('npm/mod@1.2.3/file', {perm: true, final: true, type: 'final'});
+  t('npm/mod@1.2.3/.lif.imp/mod2', {perm: false, final: true, type: 'final'});
   t('npm/mod/dir', {type: 'missing'});
   t('npm/other@1.2.3/file', {perm: true, final: true, type: 'final'});
   t('npm/node:path', {type: 'missing'});
