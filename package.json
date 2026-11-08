@@ -115,7 +115,12 @@
     "@peculiar/x509": "1.9.3",
     "acme-client": "5.0.0",
     "dns2": "3.0.0",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "avl": "1.5.3",
+    "js-fibonacci-heap": "github:gwtw/js-fibonacci-heap#ec31d0966f9e54b0a52f3a074fe1d2442ab69979",
+    "secp256k1": "5.0.0",
+    "simple-peer": "9.11.0",
+    "sodium-universal": "3.1.0"
   },
   "run": {
     "lif-kernel": "./web/server.js"
@@ -136,6 +141,7 @@
     "mocha": "11.7.6",
     "mocha-junit-reporter": "2.2.1",
     "mocha-multi-reporters": "1.5.1",
+    "sinon": "1.17.6",
     "puppeteer-core": "^25.1.0"
   }
 }
