@@ -26,9 +26,14 @@ class Trunk_loopback extends EventEmitter {
       if (!fn || !is_listen)
         return {error: 'no loopback listen '+method};
       let [svc_c, svc_s] = sock_pair();
-      rpc_sock_pipe(c_sock, svc_c);
+      rpc_sock_pipe(c_sock, svc_c, {close: false});
       this.lifnet.base_methods(svc_s);
-      return await fn({msg: {method, params}, sock: svc_s});
+      let ret = await fn({msg: {method, params}, sock: svc_s});
+      if (ret?.error)
+        return ret;
+      c_sock.on('close', ()=>svc_c.close());
+      svc_c.on('close', ()=>c_sock.close());
+      return ret;
     });
   }
   topic_get(topic){
