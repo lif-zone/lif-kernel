@@ -3,7 +3,7 @@ import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
-import etask from '../etask.js';
+import etask from '../util/etask.js';
 import {server_open, browser_open, fetch_test, browser_test,
 } from './test_lib.js';
 

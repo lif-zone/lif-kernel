@@ -41,7 +41,7 @@
   "files": [
     "sha256.js",
     "sha256lif.js",
-    "etask.js",
+    "util/etask.js",
     "util.js",
     "ipc.js",
     "ipc_fetch.js",
@@ -102,7 +102,7 @@
     "./rpc.js": "./rpc.js",
     "./lpm.js": "./lpm.js",
     "./ast.js": "./ast.js",
-    "./etask": "./etask.js",
+    "./etask": "./util/etask.js",
     "./sha256.js": "./sha256.js",
     "./sha256lif.js": "./sha256lif.js",
     "./web/server_lib.js": "./web/server_lib.js",

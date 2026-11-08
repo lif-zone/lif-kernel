@@ -4,7 +4,7 @@ let lif_rg_version = '2026.8.23';
 import {assert_eq, version as util_version, date_time, CEL, assert, OV,
   } from '../util.js';
 import {rpc_websocket, rpc_sock, rpc_sock_pipe, sock_pair} from '../rpc.js';
-import etask from '../etask.js';
+import etask from '../util/etask.js';
 
 const topics = {};       // topic → {rg_id: rpc} (locally published)
 const peer_topics = {};  // topic → {rg_id: trunk_id} (published on peer trunks)
