@@ -42,19 +42,19 @@ export class rpc_base extends EventEmitter {
   }
   async T_call(method, params){
     let res = await this._call(method, params);
-    if (res?.error!==undefined)
+    if (res?.error)
       throw res.error;
     return res.result;
   }
   async U_call(method, params){
     let res = await this._call(method, params);
-    if (res?.error!==undefined)
+    if (res?.error)
       return;
     return res.result;
   }
   async call(method, params){
     let res = await this._call(method, params);
-    if (res?.error!==undefined)
+    if (res?.error)
       return res;
     return res.result==null ? false : res.result;
   }
@@ -75,10 +75,9 @@ export class rpc_base extends EventEmitter {
       this.send(request, opt);
       this.D && console.log(this.pre+id+'>> '+method, params);
       let ret = await req.wait;
-      if (ret?.error!==undefined){
-        assert(ret.error!==undefined, 'invalid false error val: '+ret.error);
+      if (ret?.error)
         res = ret;
-      } else if ('result' in ret)
+      else if ('result' in ret)
         res = ret;
       else
         res = {error: 'invalid msg: no result or error'};
@@ -88,7 +87,7 @@ export class rpc_base extends EventEmitter {
     }
     slow.end();
     0 && this.D && console.log(
-      this.pre+id+'>< '+(res.error!==undefined ? 'error ' : '')+method, res);
+      this.pre+id+'>< '+(res.error ? 'error ' : '')+method, res);
     return res;
   }
   notify(method, params, opt){
@@ -124,10 +123,9 @@ export class rpc_base extends EventEmitter {
       let ret = await method_fn(msg);
       if (ret===rpc_base.sym_filter)
         return;
-      if (ret?.error!==undefined){
-        assert(ret.error, 'invalid false error val: '+ret.error);
+      if (ret?.error)
         res = ret;
-      } else if (ret && 'result' in ret)
+      else if (ret && 'result' in ret)
         res = ret;
       else
         res = {result: ret};
@@ -138,9 +136,9 @@ export class rpc_base extends EventEmitter {
       slow.end();
     }
     res = {...res, id};
-    if (this.D || res?.error!==undefined){
+    if (this.D || res?.error){
       console.log(this.pre+_id+'<< '
-        +(res.error!==undefined ? 'err ' : '')+method, /*params,*/
+        +(res.error ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
     this.send(res, opt);
@@ -390,12 +388,12 @@ export class rpc_sock extends rpc_base {
       let res;
       try {
         res = await fn({msg, sock});
-        if (!res || !(('result' in res) || res.error!==undefined))
+        if (!res || !(('result' in res) || res.error))
           res = {result: res};
       } catch(err){ CEL(err);
         res = {error: ''+err};
       }
-      if (res.error!==undefined)
+      if (res.error)
         sock.end({...res, id: seq});
       else
         sock.send({...res, id: seq});
