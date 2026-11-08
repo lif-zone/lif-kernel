@@ -363,13 +363,14 @@ export async function leaf_rpc_websocket_out(topic, url){
     if (str.starts(url, 'tcp:', 'ssl:', 'ussl:'))
       ws_ctor = rpc_tcp;
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor});
-    let wait = s.connect({url});
-    rpc_sock_pipe(sock, s);
+    rpc_sock_pipe(sock, s, {close: false});
     try {
-      await wait;
+      await s.connect({url});
     } catch(err){
-      return sock_error_log('failed connection '+url+': '+err);
+      return {error: ''+err};
     }
+    sock.on('close', ()=>s.close());
+    s.on('close', ()=>sock.close());
     console.log('leaf connected');
     return {connected: true};
   });

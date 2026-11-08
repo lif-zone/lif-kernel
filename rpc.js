@@ -196,7 +196,7 @@ export class rpc_base extends EventEmitter {
     this.D && console.log(this.pre+'>! error: '+err);
     this.state = 'error';
     this.error = err || 'rpc error';
-    this._wait_open.throw('error');
+    this._wait_open.throw(err||'error');
     this.emit('error', err);
     this.destroy();
   }
