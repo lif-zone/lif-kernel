@@ -152,7 +152,7 @@ async function host_to_ip(host){
 }
 
 // TCP Client Proxy
-export async function leaf_tcp_out({msg, sock, allow_ip}){ // XXX unused
+export async function lif_tcp_out({msg, sock, allow_ip}){ // XXX unused
   let {host, port, tls: is_tls} = msg.params;
   assert((port&0xffff)==port, 'invalid port');
   assert(host && typeof host=='string', 'invalid host');
@@ -204,8 +204,8 @@ export async function leaf_tcp_out({msg, sock, allow_ip}){ // XXX unused
   return {addr: tcp.remoteAddress, port: tcp.remotePort};
 }
 
-// HTTP/HTTPS Client Proxy for lif_fetch()
-export async function leaf_http_out({msg, sock, allow_ip}){
+// HTTP/HTTPS Client Proxy for lif_fetch_out()
+export async function lif_http_out({msg, sock, allow_ip}){
   let {url, method='GET', headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -251,7 +251,7 @@ export async function leaf_http_out({msg, sock, allow_ip}){
   return {};
 }
 
-export async function leaf_fetch_out({msg, sock, allow_ip}){
+export async function lif_fetch_out({msg, sock, allow_ip}){
   let {url, method='GET', headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -282,7 +282,7 @@ export async function leaf_fetch_out({msg, sock, allow_ip}){
 }
 
 // WebSocket Client Proxy for lif_WebSocket()
-export async function leaf_websocket_out({msg, sock, allow_ip}){ // XXX unused
+export async function lif_websocket_out({msg, sock, allow_ip}){ // XXX unused
   let {url, protocols, headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
@@ -327,7 +327,7 @@ export async function leaf_websocket_out({msg, sock, allow_ip}){ // XXX unused
 }
 
 // DNS Resolution Service
-export async function leaf_dns_out({msg, sock}){ // XXX unused
+export async function lif_dns_out({msg, sock}){ // XXX unused
   let {host, family=4} = msg.params;
   assert(host && typeof host=='string', 'invalid host');
   let addrs;
@@ -350,7 +350,7 @@ export async function ws_on_connect_pipe(ws, url){ // XXX unused
   });
 }
 
-export async function leaf_rpc_websocket_out(topic, url){
+export async function lif_rpc_websocket_out(topic, url){
   await lifnet.listen(topic, async({msg, sock})=>{
     if (!url){
       url = msg.params?.url;
@@ -358,7 +358,6 @@ export async function leaf_rpc_websocket_out(topic, url){
     }
     if (!url)
       return sock_error_log('missing url');
-    console.log('leaf try');
     let ws_ctor;
     if (str.starts(url, 'tcp:', 'ssl:', 'ussl:'))
       ws_ctor = rpc_tcp;
@@ -371,7 +370,6 @@ export async function leaf_rpc_websocket_out(topic, url){
     }
     sock.on('close', ()=>s.close());
     s.on('close', ()=>sock.close());
-    console.log('leaf connected');
     return {connected: true};
   });
 }

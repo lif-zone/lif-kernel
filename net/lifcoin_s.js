@@ -5,20 +5,20 @@ import path from 'path';
 import '../compat/browser_env.js';
 import {url_http_to_ws, qs_enc} from '../util.js';
 import {lifnet} from './lifnet.js';
-import {leaf_rpc_websocket_out, leaf_fetch_out, leaf_websocket_out,
-  leaf_http_out, leaf_tcp_out, leaf_dns_out,
+import {lif_rpc_websocket_out, lif_fetch_out, lif_websocket_out,
+  lif_http_out, lif_tcp_out, lif_dns_out,
 } from './tcpip_s.js';
 
 function node_is_main(mod_self){
   return path.resolve(process.argv[1])==fileURLToPath(mod_self);
 }
 
-export function leaf_ip_out(){
-  lifnet.listen('tcp/out', leaf_tcp_out); // unused
-  lifnet.listen('http/out', leaf_http_out); // unused
-  lifnet.listen('websocket/out', leaf_websocket_out); // unused
-  leaf_rpc_websocket_out('rpc/websocket/out'); // unused
-  lifnet.listen('dns/out', leaf_dns_out); // unused
+export function lif_ip_out(){
+  lifnet.listen('tcp/out', lif_tcp_out); // unused
+  lifnet.listen('http/out', lif_http_out); // unused
+  lifnet.listen('websocket/out', lif_websocket_out); // unused
+  lif_rpc_websocket_out('rpc/websocket/out'); // unused
+  lifnet.listen('dns/out', lif_dns_out); // unused
 }
 
 const lifcoin_node_url = 'http://localhost:8432';
@@ -27,34 +27,34 @@ const lifcoin_lif_kv_url = 'http://localhost:8432/lif_kv';
 const liftest_node_url = 'http://localhost:18432';
 const liftest_node_ws_url = url_http_to_ws(lifcoin_node_url);
 const liftest_lif_kv_url = 'http://localhost:18432/lif_kv';
-async function leaf_lifcoin_lif_kv_out({msg, sock}){
+async function lif_lifcoin_lif_kv_out({msg, sock}){
   let {key} = msg.params;
   let m = {params: {url: lifcoin_lif_kv_url+qs_enc({key})}};
-  return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
+  return await lif_fetch_out({msg: m, sock, allow_ip: true}); // used
 }
-async function leaf_liftest_lif_kv_out({msg, sock}){
+async function lif_liftest_lif_kv_out({msg, sock}){
   let {key} = msg.params;
   let m = {params: {url: liftest_lif_kv_url+qs_enc({key})}};
-  return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
+  return await lif_fetch_out({msg: m, sock, allow_ip: true}); // used
 }
 
-async function leaf_lifcoin_node_out({msg, sock}){ // unused
+async function lif_lifcoin_node_out({msg, sock}){ // unused
   let m = {ip: '127.0.0.1', port: 8433};
-  return await leaf_tcp_out({msg: m, sock, allow_ip: true});
+  return await lif_tcp_out({msg: m, sock, allow_ip: true});
 }
 
-async function leaf_lifcoin_blockstream_out({msg, sock}){
+async function lif_lifcoin_blockstream_out({msg, sock}){
   let {uri} = msg.params;
   if (uri[0]!='/')
     return {error: 'invalid uri'};
   let m = {params: {url: lifcoin_node_url+'/blockstream'+uri}};
-  return await leaf_fetch_out({msg: m, sock, allow_ip: true}); // used
+  return await lif_fetch_out({msg: m, sock, allow_ip: true}); // used
 }
 
-export function leaf_lifcoin_out(){
+export function lif_lifcoin_out(){
   // ws://localhost:8432/electrum
-  leaf_rpc_websocket_out('lifcoin/electrum', lifcoin_node_ws_url+'/electrum');
-  leaf_rpc_websocket_out('lifcoin_test/electrum', liftest_node_ws_url+'/electrum');
+  lif_rpc_websocket_out('lifcoin/electrum', lifcoin_node_ws_url+'/electrum');
+  lif_rpc_websocket_out('lifcoin_test/electrum', liftest_node_ws_url+'/electrum');
   let electrum_servers = [
     //'wss://electrumx.nimiq.com:443/electrumx', // restricted CORS localhost:5000
     //'wss://bitcoinserver.nl:50004', // good
@@ -69,16 +69,16 @@ export function leaf_lifcoin_out(){
     //'wss://electrum.blockstream.info:993', // no response
   ];
   for (let s of electrum_servers)
-    leaf_rpc_websocket_out('bitcoin/electrum', s);
-  lifnet.listen('lifcoin/lif_kv', leaf_lifcoin_lif_kv_out); // used
-  lifnet.listen('lifcoin_test/lif_kv', leaf_liftest_lif_kv_out);
-  lifnet.listen('lifcoin/node', leaf_lifcoin_node_out); // unused
-  lifnet.listen('lifcoin/blockstream', leaf_lifcoin_blockstream_out);
+    lif_rpc_websocket_out('bitcoin/electrum', s);
+  lifnet.listen('lifcoin/lif_kv', lif_lifcoin_lif_kv_out); // used
+  lifnet.listen('lifcoin_test/lif_kv', lif_liftest_lif_kv_out);
+  lifnet.listen('lifcoin/node', lif_lifcoin_node_out); // unused
+  lifnet.listen('lifcoin/blockstream', lif_lifcoin_blockstream_out);
 }
 
-async function start_leaf(opt={}){
-  leaf_lifcoin_out();
-  leaf_ip_out();
+async function start_lifcoin_s(opt={}){
+  lif_lifcoin_out();
+  lif_ip_out();
 }
 
 export async function run(opt={}){
@@ -101,7 +101,7 @@ export async function run(opt={}){
     throw 'invalid args '+JSON.stringify(argv);
   lifnet.set_opt({client_name: 'lifcoin_s',
     uplink: opt.no_peer ? null : 'default'});
-  start_leaf(opt);
+  start_lifcoin_s(opt);
 }
 
 if (node_is_main(import.meta.url))

@@ -353,7 +353,7 @@ async function run(opt){
   }
   lifnet_opt.client_name = g_opt.lifnet_trunk
     ? (g_opt.peers?.length ? 'tpeer'+g_opt.port : 'tmain'+g_opt.port)
-    : 'leaf';
+    : 'lif_s';
   lifnet.set_opt(lifnet_opt);
   if (g_opt.lifnet_trunk)
     lifnet.init_router(trunk_router());
