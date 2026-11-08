@@ -19,7 +19,6 @@ import string from '../util/string.js';
 import xtest from '../util/test_lib.js';
 import xerr from '../util/xerr.js';
 import {EventEmitter} from 'events';
-import bigInt from 'big-integer';
 const assign = Object.assign; // XXX: rm
 const s2b = buf_util.buf_from_str;
 const stringify = JSON.stringify, is_number = xutil.is_number;
@@ -143,14 +142,14 @@ function hash_from_int(val, bits, total_bits){
   assert(!(total_bits % 4), 'invalid total_bits '+total_bits); // hex is 4bits
   assert(bits<=total_bits, 'bits bigger than total_bits');
   let len = total_bits/4;
-  let s = bigInt(val).shiftLeft(total_bits-bits).toString(16);
+  let s = (BigInt(val) << BigInt(total_bits-bits)).toString(16);
   return '0'.repeat(len-s.length)+s;
 }
 
 function int_from_hash(hash, bits, total_bits){
   assert(!(total_bits % 4), 'invalid total_bits '+total_bits); // hex is 4bits
   assert(bits<=total_bits, 'bits bigger than total_bits');
-  return bigInt(hash, 16).shiftRight(total_bits-bits).toString(10);
+  return ''+(BigInt('0x'+hash) >> BigInt(total_bits-bits));
 }
 
 function ch_diff(s, e){
@@ -2883,7 +2882,7 @@ describe('buf_util', ()=>{
     t(1, 40, '0000000001');
     _t(1, 256, 256,
       '0000000000000000000000000000000000000000000000000000000000000001');
-    _t(bigInt(2).pow(256).minus(1).toString(10), 256, 256,
+    _t(''+(2n**256n - 1n), 256, 256,
       'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
   });
   it('gen_ids', function(){
@@ -2949,14 +2948,14 @@ describe('node_id', function(){
     t(8, '00000000000000000008');
     t(15, '0000000000000000000f');
     t(16, '00000000000000000010');
-    t(bigInt(2).pow(48).minus(1).toString(10), '00000000ffffffffffff');
+    t(''+(2n**48n - 1n), '00000000ffffffffffff');
     t('281474976710655', '00000000ffffffffffff');
-    t(bigInt(2).pow(52).minus(1).toString(10), '0000000fffffffffffff');
-    t(bigInt(2).pow(56).minus(1).toString(10), '000000ffffffffffffff');
-    t(bigInt(2).pow(80).minus(1).toString(10), 'ffffffffffffffffffff');
-    t(bigInt(2).pow(80).minus(2).toString(10), 'fffffffffffffffffffe');
-    t(bigInt(2).pow(80).minus(15).toString(10), 'fffffffffffffffffff1');
-    t(bigInt(2).pow(80).minus(16).toString(10), 'fffffffffffffffffff0');
+    t(''+(2n**52n - 1n), '0000000fffffffffffff');
+    t(''+(2n**56n - 1n), '000000ffffffffffffff');
+    t(''+(2n**80n - 1n), 'ffffffffffffffffffff');
+    t(''+(2n**80n - 2n), 'fffffffffffffffffffe');
+    t(''+(2n**80n - 15n), 'fffffffffffffffffff1');
+    t(''+(2n**80n - 16n), 'fffffffffffffffffff0');
   });
   it('buffer', function(){
     const t = (s, exp)=>{
