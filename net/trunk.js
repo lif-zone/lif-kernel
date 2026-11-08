@@ -51,14 +51,18 @@ export async function rpc_sock_rconnect({msg, sock}){
   if (rg_id==g_rg_id)
     throw 'localhost not valid in rconnect';
   let c = {rpc, sock};
-  let br_id = g_br_id++;
   let rg = rg_conn[rg_id];
   if (rg){
     let s = {rpc: rg, sock: new rpc_sock()};
+    rpc_sock_pipe(c.sock, s.sock, {close: false});
+    let ret = await s.sock.connect(s.rpc, method, params);
+    if (ret?.error!==undefined)
+      return ret;
+    let br_id = g_br_id++;
     br_t[br_id] = {br_id, time: date_time(), c, s};
-    rpc_sock_pipe(c.sock, s.sock);
-    c.sock.on('close', ()=>delete br_t[br_id]);
-    return await s.sock.connect(s.rpc, method, params);
+    c.sock.on('close', ()=>{ s.sock.close(); delete br_t[br_id]; });
+    s.sock.on('close', ()=>{ c.sock.close(); delete br_t[br_id]; });
+    return ret;
   }
   // Cross-trunk routing via peer
   let trunk_id = rg_peer[rg_id];
@@ -68,10 +72,16 @@ export async function rpc_sock_rconnect({msg, sock}){
   if (!peer)
     throw 'peer trunk disconnected';
   let s = {rpc: peer, sock: new rpc_sock()};
+  rpc_sock_pipe(c.sock, s.sock, {close: false});
+  let ret = await s.sock.connect(peer, 'peer_rconnect',
+    {rg_id, method, params});
+  if (ret?.error!==undefined)
+    return ret;
+  let br_id = g_br_id++;
   br_t[br_id] = {br_id, time: date_time(), c, s};
-  rpc_sock_pipe(c.sock, s.sock);
-  c.sock.on('close', ()=>delete br_t[br_id]);
-  return await s.sock.connect(peer, 'peer_rconnect', {rg_id, method, params});
+  c.sock.on('close', ()=>{ s.sock.close(); delete br_t[br_id]; });
+  s.sock.on('close', ()=>{ c.sock.close(); delete br_t[br_id]; });
+  return ret;
 }
 
 function my_topics_snapshot(){
@@ -187,13 +197,17 @@ export function rpc_methods_lifnet_trunk(rpc){
     let c = {rpc, sock};
     let s = {rpc: rg, sock: new rpc_sock({D: 1,
       pre: 'peer_rconnect:'+rg_id})};
+    rpc_sock_pipe(c.sock, s.sock, {close: false});
+    let ret = await s.sock.connect(s.rpc, method, params);
+    if (ret?.error){
+      console.error('peer_rconnect failed rg='+rg_id+' method='+method
+        +': '+ret.error);
+      return ret;
+    }
     let br_id = g_br_id++;
     br_t[br_id] = {br_id, time: date_time(), c, s};
-    rpc_sock_pipe(c.sock, s.sock);
-    c.sock.on('close', ()=>delete br_t[br_id]);
-    let ret = await s.sock.connect(s.rpc, method, params);
-    if (ret?.error)
-      console.error('peer_rconnect failed rg='+rg_id+' method='+method+': '+ret.error);
+    c.sock.on('close', ()=>{ s.sock.close(); delete br_t[br_id]; });
+    s.sock.on('close', ()=>{ c.sock.close(); delete br_t[br_id]; });
     return ret;
   });
   rpc_sock.listen(rpc, 'rconnect', rpc_sock_rconnect);
@@ -254,7 +268,7 @@ async function _peer_connect(url){
       rg_ids: Object.keys(rg_conn),
       topics: my_topics_snapshot(),
     });
-    if (ret.error)
+    if (ret.error!==undefined)
       throw new Error(ret.error);
     if (ret.trunk_id==g_rg_id){
       console.log('trunk peer '+url+': disconnecting from self');

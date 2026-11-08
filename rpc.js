@@ -42,19 +42,19 @@ export class rpc_base extends EventEmitter {
   }
   async T_call(method, params){
     let res = await this._call(method, params);
-    if ('error' in res)
+    if (res?.error!==undefined)
       throw res.error;
     return res.result;
   }
   async U_call(method, params){
     let res = await this._call(method, params);
-    if ('error' in res)
+    if (res?.error!==undefined)
       return;
     return res.result;
   }
   async call(method, params){
     let res = await this._call(method, params);
-    if ('error' in res)
+    if (res?.error!==undefined)
       return res;
     return res.result==null ? false : res.result;
   }
@@ -75,7 +75,7 @@ export class rpc_base extends EventEmitter {
       this.send(request, opt);
       this.D && console.log(this.pre+id+'>> '+method, params);
       let ret = await req.wait;
-      if ('error' in ret){
+      if (ret?.error!==undefined){
         assert(ret.error!==undefined, 'invalid false error val: '+ret.error);
         res = ret;
       } else if ('result' in ret)
@@ -124,7 +124,7 @@ export class rpc_base extends EventEmitter {
       let ret = await method_fn(msg);
       if (ret===rpc_base.sym_filter)
         return;
-      if (ret && 'error' in ret){
+      if (ret?.error!==undefined){
         assert(ret.error, 'invalid false error val: '+ret.error);
         res = ret;
       } else if (ret && 'result' in ret)
@@ -138,7 +138,7 @@ export class rpc_base extends EventEmitter {
       slow.end();
     }
     res = {...res, id};
-    if (this.D || 'error' in res){
+    if (this.D || res?.error!==undefined){
       console.log(this.pre+_id+'<< '
         +(res.error!==undefined ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
@@ -309,6 +309,8 @@ export class rpc_sock extends rpc_base {
       id = [...this._id, inner];
     msg = {...msg, id};
     this.rpc.send(msg, opt);
+    if (msg.close)
+      this.destroy();
   }
   destroy(){
     if (this._id && this.rpc)
@@ -338,7 +340,7 @@ export class rpc_sock extends rpc_base {
       if (inner_id!=null || _msg.method!=null)
         this.emit_msg(_msg, opt);
       if (msg.close){
-        console.log('XXX '+this.pre+': msg.close received', msg);
+        this.D && console.log(this.pre+': msg.close received', msg);
         this.destroy();
       }
     });
@@ -349,7 +351,7 @@ export class rpc_sock extends rpc_base {
     this.is_connect = true;
     this.rpc = rpc;
     if (this.rpc.state=='close'){
-      this.close();
+      this.destroy();
       return {error: 'rpc closed'};
     }
     this._id = [{[this.rpc.is_connect ? 'c' : 's']: this.rpc.id_get()}];
@@ -393,20 +395,18 @@ export class rpc_sock extends rpc_base {
       } catch(err){ CEL(err);
         res = {error: ''+err};
       }
-      console.log('XXX static_listen', res);
-      if ('error' in res)
-        sock.emit_error(res.error);
-      sock.send({...res, id: seq});
+      if (res.error!==undefined)
+        sock.end({...res, id: seq});
+      else
+        sock.send({...res, id: seq});
       return rpc_base.sym_filter;
     });
   }
+  end(msg){
+    this.send({...msg, close: true});
+  }
   close(){
-    if (this._id){
-      if (this.state=='close')
-        console.log('XXX close() an already closed sock');
-      this.send({close: true});
-    }
-    super.close();
+    this.end({error: 'close'});
   }
 }
 
@@ -474,8 +474,6 @@ export class rpc_websocket extends rpc_base {
       return void console.error(this.pre+': send after close');
     // protect against undefined in JSON making property disappear
     msg = {...msg};
-    if ('error' in msg && msg.error===undefined)
-      msg.error = null;
     if ('result' in msg && msg.result===undefined)
       msg.result = null;
     if (this.ws.readyState!=1)
@@ -571,7 +569,8 @@ export class rpc_websocket extends rpc_base {
   }
 };
 
-export function rpc_sock_pipe(c, s){
+export function rpc_sock_pipe(c, s, opt={}){
+  let {close=true} = opt;
   for (let [_c, _s] of [[c, s], [s, c]]){
     _s._method('', async(msg)=>{
       let {id, method, params} = msg;
@@ -586,9 +585,8 @@ export function rpc_sock_pipe(c, s){
     _c.on('error', err=>{
       console.error('rpc_sock_pipe error', err);
     });
-    _c.on('close', ()=>{
-      _s.close();
-    });
+    if (close)
+      _c.on('close', ()=>_s.close());
   }
 }
 
