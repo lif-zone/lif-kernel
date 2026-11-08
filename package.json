@@ -142,6 +142,9 @@
     "mocha-junit-reporter": "2.2.1",
     "mocha-multi-reporters": "1.5.1",
     "sinon": "1.17.6",
+    "assertion": "1.2.18",
+    "big-object-diff": "0.7.0",
+    "big-integer": "1.6.51",
     "puppeteer-core": "^25.1.0"
   }
 }
