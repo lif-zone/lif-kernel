@@ -318,7 +318,7 @@ async function run(opt){
   let a;
   OA(g_opt, opt);
   let map = g_opt.map = {...opt?.map||{}};
-  let lifnet_opt = {uplink: 'default'};
+  let lifnet_opt = {uplink: opt.uplink ?? 'default'};
   g_opt.root = opt.root||process.cwd();
   g_opt.port = opt.port||1842;
   g_opt.js_map = true;

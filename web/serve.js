@@ -2,6 +2,10 @@
 import server from './server_lib.js';
 import fs from 'fs';
 import process from 'process';
+console.log('XXX');
+await 0;
+console.log('XXX');
+
 let dirname = import.meta.dirname;
 let root = process.cwd();
 let map = {};
@@ -12,8 +16,8 @@ map['/index.html'] = {path: dirname+'/../index.html',
 map['/'+pkg.name] = '.';
 let peers = [
   'ws://localhost:1842/.lif.net',
-  'https://lifnet.net/.lif.net',
+/*  'https://lifnet.net/.lif.net',
   'https://zon.life/.lif.net',
-  'https://fartyfart.com/.lif.net',
+  'https://fartyfart.com/.lif.net',*/
 ];
-server({map, root, peers});
+server({map, root, peers, uplink: false});
