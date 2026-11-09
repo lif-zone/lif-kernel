@@ -287,9 +287,9 @@ async function fetch_cache(url){
   // skip cache tests if nothing is found in cache 5 times (recheck everry 10)
   if (cache_miss>5 && !(cache_try%10))
     return await fetch(url);
-  // XXX need to add code to disable caching of /.lif/local/ and handle
-  // revalidation of /.lif.imp/ and similar dynamic URLs, according to
-  // page refresh detected in kernel
+  if (!lpm_is_perm(str.starts(url, '/.lif/').rest))
+    return await fetch(url);
+  // XXX need to add page refresh detection in kernel and disable caching if so
   let cache = caches_db || await caches_open();
   let res = await cache.match(url);
   if (res){
