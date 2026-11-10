@@ -72,6 +72,33 @@ eslow.print = ()=>{
 if (globalThis.$lif)
   globalThis.$lif.eslow = eslow;
 
+export function Promise_stuck_init(){
+  const pendingMap = new Map();
+  const origThen = Promise.prototype.then;
+  // Track stack trace at the moment each promise is chained/awaited
+  Promise.prototype.then = function(...args) {
+    const err = new Error();
+    pendingMap.set(this, {stack: err.stack, time: Date.now()});
+    const onFinally = ()=>pendingMap.delete(this);
+    origThen.call(this, onFinally, onFinally);
+    return origThen.apply(this, args);
+  };
+  // Expose a helper to show only promises that have been pending for > 3 seconds
+  window.Promise_stuck = ()=>{
+    const now = Date.now();
+    console.log(`Found ${pendingMap.size} pending operations:`);
+    for (const [p, info] of pendingMap.entries()){
+      if (now - info.time > 2000){
+        // Filter out native browser extensions and node_modules if needed
+        console.warn("STUCK PROMISE (>2s):", p);
+        console.log(info.stack);
+      }
+    }
+  };
+}
+if (globalThis.$lif)
+  globalThis.$lif.Promise_stuck_init = Promise_stuck_init;
+
 let once_obj = {};
 let once_set = new Set();
 export function Donce(once, fn){
