@@ -47,6 +47,7 @@ function str_is(s, ...list){
   return list.includes(s);
 }
 
+let fetch_queue = new Set();
 async function _on_fetch(event){
   if (sw_boot.on_fetch){
     try {
@@ -67,7 +68,9 @@ async function _on_fetch(event){
     return await fetch(request);
   }
   console.warn('sw pending fetch('+event.request.url+') event before inited');
+  fetch_queue.add(event);
   await wait_activate;
+  fetch_queue.delete(event);
   console.info('sw complete fetch('+event.request.url+')');
   return await sw_boot.on_fetch(event);
 }
@@ -90,6 +93,18 @@ function sw_init_pre(){
     console.log('kernel activated', sw_boot_version);
   })()));
   globalThis.addEventListener('message', event=>event.waitUntil((async()=>{
+    if (event.data?.type=='sw_boot_terminate'){
+      fetch_queue.forEach(e=>{
+        try {
+          e.respondWith(new Response('terminate sw',
+            {status: 500, statusText: 'terminate sw'}));
+        } catch(err){}
+      });
+      event.waitUntil(async()=>{
+        await self.registration.unregister();
+      });
+      return;
+    }
     if (!sw_boot.on_message){
       console.warn('sw message event before inited', event);
       await wait_activate;
