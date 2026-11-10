@@ -84,8 +84,9 @@ export class rpc_base extends EventEmitter {
     } catch(err){ CE(err);
       console.error('rpc failed '+method+' call:', err, request);
       res = {error: ''+err};
+    } finally {
+      slow.end();
     }
-    slow.end();
     0 && this.D && console.log(
       this.pre+id+'>< '+(res.error ? 'error ' : '')+method, res);
     return res;
