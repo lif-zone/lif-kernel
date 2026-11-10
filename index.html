@@ -10,6 +10,8 @@
         console.log('lif boot failed loading - unreegister sw');
         if (localStorage.getItem('lif.boot.disable_load_err'))
           return;
+        navigator.serviceWorker.controller.postMessage(
+          {type: 'sw_boot_terminate'});
         let reg = await navigator.serviceWorker.getRegistrations();
         await Promise.all(reg.map(r=>r.update()));
         await Promise.all(reg.map(r=>r.unregister()));
