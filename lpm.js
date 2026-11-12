@@ -246,6 +246,7 @@ function git_to_lpm(url){
 }
 
 // parse-package-name: package.json:dependencies
+// XXX lmod_self -> lmod_pkg (or lmod -> lmod lfile
 export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
@@ -281,6 +282,8 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
     let file = v.rest;
     if (!(v=str.starts(file, './')))
       throw Error('only ./ files supported: '+dep);
+    if (lmod_self.at(-1)=='/' && v.rest.includes('//'))
+      return lmod_self+v.rest;
     return lmod_self+'/'+v.rest;
   }
   let ver = semver_range_parse(d) ? d : null;
@@ -754,6 +757,7 @@ export function pkg_transform_type(pkg, path){
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
+// XXX replace lmod_self -> lmod_pkg
 export function pkg_import_lookup({lmod_self, pkg, imp}){
   let lmod_imp = T_lpm_lmod(imp);
   let npm_imp = T_lpm_to_npm(lmod_imp);
@@ -905,6 +909,8 @@ function test_lpm(){
   };
   t('local/package.json', {reg: 'local', submod: '',
     lmod: 'local', path: '/package.json'});
+  t('local/mod/sub/package.json', {reg: 'local', submod: '',
+    lmod: 'local', path: '/mod/sub/package.json'});
   t('local/mod/sub//package.json', {reg: 'local', submod: '/mod/sub/',
     lmod: 'local/mod/sub/', path: '/package.json'});
   t('local/mod/sub//dir/file', {reg: 'local', submod: '/mod/sub/',
@@ -975,6 +981,15 @@ function test_lpm(){
   t('https://any.com:9000/dir', 'https/any.com:9000/dir/');
   t('http://any.com:9000/dir', 'http/any.com:9000/dir/');
   t('file:./dir/index.js', 'npm/self@4.5.6/dir/index.js');
+  t('file:./dir//index.js', 'npm/self@4.5.6/dir//index.js');
+  t('file:./dir/index.js', 'local/mod//dir/index.js',
+    {lmod_self: 'local/mod/'});
+  t('file:./dir//index.js', 'local/mod/dir//index.js',
+    {lmod_self: 'local/mod/'});
+  t('file:./dir/index.js', 'git/github.com/user/repo/mod//dir/index.js',
+    {lmod_self: 'git/github.com/user/repo/mod/'});
+  t('file:./dir//index.js', 'git/github.com/user/repo/mod/dir//index.js',
+    {lmod_self: 'git/github.com/user/repo/mod/'});
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
