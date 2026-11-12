@@ -860,7 +860,9 @@ function import_esm_to_cjs(mod){
 }
 
 async function import_esm(uri_self, [imp, opt={}]){
-  let url = npm_imp_uri_qs(uri_self, imp, {...opt, type: 'module'});
+  let is_json = opt.type=='json';
+  let url = npm_imp_uri_qs(uri_self, imp,
+    is_json ? opt : {...opt, type: 'module'});
   let slow;
   try {
     slow = eslow(15000, 'import_esm('+url+')');
@@ -870,7 +872,8 @@ async function import_esm(uri_self, [imp, opt={}]){
       ret = await import_worker({uri_self, imp, opt});
     else {
       ret = await /*keep*/ import(url, opt);
-      ret = import_esm_to_cjs(ret);
+      if (!is_json)
+        ret = import_esm_to_cjs(ret);
     }
     return ret;
   } catch(err){

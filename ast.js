@@ -146,6 +146,11 @@ function tr_js_to_ast(js){
     }
   };
 
+  function _has_json_attr(n){
+    return n.attributes?.some(a=>a.key?.name=='type'
+      && a.value?.value=='json');
+  }
+
   let scan_ast = ()=>{
     ast.exports = [];
     ast.requires = [];
@@ -191,6 +196,8 @@ function tr_js_to_ast(js){
         imports.imported = imported;
       if (imported_dyn)
         imports.imported_dyn = imported_dyn;
+      if (_has_json_attr(n))
+        imports.is_json = true;
       ast.imports.push(imports);
     }
     function _handle_export_source(path){
@@ -244,6 +251,8 @@ function tr_js_to_ast(js){
         imports.imported = imported;
       if (imported_dyn)
         imports.imported_dyn = imported_dyn;
+      if (_has_json_attr(n))
+        imports.is_json = true;
       ast.imports.push(imports);
     }
     function handle_import_source(path){
@@ -549,6 +558,28 @@ function test_ast(){
     {type: 'cjs', requires: [
       {module: 'mod.js', type: 'async', start: 49, end: 66}
     ]});
+  t(`import data from "./data.json" with {type: "json"};`,
+    {type: 'mjs', imports: [
+      {module: './data.json', start: 17, end: 30, is_json: true}]
+    });
+  t(`import {a} from "./data.json" with {type: "json"};`,
+    {type: 'mjs', imports: [
+      {imported: ['a'], module: './data.json', start: 16, end: 29,
+        is_json: true}]
+    });
+  t(`export {a} from "./data.json" with {type: "json"};`,
+    {type: 'mjs', imports: [
+      {imported: ['a'], module: './data.json', start: 16, end: 29,
+        is_json: true}]
+    });
+  t(`import data from "./data.json";`,
+    {type: 'mjs', imports: [
+      {module: './data.json', start: 17, end: 30}]
+    });
+  t(`import a from "lif" with {type: "other"};`,
+    {type: 'mjs', imports: [
+      {module: 'lif', start: 14, end: 19}]
+    });
 }
 test_ast();
 

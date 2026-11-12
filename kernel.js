@@ -268,7 +268,8 @@ function tr_mjs_import(f){
   for (let d of f.meta.imports||[]){
     let imp = d.module;
     if (url_uri_type(imp)=='rel'){
-      s.splice(d.start, d.end, json(imp+'?mjs'));
+      let qs = d.is_json ? '?json' : '?mjs';
+      s.splice(d.start, d.end, json(imp+qs));
       continue;
     }
     _v = tr_import_lpm({imp, imported: d.imported,
@@ -1050,9 +1051,10 @@ async function responce_tr_send({f, qs, lmod}){
     lmod = f.redirect;
     f = f.redirect_file;
   }
+  if (q.has('json'))
+    ext = 'json';
   if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
     return {body: f.blob, ext, cache: 1};
-  // XXX add tr import "mod?type=json" with {type: "json"} for json/css/text
   if (str.is(ext, 'json', 'css', 'wasm', 'text'))
     return {body: f.blob, ext, cache: 1};
   ext = 'js';
