@@ -268,11 +268,11 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   if (v=str.starts(d, 'http://', 'https://'))
     return http_https_to_lpm(d)+path;
   if (v=str.starts(d, 'npm:', '.npm/')){
-    let _lmod = 'npm/'+v.rest+path;
-    let u = lpm_parse(_lmod);
+    let lfile = 'npm/'+v.rest+path;
+    let u = lpm_parse(lfile);
     if (u.name==pkg_name)
       return lmod_self+u.path;
-    return _lmod;
+    return lfile;
   }
   if (v=str.starts(d, 'node:'))
     return 'npm/node:'+v.rest+path;
@@ -404,8 +404,8 @@ export function lpm_to_sw_passthrough(lpm){
   return '/.lif/'+lpm;
 }
 
-export function lpm_imp_rel(imp, lmod_self){
-  let depth = lpm_parse(lmod_self).path.split('/').length-2;
+export function lpm_imp_rel(imp, lfile_self){
+  let depth = lpm_parse(lfile_self).path.split('/').length-2;
   let rel_root = depth<=0 ? './' : '../'.repeat(depth);
   return rel_root+'.lif.imp/'+imp;
 }
@@ -457,8 +457,8 @@ export function lpm_is_perm(u){
 export function _lpm_parse(lpm){
   return typeof lpm=='string' ? lpm_parse(lpm) : lpm;
 }
-export function lpm_same_base(lmod_a, lmod_b){
-  let a = _lpm_parse(lmod_a), b = _lpm_parse(lmod_b);
+export function lpm_same_base(lfile_a, lfile_b){
+  let a = _lpm_parse(lfile_a), b = _lpm_parse(lfile_b);
   return a.reg==b.reg && a.name==b.name;
 }
 export function lpm_ver_from_base(lpm, base){
@@ -518,7 +518,7 @@ export function T_npm_url_base(url_uri, base_uri){
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.lmod = T_npm_parse(u.path);
+    u.lmod = T_npm_parse(u.path); // XXX lmod -> lfile?
     return u;
   }
   if (t=='rel' && tbase=='mod'){
@@ -527,7 +527,7 @@ export function T_npm_url_base(url_uri, base_uri){
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.lmod = T_npm_parse(u.path);
+    u.lmod = T_npm_parse(u.path); // XXX lmod -> lfile?
     return u;
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
