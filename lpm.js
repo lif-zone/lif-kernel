@@ -246,7 +246,6 @@ function git_to_lpm(url){
 }
 
 // parse-package-name: package.json:dependencies
-// XXX lmod_self -> lmod_pkg (or lmod -> lmod lfile
 export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lpm_lmod(imp);
   let path = T_lpm_parse(imp).path;
@@ -518,7 +517,7 @@ export function T_npm_url_base(url_uri, base_uri){
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.lmod = T_npm_parse(u.path); // XXX lmod -> lfile?
+    u.lpm = T_npm_parse(u.path);
     return u;
   }
   if (t=='rel' && tbase=='mod'){
@@ -527,7 +526,7 @@ export function T_npm_url_base(url_uri, base_uri){
     u.is = is;
     u.path = u.pathname = u.path.slice(1);
     u.dir = u.dir.slice(1);
-    u.lmod = T_npm_parse(u.path); // XXX lmod -> lfile?
+    u.lpm = T_npm_parse(u.path);
     return u;
   }
   throw Error('npm_url_base('+url_uri+','+base_uri+') failed');
@@ -757,7 +756,6 @@ export function pkg_transform_type(pkg, path){
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-// XXX replace lmod_self -> lmod_pkg
 export function pkg_import_lookup({lmod_self, pkg, imp}){
   let lmod_imp = T_lpm_lmod(imp);
   let npm_imp = T_lpm_to_npm(lmod_imp);

@@ -58,7 +58,7 @@ let idb_api = {
   },
 };
 
-let cache_ver = 29;
+let cache_ver = 30;
 let storage_bucket;
 async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
@@ -98,7 +98,7 @@ async function db_open(){ // use storageBuckets
       console.log('upgrade cache db '+old_ver+' -> '+new_ver);
       db_upgrade(db, 'js_to_meta', {keyPath: ['h_js'], ...opt});
       db_upgrade(db, 'tsx_to_js', {keyPath: ['h_tsx'], ...opt});
-      db_upgrade(db, 'lpm_file', {keyPath: ['lmod'], ...opt});
+      db_upgrade(db, 'lpm_file', {keyPath: ['lfile'], ...opt});
       db_upgrade(db, 'lpm_ver', {keyPath: ['lmod'], ...opt});
     }
   });
@@ -253,7 +253,7 @@ function lpm_import_lookup({lpm_pkg, imp}){
 }
 
 function tr_import_lpm({imp, imported, lmod_self, pkg}){
-  let v = passthrough_lmod({pkg, lmod: T_npm_to_lpm(imp)});
+  let v = passthrough_lfile({pkg, lfile: T_npm_to_lpm(imp)});
   if (v)
     return v;
   v = lpm_imp_rel(imp, lmod_self);
@@ -273,7 +273,7 @@ function tr_mjs_import(f){
       continue;
     }
     _v = tr_import_lpm({imp, imported: d.imported,
-      lmod_self: f.lmod, pkg: f.lpm_pkg.pkg});
+      lmod_self: f.lfile, pkg: f.lpm_pkg.pkg});
     if (d.imported_dyn){
       let dyn = d.imported_dyn;
       let name = f.js.slice(dyn.name_start, dyn.name_end);
@@ -291,7 +291,7 @@ function tr_mjs_import(f){
 }
 
 function file_tr_mjs_worker(f, opt){
-  let uri_s = json('/.lif/'+f.lmod);
+  let uri_s = json('/.lif/'+f.lfile);
   // double space between await and import, to prevent tr import_module
   let js = `
     let lif_worker = {
@@ -309,7 +309,7 @@ function file_tr_mjs_worker(f, opt){
     let import_lif = function(){
       return globalThis.$lif.boot.import_esm(import.meta.url, arguments);
     };
-    let mod = await import_lif(${json('/.lif/'+f.lmod)});
+    let mod = await import_lif(${json('/.lif/'+f.lfile)});
     globalThis.removeEventListener('message', lif_worker.cb);
     lif_worker.queue.forEach(e=>globalThis.dispatchEvent(e));
   `;
@@ -317,7 +317,7 @@ function file_tr_mjs_worker(f, opt){
 }
 
 function file_tr_mjs(f, opt){
-  let uri_s = json('/.lif/'+f.lmod);
+  let uri_s = json('/.lif/'+f.lfile);
   let tr = tr_mjs_import(f);
   let slow = 0; // has problem with lif-kernel/util.js
   let pre = '', post = '';
@@ -403,7 +403,7 @@ async function npm_ver_get({log, lmod}){
   pv.lmod = lmod;
   pv.log = log;
   let ver_file = pv.lmod+'/--ver';
-  let get = await reg_get({log, lmod: ver_file});
+  let get = await reg_get({log, lfile: ver_file});
   if (get.not_exist)
     return get;
   if (get.err)
@@ -500,27 +500,27 @@ async function lpm_ver_resolve({log, lmod}){
 }
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
-async function lpm_file_get({log, lmod, opt={}}){
-  let is_c = opt.cache!='pass' && cache_lmod(lmod);
+async function lpm_file_get({log, lfile, opt={}}){
+  let is_c = opt.cache!='pass' && cache_lmod(lfile);
   if (is_c)
     opt = {...opt, ...cache_opt};
-  return await ecache({table: lpm_file_t, id: lmod, opt},
+  return await ecache({table: lpm_file_t, id: lfile, opt},
     async function run(lpm_file)
 {
-  D && console.log('lpm_file_get', lmod);
-  let f = is_c && await cache_get('lpm_file', [lmod]);
+  D && console.log('lpm_file_get', lfile);
+  let f = is_c && await cache_get('lpm_file', [lfile]);
   if (f && !(cache_not_exist || !f.not_exist))
     return f;
   // fetch the file
-  lpm_file.lmod = lmod;
+  lpm_file.lfile = lfile;
   lpm_file.log = log;
-  let reg = await reg_get({log, lmod, opt});
+  let reg = await reg_get({log, lfile, opt});
   lpm_file.reg = reg; // for logging
   lpm_file.url = reg.url; // for logging
   if (reg.err)
     return reg;
   if (reg.not_exist){
-    f = {lmod, not_exist: true};
+    f = {lfile, not_exist: true};
     cache_not_exist && is_c && cache_set('lpm_file', f);
     return f;
   }
@@ -531,18 +531,18 @@ async function lpm_file_get({log, lmod, opt={}}){
   if (is_c){
     const buf = await lpm_file.blob.arrayBuffer();
     let h_body = sha256_hex(buf);
-    cache_set('lpm_file', {lmod, blob: lpm_file.blob,
+    cache_set('lpm_file', {lfile, blob: lpm_file.blob,
       h_body, url: lpm_file.url});
   }
   return lpm_file;
 }); }
 
-async function lpm_file_get_alt({log, lmod, alt}){
+async function lpm_file_get_alt({log, lfile, alt}){
   // fetch the file
   let first;
   alt = ['', ...(alt||[])];
   for (let a of alt){
-    let f = await lpm_file_get({log, lmod: lmod+a});
+    let f = await lpm_file_get({log, lfile: lfile+a});
     first ||= f;
     f = {...f};
     f.alt = a;
@@ -551,42 +551,42 @@ async function lpm_file_get_alt({log, lmod, alt}){
     if (!f.err)
       return f;
     if (f.err)
-      throw Error('fetch failed '+lmod+' '+(f.url||''));
+      throw Error('fetch failed '+lfile+' '+(f.url||''));
   }
   console.error('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
-    ') failed fetch not exist '+lmod);
+    ') failed fetch not exist '+lfile);
   return first; // not_exist
 }
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
-async function lpm_file_get_follow({log, lmod, lpm_pkg, alt}){
-  D && console.log('lpm_file_get_follow', lmod);
+async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
+  D && console.log('lpm_file_get_follow', lfile);
   let pkg;
-  let f = {lmod, lpm_pkg, log};
+  let f = {lfile, lpm_pkg, log};
   pkg = f.pkg = lpm_pkg.pkg;
   lpm_pkg.log ||= log;
   if (lpm_pkg.redirect)
-    return OA(f, {redirect: lpm_pkg.redirect+T_lpm_parse(lmod).path});
-  let path = T_lpm_parse(lmod).path;
+    return OA(f, {redirect: lpm_pkg.redirect+T_lpm_parse(lfile).path});
+  let path = T_lpm_parse(lfile).path;
   let _path = pkg_exports_lookup(pkg, '.'+path);
   if (_path && _path!='.'+path){
     let _uri;
     if (_path[0]=='.')
-      _uri = T_lpm_lmod(lmod)+_path.slice(1);
+      _uri = T_lpm_lmod(lfile)+_path.slice(1);
     else
       _uri = T_npm_to_lpm(_path);
-    D && console.log('redirect export '+lmod+' -> '+_uri);
+    D && console.log('redirect export '+lfile+' -> '+_uri);
     return OA(f, {redirect: _uri});
   }
   if (alt)
-    alt = pkg_alt_get(pkg, lmod);
-  let f_get = await lpm_file_get_alt({log, lmod, alt});
+    alt = pkg_alt_get(pkg, lfile);
+  let f_get = await lpm_file_get_alt({log, lfile, alt});
   f.f_get = f_get; // for logging
   if (f_get.not_exist)
     return f_get;
   if (f_get.alt){
-    D && console.log('redirect alt '+lmod+' -> '+f_get.alt);
-    return OA(f, {redirect: lmod+f_get.alt});
+    D && console.log('redirect alt '+lfile+' -> '+f_get.alt);
+    return OA(f, {redirect: lfile+f_get.alt});
   }
   f.blob = f_get.blob;
   f.h_body = f_get.h_body;
@@ -672,7 +672,7 @@ async function lpm_pkg_get({log, lmod, mod_self}){
   }
   // fetch pkg
   let pkg_json = lmod+'/package.json';
-  let f = await lpm_file_get({log, lmod: pkg_json});
+  let f = await lpm_file_get({log, lfile: pkg_json});
   if (f.not_exist){
     let u = lpm_parse(lmod);
     if (u.reg!='git' || u.submod || u.ver_type!='final' ||
@@ -779,9 +779,9 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
     lpm_self = lpm_pkg_app || lpm_pkg_root;
   // lookup for imports in parent
   let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp});
-  let lmod = _imp || imp;
+  let lfile = _imp || imp;
   // load the module, even if redirect later, so its loaded with mod_self
-  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lmod),
+  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lfile),
     mod_self: lpm_self.lmod});
   // local dev: allow to force modules to load from local
   if (local_dev_enable)
@@ -802,10 +802,10 @@ async function lpm_import_get({log, imp, lmod_self}){
   let v;
   if (lpm_pkg.pkg.name && (v=path_starts(imp, lpm_pkg.pkg.name)))
     return {redirect: lmod_self+v.rest};
-  let lmod = T_npm_to_lpm(imp);
-  let _imp = lpm_import_lookup({lpm_pkg, imp: lmod});
+  let lfile = T_npm_to_lpm(imp);
+  let _imp = lpm_import_lookup({lpm_pkg, imp: lfile});
   if (!_imp)
-    _imp = lmod;
+    _imp = lfile;
   let ver = await lpm_ver_resolve({log, lmod: _imp, mod_self: lmod_self});
   if (ver){
     if (ver.not_exist){
@@ -831,8 +831,8 @@ async function lpm_file_resolve({log, imp, alt}){
     return {not_exist: true};
   if (lpm_pkg.redirect)
     return {redirect: lpm_pkg.redirect+path};
-  let lmod = lpm_pkg.lmod+path;
-  let lpm_file = await lpm_file_get_follow({log, lmod, lpm_pkg, alt});
+  let lfile = lpm_pkg.lmod+path;
+  let lpm_file = await lpm_file_get_follow({log, lfile, lpm_pkg, alt});
   return lpm_file;
 }
 
@@ -955,7 +955,7 @@ async function cache_store_set(request, response){
   return response;
 }
 
-function lpm_redirect({f, qs, lmod}){
+function lpm_redirect({f, qs, lfile}){
   let q = new URLSearchParams(qs);
   let l = lpm_parse(f.redirect);
   if (f.q){
@@ -963,11 +963,11 @@ function lpm_redirect({f, qs, lmod}){
       q.set(k, v);
   }
   let redirect = qs_append('/.lif/'+f.redirect, q);
-  D && console.log('lpm_redirect '+lmod+' -> '+f.redirect, qs+' -> '+q);
+  D && console.log('lpm_redirect '+lfile+' -> '+f.redirect, qs+' -> '+q);
   return {redirect};
 }
 
-function passthrough_lmod({pkg, lmod}){
+function passthrough_lfile({pkg, lfile}){
   return; // XXX is this needed?
   // quick hack for lif-kernel/boot.js lif-kernel/util.js to not use /.lif/
   // URL to avoid them double loading:
@@ -976,10 +976,10 @@ function passthrough_lmod({pkg, lmod}){
   let pass = pkg.lif?.passthrough;
   if (!pass)
     return;
-  let u = lpm_parse(lmod);
+  let u = lpm_parse(lfile);
   if (!str.is(u.reg, 'local', 'http', 'https'))
     return;
-  let pass_url = lpm_to_sw_passthrough(lmod);
+  let pass_url = lpm_to_sw_passthrough(lfile);
   let file = u.path.slice(1);
   let v;
   for (let p of pass){
@@ -1006,8 +1006,8 @@ async function tr_tsx_to_js_cache({tsx, type, h_tsx}){
 async function file_tsx_to_js(f){
   if (f.js)
     return f.js;
-  let type = _path_ext(f.lmod);
-  let path = T_lpm_parse(f.lmod).path;
+  let type = _path_ext(f.lfile);
+  let path = T_lpm_parse(f.lfile).path;
   let v;
   if (v=pkg_transform_type(f.lpm_pkg.pkg, path))
     type = v;
@@ -1036,19 +1036,19 @@ async function file_js_to_meta(f){
   return f.meta;
 }
 
-async function responce_tr_send({f, qs, lmod}){
+async function responce_tr_send({f, qs, lfile}){
   if (f.not_exist)
     return {not_exist: true};
-  let ext = _path_ext(lmod);
+  let ext = _path_ext(lfile);
   let q = new URLSearchParams(qs);
   if (f.redirect){
     if (!f.redirect_file)
-      return lpm_redirect({f, qs, lmod});
+      return lpm_redirect({f, qs, lfile});
     if (q.has('mjs')){
       q.delete('mjs');
       q.set('imp', '');
     }
-    lmod = f.redirect;
+    lfile = f.redirect;
     f = f.redirect_file;
   }
   if (q.has('json'))
@@ -1064,7 +1064,7 @@ async function responce_tr_send({f, qs, lmod}){
   if (meta.err)
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
   // XXX is passthrough for /lif-kernel/boot.js still needed?
-  if (v=passthrough_lmod({pkg: f.lpm_pkg.pkg, lmod}))
+  if (v=passthrough_lfile({pkg: f.lpm_pkg.pkg, lfile}))
     return {body: mjs_import_mjs(meta.export_default, v), ext};
   let type = meta.type;
   let worker = q.has('worker');
@@ -1075,21 +1075,21 @@ async function responce_tr_send({f, qs, lmod}){
   //       a middle re-export module to solve 302 double import
   if (q.has('mjs')){
     if (type=='cjs')
-      return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
+      return {body: mjs_import_cjs('/.lif/'+lfile, q), ext};
     if (type=='amd')
-      return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
+      return {body: mjs_import_amd('/.lif/'+lfile, q), ext};
     return {body: file_tr_mjs(f, {worker}), ext, cache: 1};
   }
   if (q.has('imp') && (type=='mjs' || !type)){
     return {body: mjs_import_mjs(meta.export_default,
-      '/.lif/'+lmod+'?mjs'+(worker?'&worker':'')), ext, cache: 1};
+      '/.lif/'+lfile+'?mjs'+(worker?'&worker':'')), ext, cache: 1};
   }
   if (q.has('cjs') || (q.has('imp') && type=='cjs'))
-    return {body: mjs_import_cjs('/.lif/'+lmod, q), ext};
+    return {body: mjs_import_cjs('/.lif/'+lfile, q), ext};
   if (q.has('amd') || (q.has('imp') && type=='amd'))
-    return {body: mjs_import_amd('/.lif/'+lmod, q), ext};
-  throw Error('invalid lpm file type '+type+' '+lmod+' '+qs);
-  return {err: 'invalid lpm file type '+type+' '+lmod+' '+qs};
+    return {body: mjs_import_amd('/.lif/'+lfile, q), ext};
+  throw Error('invalid lpm file type '+type+' '+lfile+' '+qs);
+  return {err: 'invalid lpm file type '+type+' '+lfile+' '+qs};
 }
 
 let enable_follow = true;
@@ -1124,7 +1124,7 @@ async function fetch_lpm_meta({log, imp}){
     do_ret = ret=>({redirect: _f.redirect, redirects: _f.redirects,
       redirect_file: ret.meta, cache: ret.cache});
   }
-  let type = file_ctype(f.lmod);
+  let type = file_ctype(f.lfile);
   if (type!='js')
     return do_ret({meta: {type}}); // error not js/jsx/ts/tsx
   await file_tsx_to_js(f);
@@ -1146,9 +1146,9 @@ async function fetch_lpm_meta_res({log, imp}){
 async function fetch_lpm_file({log, imp, qs}){
   let u = T_lpm_parse(imp);
   if (str.is(u.reg, 'bitcoin', 'lifcoin'))
-    return await lpm_file_get({log, lmod: imp, opt: {ctype: true, cache: 'pass'}});
+    return await lpm_file_get({log, lfile: imp, opt: {ctype: true, cache: 'pass'}});
   let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
-  return await responce_tr_send({f, qs, lmod: imp});
+  return await responce_tr_send({f, qs, lfile: imp});
 }
 
 function response_redirect({redirect, cache}){
@@ -1321,18 +1321,18 @@ async function _kernel_fetch(event){
   // LIF+local GET requests
   // LIF requests
   if (v=str.starts(path, '/.lif/')){
-    let lmod = v.rest;
-    log.imp = lmod;
-    if (lpm_is_perm(lmod)){
+    let lfile = v.rest;
+    log.imp = lfile;
+    if (lpm_is_perm(lfile)){
       let response = await cache_store_get(request);
       if (response)
         return response;
     }
     let res;
     if (q.has('meta'))
-      res = await fetch_lpm_meta_res({log, imp: lmod, qs});
+      res = await fetch_lpm_meta_res({log, imp: lfile, qs});
     else
-      res = await fetch_lpm_file({log, imp: lmod, qs});
+      res = await fetch_lpm_file({log, imp: lfile, qs});
     if (res.err)
       console.error('req '+url+': '+res.err);
     let response = await send_res({...res, path});
@@ -1360,8 +1360,8 @@ async function _kernel_fetch(event){
       D && console.log('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }
-    let lmod = T_npm_to_lpm(_path);
-    return Response.redirect('/.lif/'+lmod);
+    let lfile = T_npm_to_lpm(_path);
+    return Response.redirect('/.lif/'+lfile);
   }
   D && console.log('req default', url);
   let response = await fetch(request);
@@ -1535,7 +1535,7 @@ async function do_app_pkg(boot_pkg){
   boot_pkg = json_cp(boot_pkg);
   let lif = boot_pkg.lif ||= {};
   let lmod_root = 'local/.lif.boot/';
-  let log = {lmod: lmod_root};
+  let log = {lfile: lmod_root};
   // remove previous app setup
   lpm_app = undefined;
   lpm_pkg_app = undefined;

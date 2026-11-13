@@ -367,29 +367,29 @@ function filelist_flatten(files, prefix, t){
   }
 }
 let enable_filelist = 1;
-async function reg_filelist_get({log, lmod}){
+async function reg_filelist_get({log, lfile}){
   if (!enable_filelist)
     return;
-  let u = T_lpm_parse(lmod);
+  let u = T_lpm_parse(lfile);
   let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
   let t;
   if (t=reg_filelist_t[pkg_lmod])
     return await t.wait;
   function do_ret(err){
     if (err)
-      console.warn('reg_filelist fetch failed '+lmod+': '+err);
+      console.warn('reg_filelist fetch failed '+lfile+': '+err);
     t.err = err;
     t.wait.return(t);
     t.wait = null;
     return t;
   }
   t = reg_filelist_t[pkg_lmod] = {files: null, wait: ewait()};
-  let cdn = reg_get_cdn(lmod);
+  let cdn = reg_get_cdn(lfile);
   if (!cdn.src_files)
     return do_ret('no_src');
   let reg;
   try {
-    reg = await reg_get({log, lmod: pkg_lmod+'/--files'});
+    reg = await reg_get({log, lfile: pkg_lmod+'/--files'});
   } catch(e){
     return do_ret(''+e);
   }
@@ -407,27 +407,27 @@ async function reg_filelist_get({log, lmod}){
   filelist_flatten(body.files||[], '', t);
   return do_ret();
 }
-async function reg_filelist_has({log, lmod}){
-  let u = T_lpm_parse(lmod);
+async function reg_filelist_has({log, lfile}){
+  let u = T_lpm_parse(lfile);
   let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
   let t;
   if (!(t=reg_filelist_t[pkg_lmod]))
-    t = await reg_filelist_get({log, lmod});
+    t = await reg_filelist_get({log, lfile});
   if (!t.files)
     return;
   return t.files[u.path] || false;
 }
 
-export async function reg_git_get({log, lmod}){ assert(0); }
-export async function reg_bittorrent_get({log, lmod}){ assert(0); }
-export async function reg_get({log, lmod, opt}){
-  return await ecache({table: reg_file_t, id: lmod, opt},
+export async function reg_git_get({log, lfile}){ assert(0); }
+export async function reg_bittorrent_get({log, lfile}){ assert(0); }
+export async function reg_get({log, lfile, opt}){
+  return await ecache({table: reg_file_t, id: lfile, opt},
     async function run(reg)
 {
   let wait, u, get_ver, get_files;
-  reg.lmod = lmod;
+  reg.lfile = lfile;
   reg.log = log;
-  u = reg.u = T_lpm_parse(reg.lmod);
+  u = reg.u = T_lpm_parse(reg.lfile);
   u.submod_path = u.submod.replace(/\/$/, '')+u.path;
   // select cdn
   // npm/react@18.3.0/index.js
@@ -442,20 +442,20 @@ export async function reg_get({log, lmod, opt}){
     u.submod = '';
     u.path = '';
     if (u.ver)
-      throw Error('reg_get invalid --ver: '+lmod);
+      throw Error('reg_get invalid --ver: '+lfile);
   } else if (u.path=='/--files'){
     get_files = true;
     src = reg.cdn.src_files;
     u.submod = '';
     u.path = '';
     if (lpm_ver_missing(u))
-      throw Error('reg_get files missing ver: '+lmod);
+      throw Error('reg_get files missing ver: '+lfile);
   } else {
     if (lpm_ver_missing(u))
-      throw Error('reg_get missing ver: '+lmod);
+      throw Error('reg_get missing ver: '+lfile);
     // check filelist to avoid unnecessary fetches for alt searches
     if (reg.cdn.src_files){
-      let fl = await reg_filelist_has({log, lmod});
+      let fl = await reg_filelist_has({log, lfile});
       if (fl==false){
         reg.not_exist = true;
         return reg;
@@ -491,7 +491,7 @@ export async function reg_get({log, lmod, opt}){
   }
   if (opt?.ctype)
     reg.ctype = ret.ctype;
-  D && console.log('fetch OK '+lmod);
+  D && console.log('fetch OK '+lfile);
   return reg;
 }); }
 

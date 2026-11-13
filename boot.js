@@ -151,8 +151,8 @@ function npm_imp_uri(uri_self, imp){
   }
   assert(t=='mod');
   if (uri_self){
-    let lmod_self = str.starts(uri_self, '/.lif/').rest;
-    let u_self = T_lpm_parse(lmod_self);
+    let lfile_self = str.starts(uri_self, '/.lif/').rest;
+    let u_self = T_lpm_parse(lfile_self);
     let u = T_npm_parse(imp);
     if (u.lmod==u_self.lmod)
       return '/.lif/'+T_npm_to_lpm(imp);
@@ -205,7 +205,7 @@ function require_cjs_load_meta_sync(m){
   let v;
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
-  let lmod = v.rest;
+  let lfile = v.rest;
   let qs = {meta: '', follow: ''};
   let url = m.url+qs_enc(qs);
   let req;
@@ -236,7 +236,7 @@ async function e_db_req(req){
   return await wait;
 }
 
-let cache_ver = 29;
+let cache_ver = 30;
 let storage_bucket;
 let g_indexedDB = globalThis.indexedDB;
 let g_caches = globalThis.caches;
@@ -319,7 +319,7 @@ async function require_cjs_load_meta_async(m){
   let v;
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
-  let lmod = v.rest;
+  let lfile = v.rest;
   let qs = {meta: '', follow: ''};
   let url = m.url+qs_enc(qs);
   if (_m.wait)
