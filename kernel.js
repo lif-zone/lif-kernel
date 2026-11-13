@@ -12,7 +12,7 @@ const {ipc_postmessage} = await import('./rpc.js');
 const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
   file_ctype, file_ctype_binary, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
-  lpm_parse, T_lpm_lmod, lpm_to_npm, npm_to_lpm,
+  lpm_parse, T_lfile_lmod, lpm_to_npm, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, lpm_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
   pkg_transform_type, npm_ver_lookup, patch_json, lpm_is_perm,
@@ -252,11 +252,11 @@ function lpm_import_lookup({lpm_pkg, imp}){
   return ret_err('imp missing');
 }
 
-function tr_import_lpm({imp, imported, lmod_self, pkg}){
+function tr_import_lpm({imp, imported, lfile_self, pkg}){
   let v = passthrough_lfile({pkg, lfile: T_npm_to_lpm(imp)});
   if (v)
     return v;
-  v = lpm_imp_rel(imp, lmod_self);
+  v = lpm_imp_rel(imp, lfile_self);
   let q = {};
   q.imp = imported?.join(',') || '';
   v += qs_enc(q);
@@ -273,7 +273,7 @@ function tr_mjs_import(f){
       continue;
     }
     _v = tr_import_lpm({imp, imported: d.imported,
-      lmod_self: f.lfile, pkg: f.lpm_pkg.pkg});
+      lfile_self: f.lfile, pkg: f.lpm_pkg.pkg});
     if (d.imported_dyn){
       let dyn = d.imported_dyn;
       let name = f.js.slice(dyn.name_start, dyn.name_end);
@@ -572,7 +572,7 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   if (_path && _path!='.'+path){
     let _uri;
     if (_path[0]=='.')
-      _uri = T_lpm_lmod(lfile)+_path.slice(1);
+      _uri = T_lfile_lmod(lfile)+_path.slice(1);
     else
       _uri = T_npm_to_lpm(_path);
     D && console.log('redirect export '+lfile+' -> '+_uri);
@@ -635,20 +635,20 @@ function lpm_patch_pkg_json(lpm_pkg){
 }
 
 let allow_no_package_json = true;
-async function lpm_pkg_get({log, lmod, mod_self}){
+async function lpm_pkg_get({log, lmod, lmod_self}){
   let is_c = cache_lmod(lmod);
   // let opt = is_c || lmod=='local/.lif.boot/' ? {} : cache_opt;
   let opt; // lpm_pkg cleared upon every page load
   return await ecache({table: lpm_pkg_t, id: lmod, opt},
     async function run(lpm_pkg)
 {
-  D && console.log('lpm_pkg_get', lmod, mod_self);
+  D && console.log('lpm_pkg_get', lmod, lmod_self);
   lpm_pkg.lmod = lmod;
   assert_lmod(lmod);
   let lpm_self;
-  if (mod_self){
-    assert_lmod(mod_self);
-    lpm_self = lpm_pkg_t[mod_self];
+  if (lmod_self){
+    assert_lmod(lmod_self);
+    lpm_self = lpm_pkg_t[lmod_self];
   }
   if (!lpm_self)
     lpm_self = lpm_pkg_app || lpm_pkg_root;
@@ -660,7 +660,7 @@ async function lpm_pkg_get({log, lmod, mod_self}){
   lpm_self.child.push(lpm_pkg);
   lpm_pkg.child = [];
   lpm_pkg.log = log;
-  lpm_pkg.parent_mod = mod_self;
+  lpm_pkg.parent_mod = lmod_self;
   // resolve ver
   let ver = await lpm_ver_resolve({log, lmod});
   if (ver){
@@ -734,18 +734,18 @@ function lpm_local_dev_redirect(imp){
 // npm/lif-os/basic.js:
 // import 'npm/components/file.js'
 // lpm_pkg_resolve:
-// - if mod_self:
+// - if lmod_self:
 //   - name check vs base:
-//     - same name & ver: npm/react@1.2.3 part of mod_self: npm/react@1.2.3
+//     - same name & ver: npm/react@1.2.3 part of lmod_self: npm/react@1.2.3
 //       FINAL: load pkg npm/react@1.2.3
 //       no need to resolve. can just load package
-//     - same name: local/lif-os/ part of mod_self: local/lif-os/
+//     - same name: local/lif-os/ part of lmod_self: local/lif-os/
 //       FINAL: load pkg local/lif-os/
 //       no need to resolve. can just load package
-//     - ver complete: npm/react part of mod_self: npm/react@1.2.3
+//     - ver complete: npm/react part of lmod_self: npm/react@1.2.3
 //       -> redir to @1.2.3
-//   - load mod_self npm/lif-os -> local/lif-os/
-//   - is lif-os/basic in mod_self pkg dependencies?
+//   - load lmod_self npm/lif-os -> local/lif-os/
+//   - is lif-os/basic in lmod_self pkg dependencies?
 // - is lif-os/basic in app_main and root? (local/lif-os/)
 // Example imp scheduler from react-dom@18.3.1:
 // - not same base name
@@ -758,12 +758,12 @@ function lpm_local_dev_redirect(imp){
 //   npm/lif-os -> local/lif-of/
 // - load npm/lif-os --> need to get to local/lif-os/
 // - check componenets in local/lif-of/package.json
-async function lpm_pkg_resolve({log, imp, mod_self}){
-  D && console.log('lpm_pkg_resolve', imp, mod_self);
+async function lpm_pkg_resolve({log, imp, lmod_self}){
+  D && console.log('lpm_pkg_resolve', imp, lmod_self);
   assert_lmod(imp);
-  let lmod_self, lpm_self;
-  if (mod_self){
-    lmod_self = T_lpm_lmod(mod_self);
+  let lpm_self;
+  if (lmod_self){
+    assert_lmod(lmod_self);
     // same module, empty ver and base completes it? use base to complete ver
     let _imp = lpm_ver_from_base(imp, lmod_self);
     if (_imp && _imp!=imp)
@@ -780,9 +780,9 @@ async function lpm_pkg_resolve({log, imp, mod_self}){
   // lookup for imports in parent
   let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp});
   let lfile = _imp || imp;
-  // load the module, even if redirect later, so its loaded with mod_self
-  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lpm_lmod(lfile),
-    mod_self: lpm_self.lmod});
+  // load the module, even if redirect later, so its loaded with lmod_self
+  let lpm_pkg = await lpm_pkg_get({log, lmod: T_lfile_lmod(lfile),
+    lmod_self: lpm_self.lmod});
   // local dev: allow to force modules to load from local
   if (local_dev_enable)
     _imp = lpm_local_dev_redirect(_imp);
@@ -806,7 +806,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   let _imp = lpm_import_lookup({lpm_pkg, imp: lfile});
   if (!_imp)
     _imp = lfile;
-  let ver = await lpm_ver_resolve({log, lmod: _imp, mod_self: lmod_self});
+  let ver = await lpm_ver_resolve({log, lmod: _imp});
   if (ver){
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
@@ -816,8 +816,7 @@ async function lpm_import_get({log, imp, lmod_self}){
     _imp = ver.redirect;
   }
   // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
-  let res = await lpm_pkg_resolve({log, imp: T_lpm_lmod(_imp),
-    mod_self: lmod_self});
+  let res = await lpm_pkg_resolve({log, imp: T_lfile_lmod(_imp), lmod_self});
   if (res.not_found)
     return res;
   return {redirect: _imp};
@@ -826,7 +825,7 @@ async function lpm_import_get({log, imp, lmod_self}){
 async function lpm_file_resolve({log, imp, alt}){
   D && console.log('lpm_file_resolve', imp);
   let path = T_lpm_parse(imp).path;
-  let lpm_pkg = await lpm_pkg_resolve({log, imp: T_lpm_lmod(imp)});
+  let lpm_pkg = await lpm_pkg_resolve({log, imp: T_lfile_lmod(imp)});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
   if (lpm_pkg.redirect)
@@ -1494,7 +1493,7 @@ test_kernel();
 
 async function webapp_load({log, webapp}){
   let lmod_webapp = T_npm_to_lpm(webapp);
-  let _lpm_app = T_lpm_lmod(lmod_webapp);
+  let _lpm_app = T_lfile_lmod(lmod_webapp);
   let _lpm_pkg_app;
   let slow = eslow('app_pg lpm_get');
   try {

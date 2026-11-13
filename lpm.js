@@ -210,13 +210,13 @@ export function npm_str(u){
   return lpm_to_npm(lpm_str(u));
 }
 
-export function T_lpm_lmod(lpm){
+export function T_lfile_lmod(lpm){
   let u = lpm;
   if (typeof lpm=='string')
     u = T_lpm_parse(lpm);
   return u.lmod;
 }
-export const lpm_lmod = Tf(T_lpm_lmod);
+export const lfile_lmod = Tf(T_lfile_lmod);
 
 function http_https_to_lpm(url){
   let v;
@@ -247,7 +247,7 @@ function git_to_lpm(url){
 
 // parse-package-name: package.json:dependencies
 export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
-  let lmod = T_lpm_lmod(imp);
+  let lmod = T_lfile_lmod(imp);
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
   if (d[0]=='/')
@@ -757,7 +757,7 @@ export function pkg_transform_type(pkg, path){
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
 export function pkg_import_lookup({lmod_self, pkg, imp}){
-  let lmod_imp = T_lpm_lmod(imp);
+  let lmod_imp = T_lfile_lmod(imp);
   let npm_imp = T_lpm_to_npm(lmod_imp);
   function get_imp(deps, is_peer){
     let d, v;
@@ -1076,7 +1076,7 @@ function test_lpm(){
     let u = T_lpm_parse(lpm);
     assert_eq(path, u.path);
     assert_eq(lmod, u.lmod);
-    assert_eq(lmod, T_lpm_lmod(lpm));
+    assert_eq(lmod, T_lfile_lmod(lpm));
     assert_eq(lpm, T_lpm_str(u));
   };
   t('local', 'local', '');

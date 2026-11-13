@@ -9,7 +9,7 @@ import {ewait, esleep, eslow, assert_eq, str,
   html_elm, version as util_version, T_url_parse,
 } from './util.js';
 import {
-  T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_lmod, T_lpm_to_npm,
+  T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_to_npm,
   T_lpm_parse, lpm_ver_from_base, T_npm_parse,
   npm_to_lpm, lpm_to_npm, npm_norm, lpm_is_perm, __uri_parse,
 } from './lpm.js';
