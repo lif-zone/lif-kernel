@@ -41,13 +41,8 @@ export function T_lfile_parse(lpm, is_lmod){
       return '';
     if (p[i]=='.lif.imp')
       return '';
-    if (j==i){
-      // in nodejs require('util/') forces it to use npm util, not builtin util
-      // but probably should not be allowed for other uses
-      if (!is_npm)
-        throw Error('invalid empty submod: '+lpm);
-      return '';
-    }
+    if (!is_lmod && j+1==p.length)
+      return ''; // its a directory path (ends with /), not a submod
     let submod = '/'+p.slice(i, j).join('/')+'/';
     i = j+1;
     return submod;
@@ -157,6 +152,8 @@ export function T_lfile_parse(lpm, is_lmod){
     throw Error('invalid registry: '+lpm);
   }
   l.submod = next_submod();
+  if (l.submod=='//')
+    throw Error('invalid empty submod: '+lpm);
   l.lmod += l.submod;
   let _p = p.slice(i);
   if (is_lmod){
@@ -941,16 +938,16 @@ function test_lpm(){
     lmod: 'local/mod/sub/', path: '/package.json'});
   t('local/mod/sub//dir/file', {reg: 'local', submod: '/mod/sub/',
     lmod: 'local/mod/sub/', path: '/dir/file'});
-  t('local/mod/dir/', {reg: 'local', submod: '/mod/dir/',
-    lmod: 'local/mod/dir/', path: ''});
+  t('local/mod/dir/', {reg: 'local', submod: '',
+    lmod: 'local', path: '/mod/dir/'});
   t('local/mod/sub//', {reg: 'local', submod: '/mod/sub/',
     lmod: 'local/mod/sub/', path: '/'});
   t('npm/mod/dir/file', {reg: 'npm', submod: '',
     lmod: 'npm/mod', path: '/dir/file'});
   t('npm/mod/dir/file', {reg: 'npm', submod: '',
     lmod: 'npm/mod', path: '/dir/file'});
-  t('npm/mod/dir/', {reg: 'npm', submod: '/dir/',
-    lmod: 'npm/mod/dir/', path: ''});
+  t('npm/mod/dir/', {reg: 'npm', submod: '',
+    lmod: 'npm/mod', path: '/dir/'});
   t('npm/mod/.lif.imp/', {reg: 'npm', submod: '',
     lmod: 'npm/mod', path: '/.lif.imp/'});
   t('npm/mod/.lif.imp/dir/', {reg: 'npm', submod: '',
@@ -1111,7 +1108,7 @@ function test_lpm(){
   t('local/main.tsx', 'local', '/main.tsx');
   t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
   t('local/mod//', 'local/mod/', '/');
-  0 && t('local/mod/', 'local', '/mod/');
+  1 && t('local/mod/', 'local', '/mod/');
   t('npm/mod', 'npm/mod', '');
   t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
   t('git/github.com/user/repo', 'git/github.com/user/repo', '');

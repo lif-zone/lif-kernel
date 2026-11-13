@@ -2,7 +2,7 @@
 export const hosts = {
   '': {redirect: '//start.lif'},
   'start': 'git://github.com/lif-zone/lif-start',
-  'start-local': '/lif-start/',
+  'start-local': '/lif-start//',
   'lif-basic': 'git://github.com/lif-zone/lif-basic@main/main.jsx',
   'basic': 'git://github.com/lif-zone/lif-basic@main/main.jsx',
   'basic-npm': 'npm:lif-basic@1.3.0/main.tsx',
@@ -22,11 +22,11 @@ export const hosts = {
   'os': 'git://github.com/lif-zone/lif-os@main/pages/lif_main.tsx',
   'os-local': '/lif-os//pages/lif_main.tsx',
   'lif-coin': 'git://github.com/lif-zone/lif-coin@latest',
-  'lif-coin-local': '/lif-coin/',
+  'lif-coin-local': '/lif-coin//',
   'wallet': 'git://github.com/lif-zone/lif-wallet@latest',
-  'wallet-local': '/lif-wallet/',
+  'wallet-local': '/lif-wallet//',
   'explorer': 'git://github.com/lif-zone/lif-explorer@latest',
-  'explorer-local': '/lif-explorer/',
+  'explorer-local': '/lif-explorer//',
   'tmp': 'git://github.com/lif-zone/lif-kernel@main/tmp.js',
 };
 
