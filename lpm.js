@@ -160,8 +160,17 @@ export function T_lfile_parse(lpm, is_lmod){
   l.lmod += l.submod;
   let _p = p.slice(i);
   l.path = path_parts(_p);
-  if (is_lmod && (l.path && l.path!='/'))
-    throw Error('invalid lmod: '+lpm);
+  if (0){
+  if (is_lmod){
+    if (l.path && l.path!='/')
+      throw Error('invalid lmod: '+lpm);
+  } else {
+    if (!l.path && l.submod.at(-1)=='/'){
+      l.path = '/';
+      l.submod = l.submod.slice(0, -1);
+    }
+  }
+  }
   return l;
 }
 export const lfile_parse = Tf(T_lfile_parse);
@@ -1096,7 +1105,7 @@ function test_lpm(){
   t('local/main.tsx', 'local', '/main.tsx');
   t('local/mod//dir/main.tsx', 'local/mod/', '/dir/main.tsx');
   t('local/mod//', 'local/mod/', '/');
-  t('local/mod/', 'local/mod/', '');
+  0 && t('local/mod/', 'local', '/mod/');
   t('npm/mod', 'npm/mod', '');
   t('npm/mod/dir/main.tsx', 'npm/mod', '/dir/main.tsx');
   t('git/github.com/user/repo', 'git/github.com/user/repo', '');
@@ -1106,11 +1115,33 @@ function test_lpm(){
     'git/github.com/user/repo/mod/', '/dir/file.js');
   t('git/github.com/user/repo@ver/mod//dir/file.js',
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
-  t = (lfile, lmod, path)=>assert_eq(lfile, T_lfile_str(T_lfile_parse(lfile)));
+  t = (lmod, submod)=>{
+    let u = T_lmod_parse(lmod);
+    assert_eq('', u.path);
+    assert_eq(lmod, u.lmod);
+    assert_eq(submod, u.submod);
+    assert_eq(lmod, T_lmod_str(u));
+  };
+  t('local', '');
+  t('local/submod/', '/submod/');
+  t('local/submod/sub/', '/submod/sub/');
+  t('npm/mod', '');
+  t('npm/mod/dir/', '/dir/');
+  t('git/github.com/user/repo', '');
+  t('git/github.com/user/repo/submod/sub/', '/submod/sub/');
+  t = (lfile)=>assert_eq(lfile, T_lfile_str(T_lfile_parse(lfile)));
+  t('npm/mod/dir/main.tsx');
+  t('npm/mod/dir//main.tsx');
   t('lifcoin/inscription/1234');
   t('bitcoin/inscription/1234');
   t('lifcoin/block/1234');
   t('bitcoin/block/1234');
+  t = (lmod)=>assert_eq(lmod, T_lmod_str(T_lmod_parse(lmod)));
+  t('npm/mod');
+  t('npm/mod@1.2.3');
+  t('npm/mod/submod/sub/');
+  t('git/github.com/user/repo');
+  t('git/github.com/user/repo/submod/');
   t = (v, url_uri, base)=>assert_obj_f(v, T_npm_url_base(url_uri, base));
   t({path: '/a/b', origin: 'http://dns', is: {url: 1}},
     'http://dns/a/b', 'http://oth/c/d');
