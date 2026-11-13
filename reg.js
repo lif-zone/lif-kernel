@@ -4,7 +4,7 @@ export const version = reg_version;
 let D = 0; // Debug
 
 const {str, assert, OE, ecache, eslow, ewait} = await import('./util.js');
-const {T_lpm_parse, T_lpm_lmod, lpm_ver_missing} = await import('./lpm.js');
+const {T_lpm_parse, lpm_ver_missing} = await import('./lpm.js');
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
