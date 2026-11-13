@@ -561,6 +561,36 @@ async function lpm_file_get_alt({log, lfile, alt}){
   return first; // not_exist
 }
 
+function lpm_patch_file_lookup(lfile){
+  let app = lpm_pkg_app || lpm_pkg_root;
+  let patch = app?.pkg?.lif?.patch;
+  if (!patch)
+    return;
+  let u = T_lfile_parse(lfile);
+  if (u.reg!='npm')
+    return;
+  let path = '.'+u.path;
+  let files = patch[u.name+u.ver] || patch[u.name];
+  if (!files)
+    return;
+  let repl = files[path];
+  if (!repl || typeof repl!='object')
+    return;
+  return repl;
+}
+
+function lpm_patch_file_apply(blob_text, replacements){
+  let text = blob_text;
+  for (let [from, to] of OE(replacements)){
+    if (!text.includes(from)){
+      console.error('patch: string not found: '+from.substring(0, 80));
+      continue;
+    }
+    text = text.replace(from, to);
+  }
+  return text;
+}
+
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   D && console.log('lpm_file_get_follow', lfile);
@@ -595,6 +625,14 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   f.h_body = f_get.h_body;
   f.url = f_get.url; // for logging
   f.cache = f_get.cache;
+  let patch_repls = lpm_patch_file_lookup(lfile);
+  if (patch_repls){
+    let text = await f.blob.text();
+    text = lpm_patch_file_apply(text, patch_repls);
+    f.blob = new Blob([text]);
+    f.h_body = null;
+    f.cache = false;
+  }
   return f;
 }
 
