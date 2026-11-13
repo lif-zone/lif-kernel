@@ -170,7 +170,7 @@ function load_progress(){
       diff = all;
     last = all;
     txt.textContent = 'Loading… '+(all-diff);
-  }, 100);
+  }, 200);
   let op = {
     elm,
     failed: function(err){
