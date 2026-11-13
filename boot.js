@@ -9,9 +9,9 @@ import {ewait, eslow, assert_eq, str,
   version as util_version, T_url_parse,
 } from './util.js';
 import {
-  T_npm_to_lpm, T_npm_url_base, url_uri_type,
+  T_npm_to_lfile, T_npm_url_base, url_uri_type,
   T_lfile_parse, lfile_ver_from_base, T_npm_parse,
-  npm_to_lpm, npm_norm, lfile_is_perm, __uri_parse,
+  npm_norm, lfile_is_perm, __uri_parse,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -155,13 +155,13 @@ function npm_imp_uri(uri_self, imp){
     let u_self = T_lfile_parse(lfile_self);
     let u = T_npm_parse(imp);
     if (u.lmod==u_self.lmod)
-      return '/.lif/'+T_npm_to_lpm(imp);
+      return '/.lif/'+T_npm_to_lfile(imp);
     let with_ver = lfile_ver_from_base(u, u_self);
     if (with_ver)
       return '/.lif/'+with_ver;
     return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
   }
-  return '/.lif/'+T_npm_to_lpm(imp);
+  return '/.lif/'+T_npm_to_lfile(imp);
 }
 
 function npm_imp_q(opt){
@@ -187,7 +187,7 @@ function npm_to_uri(url){
     return u.is.blob || u.is.data ? url : u.origin+u.path;
   if (u.is.uri)
     return u.path;
-  return '/.lif/'+T_npm_to_lpm(u.path);
+  return '/.lif/'+T_npm_to_lfile(u.path);
 }
 
 function require_cjs_get_mod(url){
@@ -1025,7 +1025,7 @@ function run_html_text(html){
 
 async function run_html(webapp){
   console.log('run_html start '+webapp);
-  let url = '/.lif/'+npm_to_lpm(webapp);
+  let url = '/.lif/'+T_npm_to_lfile(webapp);
   let html = await T_fetch_text(url);
   run_html_text(html);
   console.log('run_html complete');

@@ -11,8 +11,8 @@ const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
 const {ipc_postmessage} = await import('./rpc.js');
 const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   file_ctype, ctype_get,
-  url_uri_type, T_npm_to_lpm, T_lfile_to_npm, lfile_imp_rel,
-  lfile_parse, lmod_parse, T_lfile_lmod, npm_to_lpm,
+  url_uri_type, T_npm_to_lfile, T_lfile_to_npm, lfile_imp_rel,
+  lfile_parse, lmod_parse, npm_parse, T_lfile_lmod,
   T_lfile_parse, T_lmod_parse, T_lfile_str, T_lmod_str,
   lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
@@ -254,7 +254,7 @@ function lpm_import_lookup({lpm_pkg, imp}){
 }
 
 function tr_import_lpm({imp, imported, lfile_self, pkg}){
-  let v = passthrough_lfile({pkg, lfile: T_npm_to_lpm(imp)});
+  let v = passthrough_lfile({pkg, lfile: T_npm_to_lfile(imp)});
   if (v)
     return v;
   v = lfile_imp_rel(imp, lfile_self);
@@ -575,7 +575,7 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
     if (_path[0]=='.')
       _uri = T_lfile_lmod(lfile)+_path.slice(1);
     else
-      _uri = T_npm_to_lpm(_path);
+      _uri = T_npm_to_lfile(_path);
     D && console.log('redirect export '+lfile+' -> '+_uri);
     return OA(f, {redirect: _uri});
   }
@@ -609,7 +609,7 @@ function lpm_patch_pkg_json(lpm_pkg){
       continue;
     let files;
     for (let [mod, _files] of OE(mods)){
-      let lmod = npm_to_lpm(mod);
+      let lmod = npm_parse(mod)?.lmod;
       if (lmod==lpm_pkg.lmod || lmod==lmod_no_ver){
         files = _files;
         break;
@@ -803,7 +803,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   let v;
   if (lpm_pkg.pkg.name && (v=path_starts(imp, lpm_pkg.pkg.name)))
     return {redirect: lmod_self+v.rest};
-  let lfile = T_npm_to_lpm(imp);
+  let lfile = T_npm_to_lfile(imp);
   let _imp = lpm_import_lookup({lpm_pkg, imp: lfile});
   if (!_imp)
     _imp = lfile;
@@ -1360,7 +1360,7 @@ async function _kernel_fetch(event){
       D && console.log('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }
-    let lfile = T_npm_to_lpm(_path);
+    let lfile = T_npm_to_lfile(_path);
     return Response.redirect('/.lif/'+lfile);
   }
   D && console.log('req default', url);
@@ -1493,7 +1493,7 @@ function test_kernel(){
 test_kernel();
 
 async function webapp_load({log, webapp}){
-  let lmod_webapp = T_npm_to_lpm(webapp);
+  let lmod_webapp = T_npm_to_lfile(webapp);
   let _lpm_app = T_lfile_lmod(lmod_webapp);
   let _lpm_pkg_app;
   let slow = eslow('app_pg lpm_get');
