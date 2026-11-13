@@ -591,6 +591,17 @@ function lpm_patch_file_apply(blob_text, replacements){
   return text;
 }
 
+async function lpm_patch_file(f, lfile){
+  let repls = lpm_patch_file_lookup(lfile);
+  if (!repls)
+    return;
+  let text = await f.blob.text();
+  text = lpm_patch_file_apply(text, repls);
+  f.blob = new Blob([text]);
+  f.h_body = null;
+  f.cache = false;
+}
+
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   D && console.log('lpm_file_get_follow', lfile);
@@ -625,14 +636,7 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   f.h_body = f_get.h_body;
   f.url = f_get.url; // for logging
   f.cache = f_get.cache;
-  let patch_repls = lpm_patch_file_lookup(lfile);
-  if (patch_repls){
-    let text = await f.blob.text();
-    text = lpm_patch_file_apply(text, patch_repls);
-    f.blob = new Blob([text]);
-    f.h_body = null;
-    f.cache = false;
-  }
+  await lpm_patch_file(f, lfile);
   return f;
 }
 
