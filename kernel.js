@@ -5,14 +5,14 @@ const $lif = globalThis.$lif ||= {};
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
-  _path_ext, path_starts, qs_enc, qs_append, qs_split, uri_dec,
+  _path_ext, path_starts, qs_enc, qs_append, uri_dec,
   T_url_parse, str_to_buf, eslow, Scroll, assert_eq, assert_obj_f,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
 const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
-  file_ctype, file_ctype_binary, ctype_get,
+  file_ctype, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
-  lpm_parse, T_lfile_lmod, lpm_to_npm, npm_to_lpm,
+  lpm_parse, T_lfile_lmod, npm_to_lpm,
   T_lpm_parse, T_lpm_str, lpm_ver_missing, lpm_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
   pkg_transform_type, npm_ver_lookup, patch_json, lpm_is_perm,
