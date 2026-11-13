@@ -431,7 +431,7 @@ async function npm_ver_resolve({log, lmod}){
   if (!ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
   u.ver = '@'+ver;
-  return T_lfile_str(u);
+  return T_lmod_str(u);
 }
 
 async function git_ver_resolve({log, lmod}){
@@ -476,11 +476,12 @@ async function git_ver_resolve({log, lmod}){
   u.ver = '@'+sha;
   if (is_c && str.is(u.ver_type, 'final_commitish', 'final'))
     cache_set('lpm_ver', {lmod, ver: u.ver});
-  return T_lfile_str(u);
+  return T_lmod_str(u);
 }); }
 
-async function lpm_ver_resolve({log, lmod}){
-  let u = lmod_parse(lmod);
+async function lpm_ver_resolve({log, lfile}){
+  let u = T_lfile_parse(lfile);
+  let lmod = u.lmod;
   let v;
   if (u.reg=='npm'){
     if (u.ver_type=='final')
@@ -496,7 +497,8 @@ async function lpm_ver_resolve({log, lmod}){
     console.error('pkg not found: '+lmod);
     return v;
   }
-  D && console.log('redirect ver '+lmod+' -> '+v);
+  v += u.path;
+  D && console.log('redirect ver '+lfile+' -> '+v);
   return {redirect: v};
 }
 
@@ -663,7 +665,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   lpm_pkg.log = log;
   lpm_pkg.parent_mod = lmod_self;
   // resolve ver
-  let ver = await lpm_ver_resolve({log, lmod});
+  let ver = await lpm_ver_resolve({log, lfile: lmod});
   if (ver){
     if (ver.redirect)
       D && console.log('lpm_pkg_get '+lmod+' -> '+ver.redirect);
@@ -807,7 +809,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   let _imp = lpm_import_lookup({lpm_pkg, imp: lfile});
   if (!_imp)
     _imp = lfile;
-  let ver = await lpm_ver_resolve({log, lmod: _imp});
+  let ver = await lpm_ver_resolve({log, lfile: _imp});
   if (ver){
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);

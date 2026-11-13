@@ -160,6 +160,8 @@ export function T_lfile_parse(lpm, is_lmod){
   l.lmod += l.submod;
   let _p = p.slice(i);
   l.path = path_parts(_p);
+  if (is_lmod && (l.path && l.path!='/'))
+    throw Error('invalid lmod: '+lpm);
   return l;
 }
 export const lfile_parse = Tf(T_lfile_parse);
