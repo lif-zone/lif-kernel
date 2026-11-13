@@ -12,7 +12,7 @@ const {ipc_postmessage} = await import('./rpc.js');
 const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   file_ctype, ctype_get,
   url_uri_type, T_npm_to_lfile, T_lfile_to_npm, lfile_imp_rel,
-  lfile_parse, lmod_parse, npm_parse, T_lfile_lmod,
+  lfile_parse, npm_parse, T_lfile_lmod,
   T_lfile_parse, T_lmod_parse, T_lfile_str, T_lmod_str,
   lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
@@ -393,7 +393,7 @@ function pkg_alt_get(pkg, file){
 
 let max_redirect = 8;
 function assert_lmod(lmod){
-  assert(lmod_parse(lmod), 'invalid pkg lmod: '+lmod);
+  T_lmod_parse(lmod);
 }
 
 async function npm_ver_get({log, lmod}){
@@ -677,7 +677,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lfile: pkg_json});
   if (f.not_exist){
-    let u = lmod_parse(lmod);
+    let u = T_lmod_parse(lmod);
     if (u.reg!='git' || u.submod || u.ver_type!='final' ||
       !allow_no_package_json)
     {
