@@ -3,15 +3,15 @@ let lif_version = '2026.9.30';
 let D = globalThis.localStorage?.getItem('lif_boot_D'); // Debug
 let in_test;
 
-import {ewait, esleep, eslow, assert_eq, str,
-  Buffer, path_file, path_dir, _path_ext, OE, OA, assert, Tf, TUf,
-  uri_enc, qs_enc, qs_append, qs_trim, qs_split, json, json_cp, str_to_buf,
-  html_elm, version as util_version, T_url_parse,
+import {ewait, eslow, assert_eq, str,
+  Buffer, path_file, path_dir, _path_ext, OE, OA, assert, TUf,
+  qs_enc, qs_trim, qs_split, json, json_cp, str_to_buf,
+  version as util_version, T_url_parse,
 } from './util.js';
 import {
-  T_npm_to_lpm, T_npm_url_base, url_uri_type, T_lpm_to_npm,
+  T_npm_to_lpm, T_npm_url_base, url_uri_type,
   T_lpm_parse, lpm_ver_from_base, T_npm_parse,
-  npm_to_lpm, lpm_to_npm, npm_norm, lpm_is_perm, __uri_parse,
+  npm_to_lpm, npm_norm, lpm_is_perm, __uri_parse,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
