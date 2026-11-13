@@ -163,7 +163,7 @@ export function T_lpm_parse(lpm){
   return l;
 }
 export const lpm_parse = Tf(T_lpm_parse);
-export function T_lpm_str(l){
+export function T_lfile_str(l){
   let submod_path = l.submod+l.path;
   switch (l.reg){
   case 'npm':
@@ -204,9 +204,9 @@ export function T_lpm_str(l){
     throw Error('invalid registry: '+l.reg);
   }
 }
-export const lpm_str = Tf(T_lpm_str);
+export const lfile_str = Tf(T_lfile_str);
 export function npm_str(u){
-  return lpm_to_npm(lpm_str(u));
+  return lpm_to_npm(lfile_str(u));
 }
 
 export function T_lfile_lmod(lpm){
@@ -222,7 +222,7 @@ function http_https_to_lpm(url){
   if (!(v=str.starts(url, 'http://', 'https://')))
     throw Error('invalid http: https:');
   let u = url_parse(url);
-  return T_lpm_str({reg: u.protocol.slice(0, -1), host: u.host,
+  return T_lfile_str({reg: u.protocol.slice(0, -1), host: u.host,
     submod: u.path=='/' ? '' : u.path.slice(1)+'/', path: ''});
 }
 function git_to_lpm(url){
@@ -250,7 +250,7 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let path = T_lpm_parse(imp).path;
   let d = dep, v;
   if (d[0]=='/')
-    return T_lpm_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
+    return T_lfile_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
     return lmod_self+(v.rest?'/'+v.rest:'')+path;
   if (v=str.starts(d, 'https://github.com/', 'github:'))
@@ -466,7 +466,7 @@ export function lpm_ver_from_base(lpm, base){
   base = _lpm_parse(base);
   if (!(lpm_same_base(lpm, base) && lpm_ver_missing(lpm) && base.ver))
     return;
-  return lpm_str({...lpm, ver: base.ver});
+  return lfile_str({...lpm, ver: base.ver});
 }
 export function npm_ver_from_base(npm, base){
   if (!base)
@@ -902,7 +902,7 @@ function test_lpm(){
     let t;
     assert_obj_f(v, t=lpm_parse(lpm));
     if (v)
-      assert_eq(lpm, T_lpm_str(t));
+      assert_eq(lpm, T_lfile_str(t));
   };
   t('local/package.json', {reg: 'local', submod: '',
     lmod: 'local', path: '/package.json'});
@@ -1076,7 +1076,7 @@ function test_lpm(){
     assert_eq(path, u.path);
     assert_eq(lmod, u.lmod);
     assert_eq(lmod, T_lfile_lmod(lpm));
-    assert_eq(lpm, T_lpm_str(u));
+    assert_eq(lpm, T_lfile_str(u));
   };
   t('local', 'local', '');
   t('local/main.tsx', 'local', '/main.tsx');
@@ -1092,7 +1092,7 @@ function test_lpm(){
     'git/github.com/user/repo/mod/', '/dir/file.js');
   t('git/github.com/user/repo@ver/mod//dir/file.js',
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
-  t = (lpm, lmod, path)=>assert_eq(lpm, T_lpm_str(T_lpm_parse(lpm)));
+  t = (lpm, lmod, path)=>assert_eq(lpm, T_lfile_str(T_lpm_parse(lpm)));
   t('lifcoin/inscription/1234');
   t('bitcoin/inscription/1234');
   t('lifcoin/block/1234');

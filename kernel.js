@@ -13,7 +13,7 @@ const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
   file_ctype, ctype_get,
   url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
   lpm_parse, T_lfile_lmod, npm_to_lpm,
-  T_lpm_parse, T_lpm_str, lpm_ver_missing, lpm_ver_final,
+  T_lpm_parse, T_lfile_str, lpm_ver_missing, lpm_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
   pkg_transform_type, npm_ver_lookup, patch_json, lpm_is_perm,
 } = await import('./lpm.js');
@@ -430,7 +430,7 @@ async function npm_ver_resolve({log, lmod}){
   if (!ver)
     throw Error('failed lmod '+u.lmod+' getting pkg_ver list');
   u.ver = '@'+ver;
-  return T_lpm_str(u);
+  return T_lfile_str(u);
 }
 
 async function git_ver_resolve({log, lmod}){
@@ -448,7 +448,7 @@ async function git_ver_resolve({log, lmod}){
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
     if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
       u.ver = v.ver;
-      return T_lpm_str(u);
+      return T_lfile_str(u);
     }
   } else if (u.ver_type=='tag')
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
@@ -475,7 +475,7 @@ async function git_ver_resolve({log, lmod}){
   u.ver = '@'+sha;
   if (is_c && str.is(u.ver_type, 'final_commitish', 'final'))
     cache_set('lpm_ver', {lmod, ver: u.ver});
-  return T_lpm_str(u);
+  return T_lfile_str(u);
 }); }
 
 async function lpm_ver_resolve({log, lmod}){
@@ -599,7 +599,7 @@ function lpm_patch_pkg_json(lpm_pkg){
   // handle {lif: {patches: {"mod": {"./package.json": {diff}}}}}
   let u = T_lpm_parse(lpm_pkg.lmod);
   u.ver = '';
-  let lmod_no_ver = T_lpm_str(u);
+  let lmod_no_ver = T_lfile_str(u);
   let u_self = T_lpm_parse(lpm_pkg.lmod);
   let patch, patch_p;
   for (let p = lpm_pkg.parent; p; p = p.parent){
