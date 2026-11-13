@@ -4,7 +4,7 @@ export const version = reg_version;
 let D = 0; // Debug
 
 const {str, assert, OE, ecache, eslow, ewait} = await import('./util.js');
-const {T_lpm_parse, lpm_ver_missing} = await import('./lpm.js');
+const {T_lfile_parse, lfile_ver_missing} = await import('./lpm.js');
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
@@ -284,7 +284,7 @@ let reg_cdn = {
 function reg_get_cdn(u){
   let cdn = reg_cdn;
   if (typeof u=='string')
-    u = T_lpm_parse(u);
+    u = T_lfile_parse(u);
   switch (u.reg){
   case 'npm': return cdn.npm;
   case 'git': return cdn.git[u.host];
@@ -370,7 +370,7 @@ let enable_filelist = 1;
 async function reg_filelist_get({log, lfile}){
   if (!enable_filelist)
     return;
-  let u = T_lpm_parse(lfile);
+  let u = T_lfile_parse(lfile);
   let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
   let t;
   if (t=reg_filelist_t[pkg_lmod])
@@ -408,7 +408,7 @@ async function reg_filelist_get({log, lfile}){
   return do_ret();
 }
 async function reg_filelist_has({log, lfile}){
-  let u = T_lpm_parse(lfile);
+  let u = T_lfile_parse(lfile);
   let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
   let t;
   if (!(t=reg_filelist_t[pkg_lmod]))
@@ -427,7 +427,7 @@ export async function reg_get({log, lfile, opt}){
   let wait, u, get_ver, get_files;
   reg.lfile = lfile;
   reg.log = log;
-  u = reg.u = T_lpm_parse(reg.lfile);
+  u = reg.u = T_lfile_parse(reg.lfile);
   u.submod_path = u.submod.replace(/\/$/, '')+u.path;
   // select cdn
   // npm/react@18.3.0/index.js
@@ -448,10 +448,10 @@ export async function reg_get({log, lfile, opt}){
     src = reg.cdn.src_files;
     u.submod = '';
     u.path = '';
-    if (lpm_ver_missing(u))
+    if (lfile_ver_missing(u))
       throw Error('reg_get files missing ver: '+lfile);
   } else {
-    if (lpm_ver_missing(u))
+    if (lfile_ver_missing(u))
       throw Error('reg_get missing ver: '+lfile);
     // check filelist to avoid unnecessary fetches for alt searches
     if (reg.cdn.src_files){

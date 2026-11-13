@@ -22,7 +22,7 @@ export function lpm_in_test(set){
 function path_parts(parts){
   return parts.length ? '/'+parts.join('/') : '';
 }
-export function T_lpm_parse(lpm){
+export function T_lfile_parse(lpm, is_lmod){
   let l = {};
   let p = lpm.split('/');
   let i = 0;
@@ -30,9 +30,9 @@ export function T_lpm_parse(lpm){
   function next(err){
     let v = p[i++];
     if (typeof v!='string')
-      throw Error('lpm_parse missing'+err+': '+lpm);
+      throw Error('lfile_parse missing'+err+': '+lpm);
     if (v=='')
-      throw Error('lpm_parse empty element: '+lpm);
+      throw Error('lfile_parse empty element: '+lpm);
     return v;
   }
   function next_submod(){
@@ -58,7 +58,7 @@ export function T_lpm_parse(lpm){
       return {name: name, ver: ''};
     if (n.length==2)
       return {name: n[0], ver: '@'+n[1]};
-    throw Error('lpm_parse invalid ver inname: '+name);
+    throw Error('lfile_parse invalid ver inname: '+name);
   }
   let v, lmod, repo;
   l.reg = next('registry (npm, git, bitcoin, lifcoin, ipfs)');
@@ -162,9 +162,15 @@ export function T_lpm_parse(lpm){
   l.path = path_parts(_p);
   return l;
 }
-export const lpm_parse = Tf(T_lpm_parse);
-export function T_lfile_str(l){
-  let submod_path = l.submod+l.path;
+export const lfile_parse = Tf(T_lfile_parse);
+export function T_lmod_parse(lmod){
+  return T_lfile_parse(lmod, true);
+}
+export function lmod_parse(lmod){
+  return lfile_parse(lmod, true);
+}
+export function T_lfile_str(l, is_lmod){
+  let submod_path = l.submod+(is_lmod ? '' : l.path);
   switch (l.reg){
   case 'npm':
     return l.reg+'/'+l.name+l.ver+submod_path;
@@ -205,14 +211,20 @@ export function T_lfile_str(l){
   }
 }
 export const lfile_str = Tf(T_lfile_str);
+export function T_lmod_str(lmod){
+  return T_lfile_str(lmod, true);
+}
+export function lmod_str(lmod){
+  return lfile_str(lmod, true);
+}
 export function npm_str(u){
-  return lpm_to_npm(lfile_str(u));
+  return lfile_to_npm(lfile_str(u));
 }
 
 export function T_lfile_lmod(lpm){
   let u = lpm;
   if (typeof lpm=='string')
-    u = T_lpm_parse(lpm);
+    u = T_lfile_parse(lpm);
   return u.lmod;
 }
 export const lfile_lmod = Tf(T_lfile_lmod);
@@ -247,7 +259,7 @@ function git_to_lpm(url){
 // parse-package-name: package.json:dependencies
 export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   let lmod = T_lfile_lmod(imp);
-  let path = T_lpm_parse(imp).path;
+  let path = T_lfile_parse(imp).path;
   let d = dep, v;
   if (d[0]=='/')
     return T_lfile_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
@@ -267,7 +279,7 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
     return http_https_to_lpm(d)+path;
   if (v=str.starts(d, 'npm:', '.npm/')){
     let lfile = 'npm/'+v.rest+path;
-    let u = lpm_parse(lfile);
+    let u = lfile_parse(lfile);
     if (u.name==pkg_name)
       return lmod_self+u.path;
     return lfile;
@@ -360,17 +372,17 @@ export function T_npm_to_lpm(npm){
 export const npm_to_lpm = Tf(T_npm_to_lpm);
 
 export function T_npm_parse(npm){
-  return T_lpm_parse(T_npm_to_lpm(npm));
+  return T_lfile_parse(T_npm_to_lpm(npm));
 }
 export const npm_parse = Tf(T_npm_parse);
 
-export function T_lpm_to_npm(lpm){
-  let u = typeof lpm=='string' ? T_lpm_parse(lpm) : lpm;
+export function T_lfile_to_npm(lpm){
+  let u = typeof lpm=='string' ? T_lfile_parse(lpm) : lpm;
   if (u.reg=='npm')
     return u.lmod.slice(4)+u.path;
   return '.lif/'+u.lmod+u.path;
 }
-export const lpm_to_npm = Tf(T_lpm_to_npm);
+export const lfile_to_npm = Tf(T_lfile_to_npm);
 
 export function T_webapp_to_lpm(webapp){
   let v;
@@ -385,14 +397,14 @@ export function T_webapp_to_lpm(webapp){
   }
   if (v=str.starts(webapp, 'git:'))
     return 'git/'+v.rest;
-  if (lpm_parse(webapp))
+  if (lfile_parse(webapp))
     return webapp;
   throw Error('invalid webapp: '+webapp);
 }
 export const webapp_to_lpm = Tf(T_webapp_to_lpm);
 
-export function lpm_to_sw_passthrough(lpm){
-  let l = lpm_parse(lpm);
+export function lfile_to_sw_passthrough(lpm){
+  let l = lfile_parse(lpm);
   switch (l.reg){
   case 'local':
     return l.submod.slice(0, -1)+l.path;
@@ -402,8 +414,8 @@ export function lpm_to_sw_passthrough(lpm){
   return '/.lif/'+lpm;
 }
 
-export function lpm_imp_rel(imp, lfile_self){
-  let depth = lpm_parse(lfile_self).path.split('/').length-2;
+export function lfile_imp_rel(imp, lfile_self){
+  let depth = lfile_parse(lfile_self).path.split('/').length-2;
   let rel_root = depth<=0 ? './' : '../'.repeat(depth);
   return rel_root+'.lif.imp/'+imp;
 }
@@ -433,48 +445,48 @@ export function __uri_parse(uri, base){
   return u;
 }
 
-export function lpm_ver_missing(u){
-  u = _lpm_parse(u);
+export function lfile_ver_missing(u){
+  u = _lfile_parse(u);
   return str.is(u.reg, 'npm', 'git') ? !u.ver : false;
 }
-export function lpm_ver_type(u){
-  u = _lpm_parse(u);
+export function lfile_ver_type(u){
+  u = _lfile_parse(u);
   return str.is(u.reg, 'npm', 'git') && !u.ver ? 'missing' : u.ver_type;
 }
-export function lpm_ver_final(u){
-  u = _lpm_parse(u);
+export function lfile_ver_final(u){
+  u = _lfile_parse(u);
   return str.is(u.reg, 'npm', 'git') ? u.ver_type=='final' : true;
 }
-export function lpm_is_perm(u){
-  u = _lpm_parse(u);
+export function lfile_is_perm(u){
+  u = _lfile_parse(u);
   if (str.is(u.reg, 'npm', 'git'))
     return u.ver_type=='final' && !u.path.startsWith('/.lif.imp/');
   return str.is(u.reg, 'local', 'https', 'http') ? false : true;
 }
 
-export function _lpm_parse(lpm){
-  return typeof lpm=='string' ? lpm_parse(lpm) : lpm;
+export function _lfile_parse(lpm){
+  return typeof lpm=='string' ? lfile_parse(lpm) : lpm;
 }
-export function lpm_same_base(lfile_a, lfile_b){
-  let a = _lpm_parse(lfile_a), b = _lpm_parse(lfile_b);
+export function lfile_same_base(lfile_a, lfile_b){
+  let a = _lfile_parse(lfile_a), b = _lfile_parse(lfile_b);
   return a.reg==b.reg && a.name==b.name;
 }
-export function lpm_ver_from_base(lpm, base){
+export function lfile_ver_from_base(lpm, base){
   if (!base)
     return;
-  lpm = _lpm_parse(lpm);
-  base = _lpm_parse(base);
-  if (!(lpm_same_base(lpm, base) && lpm_ver_missing(lpm) && base.ver))
+  lpm = _lfile_parse(lpm);
+  base = _lfile_parse(base);
+  if (!(lfile_same_base(lpm, base) && lfile_ver_missing(lpm) && base.ver))
     return;
   return lfile_str({...lpm, ver: base.ver});
 }
 export function npm_ver_from_base(npm, base){
   if (!base)
     return;
-  let v = lpm_ver_from_base(npm_to_lpm(npm), npm_to_lpm(base));
+  let v = lfile_ver_from_base(npm_to_lpm(npm), npm_to_lpm(base));
   if (!v)
     return;
-  return lpm_to_npm(v);
+  return lfile_to_npm(v);
 }
 
 export function T_npm_url_base(url_uri, base_uri){
@@ -507,7 +519,7 @@ export function T_npm_url_base(url_uri, base_uri){
   if (t=='mod'){
     let lpm = T_npm_parse(url_uri);
     let uri = url_uri;
-    if (lpm_ver_from_base(lpm, base)){
+    if (lfile_ver_from_base(lpm, base)){
       is.rel_ver = 1;
       lpm.ver = base.ver;
       uri = npm_str(lpm);
@@ -757,7 +769,7 @@ export function pkg_transform_type(pkg, path){
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
 export function pkg_import_lookup({lmod_self, pkg, imp}){
   let lmod_imp = T_lfile_lmod(imp);
-  let npm_imp = T_lpm_to_npm(lmod_imp);
+  let npm_imp = T_lfile_to_npm(lmod_imp);
   function get_imp(deps, is_peer){
     let d, v;
     if (!(d = deps?.[npm_imp]))
@@ -900,7 +912,7 @@ function test_lpm(){
     lmod: 'npm/@noble/hashes@1.2.0', path: '/esm/utils.js'});
   t = (lpm, v)=>{
     let t;
-    assert_obj_f(v, t=lpm_parse(lpm));
+    assert_obj_f(v, t=lfile_parse(lpm));
     if (v)
       assert_eq(lpm, T_lfile_str(t));
   };
@@ -929,10 +941,10 @@ function test_lpm(){
   t('npm/mod/sub//', {reg: 'npm', submod: '/sub/',
     lmod: 'npm/mod/sub/', path: '/'});
   t('npm/mod/', {reg: 'npm', submod: '', lmod: 'npm/mod', path: '/'});
-  t = (v, lpm)=>assert_eq(v, !!lpm_parse(lpm));
+  t = (v, lpm)=>assert_eq(v, !!lfile_parse(lpm));
   t(true, 'npm/mod/dir/file.js');
   t(true, 'npm/mod/dir//file.js');
-  t = (imp, lmod_self, v)=>assert_eq(v, lpm_imp_rel(imp, lmod_self));
+  t = (imp, lmod_self, v)=>assert_eq(v, lfile_imp_rel(imp, lmod_self));
   t('mod', 'npm/self/file.js', './.lif.imp/mod');
   t('mod', 'npm/self/a/file.js', '../.lif.imp/mod');
   t('mod', 'npm/self/a/b/file.js', '../../.lif.imp/mod');
@@ -1059,11 +1071,11 @@ function test_lpm(){
   t('.lif/local/mod//file.js', 'local/mod//file.js');
   t('http://site/dir', 'http/site/dir');
   t('https://site/dir', 'https/site/dir');
-  t = (lpm, v)=>assert_eq(v, lpm_to_npm(lpm));
+  t = (lpm, v)=>assert_eq(v, lfile_to_npm(lpm));
   t('npm/mod', 'mod');
   t('npm/mod/file.js', 'mod/file.js');
   t('npm/mod/sub//file.js', 'mod/sub//file.js');
-  t(lpm_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
+  t(lfile_parse('npm/mod/sub//file.js'), 'mod/sub//file.js');
   t('git/github.com/user/repo', '.lif/git/github.com/user/repo');
   t('git/gitlab.com/user/repo/file.js',
     '.lif/git/gitlab.com/user/repo/file.js');
@@ -1072,7 +1084,7 @@ function test_lpm(){
   t('local/dir/file.js', '.lif/local/dir/file.js');
   t('local/sub//dir/file.js', '.lif/local/sub//dir/file.js');
   t = (lpm, lmod, path)=>{
-    let u = T_lpm_parse(lpm);
+    let u = T_lfile_parse(lpm);
     assert_eq(path, u.path);
     assert_eq(lmod, u.lmod);
     assert_eq(lmod, T_lfile_lmod(lpm));
@@ -1092,7 +1104,7 @@ function test_lpm(){
     'git/github.com/user/repo/mod/', '/dir/file.js');
   t('git/github.com/user/repo@ver/mod//dir/file.js',
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
-  t = (lpm, lmod, path)=>assert_eq(lpm, T_lfile_str(T_lpm_parse(lpm)));
+  t = (lpm, lmod, path)=>assert_eq(lpm, T_lfile_str(T_lfile_parse(lpm)));
   t('lifcoin/inscription/1234');
   t('bitcoin/inscription/1234');
   t('lifcoin/block/1234');
@@ -1140,16 +1152,16 @@ function test_lpm(){
   t('https/any.com:9000/dir/', 'https/any.com:9000/dir/');
   t('lif/git/github.com/npm/cli@v1.0.27','git/github.com/npm/cli@v1.0.27');
   t('git:github.com/npm/cli@v1.0.27','git/github.com/npm/cli@v1.0.27');
-  t = (lpm, v)=>assert_eq(v, lpm_to_sw_passthrough(lpm));
+  t = (lpm, v)=>assert_eq(v, lfile_to_sw_passthrough(lpm));
   t('local/dir/file.js', '/dir/file.js');
   t('local/dir//file.js', '/dir/file.js');
   t('http/localhost:3000/dir//file.js', 'http://localhost:3000/dir/file.js');
   t('npm/mod/file.js', '/.lif/npm/mod/file.js');
   t = (lpm, v)=>{
-    assert_eq(v.type=='missing', lpm_ver_missing(lpm));
-    assert_eq(!!v.perm, lpm_is_perm(lpm));
-    assert_eq(!!v.final, lpm_ver_final(lpm));
-    assert_eq(v.type, lpm_ver_type(lpm));
+    assert_eq(v.type=='missing', lfile_ver_missing(lpm));
+    assert_eq(!!v.perm, lfile_is_perm(lpm));
+    assert_eq(!!v.final, lfile_ver_final(lpm));
+    assert_eq(v.type, lfile_ver_type(lpm));
   };
   t('npm/mod@1.2.3/file', {perm: true, final: true, type: 'final'});
   t('npm/mod@1.2.3/.lif.imp/mod2', {perm: false, final: true, type: 'final'});
@@ -1169,7 +1181,7 @@ function test_lpm(){
   t('git/github.com/user/repo@1.2.3/file', {type: 'tag'});
   t('git/github.com/user/repo@v1.2.3/file', {type: 'tag'});
   t('git/github.com/user/repo@semver:1.2.3/file', {type: 'semver'});
-  t = (lpm, base, v)=>assert_eq(v, lpm_ver_from_base(lpm, base));
+  t = (lpm, base, v)=>assert_eq(v, lfile_ver_from_base(lpm, base));
   t('npm/mod/dir', 'npm/mod@1.2.3/file', 'npm/mod@1.2.3/dir');
   t('npm/mod/dir', 'npm/mod/file');
   t('npm/mod/dir', 'npm/mod/dir');

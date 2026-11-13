@@ -9,13 +9,14 @@ const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
   T_url_parse, str_to_buf, eslow, Scroll, assert_eq, assert_obj_f,
 } = util;
 const {ipc_postmessage} = await import('./rpc.js');
-const {lpm_ver_from_base, lpm_to_sw_passthrough, lpm_in_test,
+const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   file_ctype, ctype_get,
-  url_uri_type, T_npm_to_lpm, T_lpm_to_npm, lpm_imp_rel,
-  lpm_parse, T_lfile_lmod, npm_to_lpm,
-  T_lpm_parse, T_lfile_str, lpm_ver_missing, lpm_ver_final,
+  url_uri_type, T_npm_to_lpm, T_lfile_to_npm, lfile_imp_rel,
+  lfile_parse, lmod_parse, T_lfile_lmod, npm_to_lpm,
+  T_lfile_parse, T_lmod_parse, T_lfile_str, T_lmod_str,
+  lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
-  pkg_transform_type, npm_ver_lookup, patch_json, lpm_is_perm,
+  pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
 } = await import('./reg.js');
@@ -208,13 +209,13 @@ function lpm_import_lookup({lpm_pkg, imp}){
   let ret_err = err=>{
     D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
   };
-  if (!(u = lpm_parse(imp)))
+  if (!(u = lfile_parse(imp)))
     return ret_err('invalid lpm uri import');
   // no need to lookup final versioned imports and local imports
-  if (!lpm_ver_missing(u))
+  if (!lfile_ver_missing(u))
     return imp;
   // if same package, use self
-  let _imp = lpm_ver_from_base(imp, lpm_pkg.lmod);
+  let _imp = lfile_ver_from_base(imp, lpm_pkg.lmod);
   if (_imp)
     return _imp;
   let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
@@ -256,7 +257,7 @@ function tr_import_lpm({imp, imported, lfile_self, pkg}){
   let v = passthrough_lfile({pkg, lfile: T_npm_to_lpm(imp)});
   if (v)
     return v;
-  v = lpm_imp_rel(imp, lfile_self);
+  v = lfile_imp_rel(imp, lfile_self);
   let q = {};
   q.imp = imported?.join(',') || '';
   v += qs_enc(q);
@@ -392,7 +393,7 @@ function pkg_alt_get(pkg, file){
 
 let max_redirect = 8;
 function assert_lmod(lmod){
-  assert(T_lpm_parse(lmod).path=='', 'invalid pkg lmod: '+lmod);
+  assert(lmod_parse(lmod), 'invalid pkg lmod: '+lmod);
 }
 
 async function npm_ver_get({log, lmod}){
@@ -419,8 +420,8 @@ async function npm_ver_get({log, lmod}){
 }); }
 
 async function npm_ver_resolve({log, lmod}){
-  let u = T_lpm_parse(lmod);
-  assert(!lpm_ver_final(u));
+  let u = T_lmod_parse(lmod);
+  assert(!lfile_ver_final(u));
   assert(u.reg=='npm');
   let pv = await npm_ver_get({log, lmod: u.reg+'/'+u.name});
   if (pv.not_exist)
@@ -437,7 +438,7 @@ async function git_ver_resolve({log, lmod}){
   return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
     async function run(pv)
 {
-  let u = T_lpm_parse(lmod);
+  let u = T_lmod_parse(lmod);
   let url, v;
   // XXX add support for getting branch+date lpm_app_date
   let _ver = u.ver.slice(1);
@@ -479,7 +480,7 @@ async function git_ver_resolve({log, lmod}){
 }); }
 
 async function lpm_ver_resolve({log, lmod}){
-  let u = lpm_parse(lmod);
+  let u = lmod_parse(lmod);
   let v;
   if (u.reg=='npm'){
     if (u.ver_type=='final')
@@ -566,8 +567,8 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   pkg = f.pkg = lpm_pkg.pkg;
   lpm_pkg.log ||= log;
   if (lpm_pkg.redirect)
-    return OA(f, {redirect: lpm_pkg.redirect+T_lpm_parse(lfile).path});
-  let path = T_lpm_parse(lfile).path;
+    return OA(f, {redirect: lpm_pkg.redirect+T_lfile_parse(lfile).path});
+  let path = T_lfile_parse(lfile).path;
   let _path = pkg_exports_lookup(pkg, '.'+path);
   if (_path && _path!='.'+path){
     let _uri;
@@ -597,10 +598,10 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
 
 function lpm_patch_pkg_json(lpm_pkg){
   // handle {lif: {patches: {"mod": {"./package.json": {diff}}}}}
-  let u = T_lpm_parse(lpm_pkg.lmod);
+  let u = T_lmod_parse(lpm_pkg.lmod);
   u.ver = '';
   let lmod_no_ver = T_lfile_str(u);
-  let u_self = T_lpm_parse(lpm_pkg.lmod);
+  let u_self = T_lmod_parse(lpm_pkg.lmod);
   let patch, patch_p;
   for (let p = lpm_pkg.parent; p; p = p.parent){
     let mods;
@@ -674,7 +675,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lfile: pkg_json});
   if (f.not_exist){
-    let u = lpm_parse(lmod);
+    let u = lmod_parse(lmod);
     if (u.reg!='git' || u.submod || u.ver_type!='final' ||
       !allow_no_package_json)
     {
@@ -765,7 +766,7 @@ async function lpm_pkg_resolve({log, imp, lmod_self}){
   if (lmod_self){
     assert_lmod(lmod_self);
     // same module, empty ver and base completes it? use base to complete ver
-    let _imp = lpm_ver_from_base(imp, lmod_self);
+    let _imp = lfile_ver_from_base(imp, lmod_self);
     if (_imp && _imp!=imp)
       return {redirect: _imp};
     // different modules: load pkg, and lookup imports.
@@ -824,7 +825,7 @@ async function lpm_import_get({log, imp, lmod_self}){
 
 async function lpm_file_resolve({log, imp, alt}){
   D && console.log('lpm_file_resolve', imp);
-  let path = T_lpm_parse(imp).path;
+  let path = T_lfile_parse(imp).path;
   let lpm_pkg = await lpm_pkg_resolve({log, imp: T_lfile_lmod(imp)});
   if (lpm_pkg.not_exist)
     return {not_exist: true};
@@ -956,7 +957,7 @@ async function cache_store_set(request, response){
 
 function lpm_redirect({f, qs, lfile}){
   let q = new URLSearchParams(qs);
-  let l = lpm_parse(f.redirect);
+  let l = lfile_parse(f.redirect);
   if (f.q){
     for (let [k, v] of OE(f.q))
       q.set(k, v);
@@ -975,10 +976,10 @@ function passthrough_lfile({pkg, lfile}){
   let pass = pkg.lif?.passthrough;
   if (!pass)
     return;
-  let u = lpm_parse(lfile);
+  let u = lfile_parse(lfile);
   if (!str.is(u.reg, 'local', 'http', 'https'))
     return;
-  let pass_url = lpm_to_sw_passthrough(lfile);
+  let pass_url = lfile_to_sw_passthrough(lfile);
   let file = u.path.slice(1);
   let v;
   for (let p of pass){
@@ -1006,7 +1007,7 @@ async function file_tsx_to_js(f){
   if (f.js)
     return f.js;
   let type = _path_ext(f.lfile);
-  let path = T_lpm_parse(f.lfile).path;
+  let path = T_lfile_parse(f.lfile).path;
   let v;
   if (v=pkg_transform_type(f.lpm_pkg.pkg, path))
     type = v;
@@ -1095,7 +1096,7 @@ let enable_follow = true;
 async function fetch_lpm_follow({log, imp, qs, follow}){
   let v, f, redirect, _imp = imp;
   let q = new URLSearchParams(qs);
-  let u = T_lpm_parse(imp);
+  let u = T_lfile_parse(imp);
   let alt = q.has('imp') || q.has('mjs') || q.has('meta');
   if (v=str.starts(u.path, '/.lif.imp/')){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
@@ -1143,7 +1144,7 @@ async function fetch_lpm_meta_res({log, imp}){
 }
 
 async function fetch_lpm_file({log, imp, qs}){
-  let u = T_lpm_parse(imp);
+  let u = T_lfile_parse(imp);
   if (str.is(u.reg, 'bitcoin', 'lifcoin'))
     return await lpm_file_get({log, lfile: imp, opt: {ctype: true, cache: 'pass'}});
   let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
@@ -1322,7 +1323,7 @@ async function _kernel_fetch(event){
   if (v=str.starts(path, '/.lif/')){
     let lfile = v.rest;
     log.imp = lfile;
-    if (lpm_is_perm(lfile)){
+    if (lfile_is_perm(lfile)){
       let response = await cache_store_get(request);
       if (response)
         return response;
@@ -1511,7 +1512,7 @@ async function webapp_load({log, webapp}){
   lpm_app = _lpm_app;
   lpm_pkg_app = _lpm_pkg_app;
   let pkg = lpm_pkg_app.pkg;
-  let webapp_f = lpm_parse(lmod_webapp).path.slice(1);
+  let webapp_f = lfile_parse(lmod_webapp).path.slice(1);
   if (!webapp_f)
     webapp_f = pkg.lif?.webapp||pkg.webapp;
   if (!webapp_f)
@@ -1519,7 +1520,7 @@ async function webapp_load({log, webapp}){
   let v;
   while (v=str.starts(webapp_f, './'))
     webapp_f = v.rest;
-  let res = {ok: true, webapp: T_lpm_to_npm(_lpm_app+'/'+webapp_f)};
+  let res = {ok: true, webapp: T_lfile_to_npm(_lpm_app+'/'+webapp_f)};
   console.log('webapp_load complete: '+res.webapp);
   return res;
 }

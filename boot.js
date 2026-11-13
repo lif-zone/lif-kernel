@@ -10,8 +10,8 @@ import {ewait, eslow, assert_eq, str,
 } from './util.js';
 import {
   T_npm_to_lpm, T_npm_url_base, url_uri_type,
-  T_lpm_parse, lpm_ver_from_base, T_npm_parse,
-  npm_to_lpm, npm_norm, lpm_is_perm, __uri_parse,
+  T_lfile_parse, lfile_ver_from_base, T_npm_parse,
+  npm_to_lpm, npm_norm, lfile_is_perm, __uri_parse,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -152,11 +152,11 @@ function npm_imp_uri(uri_self, imp){
   assert(t=='mod');
   if (uri_self){
     let lfile_self = str.starts(uri_self, '/.lif/').rest;
-    let u_self = T_lpm_parse(lfile_self);
+    let u_self = T_lfile_parse(lfile_self);
     let u = T_npm_parse(imp);
     if (u.lmod==u_self.lmod)
       return '/.lif/'+T_npm_to_lpm(imp);
-    let with_ver = lpm_ver_from_base(u, u_self);
+    let with_ver = lfile_ver_from_base(u, u_self);
     if (with_ver)
       return '/.lif/'+with_ver;
     return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
@@ -287,7 +287,7 @@ async function fetch_cache(url){
   // skip cache tests if nothing is found in cache 5 times (recheck everry 10)
   if (cache_miss>5 && !(cache_try%10))
     return await fetch(url);
-  if (!lpm_is_perm(str.starts(url, '/.lif/').rest))
+  if (!lfile_is_perm(str.starts(url, '/.lif/').rest))
     return await fetch(url);
   // XXX need to add page refresh detection in kernel and disable caching if so
   let cache = caches_db || await caches_open();
