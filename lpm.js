@@ -159,6 +159,12 @@ export function T_lfile_parse(lpm, is_lmod){
   l.submod = next_submod();
   l.lmod += l.submod;
   let _p = p.slice(i);
+  if (is_lmod){
+    if (_p.length)
+      throw Error('invalid lmod has path: '+lpm);
+    l.path = '';
+    return l;
+  }
   l.path = path_parts(_p);
   if (0){
   if (is_lmod){
