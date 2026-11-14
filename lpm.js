@@ -159,7 +159,7 @@ export function T_lfile_parse(lfile, is_lmod){
   if (is_lmod){
     if (_p.length)
       throw Error('invalid lmod has path: '+lfile);
-    l.path = '';
+    l.path = '/';
     return l;
   }
   l.path = path_parts(_p);
@@ -1109,7 +1109,7 @@ function test_lpm(){
     'git/github.com/user/repo@ver/mod/', '/dir/file.js');
   t = (lmod, submod)=>{
     let u = T_lmod_parse(lmod);
-    assert_eq('', u.path);
+    assert_eq('/', u.path);
     assert_eq(lmod, u.lmod);
     assert_eq(submod, u.submod);
     assert_eq(lmod, T_lmod_str(u));

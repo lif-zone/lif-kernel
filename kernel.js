@@ -826,8 +826,11 @@ async function lpm_pkg_resolve({log, imp, lmod_self}){
   } else
     lpm_self = lpm_pkg_app || lpm_pkg_root;
   // lookup for imports in parent
-  let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp});
-  let lmod = T_lfile_lmod(_imp || imp);
+  let imp_lfile = T_lfile_str(T_lmod_parse(imp));
+  let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp: imp_lfile});
+  if (_imp)
+    _imp = T_lfile_lmod(_imp);
+  let lmod =_imp || imp;
   // load the module, even if redirect later, so its loaded with lmod_self
   let lpm_pkg = await lpm_pkg_get({log, lmod, lmod_self: lpm_self.lmod});
   // local dev: allow to force modules to load from local
