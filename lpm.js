@@ -389,25 +389,6 @@ export function T_lfile_to_npm(lfile){
 }
 export const lfile_to_npm = Tf(T_lfile_to_npm);
 
-export function T_webapp_to_lfile(webapp){
-  let v;
-  if (webapp[0]=='/')
-    return 'local'+webapp;
-  if (v=str.starts(webapp, 'lif:', 'lif/'))
-    return v.rest;
-  if (v=str.starts(webapp, 'http:', 'https:')){
-    if (v.rest.slice(0, 2)!='//')
-      throw Error('invalid webapp '+webapp);
-    return v.start.slice(0, -1)+'/'+v.rest.slice(2);
-  }
-  if (v=str.starts(webapp, 'git:'))
-    return 'git/'+v.rest;
-  if (lfile_parse(webapp))
-    return webapp;
-  throw Error('invalid webapp: '+webapp);
-}
-export const webapp_to_lfile = Tf(T_webapp_to_lfile);
-
 export function lfile_to_sw_passthrough(lfile){
   let l = lfile_parse(lfile);
   switch (l.reg){
@@ -1183,16 +1164,6 @@ function test_lpm(){
   t({path: '@mod/sub/a/c/d', is: {mod: 1, rel: 1}}, './c/d', '@mod/sub/a/b');
   t({path: '.lif/git/github.com/user/repo@1.2.3/a/c/d', is: {mod: 1, rel: 1}},
     './c/d', '.lif/git/github.com/user/repo@1.2.3/a/b');
-  t = (webapp, v)=>assert_eq(v, webapp_to_lfile(webapp));
-  t('lif:local/file.js', 'local/file.js');
-  t('local/file.js', 'local/file.js');
-  t('/file.js', 'local/file.js');
-  t('lif:npm/react', 'npm/react');
-  t('npm/react', 'npm/react');
-  t('https://any.com:9000/dir', 'https/any.com:9000/dir');
-  t('https/any.com:9000/dir/', 'https/any.com:9000/dir/');
-  t('lif/git/github.com/npm/cli@v1.0.27','git/github.com/npm/cli@v1.0.27');
-  t('git:github.com/npm/cli@v1.0.27','git/github.com/npm/cli@v1.0.27');
   t = (lfile, v)=>assert_eq(v, lfile_to_sw_passthrough(lfile));
   t('local/dir/file.js', '/dir/file.js');
   t('local/dir//file.js', '/dir/file.js');
