@@ -545,7 +545,8 @@ async function lpm_file_get_alt({log, lfile, alt}){
   let first;
   alt = ['', ...(alt||[])];
   for (let a of alt){
-    let f = await lpm_file_get({log, lfile: lfile+a});
+    let lfile_a = lfile.at(-1)=='/' && a[0]=='/' ? lfile+a.slice(1) : lfile+a;
+    let f = await lpm_file_get({log, lfile: lfile_a});
     first ||= f;
     f = {...f};
     f.alt = a;
