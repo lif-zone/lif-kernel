@@ -567,7 +567,7 @@ function lpm_patch_file_lookup(lfile){
   if (!patch)
     return;
   let u = T_lfile_parse(lfile);
-  if (u.reg!='npm')
+  if (u.reg!='npm') // XXX hack. need to make generic npm module matching
     return;
   let path = '.'+u.path;
   let files = patch[u.name+u.ver] || patch[u.name];
