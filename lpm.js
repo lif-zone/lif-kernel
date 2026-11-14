@@ -22,17 +22,17 @@ export function lpm_in_test(set){
 function path_parts(parts){
   return parts.length ? '/'+parts.join('/') : '';
 }
-export function T_lfile_parse(lpm, is_lmod){
+export function T_lfile_parse(lfile, is_lmod){
   let l = {};
-  let p = lpm.split('/');
+  let p = lfile.split('/');
   let i = 0;
   let is_npm;
   function next(err){
     let v = p[i++];
     if (typeof v!='string')
-      throw Error('lfile_parse missing'+err+': '+lpm);
+      throw Error('lfile_parse missing'+err+': '+lfile);
     if (v=='')
-      throw Error('lfile_parse empty element: '+lpm);
+      throw Error('lfile_parse empty element: '+lfile);
     return v;
   }
   function next_submod(){
@@ -131,7 +131,7 @@ export function T_lfile_parse(lpm, is_lmod){
     }
     break; }
   case 'ethereum':
-    throw Error('unsupported ethereum '+lpm);
+    throw Error('unsupported ethereum '+lfile);
     break;
   case 'ipfs':
     l.cid = next('cid');
@@ -149,16 +149,16 @@ export function T_lfile_parse(lpm, is_lmod){
     l.lmod = l.reg+'/'+l.host;
     break;
   default:
-    throw Error('invalid registry: '+lpm);
+    throw Error('invalid registry: '+lfile);
   }
   l.submod = next_submod();
   if (l.submod=='//')
-    throw Error('invalid empty submod: '+lpm);
+    throw Error('invalid empty submod: '+lfile);
   l.lmod += l.submod;
   let _p = p.slice(i);
   if (is_lmod){
     if (_p.length)
-      throw Error('invalid lmod has path: '+lpm);
+      throw Error('invalid lmod has path: '+lfile);
     l.path = '';
     return l;
   }
@@ -166,7 +166,7 @@ export function T_lfile_parse(lpm, is_lmod){
   if (0){
   if (is_lmod){
     if (l.path && l.path!='/')
-      throw Error('invalid lmod: '+lpm);
+      throw Error('invalid lmod: '+lfile);
   } else {
     if (!l.path && l.submod.at(-1)=='/'){
       l.path = '/';
@@ -485,14 +485,14 @@ export function lfile_same_base(lfile_a, lfile_b){
   let a = _lfile_parse(lfile_a), b = _lfile_parse(lfile_b);
   return a.reg==b.reg && a.name==b.name;
 }
-export function lfile_ver_from_base(lpm, base){
+export function lfile_ver_from_base(lfile, base){
   if (!base)
     return;
-  lpm = _lfile_parse(lpm);
+  let u = _lfile_parse(lfile);
   base = _lfile_parse(base);
-  if (!(lfile_same_base(lpm, base) && lfile_ver_missing(lpm) && base.ver))
+  if (!(lfile_same_base(u, base) && lfile_ver_missing(u) && base.ver))
     return;
-  return lfile_str({...lpm, ver: base.ver});
+  return lfile_str({...u, ver: base.ver});
 }
 export function npm_ver_from_base(npm, base){
   if (!base)
