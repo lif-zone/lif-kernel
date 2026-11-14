@@ -647,7 +647,7 @@ function lpm_patch_pkg_json(lpm_pkg){
   // handle {lif: {patches: {"mod": {"./package.json": {diff}}}}}
   let u = T_lmod_parse(lpm_pkg.lmod);
   u.ver = '';
-  let lmod_no_ver = T_lfile_str(u);
+  let lmod_no_ver = T_lmod_str(u);
   let u_self = T_lmod_parse(lpm_pkg.lmod);
   let patch, patch_p;
   for (let p = lpm_pkg.parent; p; p = p.parent){
