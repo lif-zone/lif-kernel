@@ -1154,8 +1154,11 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
     imp = redirect = f.redirect;
   }
   f = await lpm_file_resolve_follow({log, imp, alt, follow});
-  if (redirect && !f.redirect)
+  if (redirect && !f.redirect){
+    if (f.not_exist)
+      return {not_exist: true, redirect};
     return {redirect_file: f, redirect};
+  }
   return f;
 }
 

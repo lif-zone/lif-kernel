@@ -225,3 +225,6 @@ CLAUDE: reg.js: Added `reg_filelist_get({log, lmod})` that fetches the package f
 USER: Merge reg_filelist_get/reg_filelist_has into reg_get so kernel.js doesn't need to call them. The check should happen for any file fetch, not just package.json.
 
 CLAUDE: Made reg_filelist_get and reg_filelist_has internal (non-exported). Added filelist check inside reg_get's regular file path (not --ver/--files): fetches filelist on first file request per package, then checks if file exists in list before doing the actual HTTP fetch. Returns not_exist immediately if file not in list. Removed all reg_filelist calls from kernel.js.
+---
+USER: can you first fix #2 (missing import via .lif.imp returns 500 instead of 404), and validate it then returns 404 not 500?
+CLAUDE: kernel.js fetch_lpm_follow: when an import redirect resolves to a file that does not exist, return {not_exist: true, redirect} instead of wrapping it as {redirect, redirect_file: {not_exist}}. Previously responce_tr_send unwrapped redirect_file and crashed in _path_ext(f.lfile) with "Cannot read properties of undefined (reading 'match')" (500). Validated in Chrome: /.lif/local/bluewallet-web//.lif.imp/bc-bech32 with ?imp, ?mjs and no query now return 404 "not found"; ?meta returns {not_exist: true}; bip38, bip47 and react imports still return 200.
