@@ -16,8 +16,9 @@ export function lpm_in_test(set){
   in_test += set ? +1 : -1;
 }
 
-// try to support this one day:
-// import {groupBy} from 'npm:lodash@4.17.21';
+export function lfile_append(lfile, add){
+  return lfile.at(-1)=='/' && add[0]=='/' ? lfile+add.slice(1) : lfile+add;
+}
 
 function path_parts(parts){
   return parts.length ? '/'+parts.join('/') : '';
@@ -295,9 +296,10 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
     let file = v.rest;
     if (!(v=str.starts(file, './')))
       throw Error('only ./ files supported: '+dep);
+    let base = lmod_self+'/'+v.rest;
     if (lmod_self.at(-1)=='/' && v.rest.includes('//'))
-      return lmod_self+v.rest;
-    return lmod_self+'/'+v.rest;
+      base = lmod_self+v.rest;
+    return lfile_append(base, path);
   }
   let ver = semver_range_parse(d) ? d : null;
   return ver ? lmod+'@'+ver+path : undefined;
@@ -1002,6 +1004,20 @@ function test_lpm(){
     {lmod_self: 'git/github.com/user/repo/mod/'});
   t('file:./dir//index.js', 'git/github.com/user/repo/mod/dir//index.js',
     {lmod_self: 'git/github.com/user/repo/mod/'});
+  t('file:./dir/pkg//', 'local/mod/dir/pkg//',
+    {lmod_self: 'local/mod/'});
+  t('file:./dir/pkg//', 'local/mod/dir/pkg//sub/file.js',
+    {lmod_self: 'local/mod/', imp: 'npm/xxx/sub/file.js'});
+  t('file:./dir/pkg//', 'local/mod/dir/pkg//package.json',
+    {lmod_self: 'local/mod/', imp: 'npm/xxx/package.json'});
+  t('file:./dir/pkg//', 'local/mod/dir/pkg//sub/file.js',
+    {lmod_self: 'local/mod/', imp: 'npm/@scope/xxx/sub/file.js'});
+  t('file:./dir/pkg//', 'git/github.com/user/repo/mod/dir/pkg//sub/file.js',
+    {lmod_self: 'git/github.com/user/repo/mod/', imp: 'npm/xxx/sub/file.js'});
+  t('file:./dir', 'local/mod//dir/sub/file.js',
+    {lmod_self: 'local/mod/', imp: 'npm/xxx/sub/file.js'});
+  t('file:./dir', 'npm/self@4.5.6/dir/sub/file.js',
+    {imp: 'npm/xxx/sub/file.js'});
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',

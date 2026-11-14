@@ -228,3 +228,9 @@ CLAUDE: Made reg_filelist_get and reg_filelist_has internal (non-exported). Adde
 ---
 USER: can you first fix #2 (missing import via .lif.imp returns 500 instead of 404), and validate it then returns 404 not 500?
 CLAUDE: kernel.js fetch_lpm_follow: when an import redirect resolves to a file that does not exist, return {not_exist: true, redirect} instead of wrapping it as {redirect, redirect_file: {not_exist}}. Previously responce_tr_send unwrapped redirect_file and crashed in _path_ext(f.lfile) with "Cannot read properties of undefined (reading 'match')" (500). Validated in Chrome: /.lif/local/bluewallet-web//.lif.imp/bc-bech32 with ?imp, ?mjs and no query now return 404 "not found"; ?meta returns {not_exist: true}; bip38, bip47 and react imports still return 200.
+---
+USER: can you first add a unit-test case for this? (file: deps drop the import subpath in T_npm_import_parse)
+CLAUDE: lpm.js test_lpm(): added npm_import_parse cases for file: deps with a subpath in the import (file:./dir/pkg// with sub/file.js, package.json, scoped name, git lmod_self; plain file:./dir with local and npm lmod_self), plus a bare-import case. The subpath cases fail until the bug is fixed: "exp local/mod/dir/pkg//sub/file.js got local/mod/dir/pkg//". No fix applied yet.
+---
+USER: yes, apply the fix and validate
+CLAUDE: lpm.js T_npm_import_parse: the file: branch now appends the import subpath (avoiding a triple slash when the dep ends in //), like every other dep type. test_lpm passes under node. Validated in Chrome with BlueWallet-web: bip47/src/utils.js, bip47/package.json and bip47/README.md now return those files instead of src/index.js; coinselect/split, slip39/src/slip39_helper and @arkade-os/sdk/repositories/realm resolve to their physical files; bare imports and npm subpath imports (react/jsx-runtime, @noble/hashes/sha2.js) unchanged; app renders the wallets list.
