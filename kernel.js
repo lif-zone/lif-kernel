@@ -540,13 +540,15 @@ async function lpm_file_get({log, lfile, opt={}}){
   return lpm_file;
 }); }
 
+function path_append(lfile, add){
+  return lfile.at(-1)=='/' && add[0]=='/' ? lfile+add.slice(1) : lfile+add;
+}
 async function lpm_file_get_alt({log, lfile, alt}){
   // fetch the file
   let first;
   alt = ['', ...(alt||[])];
   for (let a of alt){
-    let lfile_a = lfile.at(-1)=='/' && a[0]=='/' ? lfile+a.slice(1) : lfile+a;
-    let f = await lpm_file_get({log, lfile: lfile_a});
+    let f = await lpm_file_get({log, lfile: path_append(lfile, a)});
     first ||= f;
     f = {...f};
     f.alt = a;
