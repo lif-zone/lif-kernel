@@ -353,7 +353,7 @@ function tr_js_to_ast(js){
       },
     });
     ast.type = has.import||has.export||has.await ? 'mjs' :
-      has.define ? 'amd' :
+      has.define && !has.require ? 'amd' :
       has.require||has.module||has.exports ? 'cjs' : '';
     ast.exports = array_unique(ast.exports).sort();
   };
@@ -580,6 +580,14 @@ function test_ast(){
     {type: 'mjs', imports: [
       {module: 'lif', start: 14, end: 19}]
     });
+  t(`define([], function(){ return {}; });`, {type: 'amd'});
+  t(`(function(global, factory){
+      if (typeof define === 'function' && define.amd) define([], factory);
+      else if (typeof module !== 'undefined') module.exports = factory();
+      })(this, function(){ const a = require('./a'); return {}; });`,
+    {type: 'cjs', requires: [
+      {module: './a', type: 'sync', start: 208, end: 222}
+    ]});
 }
 test_ast();
 
