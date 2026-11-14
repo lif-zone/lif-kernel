@@ -631,9 +631,9 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   f.f_get = f_get; // for logging
   if (f_get.not_exist)
     return f_get;
-  if (f_get.alt){
+  if (f_get.lfile!=lfile){
     D && console.log('redirect alt '+lfile+' -> '+f_get.alt);
-    return OA(f, {redirect: lfile+f_get.alt});
+    return OA(f, {redirect: f_get.lfile});
   }
   f.blob = f_get.blob;
   f.h_body = f_get.h_body;
