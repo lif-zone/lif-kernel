@@ -586,7 +586,7 @@ function test_ast(){
       else if (typeof module !== 'undefined') module.exports = factory();
       })(this, function(){ const a = require('./a'); return {}; });`,
     {type: 'cjs', requires: [
-      {module: './a', type: 'sync', start: 208, end: 222}
+      {module: './a', type: 'sync', start: 214, end: 228}
     ]});
 }
 test_ast();
