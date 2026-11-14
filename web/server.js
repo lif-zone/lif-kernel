@@ -5,6 +5,8 @@ let map = {};
 map['/lif-kernel'] = '.';
 map['/index.html'] = {path: './index.html', tr: {
   __WEBAPP__: 'lif-kernel/hi.js',
+  // hi.js is just a loader of the final application: not persisted by kernel
+  __TEMP__: 'true',
   // __BOOT_JS__: 'https://unpkg.com/lif-kernel@latest/boot.js',
   __BOOT_JS__: '/lif-kernel/boot.js',
 }};

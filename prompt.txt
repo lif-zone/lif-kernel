@@ -234,3 +234,47 @@ CLAUDE: lpm.js test_lpm(): added npm_import_parse cases for file: deps with a su
 ---
 USER: yes, apply the fix and validate
 CLAUDE: lpm.js T_npm_import_parse: the file: branch now appends the import subpath (avoiding a triple slash when the dep ends in //), like every other dep type. test_lpm passes under node. Validated in Chrome with BlueWallet-web: bip47/src/utils.js, bip47/package.json and bip47/README.md now return those files instead of src/index.js; coinselect/split, slip39/src/slip39_helper and @arkade-os/sdk/repositories/realm resolve to their physical files; bare imports and npm subpath imports (react/jsx-runtime, @noble/hashes/sha2.js) unchanged; app renders the wallets list.
+---
+USER:
+now fix the service worker lmod bug
+
+CLAUDE:
+kernel.js: every request returned 500 "Cannot read properties of undefined
+(reading 'lmod')" after the browser stopped the idle service worker and
+started it again, because lpm_pkg_app/lpm_pkg_root are set only by the page's
+app_pkg call. Fix: do_app_pkg() now saves the boot package in the Cache API
+(cache 'lif-app-pkg'); boot() starts app_restore(), which reloads it through
+_do_app_pkg() (the previous do_app_pkg body); kernel_fetch() and do_app_pkg()
+wait for the restore to finish. Validated in Chrome by stopping the service
+worker with CDP ServiceWorker.stopAllWorkers: requests return 200/404 as
+before the stop, and a normal page reload still loads the app.
+---
+---
+USER:
+use indexeddb not caches. indexeddb is natually a json
+
+CLAUDE:
+kernel.js: the saved app_pkg now lives in indexedDB instead of the Cache API:
+db 'lif-kernel-app', store 'app_pkg', key 'boot_pkg', opened by app_db_open()
+with the existing idb_api/db_upgrade helpers. It is a separate db from
+'lif-kernel-<cache_ver>', so db_delete() (cache clear) does not remove it.
+Re-validated with ServiceWorker.stopAllWorkers.
+---
+---
+USER:
+it SHOULD be deleted by the clear cache - because we want to force a clean
+fresh start. Also, need a "marking" to tell the kernel when the initial
+lif-kernel/hi.js is loaded that it SHOULD NOT persist it, since its not the
+"final" application. its just a loader. so the code that starts hi.js should
+pass an argument in the JSON telling its just temp: true
+
+CLAUDE:
+kernel.js: db_delete() (cache clear) now also deletes the saved app_pkg db
+(app_db_delete(): closes the handle, deletes 'lif-kernel-app').
+app_pkg_save() skips a boot package with lif.temp set.
+index.html, serve_index.html: boot_app({lif: {webapp: '__WEBAPP__',
+temp: __TEMP__}}). web/server.js (starts lif-kernel/hi.js) sets __TEMP__ to
+'true'; web/serve.js (starts the app itself) sets it to 'false'.
+Validated in Chrome: final app is saved and survives a service worker restart;
+cache clear removes it; a temp app_pkg is not saved; a non-temp one is.
+---

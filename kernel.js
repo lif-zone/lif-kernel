@@ -140,6 +140,11 @@ function db_delete(){
     console.log('failed deleting indexedDB');
   }
   try {
+    app_db_delete();
+  } catch(err){
+    console.log('failed deleting app indexedDB');
+  }
+  try {
     // should be await, be did without so it will start the operation
     caches_delete_all();
   } catch(err){
@@ -1429,6 +1434,7 @@ async function kernel_fetch(event){
   let url = event.request.url;
   try {
     slow = eslow(15000, '_kernel_fetch '+url);
+    await app_restore_wait;
     let res = await _kernel_fetch(event);
     slow.end();
     return res;
@@ -1581,9 +1587,71 @@ async function webapp_load({log, webapp}){
 // versions of npm shims
 // https://github.com/browserify/browserify/blob/master/package.json
 // mappong nodejs npm->browser npm shim
+// app_pkg persistence: the browser stops an idle service worker and starts
+// it again on the next request, which loses lpm_pkg_app/lpm_pkg_root. The
+// last app_pkg is kept in indexedDB, and restored on service worker start.
+// A loader app_pkg (lif.temp, eg. lif-kernel/hi.js) is not kept: its not the
+// final application. db_delete() (cache clear) removes it, for a fresh start.
+let app_db;
+let app_restore_wait;
+async function app_db_open(){
+  if (app_db)
+    return app_db;
+  app_db = await idb_api.openDB('lif-kernel-app', 1, {
+    upgrade(db){
+      db_upgrade(db, 'app_pkg', {});
+    }
+  });
+  return app_db;
+}
+
+function app_db_delete(){
+  app_db?.close();
+  app_db = undefined;
+  g_indexedDB.deleteDatabase('lif-kernel-app');
+}
+
+async function app_pkg_save(boot_pkg){
+  if (boot_pkg.lif?.temp)
+    return;
+  try {
+    let db = await app_db_open();
+    await db.put('app_pkg', boot_pkg, 'boot_pkg');
+  } catch(err){
+    console.error('failed saving app_pkg', err);
+  }
+}
+
+async function app_pkg_load(){
+  try {
+    let db = await app_db_open();
+    return await db.get('app_pkg', 'boot_pkg');
+  } catch(err){
+    console.error('failed loading app_pkg', err);
+  }
+}
+
+async function app_restore(){
+  let boot_pkg = await app_pkg_load();
+  if (!boot_pkg)
+    return;
+  console.log('restore app_pkg on sw start');
+  try {
+    await _do_app_pkg(boot_pkg);
+  } catch(err){
+    console.error('failed restore app_pkg', err);
+  }
+}
+
+async function do_app_pkg(boot_pkg){
+  await app_restore_wait;
+  await app_pkg_save(boot_pkg);
+  return await _do_app_pkg(boot_pkg);
+}
+
 // https://github.com/browserify/browserify/blob/master/lib/builtins.js
 let refrash_clear_cache = false;
-async function do_app_pkg(boot_pkg){
+async function _do_app_pkg(boot_pkg){
   boot_pkg = json_cp(boot_pkg);
   let lif = boot_pkg.lif ||= {};
   let lmod_root = 'local/.lif.boot/';
@@ -1653,6 +1721,7 @@ export function boot(sw_boot){
       return;
   };
   sw_boot.on_fetch = event=>kernel_fetch(event);
+  app_restore_wait = app_restore();
   console.log('lif kernel inited: '+lif_kernel_base
     +' sw '+sw_boot.version+' util '+util.version);
 }
