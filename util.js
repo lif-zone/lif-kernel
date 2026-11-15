@@ -23,12 +23,13 @@ export function ewait(ms, arg){
 }
 export function esleep(ms){
   let p = ewait();
-  setTimeout(()=>p.return(), ms);
+  let id = setTimeout(()=>p.return(), ms);
+  p.finally(()=>clearTimeout(id));
   return p;
 }
 
 export function eslow(ms, arg){
-  let enable = 0; // = 1 to enable, or = 0 just to trace active tasks, no print
+  let enable; // = 1 to enable, or = 0 just to trace active tasks, no print
   if (enable==undefined)
     return {end: ()=>{}};
   eslow.seq ||= 0;
