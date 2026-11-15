@@ -4,7 +4,8 @@ export const version = reg_version;
 let D = 0; // Debug
 
 const {str, assert, OE, ecache, eslow, ewait} = await import('./util.js');
-const {T_lfile_parse, lfile_ver_missing} = await import('./lpm.js');
+const {T_lfile_parse, lfile_ver_missing, lfile_is_perm
+  } = await import('./lpm.js');
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
@@ -316,17 +317,17 @@ export function reg_cache_enable(enable){
   cache_enable = enable;
 }
 
-export function fetch_opt(url){
+export function fetch_opt(url, perm){
   let no_cache = url.startsWith('/') ? !cache_enable : false;
   return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
 }
 
-export async function reg_http_get({log, url}){
+export async function reg_http_get({log, url, perm}){
   let response, err, blob;
   let slow = eslow(5000, 'fetch '+url);
   try {
     D && console.log('fetch '+url+' for '+log.mod);
-    response = await fetch(url, fetch_opt(url));
+    response = await fetch(url, fetch_opt(url, perm));
   } catch(_err){
     // jsdelivr 503 is due to rate limit appear as fetch-throw
     err = 'module('+log.mod+') failed fetch('+url+'): '+_err;
@@ -428,6 +429,7 @@ export async function reg_get({log, lfile, opt}){
   reg.lfile = lfile;
   reg.log = log;
   u = reg.u = T_lfile_parse(reg.lfile);
+  let perm = lfile_is_perm(u);
   u.submod_path = u.submod.replace(/\/$/, '')+u.path;
   // select cdn
   // npm/react@18.3.0/index.js
@@ -473,7 +475,7 @@ export async function reg_get({log, lfile, opt}){
     let url = url_fn(u);
     reg.url = url;
     reg.src_ver = _src;
-    ret = await reg_http_get({log, url});
+    ret = await reg_http_get({log, url, perm});
     if (ret.blob) // fetch OK
       break;
     if (ret.not_exist){
