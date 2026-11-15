@@ -244,7 +244,7 @@ async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
     return;
-  storage_bucket = await storageBuckets.open('lif-bucket-'+cache_ver, {
+  storage_bucket = await storageBuckets.open('lif-bucket-v'+cache_ver, {
     persisted: false,
     durability: 'relaxed',
   });
@@ -256,7 +256,7 @@ async function db_open(){
   if (idb_db)
     return idb_db;
   // version 0 = never create
-  idb_db = await e_db_req(g_indexedDB.open('lif-kernel-'+cache_ver));
+  idb_db = await e_db_req(g_indexedDB.open('lif-kernel-v'+cache_ver));
   return idb_db;
 }
 

@@ -70,7 +70,7 @@ async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
     return;
-  storage_bucket = await storageBuckets.open('lif-bucket-'+cache_ver, {
+  storage_bucket = await storageBuckets.open('lif-bucket-v'+cache_ver, {
     persisted: false,
     durability: 'relaxed',
   });
@@ -102,7 +102,7 @@ function db_open(){ // use storageBuckets
 }
 
 async function _db_open(){
-  return await idb_api.openDB('lif-kernel-'+cache_ver, 1, {
+  return await idb_api.openDB('lif-kernel-v'+cache_ver, 1, {
     upgrade(db, old_ver, new_ver){
       let opt = {del_create: true};
       console.log('upgrade cache db '+old_ver+' -> '+new_ver);
@@ -161,10 +161,10 @@ async function storage_delete(prev){
     if (navigator.storageBuckets){
       // the bucket holds it all: the indexedDBs and the caches.
       // its handles are dead once its deleted, so open it again
-      await navigator.storageBuckets.delete('lif-bucket-'+cache_ver);
+      await navigator.storageBuckets.delete('lif-bucket-v'+cache_ver);
       await storage_bucket_init();
     } else {
-      g_indexedDB.deleteDatabase('lif-kernel-'+cache_ver);
+      g_indexedDB.deleteDatabase('lif-kernel-v'+cache_ver);
       g_indexedDB.deleteDatabase('lif-kernel-app');
       await caches_delete_all();
     }
