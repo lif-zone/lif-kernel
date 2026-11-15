@@ -539,7 +539,7 @@ async function lpm_file_get({log, lfile, opt={}}){
 {
   D && console.log('lpm_file_get', lfile);
   let f = is_c && await cache_get('lpm_file', [lfile]);
-  if (f && !(cache_not_exist || !f.not_exist))
+  if (f && (!f.not_exist || cache_not_exist))
     return f;
   // fetch the file
   lpm_file.lfile = lfile;
