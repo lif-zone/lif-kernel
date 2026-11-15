@@ -350,3 +350,18 @@ npm-only shortcut and the app-only lookup).
 Validated in Chrome after cache clear with BlueWallet-web: app loads, all 17
 replace_line entries applied, no patch errors in the service worker console.
 ---
+USER:
+(lif-kernel-30 database still listed after cache clear) can you try and fix it, and test it?
+
+CLAUDE:
+kernel.js: cache clear did not delete the lif-kernel-<ver> indexedDB:
+deleteDatabase() was called while the kernel's own connection was open, so
+the delete stayed pending until the service worker was terminated.
+- db_open() now shares one open (db_wait promise) between all callers, so no
+  extra connection is left open by concurrent callers.
+- new db_close(): closes the connection; db_delete() calls it before
+  deleteDatabase().
+Validated in Chrome with BlueWallet-web: after cache_clear the database is
+gone at once; a reload without restarting the service worker recreates and
+refills it; a second cache_clear deletes it again.
+---

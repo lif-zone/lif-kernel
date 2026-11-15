@@ -75,7 +75,7 @@ async function storage_bucket_init(){
 }
 await storage_bucket_init();
 
-let db;
+let db_wait;
 function db_upgrade(db, table, opt){
   let exist = db.objectStoreNames.contains(table);
   if (opt.del){
@@ -91,10 +91,14 @@ function db_upgrade(db, table, opt){
   }
 }
 
-async function db_open(){ // use storageBuckets
-  if (db)
-    return db;
-  db = await idb_api.openDB('lif-kernel-'+cache_ver, 1, {
+// db_wait: one open for all callers. A caller that opens its own connection
+// leaves it open forever, and an open connection blocks db_delete()
+function db_open(){ // use storageBuckets
+  return db_wait ||= _db_open();
+}
+
+async function _db_open(){
+  return await idb_api.openDB('lif-kernel-'+cache_ver, 1, {
     upgrade(db, old_ver, new_ver){
       let opt = {del_create: true};
       console.log('upgrade cache db '+old_ver+' -> '+new_ver);
@@ -104,7 +108,18 @@ async function db_open(){ // use storageBuckets
       db_upgrade(db, 'lpm_ver', {keyPath: ['lmod'], ...opt});
     }
   });
-  return db;
+}
+
+// indexedDB does not delete a database that has an open connection: the
+// delete waits until its closed
+async function db_close(){
+  let wait = db_wait;
+  db_wait = undefined;
+  if (!wait)
+    return;
+  try {
+    (await wait).close();
+  } catch(err){}
 }
 
 function ecache_delete(del_all){
@@ -135,6 +150,7 @@ function db_delete(){
     console.log('failed deleting storageBucket');
   }
   try {
+    db_close();
     // should be await, be did without so it will start the operation
     g_indexedDB.deleteDatabase('lif-kernel-'+cache_ver);
   } catch(err){
