@@ -292,3 +292,40 @@ short sha was cached in 'lpm_ver', lpm_ver_resolve() built
 Validated: app loads and all 61 tested imports pass on two consecutive loads
 (second one using the cached version).
 ---
+---
+USER:
+now fix the bare-name lif.patches key limitation.
+
+CLAUDE:
+lpm.js: new pkg_patch_mod_match({lmod_self, pkg, mod, lmod}). A lif.patches key
+matches a module either as a module spec (as before: 'rxjs', 'rxjs@7.8.2',
+'github:user/repo') or as a dependency name of the package holding the patch,
+whatever that dependency points to (npm: alias, github:, file:./dir//). A
+file: dep without // (a folder inside the package) never matches. Unit tests
+added in test_lpm().
+kernel.js lpm_patch_pkg_json(): uses pkg_patch_mod_match() instead of the
+inline npm_parse() comparison.
+Validated in Chrome with BlueWallet-web's patch key changed from
+"github:BlueWallet/SilentPayments" to "silent-payments".
+---
+---
+USER:
+its not a bug. that was the intended limitation. please revert, and fix
+bluewallet package.json accordingly. Also make sure the match is in the NPM
+name, not the lmod name. When loading a new package.json (for any LPM) run on
+all the lif.patches keys and make a copy in memory (in lpm_pkg object) with
+the normalized lmod names, so git://github.com/BlueWallet/SilentPayments,
+github:BlueWallet/SilentPayments and lif:git/github.com/BlueWallet/SilentPayments
+all work as keys, and the lookup is just 2 lookups: with and without version.
+
+CLAUDE:
+Reverted pkg_patch_mod_match (dependency-name matching) from lpm.js/kernel.js.
+lpm.js: new pkg_patches_lmod(pkg): returns lif.patches re-keyed by the
+normalized lmod of each key (npm_parse), with unit tests in test_lpm().
+kernel.js: lpm_pkg.patches is set from pkg_patches_lmod() when a package.json
+is loaded (lpm_pkg_get, after its own package.json patch) and for the root
+boot package (_do_app_pkg). lpm_patch_pkg_json() now does two lookups per
+parent: p.patches[lmod] and p.patches[lmod without version].
+Validated in Chrome after cache clear: keys github:, git:// and lif:git/ apply
+the patch; a wrong key and the bare name "silent-payments" do not.
+---

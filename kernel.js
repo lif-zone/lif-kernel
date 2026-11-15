@@ -16,6 +16,7 @@ const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   T_lfile_parse, T_lmod_parse, T_lfile_str, T_lmod_str,
   lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
+  pkg_patches_lmod,
   pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
@@ -650,23 +651,13 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
 
 function lpm_patch_pkg_json(lpm_pkg){
   // handle {lif: {patches: {"mod": {"./package.json": {diff}}}}}
+  // p.patches: lif.patches keyed by lmod. lookup with and without version
   let u = T_lmod_parse(lpm_pkg.lmod);
   u.ver = '';
   let lmod_no_ver = T_lmod_str(u);
-  let u_self = T_lmod_parse(lpm_pkg.lmod);
   let patch, patch_p;
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let mods;
-    if (!(mods=p.pkg.lif?.patches))
-      continue;
-    let files;
-    for (let [mod, _files] of OE(mods)){
-      let lmod = npm_parse(mod)?.lmod;
-      if (lmod==lpm_pkg.lmod || lmod==lmod_no_ver){
-        files = _files;
-        break;
-      }
-    }
+    let files = p.patches?.[lpm_pkg.lmod] || p.patches?.[lmod_no_ver];
     if (!files)
       continue;
     let v;
@@ -758,6 +749,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   }
   // check for package.json overrides
   lpm_patch_pkg_json(lpm_pkg);
+  lpm_pkg.patches = pkg_patches_lmod(lpm_pkg.pkg);
   return lpm_pkg;
 }); }
 
@@ -1685,6 +1677,7 @@ async function _do_app_pkg(boot_pkg){
   {
     lpm_pkg.lmod = lmod_root;
     lpm_pkg.pkg = boot_pkg;
+    lpm_pkg.patches = pkg_patches_lmod(boot_pkg);
     lpm_pkg.child = [];
     return lpm_pkg;
   });

@@ -781,6 +781,26 @@ export function pkg_import_lookup({lmod_self, pkg, imp}){
   return found;
 }
 
+// lif.patches keys are module names in npm form: rxjs, rxjs@7.8.2,
+// github:user/repo, git://github.com/user/repo, lif:git/github.com/user/repo.
+// returns a copy keyed by the normalized lmod, so a module is looked up by
+// its lmod, with and without version
+export function pkg_patches_lmod(pkg){
+  let patches = pkg?.lif?.patches;
+  if (!patches)
+    return;
+  let res = {};
+  for (let [mod, files] of OE(patches)){
+    let u = npm_parse(mod);
+    if (!u){
+      !in_test && console.error('invalid lif.patches key: '+mod);
+      continue;
+    }
+    res[u.lmod] = files;
+  }
+  return res;
+}
+
 export function file_ctype_binary(path){
   let ext = _path_ext(path);
   let ctype = ctype_get(ext)?.ctype;
@@ -1322,6 +1342,13 @@ function test_lpm(){
   t(pkg, './d1/d2/file', './other/file');
   t(pkg, './d1/dd/file', undefined);
   t(pkg, './d1/dd', './');
+  t = (patches, v)=>assert_obj(v, pkg_patches_lmod({lif: {patches}}));
+  t({'rxjs': 1, '@cycle/run': 2, 'rxjs@7.8.2': 3},
+    {'npm/rxjs': 1, 'npm/@cycle/run': 2, 'npm/rxjs@7.8.2': 3});
+  t({'github:user/repo': 1}, {'git/github.com/user/repo': 1});
+  t({'lif:git/github.com/user/repo': 1}, {'git/github.com/user/repo': 1});
+  t({'github:user/repo#5eea40e': 1}, {'git/github.com/user/repo@5eea40e': 1});
+  t({'': 1, 'rxjs': 2}, {'npm/rxjs': 2});
   let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
     lif: {
       dependencies: {over: '2.0.0', optional: '^1.0.1'},
