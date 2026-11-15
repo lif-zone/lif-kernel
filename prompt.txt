@@ -278,3 +278,17 @@ temp: __TEMP__}}). web/server.js (starts lif-kernel/hi.js) sets __TEMP__ to
 Validated in Chrome: final app is saved and survives a service worker restart;
 cache clear removes it; a temp app_pkg is not saved; a non-temp one is.
 ---
+---
+USER:
+remove the 4 unused stub folders (BlueWallet-web). After the removal the app
+failed to load: subpath imports from github: deps (coinselect/split) threw
+"invalid empty submod: git/...@<sha>//split".
+
+CLAUDE:
+kernel.js git_ver_resolve(): the cached branch returned T_lfile_str(u) (with a
+trailing slash) while the fresh branch returns T_lmod_str(u), so once a git
+short sha was cached in 'lpm_ver', lpm_ver_resolve() built
+"git/...@<sha>//<path>". Changed the cached branch to T_lmod_str(u).
+Validated: app loads and all 61 tested imports pass on two consecutive loads
+(second one using the cached version).
+---
