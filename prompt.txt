@@ -365,3 +365,21 @@ Validated in Chrome with BlueWallet-web: after cache_clear the database is
 gone at once; a reload without restarting the service worker recreates and
 refills it; a second cache_clear deletes it again.
 ---
+USER:
+#13 (db_delete deletes bucket 'lif-cache-30', the real one is 'lif-bucket-30') - fix the name to lif-bucket. So could that mean the previous fix was not needed?
+
+CLAUDE:
+kernel.js: cache clear now deletes the real storage bucket.
+- db_delete() -> storage_delete(): closes the cache db, the app db and the
+  cache store, deletes bucket 'lif-bucket-<ver>' and opens it again
+  (storage_bucket_init + cache_store_init), since the old handles are dead
+  after the delete. Without storageBuckets: deletes the two indexedDBs and
+  the caches one by one, as before.
+- storage_wait: openDB and cache_store_get/set wait for a running delete.
+- lif_kernel_cache_clear() is async: answers when the clear is done.
+- app_db_delete() replaced by app_db_close().
+Validated in Chrome with BlueWallet-web: fixing only the name left the app
+blank after a reload (dead bucket handles); with the reopen, cache clear
+empties the bucket and a reload without restarting the service worker loads
+the app and refills the cache.
+---

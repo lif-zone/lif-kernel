@@ -49,6 +49,7 @@ function idb_wrap_db(raw_db){
 let idb_api = {
   openDB: async function(name, version, callbacks={}){
     const {upgrade} = callbacks;
+    await storage_wait;
     const request = g_indexedDB.open(name, version);
     if (upgrade){
       request.addEventListener('upgradeneeded', event=>{
@@ -62,6 +63,9 @@ let idb_api = {
 
 let cache_ver = 30;
 let storage_bucket;
+// set by db_delete() (cache clear): the storage is being deleted and opened
+// again. storage users wait for it
+let storage_wait;
 async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
@@ -143,30 +147,31 @@ async function caches_delete_all() {
 
 function db_delete(){
   ecache_delete(true);
+  return storage_wait = storage_delete(storage_wait);
+}
+
+async function storage_delete(prev){
+  await prev;
+  // close what we hold: an open connection blocks the delete
+  await db_close();
+  app_db_close();
+  cache_store.cache = null;
+  cache_store.inited = 0;
   try {
-    // should be await, be did without so it will start the operation
-    navigator.storageBuckets.delete('lif-cache-'+cache_ver);
+    if (navigator.storageBuckets){
+      // the bucket holds it all: the indexedDBs and the caches.
+      // its handles are dead once its deleted, so open it again
+      await navigator.storageBuckets.delete('lif-bucket-'+cache_ver);
+      await storage_bucket_init();
+    } else {
+      g_indexedDB.deleteDatabase('lif-kernel-'+cache_ver);
+      g_indexedDB.deleteDatabase('lif-kernel-app');
+      await caches_delete_all();
+    }
   } catch(err){
-    console.log('failed deleting storageBucket');
+    console.log('failed deleting storage', err);
   }
-  try {
-    db_close();
-    // should be await, be did without so it will start the operation
-    g_indexedDB.deleteDatabase('lif-kernel-'+cache_ver);
-  } catch(err){
-    console.log('failed deleting indexedDB');
-  }
-  try {
-    app_db_delete();
-  } catch(err){
-    console.log('failed deleting app indexedDB');
-  }
-  try {
-    // should be await, be did without so it will start the operation
-    caches_delete_all();
-  } catch(err){
-    console.log('failed deleting caches');
-  }
+  await cache_store_init();
 }
 
 // 0 no-cache, 1 cache registry, 2 cache http/https, 3 cache local
@@ -1001,6 +1006,7 @@ async function cache_store_get(request){
   let cs = cache_store;
   if (!cs.enable || request.method!='GET')
     return;
+  await storage_wait;
   let response = await cs.cache.match(request);
   if (!response)
     return;
@@ -1015,6 +1021,7 @@ async function cache_store_set(request, response){
   if (0 && !response.headers.get('etag'))
     return;
   D && console.log('cache_store set', request.url);
+  await storage_wait;
   await cs.cache.put(request, response.clone());
   return response;
 }
@@ -1276,8 +1283,8 @@ async function fetch_pass(request, type){
   }
 }
 
-function lif_kernel_cache_clear(){
-  db_delete();
+async function lif_kernel_cache_clear(){
+  await db_delete();
   return {ok: true, msg: 'cache cleared'};
 }
 
@@ -1329,7 +1336,7 @@ async function lif_kernel_admin(request, path){
   } else if (path=='/.lif/kernel/stats')
     res = do_kernel_stats();
   else if (path=='/.lif/kernel/cache_clear') // manual clear cache
-    res = lif_kernel_cache_clear();
+    res = await lif_kernel_cache_clear();
   else if (path=='/.lif/kernel/modules') // show loaded modules
     res = lif_kernel_modules();
   else
@@ -1615,10 +1622,9 @@ async function app_db_open(){
   return app_db;
 }
 
-function app_db_delete(){
+function app_db_close(){
   app_db?.close();
   app_db = undefined;
-  g_indexedDB.deleteDatabase('lif-kernel-app');
 }
 
 async function app_pkg_save(boot_pkg){
