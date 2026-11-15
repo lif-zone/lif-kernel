@@ -454,7 +454,7 @@ async function git_ver_resolve({log, lmod}){
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
     if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
       u.ver = v.ver;
-      return T_lfile_str(u);
+      return T_lmod_str(u);
     }
   } else if (u.ver_type=='tag')
     url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
