@@ -16,7 +16,7 @@ const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   T_lfile_parse, T_lmod_parse, T_lfile_str, T_lmod_str,
   lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
-  pkg_patches_lmod,
+  pkg_patches_lmod, patch_replace_line,
   pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
@@ -570,42 +570,58 @@ async function lpm_file_get_alt({log, lfile, alt}){
   return first; // not_exist
 }
 
-function lpm_patch_file_lookup(lfile){
-  let app = lpm_pkg_app || lpm_pkg_root;
-  let patch = app?.pkg?.lif?.patch;
+// lif.patches: {"mod": {"./file": {<patch system>: ...}}}
+// patch systems: json (merge into a JSON file), replace_line (replace whole
+// lines of a text file).
+// p.patches: lif.patches of package p keyed by lmod (pkg_patches_lmod).
+// lookup the module with and without version, in all its parents. the
+// outermost parent wins
+function lpm_patch_lookup(lpm_pkg, file){
+  let u = T_lmod_parse(lpm_pkg.lmod);
+  u.ver = '';
+  let lmod_no_ver = T_lmod_str(u);
+  let patch, patch_p;
+  for (let p = lpm_pkg.parent; p; p = p.parent){
+    let files = p.patches?.[lpm_pkg.lmod] || p.patches?.[lmod_no_ver];
+    let v;
+    if (!(v=files?.[file]))
+      continue;
+    patch = v;
+    patch_p = p;
+  }
   if (!patch)
     return;
-  let u = T_lfile_parse(lfile);
-  if (u.reg!='npm') // XXX hack. need to make generic npm module matching
-    return;
-  let path = '.'+u.path;
-  let files = patch[u.name+u.ver] || patch[u.name];
-  if (!files)
-    return;
-  let repl = files[path];
-  if (!repl || typeof repl!='object')
-    return;
-  return repl;
+  return {patch, patch_p};
 }
 
-function lpm_patch_file_apply(blob_text, replacements){
-  let text = blob_text;
-  for (let [from, to] of OE(replacements)){
-    if (!text.includes(from)){
-      console.error('patch: string not found: '+from.substring(0, 80));
-      continue;
-    }
-    text = text.replace(from, to);
-  }
-  return text;
-}
-
-async function lpm_patch_file(f, lfile){
-  let repls = lpm_patch_file_lookup(lfile);
-  if (!repls)
+async function lpm_patch_file(f, lfile, lpm_pkg){
+  let file = '.'+T_lfile_parse(lfile).path;
+  let v = lpm_patch_lookup(lpm_pkg, file);
+  if (!v)
     return;
+  let {patch, patch_p} = v;
   let text = await f.blob.text();
-  text = lpm_patch_file_apply(text, repls);
+  if (patch.replace_line){
+    let res = patch_replace_line(text, patch);
+    for (let from of res.missing){
+      console.error('patch '+lfile+' by '+patch_p.lmod+': line not found: '
+        +from.substring(0, 80));
+    }
+    text = res.text;
+  } else if (patch.json){
+    let _json;
+    try {
+      _json = patch_json(JSON.parse(text), patch);
+    } catch(err){
+      console.error('patch '+lfile+' by '+patch_p.lmod+': invalid JSON');
+      return;
+    }
+    text = json(_json);
+  } else {
+    console.error('patch '+lfile+' by '+patch_p.lmod+': unknown patch system',
+      patch);
+    return;
+  }
   f.blob = new Blob([text]);
   f.h_body = null;
   f.cache = false;
@@ -645,29 +661,15 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   f.h_body = f_get.h_body;
   f.url = f_get.url; // for logging
   f.cache = f_get.cache;
-  await lpm_patch_file(f, lfile);
+  await lpm_patch_file(f, lfile, lpm_pkg);
   return f;
 }
 
 function lpm_patch_pkg_json(lpm_pkg){
-  // handle {lif: {patches: {"mod": {"./package.json": {diff}}}}}
-  // p.patches: lif.patches keyed by lmod. lookup with and without version
-  let u = T_lmod_parse(lpm_pkg.lmod);
-  u.ver = '';
-  let lmod_no_ver = T_lmod_str(u);
-  let patch, patch_p;
-  for (let p = lpm_pkg.parent; p; p = p.parent){
-    let files = p.patches?.[lpm_pkg.lmod] || p.patches?.[lmod_no_ver];
-    if (!files)
-      continue;
-    let v;
-    if (!(v=files['./package.json']))
-      continue;
-    patch = v;
-    patch_p = p;
-  }
-  if (!patch)
+  let v = lpm_patch_lookup(lpm_pkg, './package.json');
+  if (!v)
     return;
+  let {patch, patch_p} = v;
   lpm_pkg.pkg_orig = lpm_pkg.pkg;
   let pkg = patch_json(json_cp(lpm_pkg.pkg), patch);
   if (!pkg){

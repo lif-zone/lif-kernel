@@ -329,3 +329,24 @@ parent: p.patches[lmod] and p.patches[lmod without version].
 Validated in Chrome after cache clear: keys github:, git:// and lif:git/ apply
 the patch; a wrong key and the bare name "silent-payments" do not.
 ---
+---
+USER:
+merge lif.patch and lif.patches into one mechanism. put it in lif.patches
+(not lif.patch), and call the text replacement "replace_line" - since it
+locates whole lines (a very specific "diff" format).
+
+CLAUDE:
+One patch mechanism: lif.patches = {"mod": {"./file": {<system>: ...}}} with
+systems json (merge into a JSON file) and replace_line (replace whole lines).
+lpm.js: new patch_replace_line(text, patch): each "from" is located as whole
+line(s), ignoring leading/trailing whitespace per line; first match replaced;
+returns {text, missing}. Unit tests added in test_lpm().
+kernel.js: new lpm_patch_lookup(lpm_pkg, file): looks the module up (with and
+without version) in the normalized p.patches of every parent, outermost wins.
+Used by both lpm_patch_pkg_json() and lpm_patch_file(). lpm_patch_file() now
+takes lpm_pkg, applies replace_line or json, and logs lines not found.
+Removed lif.patch support (lpm_patch_file_lookup, lpm_patch_file_apply, the
+npm-only shortcut and the app-only lookup).
+Validated in Chrome after cache clear with BlueWallet-web: app loads, all 17
+replace_line entries applied, no patch errors in the service worker console.
+---

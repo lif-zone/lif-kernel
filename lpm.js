@@ -868,6 +868,33 @@ export function patch_json(json, patch){
   return json;
 }
 
+// replace_line patch: {"from line(s)": "to line(s)"}. from is located as
+// whole line(s), ignoring leading/trailing whitespace of each line. only the
+// first match is replaced. missing: the from keys that were not found
+export function patch_replace_line(text, patch){
+  let lines = text.split('\n');
+  let missing = [];
+  for (let [from, to] of OE(patch.replace_line)){
+    let f = from.split('\n').map(l=>l.trim());
+    let found = -1;
+    for (let i=0; found<0 && i+f.length<=lines.length; i++){
+      let j;
+      for (j=0; j<f.length; j++){
+        if (lines[i+j].trim()!=f[j])
+          break;
+      }
+      if (j==f.length)
+        found = i;
+    }
+    if (found<0){
+      missing.push(from);
+      continue;
+    }
+    lines.splice(found, f.length, ...to.split('\n'));
+  }
+  return {text: lines.join('\n'), missing};
+}
+
 function test_lpm(){
   in_test = 1;
   let t = (url_uri, v)=>assert_obj(v, url_uri_type(url_uri));
@@ -1421,6 +1448,20 @@ function test_lpm(){
   t({date: '2024-03-17T22:32:47.126Z'}, '3.2.0-experimental');
   t({date: '2024-03-17T22:32:47.129Z'}, '3.2.2-experimental-2');
   t({date: '2024-04-01700:00:00.000Z'}, '3.2.2-experimental-2');
+  t = (text, replace_line, v, missing=[])=>assert_obj({text: v, missing},
+    patch_replace_line(text, {replace_line}));
+  t('a\nb\nc', {b: 'B'}, 'a\nB\nc');
+  t('a\n  b;  \nc', {'b;': 'B;'}, 'a\nB;\nc');
+  t('a\nb\nc', {' b ': 'B'}, 'a\nB\nc');
+  t('a\nbb\nc', {b: 'B'}, 'a\nbb\nc', ['b']);
+  t('a\nb c\nc', {b: 'B'}, 'a\nb c\nc', ['b']);
+  t('a\nb\nc', {b: ''}, 'a\n\nc');
+  t('a\nb\nc', {b: 'B1\nB2'}, 'a\nB1\nB2\nc');
+  t('a\n  b\n  c\nd', {'b\nc': 'X'}, 'a\nX\nd');
+  t('a\nb\nd\nc', {'b\nc': 'X'}, 'a\nb\nd\nc', ['b\nc']);
+  t('b\na\nb', {b: 'B'}, 'B\na\nb');
+  t('a\nb\nc', {a: 'A', c: 'C', x: 'X'}, 'A\nb\nC', ['x']);
+  t('a\r\nb\r\nc', {b: 'B'}, 'a\r\nB\nc');
   t = (json, patch, v)=>assert_obj(v, patch_json(json, {json: patch}));
   t({a: 1}, {b: 2}, {a: 1, b: 2});
   t({a: 1}, {a: 2}, {a: 2});
