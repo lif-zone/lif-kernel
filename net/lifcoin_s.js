@@ -1,25 +1,12 @@
 #!/usr/bin/env node
 import process from 'process';
-import {fileURLToPath} from 'url';
+import {node_is_main} from '../util/node_util.js';
 import path from 'path';
 import '../compat/browser_env.js';
 import {url_http_to_ws, qs_enc} from '../util.js';
 import {lifnet} from './lifnet.js';
-import {lif_rpc_websocket_out, lif_fetch_out, lif_websocket_out,
-  lif_http_out, lif_tcp_out, lif_dns_out,
+import {lif_rpc_websocket_out, lif_fetch_out, lif_tcp_out, lif_tcpip_out,
 } from './tcpip_s.js';
-
-function node_is_main(mod_self){
-  return path.resolve(process.argv[1])==fileURLToPath(mod_self);
-}
-
-export function lif_ip_out(){
-  lifnet.listen('tcp/out', lif_tcp_out); // unused
-  lifnet.listen('http/out', lif_http_out); // unused
-  lifnet.listen('websocket/out', lif_websocket_out); // unused
-  lif_rpc_websocket_out('rpc/websocket/out'); // unused
-  lifnet.listen('dns/out', lif_dns_out); // unused
-}
 
 const lifcoin_node_url = 'http://localhost:8432';
 const lifcoin_node_ws_url = url_http_to_ws(lifcoin_node_url);
@@ -78,7 +65,7 @@ export function lif_lifcoin_out(){
 
 async function start_lifcoin_s(opt={}){
   lif_lifcoin_out();
-  lif_ip_out();
+  lif_tcpip_out();
 }
 
 export async function run(opt={}){
@@ -90,8 +77,6 @@ export async function run(opt={}){
     argv.shift();
     if (a=='--ip')
       opt.ip = true;
-    else if (a=='--lifcoin')
-      opt.lifcoin = true;
     else if (a=='--no-peer')
       opt.no_peer = true;
     else

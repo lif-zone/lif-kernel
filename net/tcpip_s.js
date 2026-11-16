@@ -1,6 +1,7 @@
 // LIF Residential Gateway: a Hypernet between residences.
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
 let lif_rg_version = '2026.8.23';
+import {node_is_main} from '../util/node_util.js';
 import {assert_eq, version as util_version, date_time, CEL,
   ewait, assert, qs_enc, str,
 } from '../util.js';
@@ -430,3 +431,38 @@ class rpc_tcp extends EventEmitter {
   }
 }
 
+export function lif_tcpip_out(){
+  lifnet.listen('tcp/out', lif_tcp_out); // unused
+  lifnet.listen('http/out', lif_http_out); // unused
+  lifnet.listen('websocket/out', lif_websocket_out); // unused
+  lif_rpc_websocket_out('rpc/websocket/out'); // unused
+  lifnet.listen('dns/out', lif_dns_out); // unused
+}
+
+async function start_tcpip_s(opt={}){
+  lif_tcpip_out();
+}
+
+export async function run(opt={}){
+  let [...argv] = [...process.argv];
+  let a;
+  argv.shift();
+  argv.shift();
+  while ((a=argv[0])!=undefined){
+    argv.shift();
+    if (a=='--ip')
+      opt.ip = true;
+    else if (a=='--no-peer')
+      opt.no_peer = true;
+    else
+      throw 'invalid argv '+a;
+  }
+  if (argv.length)
+    throw 'invalid args '+JSON.stringify(argv);
+  lifnet.set_opt({client_name: 'tcpip_s',
+    uplink: opt.no_peer ? null : 'default'});
+  start_tcpip_s(opt);
+}
+
+if (node_is_main(import.meta.url))
+  run();
