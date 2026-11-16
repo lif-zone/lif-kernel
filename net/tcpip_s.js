@@ -450,10 +450,10 @@ export async function run(opt={}){
   argv.shift();
   while ((a=argv[0])!=undefined){
     argv.shift();
-    if (a=='--ip')
-      opt.ip = true;
+    if (a=='--no-peer')
+      opt.no_peer = true; // XXX not yet properly designed
     else if (a=='--no-peer')
-      opt.no_peer = true;
+      opt.peer = argv.shift(); // XXX not yet implemented
     else
       throw 'invalid argv '+a;
   }

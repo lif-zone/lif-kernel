@@ -75,10 +75,10 @@ export async function run(opt={}){
   argv.shift();
   while ((a=argv[0])!=undefined){
     argv.shift();
-    if (a=='--ip')
-      opt.ip = true;
+    if (a=='--tcpip')
+      opt.tcpip = true; // XXX currently always enabled
     else if (a=='--no-peer')
-      opt.no_peer = true;
+      opt.no_peer = true; // XXX not yet properly designed
     else
       throw 'invalid argv '+a;
   }
