@@ -480,3 +480,10 @@ client over lifnet: fetch http/https/404/redirect/POST, policy refusals
 json-rpc over ussl/tcp/wss and fixed-url topics, net/tls connect forms.
 lif_fetch_out and lif_http_out also called directly from node.
 ---
+USER:
+(BlueWallet-web react-native-tcp-socket stub) go on to step 2
+
+CLAUDE:
+package.json: export "./tcpip": "./net/tcpip.js", so apps can import
+'lif-kernel/tcpip'.
+---

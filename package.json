@@ -107,6 +107,7 @@
     "./sha256lif": "./sha256lif.js",
     "./web/server_lib.js": "./web/server_lib.js",
     "./lifnet": "./net/lifnet.js",
+    "./tcpip": "./net/tcpip.js",
     "./test/test_lib.js": "./test/test_lib.js",
     "./compat/node_env.js": "./compat/node_env.js"
   },
