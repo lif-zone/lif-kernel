@@ -74,7 +74,29 @@ async function _on_fetch(event){
   console.info('sw complete fetch('+event.request.url+')');
   return await sw_boot.on_fetch(event);
 }
+// stop this service worker: the next page load starts a new one.
+// by message {type: 'sw_boot_terminate'}, or by url /.lif/kernel/terminate
+let sw_boot_terminate_url = location.origin+'/.lif/kernel/terminate';
+async function sw_boot_terminate(){
+  fetch_queue.forEach(e=>{
+    try {
+      e.respondWith(new Response('terminate sw',
+        {status: 500, statusText: 'terminate sw'}));
+    } catch(err){}
+  });
+  await self.registration.unregister();
+}
+function sw_boot_terminate_event(event){
+  return event.respondWith((async()=>{
+    await sw_boot_terminate();
+    return new Response(JSON.stringify({ok: true,
+      msg: 'service worker terminated. reload the page'}),
+      {headers: {'content-type': 'application/json'}});
+  })());
+}
 function on_fetch(event){
+  if (event.request.url==sw_boot_terminate_url)
+    return sw_boot_terminate_event(event);
   event.respondWith(_on_fetch(event));
 }
 // service worker must register handlers on first run (not async)
@@ -93,18 +115,8 @@ function sw_init_pre(){
     console.log('kernel activated', sw_boot_version);
   })()));
   globalThis.addEventListener('message', event=>event.waitUntil((async()=>{
-    if (event.data?.type=='sw_boot_terminate'){
-      fetch_queue.forEach(e=>{
-        try {
-          e.respondWith(new Response('terminate sw',
-            {status: 500, statusText: 'terminate sw'}));
-        } catch(err){}
-      });
-      event.waitUntil(async()=>{
-        await self.registration.unregister();
-      });
-      return;
-    }
+    if (event.data?.type=='sw_boot_terminate')
+      return await sw_boot_terminate();
     if (!sw_boot.on_message){
       console.warn('sw message event before inited', event);
       await wait_activate;

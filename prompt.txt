@@ -487,3 +487,32 @@ CLAUDE:
 package.json: export "./tcpip": "./net/tcpip.js", so apps can import
 'lif-kernel/tcpip'.
 ---
+USER:
+I added URL support /.lif/kernel/unregister in sw_boot.js (sw_boot_terminate). Can you try it out? ... I closed vim. apply it and test
+
+CLAUDE:
+sw_boot.js: unregister by url and by message now work.
+- on_fetch(): a request to /.lif/kernel/unregister (same origin) is
+  answered here: respondWith() is called at once with a promise that
+  unregisters and returns {ok, msg} json. The check was in the 'message'
+  listener (a request is a 'fetch' event) and compared the full url with a
+  path.
+- sw_boot_terminate(): awaits registration.unregister() itself. It gave
+  event.waitUntil() a function instead of a promise, so the body never ran
+  (also for the old message route), and called respondWith() after an
+  await.
+- message {type: 'sw_boot_terminate'} calls it directly.
+Validated in Chrome on hi.js (port 4211): by fetch from the page, by
+message, and by opening the url in the address bar: registrations 1 -> 0,
+and a plain reload starts a new service worker.
+---
+USER:
+I renamed it to terminate, and removed it from the critical perf path of on_fetch(). can you see if its ok? ... I closed vim
+
+CLAUDE:
+sw_boot.js reviewed and tested (url /.lif/kernel/terminate, exact match by
+one string compare): fetch, message and address bar all terminate; the old
+name and near-miss urls do not. Two small cleanups: sw_boot_terminate_event()
+is not async (respondWith() is called before any await either way), and the
+answer says 'service worker terminated'.
+---
