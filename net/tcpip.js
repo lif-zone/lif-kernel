@@ -1,33 +1,111 @@
 // LIF Residential Gateway: a Hypernet between residences.
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
-import {Buffer, ewait, OA} from '../util.js';
-import {rpc_sock} from '../rpc.js';
+//
+// nodejs like network API (net, tls, fetch, WebSocket, dns), for the browser
+// and for nodejs processes that proxy their traffic: the real connections
+// are made by an out node (net/tcpip_s.js), reached over lifnet.
 import EventEmitter from '../compat/events.js';
 import {lifnet} from './lifnet.js';
 
-// fetch()-compatible API over rpc_sock
-// Usage: lif_fetch(url, {method, headers, body})
-class Lif_response {
-  constructor(status, headers, body_buf){
-    this.status = status;
-    this.ok = status>=200 && status<300;
-    this.headers = headers;
-    this._buf = body_buf;
-  }
-  async text(){ return this._buf.toString(); }
-  async json(){ return JSON.parse(this._buf.toString()); }
-  async arrayBuffer(){ return this._buf.buffer; }
+// data travels as hex inside the rpc json messages
+const hex_enc = buf=>buf.toHex();
+const hex_dec = hex=>Uint8Array.fromHex(hex);
+const utf8_enc = new TextEncoder();
+
+function to_bytes(data){
+  if (typeof data=='string')
+    return utf8_enc.encode(data);
+  if (data instanceof ArrayBuffer)
+    return new Uint8Array(data);
+  if (ArrayBuffer.isView(data))
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  throw Error('invalid data type');
 }
 
-export async function lif_fetch(url, {method='GET', headers={}, body}={}){
-  let {sock, error} = lifnet.connect('http/out');
+// connects a sock to an out topic. returns {sock, result} or {error}
+// sock_init(sock): set the sock methods. called before the connect, since
+// the out node may send right after it
+async function out_connect(topic, params, sock_init, timeout=10000){
+  let res;
+  try {
+    res = await lifnet.connect(topic, params, {timeout, sock_init});
+  } catch(err){
+    res = {error: ''+err};
+  }
+  let error = res?.error || res?.ret?.error;
+  if (error){
+    res?.sock?.close();
+    return {error: ''+(error.message||error)};
+  }
+  return {sock: res.sock, result: res.ret?.result ?? res.ret ?? {}};
+}
+
+// HTTP/HTTPS request over 'http/out': one request, no redirects.
+// body: string or bytes
+// Returns {status, status_text, headers, body: Uint8Array} or {error}
+export async function http_sock_c({url, method='GET', headers={}, body}){
+  let chunks = [], resp;
+  let done = Promise.withResolvers();
+  let {sock, error} = await out_connect('http/out', {url, method, headers},
+    sock=>{
+      sock.method('response', res=>resp = res);
+      sock.method('data', ({data})=>void chunks.push(data));
+      sock.method('close', ()=>done.resolve());
+      sock.method('error', ({message})=>done.resolve({error: message}));
+      sock.on('close', ()=>done.resolve());
+    });
   if (error)
-    throw new Error(error);
-  let res = await http_sock_c(sock, {url, method, headers, body});
+    return {error};
+  if (body!=null)
+    sock.notify('data', {data: hex_enc(to_bytes(body))});
+  sock.notify('end', {});
+  let res = await done.promise;
   sock.close();
-  if (res.error)
-    throw new Error(res.error);
-  return new Lif_response(res.status, res.headers, res.body);
+  if (res?.error)
+    return res;
+  if (!resp)
+    return {error: 'connection closed without a response'};
+  return {...resp, body: hex_dec(chunks.join(''))};
+}
+
+// fetch() over 'http/out'. Returns a standard Response.
+// opt: {method, headers, body, redirect: 'follow'|'manual'|'error'}
+// A redirect is followed here: every hop is a new request through the out
+// node, so every hop is checked by its ip policy.
+export async function lif_fetch(url, opt={}){
+  let {method='GET', body, redirect='follow'} = opt;
+  let headers = Object.fromEntries(new Headers(opt.headers||{}));
+  url = ''+url;
+  for (let hop=0; ; hop++){
+    let res = await http_sock_c({url, method, headers, body});
+    if (res.error)
+      throw new TypeError('lif_fetch failed: '+res.error);
+    let {status} = res;
+    let loc = res.headers.location;
+    if (loc && [301, 302, 303, 307, 308].includes(status) &&
+      redirect!='manual')
+    {
+      if (redirect=='error' || hop>=20)
+        throw new TypeError('lif_fetch failed: redirect '+url);
+      if (status==303 || status<303 && method.toUpperCase()=='POST'){
+        method = 'GET';
+        body = undefined;
+      }
+      url = new URL(loc, url).href;
+      continue;
+    }
+    let h = new Headers();
+    for (let [name, val] of Object.entries(res.headers)){
+      for (let v of Array.isArray(val) ? val : [val])
+        h.append(name, v);
+    }
+    let no_body = [101, 204, 205, 304].includes(status);
+    let response = new Response(no_body ? null : res.body,
+      {status, statusText: res.status_text||'', headers: h});
+    Object.defineProperty(response, 'url', {value: url});
+    Object.defineProperty(response, 'redirected', {value: hop>0});
+    return response;
+  }
 }
 
 export class browser_EventEmitter extends EventEmitter {
@@ -38,6 +116,8 @@ export class browser_EventEmitter extends EventEmitter {
     if (fn)
       this.on(event, fn);
   }
+  addEventListener(event, fn){ this.on(event, fn); }
+  removeEventListener(event, fn){ this.off(event, fn); }
   get onopen(){ return this._h_open||null; }
   set onopen(fn){ this._set_handler('open', fn); }
   get onmessage(){ return this._h_message||null; }
@@ -48,70 +128,86 @@ export class browser_EventEmitter extends EventEmitter {
   set onerror(fn){ this._set_handler('error', fn); }
 }
 
-// WebSocket-like object proxied over rpc_sock via lif_rg websocket_connect
+// WebSocket-like object over 'websocket/out'.
+// new lif_WebSocket(url, protocols, {headers})
+// A binary message is given as an ArrayBuffer.
 export class lif_WebSocket extends browser_EventEmitter {
-  reasyState = 0; // CONNECTING
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  readyState = 0; // CONNECTING
+  binaryType = 'arraybuffer';
+  protocol = '';
   sock = null;
-  constructor(rpc, url, protocols){
+  constructor(url, protocols, opt={}){
     super();
-    this.rpc = rpc;
-    this.url = url;
+    this.url = ''+url;
     this.protocols = protocols;
-    this._connect();
+    this._connect(opt);
   }
-  async _connect(){
-    try {
-      let sock = new rpc_sock();
-      this.sock = sock;
-      sock.method('message', ({data, bin})=>{
-        let msg_data = bin ? Buffer.from(data, 'hex') : data;
-        this.emit('message', {data: msg_data, type: 'message',
-          target: this});
+  async _connect(opt){
+    let early = [];
+    let params = {url: this.url, headers: opt.headers||{}};
+    if (this.protocols)
+      params.protocols = this.protocols;
+    let {sock, result, error} = await out_connect('websocket/out', params,
+      sock=>{
+        sock.method('message', ({data, binary})=>{
+          if (binary)
+            data = hex_dec(data).buffer;
+          // a message that came together with the open: after 'open'
+          if (early)
+            return void early.push(data);
+          this._message(data);
+        });
+        sock.method('close', ({code=1000, reason=''}={})=>
+          this._close(code, reason));
+        sock.method('error', ({message})=>this._error(message));
+        // a failed connect is reported below, with its error
+        sock.on('close', ()=>{
+          if (sock==this.sock)
+            this._close(1006, '');
+        });
       });
-      sock.method('close', ({code=1000, reason=''}={})=>{
-        if (this.readyState==3)
-          return;
-        this.readyState = 3;
-        this.emit('close', {code, reason, type: 'close', target: this});
-      });
-      sock.method('error', ({message})=>{
-        this.emit('error', {message, type: 'error', target: this});
-      });
-      sock.on('close', ()=>{
-        if (this.readyState==3)
-          return;
-        this.readyState = 3;
-        this.emit('close', {code: 1006, reason: '', type: 'close',
-          target: this});
-      });
-      let params = {url: this.url, headers: {}};
-      if (this.protocols)
-        params.protocols = this.protocols;
-      let res = await sock.connect(this.rpc, 'websocket/out',
-        params);
-      if (res.error){
-        this.readyState = 3;
-        this.emit('error', {message: res.error, type: 'error',
-          target: this});
-        return;
-      }
-      this.readyState = 1; // OPEN
-      this.emit('open', {type: 'open', target: this});
-    } catch(err){
-      this.readyState = 3;
-      this.emit('error', {message: err.message, type: 'error',
-        target: this});
+    if (error){
+      this._error(error);
+      return this._close(1006, '');
     }
+    if (this.readyState>=2) // close() during the connect
+      return void sock.notify('close', {code: 1000, reason: ''});
+    this.sock = sock;
+    this.protocol = result.protocol||'';
+    this.readyState = 1; // OPEN
+    this.emit('open', {type: 'open', target: this});
+    let msgs = early;
+    early = null;
+    for (let data of msgs)
+      this._message(data);
+  }
+  _message(data){
+    this.emit('message', {data, type: 'message', target: this});
+  }
+  _error(message){
+    this.emit('error', {message, type: 'error', target: this});
+  }
+  _close(code, reason){
+    if (this.readyState==3)
+      return;
+    this.readyState = 3;
+    try {
+      this.sock?.close();
+    } catch(err){}
+    this.emit('close', {code, reason, wasClean: code!=1006, type: 'close',
+      target: this});
   }
   send(data){
     if (this.readyState!=1)
-      throw new DOMException('WebSocket is not open', 'InvalidStateError');
-    let is_bin = typeof data!='string';
-    if (is_bin){
-      let buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
-      this.sock.notify('send', {data: buf.toString('hex'), binary: true});
-    } else
+      throw Error('WebSocket is not open');
+    if (typeof data=='string')
       this.sock.notify('send', {data, binary: false});
+    else
+      this.sock.notify('send', {data: hex_enc(to_bytes(data)), binary: true});
   }
   close(code=1000, reason=''){
     if (this.readyState>=2)
@@ -121,49 +217,61 @@ export class lif_WebSocket extends browser_EventEmitter {
   }
 }
 
-// DNS lookup via lif_rg dns/out proxy
-// Returns {addrs: [{address, family}]} or {error}
-export async function lif_dns_lookup(host, {family=4}={}){
-  return await lifnet.call('dns/out', {host, family});
+// DNS lookup over 'dns/out', as dns.promises.lookup() of nodejs.
+// Returns {address, family}, or with opt.all an array of them. Throws on
+// failure.
+export async function lif_dns_lookup(host, {family=4, all}={}){
+  let {sock, result, error} = await out_connect('dns/out', {host, family});
+  sock?.close();
+  if (error)
+    throw Error(error);
+  return all ? result.addrs : result.addrs[0];
 }
 
-// JSON-RPC over WebSocket via jsonrpc/out proxy — client-side mirror of rpc_sock_jsonrpc_out
+// JSON-RPC over a WebSocket ('ws:', 'wss:') or over a line socket ('tcp:',
+// 'ssl:', 'ussl:' unverified ssl), over 'rpc/websocket/out'.
+// let rpc = new lif_rpc_websocket(url); await rpc.connect();
+// await rpc.call(method, params); rpc.method(name, fn) for notifications
 export class lif_rpc_websocket extends EventEmitter {
   sock = null;
-  constructor(rpc, url){
+  constructor(url){
     super();
-    this.rpc = rpc;
     this.url = url;
     this._methods = {};
   }
   async connect(){
-    let sock = new rpc_sock();
+    let {sock, error} = await out_connect('rpc/websocket/out',
+      {url: this.url}, sock=>{
+        sock._method('', async msg=>{
+          let {id, method, params} = msg;
+          let fn = this._methods[method];
+          if (id==null){
+            if (fn)
+              fn(params);
+            return;
+          }
+          if (!fn)
+            return {error: 'method not found: '+method};
+          try {
+            return await fn(params);
+          } catch(err){
+            return {error: ''+err};
+          }
+        });
+        sock.on('close', ()=>this.emit('close'));
+        sock.on('error', err=>this.emit('error', err));
+      });
+    if (error)
+      throw new Error(error);
     this.sock = sock;
-    sock._method('', async(msg)=>{
-      let {id, method, params} = msg;
-      let fn = this._methods[method];
-      if (id==null){
-        if (fn)
-          fn(params);
-        return;
-      }
-      if (!fn)
-        return {error: 'method not found: '+method};
-      try { return await fn(params); }
-      catch(err){ return {error: ''+err}; }
-    });
-    sock.on('close', ()=>this.emit('close'));
-    sock.on('error', err=>this.emit('error', err));
-    let res = await sock.connect(this.rpc, 'jsonrpc/out', {url: this.url});
-    if (res.error)
-      throw new Error(res.error);
     return this;
   }
   method(name, fn){
     this._methods[name] = fn;
   }
+  // returns the result. throws the error of the server
   async call(method, params){
-    return await this.sock._call(method, params);
+    return await this.sock.T_call(method, params);
   }
   notify(method, params){
     this.sock.notify(method, params);
@@ -172,11 +280,6 @@ export class lif_rpc_websocket extends EventEmitter {
     this.sock?.close();
   }
 }
-
-// data travels as hex inside the rpc json messages
-const hex_enc = buf=>buf.toHex();
-const hex_dec = hex=>Uint8Array.fromHex(hex);
-const utf8_enc = new TextEncoder();
 
 // TCP socket proxy — mirrors net.Socket API over lifnet 'tcp/out'.
 // The out node (net/tcpip_s.js) makes the real TCP connection.
@@ -311,8 +414,7 @@ export class tcp_sock extends EventEmitter {
       cb = encoding;
     if (this.destroyed)
       return false;
-    if (typeof data=='string')
-      data = utf8_enc.encode(data);
+    data = to_bytes(data);
     this._timeout_set();
     this.bytesWritten += data.length;
     if (this.sock)
@@ -385,40 +487,41 @@ export class tcp_sock extends EventEmitter {
     return new this(opt).connect(port, host);
   }
 }
-// HTTP/HTTPS request over rpc_sock
-// Returns {status, headers, body: Buffer} or {error: string}
-export async function http_sock_c(rpc, {url, method='GET', headers={}, body}){
-  let sock = new rpc_sock();
-  let resp = ewait();
-  let done = ewait();
-  let chunks = [];
-  sock.method('response', ({status, headers})=>{
-    resp.return({status, headers});
-  });
-  sock.method('data', ({data})=>{
-    chunks.push(data);
-  });
-  sock.method('close', ()=>{
-    done.return();
-  });
-  sock.method('error', ({message, code})=>{
-    let err = OA(Error(message), {code});
-    resp.throw(err);
-    done.return();
-  });
-  let res = await sock.connect(rpc, 'http_connect', {url, method, headers});
-  if (res.error)
-    return res;
-  if (body){
-    let buf = Buffer.from(body);
-    sock.notify('data', {data: buf.toString('hex')});
+// tcp_sock that makes a TLS connection (at the out node)
+export class tls_sock extends tcp_sock {
+  constructor(opt={}){
+    super({...opt, tls: true});
   }
-  sock.notify('end', {});
-  try { resp = await resp; }
-  catch(err){ return {error: err.message}; }
-  await done;
-  let body_hex = chunks.join('');
-  let body_buf = Buffer.from(body_hex, 'hex');
-  return {...resp, body: body_buf};
 }
 
+function sock_connect(sock, args){
+  let [port, host, cb] = args;
+  if (typeof port=='object'){
+    cb = host;
+    ({port, host} = port);
+  }
+  return sock.connect(port, host, cb);
+}
+
+// the net and tls modules of nodejs, on tcp_sock:
+// net.connect(port, host, cb), net.connect({port, host}, cb)
+// tls.connect({port, host, rejectUnauthorized}, cb),
+// tls.connect(port, host, {rejectUnauthorized}, cb)
+export const net = {
+  Socket: tcp_sock,
+  connect: (...args)=>sock_connect(new tcp_sock(), args),
+  createConnection: (...args)=>net.connect(...args),
+};
+export const tls = {
+  TLSSocket: tls_sock,
+  connect(port, host, opt, cb){
+    if (typeof port=='object')
+      return sock_connect(new tls_sock(port), [port, host]);
+    if (typeof host!='string')
+      [host, opt, cb] = [undefined, host, opt];
+    if (typeof opt=='function')
+      [opt, cb] = [{}, opt];
+    return sock_connect(new tls_sock(opt||{}), [port, host, cb]);
+  },
+};
+export const dns = {lookup: lif_dns_lookup};

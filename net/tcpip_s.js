@@ -159,6 +159,9 @@ async function host_to_ip(host){
   }
   if (!ip)
     return {error: 'cannot resolve dns '+host};
+  // the policy knows only ipv4: an ipv6 address (eg. ::1) is not let through
+  if (ip_aton(ip)==null)
+    return {error: 'not an ipv4 address: '+host+' '+ip};
   if (is_ip_no_route(ip)){
     console.warn('blocked req to non-routable: '+host+' '+ip);
     return {error: 'ip non routable: '+host+' '+ip};
@@ -259,7 +262,8 @@ export async function lif_http_out({msg, sock, allow_ip}){
     sock.close();
   });
   req.on('response', res=>{
-    sock.notify('response', {status: res.statusCode, headers: res.headers});
+    sock.notify('response', {status: res.statusCode,
+      status_text: res.statusMessage, headers: res.headers});
     res.on('data', data=>{
       sock.notify('data', {data: data.toString('hex')});
     });
@@ -278,70 +282,121 @@ export async function lif_http_out({msg, sock, allow_ip}){
   return {};
 }
 
-export async function lif_fetch_out({msg, sock, allow_ip}){
-  let {url, method='GET', headers={}} = msg.params;
-  assert(url && typeof url=='string', 'invalid url');
-  let u = URL.parse(url);
-  if (!u)
-    return sock_error_log('invalid url: '+url);
-  let {protocol, hostname: host, pathname, search} = u;
-  let port = u.port ? +u.port : (protocol=='https:' ? 443 : 80);
-  let is_https = protocol=='https:';
-  let mod = is_https ? https : http;
-  let path = pathname+(search||'');
-  if (!allow_ip){
+// one http(s) request, the whole answer in memory.
+// Every hop (also a redirect) is checked by the ip policy, and goes to the
+// ip that was checked. returns {status, headers, body: Buffer} or {error}
+async function http_req_checked({url, method='GET', headers={}, body}){
+  for (let hop=0; ; hop++){
+    let u = URL.parse(url);
+    if (!u)
+      return {error: 'invalid url: '+url};
+    let {protocol, hostname: host, pathname, search} = u;
+    if (!str.is(protocol, 'http:', 'https:'))
+      return {error: 'invalid protocol: '+url};
+    let is_https = protocol=='https:';
     let ip = await host_to_ip(host);
     if (ip.error)
       return ip;
+    let req_opt = {hostname: ip, port: u.port ? +u.port : is_https ? 443 : 80,
+      path: pathname+(search||''), method, headers: {...headers, host: u.host},
+      timeout: 30000};
+    if (is_https && !net.isIP(host))
+      req_opt.servername = host;
+    let res, chunks = [];
+    try {
+      res = await new Promise((resolve, reject)=>{
+        let req = (is_https ? https : http).request(req_opt);
+        req.on('response', resolve);
+        req.on('error', reject);
+        req.on('timeout', ()=>req.destroy(Error('timeout')));
+        req.end(body);
+      });
+      let loc = res.headers.location;
+      if (loc && str.is(''+res.statusCode, '301', '302', '303', '307', '308')){
+        res.resume();
+        if (hop>=5)
+          return {error: 'too many redirects: '+url};
+        if (res.statusCode==303 ||
+          res.statusCode<303 && method.toUpperCase()=='POST')
+        {
+          method = 'GET';
+          body = undefined;
+        }
+        url = new URL(loc, url).href;
+        continue;
+      }
+      for await (let chunk of res)
+        chunks.push(chunk);
+    } catch(err){
+      return {error: 'failed request '+url+': '+err};
+    }
+    return {status: res.statusCode, headers: res.headers,
+      body: Buffer.concat(chunks)};
   }
-  let req_headers = {...headers};
-  if (!req_headers.host)
-    req_headers.host = host;
-  // XXX ip address vs dns not checked very well. use mod.request()
-  const res = await fetch(url, {
-    method: method||'GET',
-    headers: req_headers||{},
-  });
-  if (0 && res.status!=200)
-    return sock_error_log('failed fetch()');
-  let body = await res.text();
-  return {body, status: res.status, headers: Object.fromEntries(res.headers)};
+}
+
+// HTTP/HTTPS fetch: the whole answer in one message, body as text.
+// params: {url, method, headers, body}
+// allow_ip: trusted caller: any ip is allowed.
+export async function lif_fetch_out({msg, sock, allow_ip}){
+  let {url, method='GET', headers={}, body} = msg.params;
+  assert(url && typeof url=='string', 'invalid url');
+  if (!URL.parse(url))
+    return sock_error_log('invalid url: '+url);
+  if (!allow_ip){
+    let res = await http_req_checked({url, method, headers, body});
+    if (res.error)
+      return res;
+    return {body: res.body.toString(), status: res.status,
+      headers: res.headers};
+  }
+  const res = await fetch(url, {method: method||'GET', headers, body});
+  return {body: await res.text(), status: res.status,
+    headers: Object.fromEntries(res.headers)};
 }
 
 // WebSocket Client Proxy for lif_WebSocket()
-export async function lif_websocket_out({msg, sock, allow_ip}){ // XXX unused
+// params: {url, protocols, headers}
+// allow_ip: trusted caller: any ip is allowed. Otherwise only public ips,
+//   and the connection goes to the ip that was checked.
+export async function lif_websocket_out({msg, sock, allow_ip}){
   let {url, protocols, headers={}} = msg.params;
   assert(url && typeof url=='string', 'invalid url');
   let u = URL.parse(url);
-  if (!u)
+  if (!u || !str.is(u.protocol, 'ws:', 'wss:'))
     return {error: 'invalid url: '+url};
-  let {hostname: host} = u;
+  let {hostname: host, host: host_port} = u;
   if (!allow_ip){
     let ip = await host_to_ip(host);
     if (ip.error)
       return ip;
     u.hostname = ip;
   }
-  let ws_opts = {headers: {host, ...headers}};
-  if (u.protocol=='wss:')
+  let ws_opts = {headers: {host: host_port, ...headers}};
+  if (u.protocol=='wss:' && !net.isIP(host))
     ws_opts.servername = host;
-  let ws = new ws_WebSocket(u.href, protocols, ws_opts);
-  try { await once(ws, 'open'); }
-  catch(err){ return {error: 'ws connect failed: '+err.message}; }
+  let ws = new ws_WebSocket(u.href, protocols||[], ws_opts);
+  let connected;
   websocket_fix(ws);
+  // set before the open: a message may come together with it
   ws.on_message(({data})=>{
     let is_bin = typeof data!='string';
-    if (is_bin)
-      sock.notify('message', {data: Buffer.from(data).toString('hex'), binary: true});
-    else
+    if (is_bin){
+      sock.notify('message', {data: Buffer.from(data).toString('hex'),
+        binary: true});
+    } else
       sock.notify('message', {data: ''+data, binary: false});
   });
   ws.on('close', (code, reason)=>{
+    if (!connected)
+      return;
     sock.notify('close', {code, reason: ''+reason});
     sock.close();
   });
   ws.on('error', err=>{
-    sock.notify('error', {message: err.message});
+    // before the open, the error is the answer of the connect
+    if (connected)
+      sock.notify('error', {message: err.message});
   });
   sock.method('send', ({data, binary})=>{
     ws.send(binary ? Buffer.from(data, 'hex') : data);
@@ -350,16 +405,29 @@ export async function lif_websocket_out({msg, sock, allow_ip}){ // XXX unused
     ws.close(code, reason);
   });
   sock.on('close', ()=>ws.terminate());
-  return {};
+  try { await once(ws, 'open'); }
+  catch(err){
+    ws.terminate();
+    return {error: 'ws connect failed: '+err.message};
+  }
+  connected = true;
+  return {protocol: ws.protocol};
 }
 
 // DNS Resolution Service
-export async function lif_dns_out({msg, sock}){ // XXX unused
+// params: {host, family}. returns {addrs: [{address, family}]}
+// allow_ip: trusted caller. Otherwise non public ipv4 addresses are left
+//   out, so names of the node's internal network are not told.
+export async function lif_dns_out({msg, sock, allow_ip}){
   let {host, family=4} = msg.params;
   assert(host && typeof host=='string', 'invalid host');
   let addrs;
   try { addrs = await dns.lookup(host, {family, all: true}); }
   catch(err){ return {error: 'cannot resolve '+host+': '+err.message}; }
+  if (!allow_ip)
+    addrs = addrs.filter(a=>a.family!=4 || !is_ip_no_route(a.address));
+  if (!addrs.length)
+    return {error: 'cannot resolve '+host};
   return {addrs: addrs.map(a=>({address: a.address, family: a.family}))};
 }
 
@@ -377,21 +445,54 @@ export async function ws_on_connect_pipe(ws, url){ // XXX unused
   });
 }
 
+// ws_ctor for a url given by a caller: the host is checked by the ip
+// policy, and the connection goes to the ip that was checked.
+async function ws_ctor_checked(url){
+  let is_tcp = str.starts(url, 'tcp:', 'ssl:', 'ussl:');
+  let host;
+  if (is_tcp)
+    host = url.match(rpc_tcp.url_re)?.[2];
+  else {
+    let u = URL.parse(url);
+    if (u && str.is(u.protocol, 'ws:', 'wss:'))
+      host = u.hostname;
+  }
+  if (!host)
+    return {error: 'invalid url: '+url};
+  let ip = await host_to_ip(host);
+  if (ip.error)
+    return ip;
+  if (is_tcp)
+    return function(url){ return new rpc_tcp(url, {ip}); };
+  return function(url){
+    let u = new URL(url);
+    u.hostname = ip;
+    let opt = {headers: {host: new URL(url).host}};
+    if (u.protocol=='wss:' && !net.isIP(host))
+      opt.servername = host;
+    return new ws_WebSocket(u.href, opt);
+  };
+}
+
+// JSON-RPC over a WebSocket, or over a tcp:/ssl:/ussl: line socket.
+// url: fixed url of this topic (trusted). Without it the caller gives
+//   params.url, which is checked by the ip policy.
 export async function lif_rpc_websocket_out(topic, url){
   await lifnet.listen(topic, async({msg, sock})=>{
-    if (!url){
-      url = msg.params?.url;
-      // XXX - need to validate URL/allowed ip/dns resolve
-    }
-    if (!url)
-      return sock_error_log('missing url');
-    let ws_ctor;
-    if (str.starts(url, 'tcp:', 'ssl:', 'ussl:'))
+    let _url = url, ws_ctor;
+    if (!_url){
+      _url = msg.params?.url;
+      if (!_url || typeof _url!='string')
+        return sock_error_log('missing url');
+      ws_ctor = await ws_ctor_checked(_url);
+      if (ws_ctor.error)
+        return ws_ctor;
+    } else if (str.starts(_url, 'tcp:', 'ssl:', 'ussl:'))
       ws_ctor = rpc_tcp;
     let s = new rpc_websocket({D: 1, jsonrpc: '2.0', ws_ctor});
     rpc_sock_pipe(sock, s, {close: false});
     try {
-      await s.connect({url});
+      await s.connect({url: _url});
     } catch(err){
       return {error: ''+err};
     }
@@ -409,14 +510,18 @@ class rpc_tcp extends EventEmitter {
   websocket_fix = 'tcp'; // prevent websocket_fix() from touching this
   binaryType = null; // unused, satisfies rpc_websocket.connect()
   _buf = '';
-  constructor(url){
+  static url_re = /^(tcp|ssl|ussl):\/?\/?([^:]+):(\d+)/;
+  // opt.ip: connect to this ip (the checked ip of the host)
+  constructor(url, {ip}={}){
     super();
-    let m = url.match(/^(tcp|ssl|ussl):\/?\/?([^:]+):(\d+)/);
+    let m = url.match(rpc_tcp.url_re);
     if (!m)
       throw new Error('invalid tcp url: '+url);
     let [, proto, host, port] = m;
-    let opt = {host, port: +port};
+    let opt = {host: ip||host, port: +port};
     let ssl = str.is(proto, 'ssl', 'ussl');
+    if (ssl && !net.isIP(host))
+      opt.servername = host;
     if (proto=='ussl')
       opt.rejectUnauthorized = false;
     let sock = ssl ? tls.connect(opt) : net.createConnection(opt);
@@ -427,8 +532,8 @@ class rpc_tcp extends EventEmitter {
       this.readyState = 1; // OPEN
       this.emit('open');
     };
-    sock.on('connect', on_connect);
-    sock.on('secureConnect', on_connect);
+    // ssl is open only after the TLS handshake (and certificate check)
+    sock.on(ssl ? 'secureConnect' : 'connect', on_connect);
     sock.on('data', data=>{
       this._buf += data.toString('utf8');
       let lines = this._buf.split('\n');

@@ -442,3 +442,41 @@ to a public host; a wrong-host certificate is rejected; localhost,
 127.0.0.1, 192.168.1.1 and 169.254.169.254 are refused; localhost with
 allow_ip works.
 ---
+USER:
+before step 2: fix and test the rest of the out functions in tcpip.js / tcpip_s.js. the idea is to provide a 'nodejs' like API to the browser, and to remote nodejs processes that want to proxy their traffic
+
+CLAUDE:
+net/tcpip.js (client, browser and nodejs): rewritten on lifnet.connect()
+with sock_init, bytes as hex by Uint8Array toHex/fromHex.
+- http_sock_c({url, method, headers, body}): one request over 'http/out'.
+- lif_fetch(url, opt): returns a standard Response; follows redirects here
+  (redirect: follow|manual|error), each hop a new request through the node.
+- lif_WebSocket(url, protocols, {headers}): readyState typo, binary flag
+  (server sends `binary`, client read `bin`), ArrayBuffer for binary,
+  'error' before 'close', messages that come with the open kept.
+- lif_dns_lookup(host, {family, all}): as dns.promises.lookup().
+- lif_rpc_websocket(url): topic was 'jsonrpc/out' (nothing listens there),
+  now 'rpc/websocket/out'; call() throws the server error.
+- tls_sock, and node like `net`, `tls`, `dns` objects.
+net/tcpip_s.js (out node):
+- host_to_ip(): an ipv6 answer (eg. host '::1') was let through unchecked;
+  now refused (policy is ipv4 only).
+- lif_fetch_out(): untrusted callers go through http_req_checked(): each
+  hop (also redirects) checked and sent to the checked ip; body param.
+  Trusted (allow_ip) path still uses fetch().
+- lif_websocket_out(): only ws:/wss:, Host header with port, handlers set
+  before the open, no notify before the connect answer, returns protocol.
+- lif_dns_out(): non public ipv4 answers left out unless allow_ip.
+- lif_rpc_websocket_out(): the caller's url was stored in the shared `url`
+  variable, so every later caller got the first caller's url; now per
+  connection. A caller's url is checked by the ip policy and connected by
+  the checked ip (ws_ctor_checked, rpc_tcp opt.ip).
+- rpc_tcp: ssl reported open on the tcp 'connect', before the TLS handshake
+  and certificate check; now on 'secureConnect'. servername set.
+- lif_http_out(): sends status_text.
+Validated: Chrome (4211 --no-peer + `tcpip_s.js --peer 4211`) and a nodejs
+client over lifnet: fetch http/https/404/redirect/POST, policy refusals
+(localhost, [::1], redirect to 127.0.0.1), dns, WebSocket echo text+binary,
+json-rpc over ussl/tcp/wss and fixed-url topics, net/tls connect forms.
+lif_fetch_out and lif_http_out also called directly from node.
+---
