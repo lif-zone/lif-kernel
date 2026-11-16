@@ -383,3 +383,49 @@ blank after a reload (dead bucket handles); with the reopen, cache clear
 empties the bucket and a reload without restarting the service worker loads
 the app and refills the cache.
 ---
+USER:
+(plan: implement react-native-tcp-socket for BlueWallet-web on lif-kernel net/tcpip.js tcp_sock) start with #1: test tcp_sock on its own. run lif-kernel on port 4211 with --no-peer, and a tcpip_s out node connected to it.
+
+CLAUDE:
+Step 1: tcp_sock tested from the browser through a local out node.
+- util/node_util.js: added the missing `import path` (node_is_main() threw
+  "path is not defined", so tcpip_s.js / lifcoin_s.js could not be imported).
+- net/tcpip.js: tcp_sock rewritten. It used rpc_sock.connect(rpc, 'tcp/out')
+  and Buffer hex calls the browser micro Buffer does not have. Now:
+  new tcp_sock({tls, rejectUnauthorized, timeout}) on lifnet.connect(
+  'tcp/out'); hex by Uint8Array toHex/fromHex; connect(port, host, cb) or
+  connect({port, host}, cb); write(string|bytes); end(); setEncoding();
+  client side setTimeout() + 'timeout'; 'error' then 'close' as net.Socket;
+  destroy() emits 'close'.
+- net/lifnet.js: Lifnet.connect() opt.sock_init(sock): set sock methods
+  before the connect answer, for data that arrives right after it.
+- net/tcpip_s.js NOT changed (open in an editor). Proposed lif_tcp_out() is
+  in the session scratchpad (tcp_out_fixed.mjs): tls.connect() + wait for
+  secureConnect, rejectUnauthorized param, 'end' both ways, no notify before
+  the connect answer.
+Validated in Chrome (port 4211, --no-peer, local out node): plain TCP http
+GET; refused port and unknown host errors; data-then-close 20/20; Electrum
+over TLS with a 40 request batch answered in 151ms.
+---
+USER:
+I closed vim. fix tcpip_s.js
+
+CLAUDE:
+net/tcpip_s.js:
+- lif_tcp_out(): tls.connect() and wait for secureConnect (TLS failed with
+  "stream.pause is not a function"); rejectUnauthorized param; 'end' both
+  ways; no notify to the client before the connect answer; ip policy fixed
+  (was inverted and shadowed): without allow_ip only public ips, and the
+  connect goes to the checked ip.
+- is_ip_range(): (ip & mask)>>>0. The signed & never matched ranges at
+  128.0.0.0 and above, so 192.168/16, 172.16/12, 169.254/16, 198.18/15,
+  224/4 and broadcast were not blocked.
+  Added unit tests for is_ip_no_route().
+- run(): --peer <url|port> implemented (second '--no-peer' was a typo):
+  uplink only to that peer, no default uplinks from lifnet.init().
+util/node_util.js: node_is_main() returns false when there is no script
+path (node -e).
+Validated in Chrome with `net/tcpip_s.js --peer 4211`: private and loopback
+ips refused; plain http; unknown host; TLS verify on rejects a self-signed
+cert; Electrum over TLS with a 40 request batch on two servers.
+---

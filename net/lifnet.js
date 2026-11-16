@@ -482,6 +482,9 @@ export class Lifnet extends EventEmitter {
     rg_addr.sort((a, b)=>(a.error_tm||0) - (b.error_tm||0));
     for (let _rg of rg_addr){
       let {sock: _sock, wait} = this._.connect(_rg.id, topic, params);
+      // opt.sock_init(sock): set the sock methods before the connect, for
+      // a server that sends right after the connect
+      opt.sock_init?.(_sock);
       wait = etask.wait_ext(wait);
       et.alarm(timeout, ()=>wait.return({error: 'timeout connect'}));
       let _ret = yield wait;

@@ -173,11 +173,21 @@ export class lif_rpc_websocket extends EventEmitter {
   }
 }
 
-// TCP socket proxy — mirrors net.Socket API over rpc_sock
+// data travels as hex inside the rpc json messages
+const hex_enc = buf=>buf.toHex();
+const hex_dec = hex=>Uint8Array.fromHex(hex);
+const utf8_enc = new TextEncoder();
+
+// TCP socket proxy — mirrors net.Socket API over lifnet 'tcp/out'.
+// The out node (net/tcpip_s.js) makes the real TCP connection.
+// opt.tls: the out node makes a TLS connection. TLS ends at the out node: the
+//   out node sees the plain data.
+// opt.rejectUnauthorized: false accepts any server certificate (tls)
+// opt.timeout: ms to wait for the connection (default 10000)
 export class tcp_sock extends EventEmitter {
-  constructor(rpc){
+  constructor(opt={}){
     super();
-    this.rpc = rpc;
+    this.opt = opt;
     this.sock = null;
     this.sendBuffer = [];
     this.recvBuffer = [];
@@ -186,98 +196,193 @@ export class tcp_sock extends EventEmitter {
     this.bytesRead = 0;
     this.remoteAddress = null;
     this.remotePort = 0;
+    this.connecting = false;
+    this.destroyed = false;
     this.closed = false;
   }
-  async connect(port, host){
+  // connect(port, host, cb) or connect({port, host}, cb)
+  connect(port, host, cb){
+    if (typeof port=='object'){
+      cb = host;
+      ({port, host} = port);
+    }
+    if (typeof host=='function'){
+      cb = host;
+      host = undefined;
+    }
+    host ||= 'localhost';
+    if (cb)
+      this.once('connect', cb);
+    this.connecting = true;
+    this._connect(+port, host);
+    return this;
+  }
+  async _connect(port, host){
+    let {tls, rejectUnauthorized, timeout=10000} = this.opt;
     this.remoteAddress = host;
     this.remotePort = port;
-    const sock = new rpc_sock();
-    this.sock = sock;
-    sock.method('data', ({data})=>{
-      data = Buffer.from(data, 'hex');
-      if (this.paused){
-        this.recvBuffer.push(data);
-        return;
-      }
-      this.bytesRead += data.length;
-      this.emit('data', data);
-    });
-    sock.method('error', ({message, code})=>{
-      const err = new Error(message);
-      err.code = code;
-      this.emit('error', err);
-    });
-    sock.method('close', ()=>{
-      if (this.closed)
-        return;
-      this.closed = true;
-      this.emit('close');
-    });
-    sock.on('close', ()=>{
-      if (this.closed)
-        return;
-      this.closed = true;
-      this.emit('close');
-    });
-    const res = await sock.connect(this.rpc, 'tcp/out',
-      {host, port});
-    if (res.error){
-      this.closed = true;
-      this.emit('error', res.error);
+    this._timeout_set();
+    let params = {host, port};
+    if (tls)
+      params.tls = true;
+    if (rejectUnauthorized!==undefined)
+      params.rejectUnauthorized = rejectUnauthorized;
+    let res;
+    try {
+      // sock_init: data may arrive right after the connect, so the methods
+      // must be there before
+      res = await lifnet.connect('tcp/out', params,
+        {timeout, sock_init: sock=>this._sock_init(sock)});
+    } catch(err){
+      res = {error: ''+err};
+    }
+    let error = res?.error || res?.ret?.error;
+    if (this.destroyed){
+      res?.sock?.close();
       return;
     }
-    this.remoteAddress = res.addr;
-    this.remotePort = res.port;
-    // Flush buffered writes
-    for (const {data} of this.sendBuffer)
-      sock.notify('data', {data: data.toString('hex')});
-    this.sendBuffer = [];
-    this.emit('connect');
-  }
-  write(data){
-    this.bytesWritten += data.length;
-    if (!this.sock){
-      this.sendBuffer.push({data});
-      return true;
+    if (error){
+      this.connecting = false;
+      return this._close(error);
     }
-    this.sock.notify('data', {data: data.toString('hex')});
+    let sock = this.sock = res.sock;
+    let addr = res.ret?.result || res.ret || {};
+    this.remoteAddress = addr.addr||host;
+    this.remotePort = addr.port||port;
+    this.connecting = false;
+    // Flush buffered writes
+    for (let data of this.sendBuffer)
+      sock.notify('data', {data: hex_enc(data)});
+    this.sendBuffer = [];
+    if (this._end)
+      sock.notify('end');
+    this.emit('connect');
+    if (tls)
+      this.emit('secureConnect');
+  }
+  _sock_init(sock){
+    sock.method('data', ({data})=>{
+      if (sock!=this.sock && this.sock)
+        return;
+      data = hex_dec(data);
+      if (this.paused)
+        return void this.recvBuffer.push(data);
+      this._data(data);
+    });
+    sock.method('error', ({message, code})=>{
+      let err = new Error(message);
+      err.code = code;
+      this._error = err;
+    });
+    sock.method('end', ()=>this.emit('end'));
+    sock.method('close', ()=>this._close());
+    sock.on('close', ()=>{
+      if (sock==this.sock)
+        this._close();
+    });
+  }
+  _data(data){
+    this._timeout_set();
+    this.bytesRead += data.length;
+    if (this._decoder)
+      data = this._decoder.decode(data, {stream: true});
+    else if (globalThis.Buffer)
+      data = globalThis.Buffer.from(data);
+    this.emit('data', data);
+  }
+  // like net.Socket: 'error' (if any) and then 'close'
+  _close(error){
+    if (this.closed)
+      return;
+    this.closed = this.destroyed = true;
+    clearTimeout(this._timer);
+    if (typeof error=='string')
+      error = new Error(error);
+    error ||= this._error;
+    try {
+      this.sock?.close();
+    } catch(err){}
+    if (error)
+      this.emit('error', error);
+    this.emit('close', !!error);
+  }
+  write(data, encoding, cb){
+    if (typeof encoding=='function')
+      cb = encoding;
+    if (this.destroyed)
+      return false;
+    if (typeof data=='string')
+      data = utf8_enc.encode(data);
+    this._timeout_set();
+    this.bytesWritten += data.length;
+    if (this.sock)
+      this.sock.notify('data', {data: hex_enc(data)});
+    else
+      this.sendBuffer.push(data);
+    cb?.();
     return true;
+  }
+  // no more writes: the other side gets FIN
+  end(data, encoding, cb){
+    if (data!=null && typeof data!='function')
+      this.write(data, encoding);
+    this._end = true;
+    this.sock?.notify('end');
+    return this;
+  }
+  setEncoding(encoding='utf8'){
+    this._decoder = new TextDecoder(encoding);
+    return this;
   }
   setKeepAlive(enable, delay){
     this.sock?.notify('keep_alive', {enable, delay});
+    return this;
   }
-  setNoDelay(enable){
+  setNoDelay(enable=true){
     this.sock?.notify('no_delay', {enable});
+    return this;
   }
+  // 'timeout' is emitted after timeout ms without data in or out.
+  // 0 disables it. as in net.Socket, the socket is not closed by it
   setTimeout(timeout, fn){
-    this.sock?.notify('set_timeout', {timeout});
+    this._timeout = timeout;
     if (fn)
-      this.on('timeout', fn);
+      this.once('timeout', fn);
+    this._timeout_set();
+    return this;
+  }
+  _timeout_set(){
+    clearTimeout(this._timer);
+    if (!this._timeout || this.destroyed)
+      return;
+    this._timer = setTimeout(()=>this.emit('timeout'), this._timeout);
   }
   pause(){
     this.paused = true;
-    this.sock.notify('pause');
+    this.sock?.notify('pause');
+    return this;
   }
   resume(){
     this.paused = false;
-    const recv = this.recvBuffer;
+    let recv = this.recvBuffer;
     this.recvBuffer = [];
-    for (const data of recv){
-      this.bytesRead += data.length;
-      this.emit('data', data);
-    }
-    this.sock.notify('resume');
+    for (let data of recv)
+      this._data(data);
+    this.sock?.notify('resume');
+    return this;
   }
-  destroy(){
-    if (this.closed)
-      return;
-    this.closed = true;
-    this.sock?.close();
+  destroy(error){
+    if (this.destroyed)
+      return this;
+    this.destroyed = true;
+    // 'close' is emitted after destroy() returned, as net.Socket does
+    queueMicrotask(()=>this._close(error));
+    return this;
   }
-  static connect(rpc, port, host){
-    const sock = new this(rpc);
-    sock.connect(port, host);
-    return sock;
+  ref(){ return this; }
+  unref(){ return this; }
+  static connect(port, host, opt){
+    return new this(opt).connect(port, host);
   }
 }
 // HTTP/HTTPS request over rpc_sock

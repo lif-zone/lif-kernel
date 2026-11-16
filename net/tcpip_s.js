@@ -77,7 +77,8 @@ function is_ip_range(ip_range_t, ip){
       return;
   }
   for (let range of ip_range_t){
-    if ((ip & range.mask)==range.ip)
+    // >>>0: & gives a signed number, negative for ip >= 128.0.0.0
+    if (((ip & range.mask)>>>0)==range.ip)
       return true;
   }
 }
@@ -129,6 +130,19 @@ function test(){
   t('10.0.0.0/8', '10.0.0.0/255.0.0.0');
   t('192.168.0.0/16', '192.168.0.0/255.255.0.0');
   t('172.16.0.0/255.240.0.0');
+  t = (ip, no_route)=>assert_eq(!!is_ip_no_route(ip), no_route);
+  t('127.0.0.1', true);
+  t('10.1.2.3', true);
+  t('192.168.1.1', true);
+  t('172.16.0.1', true);
+  t('172.31.255.255', true);
+  t('172.32.0.1', false);
+  t('169.254.169.254', true);
+  t('100.64.0.1', true);
+  t('224.0.0.1', true);
+  t('255.255.255.255', true);
+  t('8.8.8.8', false);
+  t('193.168.1.1', false);
 }
 test();
 
@@ -152,56 +166,63 @@ async function host_to_ip(host){
   return ip;
 }
 
-// TCP Client Proxy
-export async function lif_tcp_out({msg, sock, allow_ip}){ // XXX unused
-  let {host, port, tls: is_tls} = msg.params;
+// TCP Client Proxy, for tcp_sock in net/tcpip.js
+// params: {host, port, tls, rejectUnauthorized}
+// tls: TLS ends here: this node sees the plain data.
+// allow_ip: trusted caller: any ip is allowed. Otherwise only public ips,
+//   and the connection goes to the ip that was checked.
+export async function lif_tcp_out({msg, sock, allow_ip}){
+  let {host, port, tls: is_tls, rejectUnauthorized} = msg.params;
   assert((port&0xffff)==port, 'invalid port');
   assert(host && typeof host=='string', 'invalid host');
   let ip = host;
-  if (allow_ip){
-    let ip = await host_to_ip(host);
+  if (!allow_ip){
+    ip = await host_to_ip(host);
     if (ip.error)
       return ip;
   }
-  let tcp;
-  if (is_tls)
-    tcp = new tls.TLSSocket({socket: new net.Socket()});
-  else
-    tcp = new net.Socket();
+  let tcp, connected;
+  if (is_tls){
+    tcp = tls.connect({host: ip, port,
+      servername: net.isIP(host) ? undefined : host,
+      rejectUnauthorized: rejectUnauthorized!==false});
+  } else
+    tcp = net.connect({host: ip, port});
   tcp.on('data', data=>{
     sock.notify('data', {data: data.toString('hex')});
   });
+  tcp.on('end', ()=>sock.notify('end'));
   tcp.on('error', err=>{
-    sock.notify('error', {message: err.message, code: err.code||null});
+    // before the connect, the error is the answer of the connect
+    if (connected)
+      sock.notify('error', {message: err.message, code: err.code||null});
   });
   tcp.on('close', ()=>{
+    if (!connected)
+      return;
     sock.notify('close');
     sock.close();
   });
   sock.method('data', ({data})=>{
     tcp.write(Buffer.from(data, 'hex'));
   });
+  sock.method('end', ()=>tcp.end());
   sock.method('keep_alive', ({enable, delay})=>{
     tcp.setKeepAlive(enable, delay);
   });
   sock.method('no_delay', ({enable})=>{
     tcp.setNoDelay(enable);
   });
-  sock.method('set_timeout', ({timeout})=>{
-    tcp.setTimeout(timeout);
-  });
   sock.method('pause', ()=>tcp.pause());
   sock.method('resume', ()=>tcp.resume());
   sock.on('close', ()=>tcp.destroy());
-  if (is_tls)
-    tcp.connect({tcp, port, host: ip, servername: host});
-  else
-    tcp.connect({port, host: ip});
   try {
-    await once(tcp, 'connect');
+    await once(tcp, is_tls ? 'secureConnect' : 'connect');
   } catch(err){
+    tcp.destroy();
     return {error: 'failed connect '+host+':'+port+': '+err};
   }
+  connected = true;
   return {addr: tcp.remoteAddress, port: tcp.remotePort};
 }
 
@@ -452,15 +473,20 @@ export async function run(opt={}){
     argv.shift();
     if (a=='--no-peer')
       opt.no_peer = true; // XXX not yet properly designed
-    else if (a=='--no-peer')
-      opt.peer = argv.shift(); // XXX not yet implemented
+    else if (a=='--peer') // url, or a port of a server on localhost
+      opt.peer = argv.shift();
     else
       throw 'invalid argv '+a;
   }
   if (argv.length)
     throw 'invalid args '+JSON.stringify(argv);
-  lifnet.set_opt({client_name: 'tcpip_s',
-    uplink: opt.no_peer ? null : 'default'});
+  let uplink = opt.no_peer ? null : 'default';
+  if (opt.peer){
+    uplink = +opt.peer ? 'ws://localhost:'+opt.peer+'/.lif.net' : opt.peer;
+    // only the given peer: no default uplinks from lifnet.init()
+    lifnet.inited = true;
+  }
+  lifnet.set_opt({client_name: 'tcpip_s', uplink});
   start_tcpip_s(opt);
 }
 
