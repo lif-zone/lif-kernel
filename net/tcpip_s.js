@@ -164,9 +164,9 @@ export async function lif_tcp_out({msg, sock, allow_ip}){ // XXX unused
   }
   let tcp;
   if (is_tls)
-    tcp = tls.TLSSocket({socket: new net.Socket()});
+    tcp = new tls.TLSSocket({socket: new net.Socket()});
   else
-    tcp = net.Socket();
+    tcp = new net.Socket();
   tcp.on('data', data=>{
     sock.notify('data', {data: data.toString('hex')});
   });
