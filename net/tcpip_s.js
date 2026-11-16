@@ -238,17 +238,22 @@ export async function lif_http_out({msg, sock, allow_ip}){
   let is_https = protocol=='https:';
   let mod = is_https ? https : http;
   let path = pathname+(search||'');
+  // allow_ip: trusted caller: any ip is allowed. Otherwise only public ips,
+  // and the request goes to the ip that was checked.
   let ip = host;
-  if (allow_ip){
-    let ip = await host_to_ip(host);
+  if (!allow_ip){
+    ip = await host_to_ip(host);
     if (ip.error)
       return ip;
   }
   let req_headers = {...headers};
   if (!req_headers.host)
     req_headers.host = host;
-  let req = mod.request({hostname: ip, port, path, method,
-    headers: req_headers});
+  let req_opt = {hostname: ip, port, path, method, headers: req_headers};
+  // https to an ip: the certificate is still checked against the host name
+  if (is_https && !net.isIP(host))
+    req_opt.servername = host;
+  let req = mod.request(req_opt);
   req.on('error', err=>{
     sock.notify('error', {message: err.message, code: err.code||null});
     sock.close();

@@ -429,3 +429,16 @@ Validated in Chrome with `net/tcpip_s.js --peer 4211`: private and loopback
 ips refused; plain http; unknown host; TLS verify on rejects a self-signed
 cert; Electrum over TLS with a 40 request batch on two servers.
 ---
+USER:
+fix lif_http_out as you suggested
+
+CLAUDE:
+net/tcpip_s.js lif_http_out(): ip policy fixed (was inverted and shadowed,
+as lif_tcp_out was): without allow_ip only public ips, and the request goes
+to the ip that was checked. For https the certificate is still checked
+against the host name (servername).
+Validated from node, calling lif_http_out() with a fake sock: http and https
+to a public host; a wrong-host certificate is rejected; localhost,
+127.0.0.1, 192.168.1.1 and 169.254.169.254 are refused; localhost with
+allow_ip works.
+---
