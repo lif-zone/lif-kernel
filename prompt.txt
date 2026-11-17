@@ -542,3 +542,15 @@ the out node to google, github, electrum.acinq.co (verified), electrum1.bluewall
 and bitcoin.lu.ke (rejectUnauthorized: false); non secure tls unchanged.
 Security (negative) tests postponed by the user.
 ---
+---
+USER:
+so why not add to package.json lif section a patch to change the import to "bc-ur/dist", and define in package.json lif.dependencies[bc-ur] = './blue_modules/bc-ur//' ?
+
+CLAUDE:
+kernel.js lpm_patch_lookup(): the lookup started at lpm_pkg.parent, so a package's own
+lif.patches were applied to its dependencies but never to its own files (the app is a
+child of the small boot package, which has no patches). Now it starts at lpm_pkg: a
+package may patch its own files, key = its own lmod (e.g. "/bluewallet//"). The
+outermost parent still wins. Tested with BlueWallet-web (patch on
+blue_modules/ur/index.js applied; app loads).
+---

@@ -595,14 +595,15 @@ async function lpm_file_get_alt({log, lfile, alt}){
 // patch systems: json (merge into a JSON file), replace_line (replace whole
 // lines of a text file).
 // p.patches: lif.patches of package p keyed by lmod (pkg_patches_lmod).
-// lookup the module with and without version, in all its parents. the
-// outermost parent wins
+// lookup the module with and without version, in the module itself (a
+// package may patch its own files) and in all its parents. the outermost
+// parent wins
 function lpm_patch_lookup(lpm_pkg, file){
   let u = T_lmod_parse(lpm_pkg.lmod);
   u.ver = '';
   let lmod_no_ver = T_lmod_str(u);
   let patch, patch_p;
-  for (let p = lpm_pkg.parent; p; p = p.parent){
+  for (let p = lpm_pkg; p; p = p.parent){
     let files = p.patches?.[lpm_pkg.lmod] || p.patches?.[lmod_no_ver];
     let v;
     if (!(v=files?.[file]))
