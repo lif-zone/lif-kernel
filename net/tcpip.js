@@ -22,6 +22,10 @@ function to_bytes(data){
   throw Error('invalid data type');
 }
 
+// options of this module, for all its connections:
+// secure: the default of opt.secure of a TLS socket (see tcp_sock)
+export const tcpip_opt = {secure: false};
+
 // connects a sock to an out topic. returns {sock, result} or {error}
 // sock_init(sock): set the sock methods. called before the connect, since
 // the out node may send right after it
@@ -283,10 +287,17 @@ export class lif_rpc_websocket extends EventEmitter {
 
 // TCP socket proxy — mirrors net.Socket API over lifnet 'tcp/out'.
 // The out node (net/tcpip_s.js) makes the real TCP connection.
-// opt.tls: the out node makes a TLS connection. TLS ends at the out node: the
-//   out node sees the plain data.
+// opt.tls: a TLS connection. Without opt.secure its made by the out node:
+//   TLS ends there, and the out node sees the plain data.
+// opt.secure: (tls) TLS is made here, end to end with the server: the out
+//   node makes only the TCP connection, and sees encrypted bytes. The
+//   certificate of the server is verified here. The TLS code
+//   (net/tcpip_tls.js) is loaded on the first such connection.
+//   default: tcpip_opt.secure
 // opt.rejectUnauthorized: false accepts any server certificate (tls)
-// opt.timeout: ms to wait for the connection (default 10000)
+// opt.servername: the name the certificate must be for (default: host)
+// opt.timeout: ms to wait for the connection, and for the TLS handshake of a
+//   secure connection (default 10000)
 export class tcp_sock extends EventEmitter {
   constructor(opt={}){
     super();
@@ -322,14 +333,31 @@ export class tcp_sock extends EventEmitter {
   }
   async _connect(port, host){
     let {tls, rejectUnauthorized, timeout=10000} = this.opt;
+    let secure = this._secure = !!(tls &&
+      (this.opt.secure ?? tcpip_opt.secure));
     this.remoteAddress = host;
     this.remotePort = port;
     this._timeout_set();
     let params = {host, port};
-    if (tls)
+    // secure: a plain TCP connection at the out node. TLS is made here
+    if (tls && !secure){
       params.tls = true;
-    if (rejectUnauthorized!==undefined)
-      params.rejectUnauthorized = rejectUnauthorized;
+      if (rejectUnauthorized!==undefined)
+        params.rejectUnauthorized = rejectUnauthorized;
+    }
+    // loaded before connecting: the first load takes time, and a server
+    // closes a connection that stays silent
+    let tls_mod;
+    if (secure){
+      try {
+        tls_mod = await import('./tcpip_tls.js');
+      } catch(err){
+        this.connecting = false;
+        return this._close('tls: failed to load: '+err);
+      }
+      if (this.destroyed)
+        return;
+    }
     let res;
     try {
       // sock_init: data may arrive right after the connect, so the methods
@@ -353,6 +381,11 @@ export class tcp_sock extends EventEmitter {
     this.remoteAddress = addr.addr||host;
     this.remotePort = addr.port||port;
     this.connecting = false;
+    if (secure){
+      // writes wait for the TLS handshake
+      this.emit('connect');
+      return this._tls_start(tls_mod, host, timeout);
+    }
     // Flush buffered writes
     for (let data of this.sendBuffer)
       sock.notify('data', {data: hex_enc(data)});
@@ -363,14 +396,71 @@ export class tcp_sock extends EventEmitter {
     if (tls)
       this.emit('secureConnect');
   }
+  // secure TLS: start the handshake, over the connected sock
+  _tls_start(tls_mod, host, timeout){
+    let {rejectUnauthorized, servername} = this.opt;
+    this.encrypted = true;
+    this.authorized = rejectUnauthorized!==false;
+    this._tls = tls_mod.tls_client({
+      host: servername||host,
+      verify: this.authorized,
+      write: data=>this.sock.notify('data', {data: hex_enc(data)}),
+      on_secure: ()=>this._tls_secure(),
+      on_data: data=>this._recv(data),
+      on_end: err=>{
+        if (this.closed)
+          return;
+        if (err)
+          return this._close('tls: '+(err.message||err));
+        this.emit('end');
+        this._close();
+      },
+      // a missing certificate of the chain: fetched through the out node
+      cert_fetch: async url=>{
+        let res = await lif_fetch(url);
+        if (!res.ok)
+          throw Error('failed to fetch certificate '+url+': '+res.status);
+        return new Uint8Array(await res.arrayBuffer());
+      },
+    });
+    this._tls_timer = setTimeout(()=>this._close('tls: handshake timeout'),
+      timeout);
+    this._tls.start();
+  }
+  // the TLS handshake is done
+  _tls_secure(){
+    if (this.destroyed)
+      return;
+    clearTimeout(this._tls_timer);
+    this._tls_ready = true;
+    for (let data of this.sendBuffer)
+      this._tls_send(data);
+    this.sendBuffer = [];
+    if (this._end)
+      this._end_send();
+    this.emit('secureConnect');
+  }
+  _tls_send(data){
+    this._tls_sent = this._tls.send(data);
+  }
+  // FIN, after the data that is still being encrypted
+  async _end_send(){
+    if (this._secure){
+      if (!this._tls_ready)
+        return;
+      await this._tls_sent;
+    }
+    if (!this.destroyed)
+      this.sock?.notify('end');
+  }
   _sock_init(sock){
     sock.method('data', ({data})=>{
       if (sock!=this.sock && this.sock)
         return;
       data = hex_dec(data);
-      if (this.paused)
-        return void this.recvBuffer.push(data);
-      this._data(data);
+      if (!this._secure)
+        return this._recv(data);
+      this._tls?.recv(data);
     });
     sock.method('error', ({message, code})=>{
       let err = new Error(message);
@@ -378,11 +468,17 @@ export class tcp_sock extends EventEmitter {
       this._error = err;
     });
     sock.method('end', ()=>this.emit('end'));
-    sock.method('close', ()=>this._close());
+    sock.method('close', ()=>this._close_remote());
     sock.on('close', ()=>{
       if (sock==this.sock)
-        this._close();
+        this._close_remote();
     });
+  }
+  // plain data from the server
+  _recv(data){
+    if (this.paused)
+      return void this.recvBuffer.push(data);
+    this._data(data);
   }
   _data(data){
     this._timeout_set();
@@ -393,15 +489,23 @@ export class tcp_sock extends EventEmitter {
       data = globalThis.Buffer.from(data);
     this.emit('data', data);
   }
+  // closed by the other side
+  _close_remote(){
+    if (this._secure && !this._tls_ready && !this._error)
+      return this._close('tls: connection closed before the handshake ended');
+    this._close();
+  }
   // like net.Socket: 'error' (if any) and then 'close'
   _close(error){
     if (this.closed)
       return;
     this.closed = this.destroyed = true;
     clearTimeout(this._timer);
+    clearTimeout(this._tls_timer);
     if (typeof error=='string')
       error = new Error(error);
     error ||= this._error;
+    this._tls?.end();
     try {
       this.sock?.close();
     } catch(err){}
@@ -417,10 +521,12 @@ export class tcp_sock extends EventEmitter {
     data = to_bytes(data);
     this._timeout_set();
     this.bytesWritten += data.length;
-    if (this.sock)
-      this.sock.notify('data', {data: hex_enc(data)});
-    else
+    if (this._secure ? !this._tls_ready : !this.sock)
       this.sendBuffer.push(data);
+    else if (this._secure)
+      this._tls_send(data);
+    else
+      this.sock.notify('data', {data: hex_enc(data)});
     cb?.();
     return true;
   }
@@ -429,7 +535,7 @@ export class tcp_sock extends EventEmitter {
     if (data!=null && typeof data!='function')
       this.write(data, encoding);
     this._end = true;
-    this.sock?.notify('end');
+    this._end_send();
     return this;
   }
   setEncoding(encoding='utf8'){

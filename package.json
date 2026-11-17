@@ -20,6 +20,7 @@
     "webapp": "./hi.js",
     "dependencies": {
       "events": "./compat/events.js",
+      "crypto": "./compat/crypto.js",
       "buffer": "6.0.3"
     },
     "optionalDependencies": {
@@ -79,6 +80,7 @@
     "compat/browser_env.js",
     "compat/cluster.js",
     "compat/compat.js",
+    "compat/crypto.js",
     "compat/events.js",
     "compat/net.js",
     "compat/node_env.js",
@@ -87,6 +89,7 @@
     "net/lifnet.js",
     "net/tcpip_s.js",
     "net/tcpip.js",
+    "net/tcpip_tls.js",
     "net/trunk.js",
     "test/test_lib.js"
   ],
@@ -114,6 +117,7 @@
   "dependencies": {
     "@babel/standalone": "^7.29.1",
     "@peculiar/x509": "1.9.3",
+    "@reclaimprotocol/tls": "0.1.5",
     "acme-client": "5.0.0",
     "dns2": "3.0.0",
     "ws": "^8.20.0",

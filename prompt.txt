@@ -516,3 +516,29 @@ name and near-miss urls do not. Two small cleanups: sw_boot_terminate_event()
 is not async (respondWith() is called before any await either way), and the
 answer says 'service worker terminated'.
 ---
+---
+USER:
+fix the main security problem of web2: the "open proxy" (you cannot trust them). Add a DYNAMIC import (await import()) for @reclaimprotocol/tls that implements TLS/SSL over Node style net.Socket. its code should be in ~/lif-kernel/net/tcpip_tls.js, and loaded dynamically from tcpip.js - when an SSL connection is requested WITH a global option (or a local option in the new SSL connection) that asks it to be 'secure'. The end user does not import tcpip_tls.js, rather tcpip.js handles the wrapping, and then does await import tcpip_tls.js, which imports @reclaimprotocol/tls and does all the plumbing.
+
+CLAUDE:
+- net/tcpip_tls.js (new): tls_client({host, verify, write, on_secure, on_data, on_end,
+  cert_fetch, root_cas}) -> {start, recv, send, end, info} on @reclaimprotocol/tls 0.1.5
+  (WebCrypto implementation: the pure js one fails on P-384 signatures and uses
+  Math.random). Serialized writes, fails closed at once on any error, and an added
+  check that every certificate after the first is a CA (the library does not check
+  it: confirmed with a forged chain; the added check is NOT yet confirmed by test).
+- net/tcpip.js: export tcpip_opt = {secure: false} (global default); tcp_sock
+  opt.secure (default tcpip_opt.secure), opt.servername. With tls+secure the out
+  node makes a plain TCP connection and TLS is made in tcp_sock: tcpip_tls.js is
+  loaded with await import() before connecting, 'connect' on TCP connect,
+  'secureConnect' after the handshake, writes buffered until then, handshake
+  timeout, missing chain certificates fetched with lif_fetch. New _recv(),
+  _tls_start(), _tls_secure(), _tls_send(), _end_send(), _close_remote().
+- compat/crypto.js (new): {webcrypto: globalThis.crypto} for the browser;
+  package.json: lif.dependencies "crypto", files, dependency
+  "@reclaimprotocol/tls": "0.1.5" (npm install run: package-lock.json changed).
+Tested (positive): nodejs and browser (4211 test instance) secure connections through
+the out node to google, github, electrum.acinq.co (verified), electrum1.bluewallet.io
+and bitcoin.lu.ke (rejectUnauthorized: false); non secure tls unchanged.
+Security (negative) tests postponed by the user.
+---
