@@ -770,9 +770,13 @@ async function require_cjs_async(uri_self, imp){
 }
 
 function createRequire(uri_self){
-  return function require_cjs_sync_mod(imp){
+  let require = function require_cjs_sync_mod(imp){
     return require_cjs_sync(uri_self, imp);
   };
+  require.async = function require_cjs_async_mod(imp){
+    return require_cjs_async(uri_self, imp);
+  };
+  return require;
 }
 
 // web worker importScripts()/require() implementation
