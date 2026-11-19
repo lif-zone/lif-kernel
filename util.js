@@ -597,10 +597,11 @@ export function html_elm(name, attr){
 }
 export function html_favicon_set(href){
   let link = document.querySelector('link[rel="icon"]');
-  if (link)
+  if (link){
     link.href = href;
-  else
-    document.head.appendChild(html_elm('link', {rel: 'icon', href}));
+    return;
+  }
+  document.head.appendChild(html_elm('link', {rel: 'icon', href}));
 }
 export function html_stylesheet_add(href){
   // also possible with import

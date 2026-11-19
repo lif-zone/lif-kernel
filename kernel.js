@@ -1199,7 +1199,7 @@ async function fetch_lpm_meta({log, imp}){
     do_ret = ret=>({redirect: _f.redirect, redirects: _f.redirects,
       redirect_file: ret.meta, cache: ret.cache});
   }
-  let type = file_ctype(f.lfile);
+  assert(f.lfile); let type = file_ctype(f.lfile);
   if (type!='js')
     return do_ret({meta: {type}}); // error not js/jsx/ts/tsx
   await file_tsx_to_js(f);
