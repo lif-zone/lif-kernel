@@ -50,18 +50,35 @@ function page_not_found(){
   `);
 }
 
+function page_error(error){
+  console.error(error);
+  let body = document.querySelector('body');
+  let elm = html_elm('div', {style: 'padding:32px'});
+  let title = html_elm('div', {style: 'font-size:24px;color:#e74c3c'});
+  let txt = error instanceof Error ? error.message : ''+error;
+  let header = txt.split('\n')[0];
+  title.textContent = 'Error: '+header;
+  let pre = html_elm('pre', {style: 'font-size:12px;white-space:pre-wrap'});
+  if (error?.stack)
+    txt += '\n'+error.stack;
+  pre.textContent = txt;
+  elm.appendChild(title);
+  elm.appendChild(pre);
+  body.appendChild(elm);
+}
+
 async function lif_kv_get(key){
   let url = qs_append(location.origin+'/.lif.net/lif_kv', {key});
   let res = await fetch(url);
   if (res.status!=200)
-    return void console.error('failed lif kv: '+res.status);
+    return {error: 'failed lif kv: '+res.status};
   let kv = await res.json();
   if (!kv)
-    return void console.error('failed invalid lif kv');
+    return {error: 'failed invalid lif kv'};
   if (kv.not_found)
     return;
   if (!kv.val)
-    return void console.error('failed invalid lif kv');
+    return {error: 'failed invalid lif kv'};
   return kv.val;
 }
 
@@ -75,6 +92,8 @@ async function webapp_resolve(){
     if (v = hosts[name_prefix])
       return {site: v};
     v = await lif_kv_get('dns/'+name_prefix);
+    if (v?.error)
+      return page_error(v.error);
     if (v?.site)
       return {site: v.site};
     return {page: ()=>page_domain_not_found(sub)};
@@ -154,7 +173,7 @@ async function load_retry(err){
 
 function load_progress(){
   let elm = div_loader();
-  let img = html_elm('img', {src: '/.lif/npm/lif-kernel/favicon.ico',
+  let img = html_elm('img', {src: import.meta.resolve('./favicon.ico'),
     style: 'height:14px;width:14px;margin-right:6px'});
   if (0) elm.appendChild(img);
   let txt = document.createTextNode('Loading…');

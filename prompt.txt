@@ -554,3 +554,14 @@ package may patch its own files, key = its own lmod (e.g. "/bluewallet//"). The
 outermost parent still wins. Tested with BlueWallet-web (patch on
 blue_modules/ur/index.js applied; app loads).
 ---
+USER:
+add to ~/lif-kernel/hi.js page_error(error) that will render something similar to the
+BlueWallet web/main.tsx "Load Error" screen. error might be just a string, or might be
+an Error object. if its an Error object, then also show the stack.
+
+CLAUDE:
+hi.js: added page_error(error) after page_not_found(). Renders a red "Load Error" title
+and a <pre> with the error: a string as is, an Error as its message followed by its
+stack. Text is set with textContent (an error message may contain HTML characters).
+Also logs with console.error. Not called from anywhere yet; not run in a browser.
+---
