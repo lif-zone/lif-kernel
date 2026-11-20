@@ -881,7 +881,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   if (ver){
     if (ver.not_exist){
       console.error('import('+lpm_pkg.lmod+') missing: '+imp);
-      return {error: 'missing import'};
+      return {not_exist: 'missing import'};
     }
     D && console.log('lpm_import_get '+imp+' -> '+ver.redirect);
     _imp = ver.redirect;
@@ -1199,7 +1199,7 @@ async function fetch_lpm_meta({log, imp}){
     do_ret = ret=>({redirect: _f.redirect, redirects: _f.redirects,
       redirect_file: ret.meta, cache: ret.cache});
   }
-  assert(f.lfile); let type = file_ctype(f.lfile);
+  let type = file_ctype(f.lfile);
   if (type!='js')
     return do_ret({meta: {type}}); // error not js/jsx/ts/tsx
   await file_tsx_to_js(f);
