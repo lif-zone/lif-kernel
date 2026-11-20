@@ -31,6 +31,16 @@ nohup node ~/lif-kernel/web/serve.js -p <port> > /tmp/serve-<port>.log 2>&1 &
 
 ## Browser testing
 
+After UI/browser changes, test in a real browser. Full workflow:
+
+1. Kill old server: `kill $(lsof -ti:<port>) 2>/dev/null`
+2. Start server (nohup, wait 3s for startup)
+3. Launch Chrome (skip if already running on your debug port)
+4. Open the app URL via CDP
+5. Read console for errors
+6. Screenshot to verify visually
+7. Cleanup when done
+
 ### 1. Launch Chrome
 
 ```bash
@@ -107,6 +117,15 @@ Read `/tmp/screenshot.png` to see the page.
 kill $(lsof -ti:<debug-port>) 2>/dev/null
 kill $(lsof -ti:<server-port>) 2>/dev/null
 ```
+
+### Gotchas
+
+- Server crashes on port conflict. Kill first: `kill $(lsof -ti:<port>) 2>/dev/null`
+- Wait 3s after server start before first request (service worker init)
+- Use `nohup` for server — background `&` alone exits when bash closes
+- Chrome debug port 9222 often taken. Use 9223+
+- Each Chrome instance needs unique `--user-data-dir`
+- Page needs service worker loaded. First load may show blank — reload once
 
 ## Node.js compatibility
 
