@@ -61,7 +61,7 @@ function page_error(error){
   let header = txt.split('\n')[0];
   title.textContent = 'Lif Error: '+header;
   let pre = html_elm('pre', {style: 'font-size:12px;white-space:pre-wrap'});
-  pre.textContent = txt.split('\n').slice(1);
+  pre.textContent = txt.split('\n').slice(1).join('\n');
   elm.appendChild(title);
   elm.appendChild(pre);
   body.appendChild(elm);
