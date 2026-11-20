@@ -1564,7 +1564,6 @@ function test_kernel(){
   t('a/file.xjs', ['.xjs', '.js'], undefined);
   t('a/file.ico', ['.xjs'], ['.xjs']);
   t('a/file.abcxyz', ['.xjs'], ['.xjs']);
-  // XXX obsolete comment? check 'package.json' is not modified, even if pkg is null
 }
 test_kernel();
 
