@@ -57,7 +57,7 @@ function page_error(error){
   let title = html_elm('div', {style: 'font-size:24px;color:#e74c3c'});
   let txt = error instanceof Error ? error.message : ''+error;
   let header = txt.split('\n')[0];
-  title.textContent = 'Error: '+header;
+  title.textContent = 'Lif Error: '+header;
   let pre = html_elm('pre', {style: 'font-size:12px;white-space:pre-wrap'});
   if (error?.stack)
     txt += '\n'+error.stack;
