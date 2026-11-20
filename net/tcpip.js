@@ -314,6 +314,11 @@ export class tcp_sock extends EventEmitter {
     this.destroyed = false;
     this.closed = false;
   }
+  emit(event, ...args){
+    if (event=='error' && !this.listenerCount('error'))
+      return false;
+    return super.emit(event, ...args);
+  }
   // connect(port, host, cb) or connect({port, host}, cb)
   connect(port, host, cb){
     if (typeof port=='object'){
