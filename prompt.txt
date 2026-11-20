@@ -565,3 +565,15 @@ and a <pre> with the error: a string as is, an Error as its message followed by 
 stack. Text is set with textContent (an error message may contain HTML characters).
 Also logs with console.error. Not called from anywhere yet; not run in a browser.
 ---
+USER:
+page_load_retry() is not 'designed' nicely (the actual content is ok). should be more
+like page_error: a red title line, and then content lines below it. Make it more like
+page_error() (while leaving its contents).
+
+CLAUDE:
+hi.js page_load_retry(): same layout as page_error() - a block with 32px padding, a red
+24px title line "🔄 Error loading", and the first 3 lines of the error in a 12px <pre>
+below it. Click on the block still calls do_load_retry(). It no longer uses
+div_loader() (was a centered full-window overlay, so the click area is now the block,
+not the whole window). Syntax-checked only, not run in a browser.
+---

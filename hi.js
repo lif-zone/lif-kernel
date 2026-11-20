@@ -65,6 +65,7 @@ function page_error(error){
   elm.appendChild(title);
   elm.appendChild(pre);
   body.appendChild(elm);
+  return error;
 }
 
 async function lif_kv_get(key){
@@ -93,7 +94,7 @@ async function webapp_resolve(){
       return {site: v};
     v = await lif_kv_get('dns/'+name_prefix);
     if (v?.error)
-      return page_error(v.error);
+      return v;
     if (v?.site)
       return {site: v.site};
     return {page: ()=>page_domain_not_found(sub)};
@@ -153,22 +154,18 @@ async function do_load_retry(){
   await wait_timeout(2000, sw_unregister());
   window.location.reload(true);
 }
-async function load_retry(err){
-  let elm = div_loader();
-  document.body.appendChild(elm);
-  elm.innerHTML = '';
-  elm.style.flexDirection = 'column';
-  elm.style.gap = '8px';
-  elm.style.cursor = 'pointer';
-  let err_lines = (''+err).split('\n').slice(0, 3).join('\n');
-  let refresh = html_elm('div', {style: 'font-size:24px'});
-  refresh.textContent = '🔄';
-  let msg = html_elm('div', {style:
-    'white-space:pre-wrap;max-width:600px'});
-  msg.textContent = 'Error loading:\n'+err_lines;
-  elm.appendChild(refresh);
-  elm.appendChild(msg);
+async function page_load_retry(err){
+  let err_lines = (''+err).split('\n').slice(0, 10).join('\n');
+  let elm = html_elm('div', {id: 'lif-loader',
+    style: 'padding:32px;cursor:pointer'});
+  let title = html_elm('div', {style: 'font-size:24px;color:#e74c3c'});
+  title.textContent = '🔄 Error loading';
+  let pre = html_elm('pre', {style: 'font-size:12px;white-space:pre-wrap'});
+  pre.textContent = err_lines;
+  elm.appendChild(title);
+  elm.appendChild(pre);
   elm.onclick = ()=>do_load_retry();
+  document.body.appendChild(elm);
 }
 
 function load_progress(){
@@ -194,7 +191,7 @@ function load_progress(){
     elm,
     failed: function(err){
       this.remove();
-      load_retry(err);
+      page_load_retry(err);
     },
     remove: function(){
       if (this.removed)
@@ -208,6 +205,8 @@ function load_progress(){
 }
 async function life(){
   let w = await webapp_resolve();
+  if (w?.error)
+    return page_error(w.error);
   if (w.redirect){
     window.location = w.redirect;
     return;
