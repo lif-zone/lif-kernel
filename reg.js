@@ -336,9 +336,12 @@ export async function reg_http_get({log, url, perm}){
   } finally {
     slow.end();
   }
-  // jsdelivr/gh/gl returns 403 for not-exist
-  if (response.status==404 || response.status==403)
+  if (response.status==404)
     return {status: response.status, not_exist: true};
+  if (response.status==403){
+    console.error('403 cdn rate limit', url);
+    return {status: response.status, fail_cdn: true};
+  }
   if (response.redirected){
     console.warn('reg_http_fetch('+url+') CDN bug: got 302 redirect');
     return {status: response.status, not_exist: true};
