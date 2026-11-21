@@ -18,7 +18,8 @@ export function load_progress(opt={}){
   let elm = html_elm('div', {id: 'lif-loader', style:
     'position:fixed;top:0;left:0;width:100%;height:100%;display:flex;'
     +'align-items:center;justify-content:center;font-family:sans-serif;'
-    +'color:#888;font-size:14px;pointer-events:none;z-index:2147483646'});
+    +'color:#888;font-size:clamp(18px,4vw,24px);pointer-events:none;'
+    +'z-index:2147483646'});
   let txt = document.createTextNode(text);
   elm.appendChild(txt);
   document.body.appendChild(elm);
