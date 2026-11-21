@@ -3,7 +3,9 @@ let ast_version = '2026.9.4';
 export const version = ast_version;
 let D = 0; // Debug
 const {assert, assert_obj} = await import('./util.js');
-const Babel = await globalThis.import_npm('@babel/standalone@7.29.1/babel.js');
+const Babel = globalThis.import_npm
+  ? await globalThis.import_npm('@babel/standalone@7.29.1/babel.js')
+  : await import('@babel/standalone');
 let parser = Babel.packages.parser;
 let traverse = Babel.packages.traverse.default;
 

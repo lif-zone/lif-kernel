@@ -2,6 +2,7 @@
 export const lif_version = '2026.9.28';
 let D = 0; // debug
 const $lif = globalThis.$lif ||= {};
+const is_browser = globalThis.process?.versions?.node===undefined;
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
@@ -231,53 +232,41 @@ let lpm_pkg_ver_t = {};
 let lpm_file_t = {};
 
 function lpm_import_lookup({lpm_pkg, lfile}){
+  function ret_err(err){
+    D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+lfile+': '+err);
+  }
   let D = 0;
   let u;
-  let ret_err = err=>{
-    D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+lfile+': '+err);
-  };
   if (!(u = lfile_parse(lfile)))
     return ret_err('invalid lpm uri import');
-  // no need to lookup final versioned imports and local imports
   if (!lfile_ver_missing(u))
     return lfile;
-  // if same package, use self
   let _lfile = lfile_ver_from_base(lfile, lpm_pkg.lmod);
   if (_lfile)
     return _lfile;
+  // self: over -> optional -> reg -> peer -> dev
   let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, lfile});
-  // collect parents info
-  let par = {}; // in npm: peer==parent.children, dep==child==import
+  let resolved = l.over || l.optional || l.reg || l.peer || l.dev;
+  let is_peer = !l.over && !l.optional && !l.reg && !!l.peer;
+  // parents: over and reg only
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let _l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, lfile});
-    par.reg ||= _l.reg;
-    par.dev ||= _l.dev;
-    par.over ||= _l.over;
+    if (resolved && !is_peer){
+      let ru = lfile_parse(resolved);
+      if (!ru || ru.reg!='npm' || !lfile_ver_missing(ru))
+        break;
+    }
+    l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg,
+      lfile: is_peer ? lfile : resolved || lfile});
+    if (l.over)
+      resolved = l.over;
+    else if (l.reg){
+      resolved = l.reg;
+      is_peer = false;
+    }
   }
-  // lookup overrides of current and parents
-  if (l.over)
-    return l.over;
-  if (par.over)
-    return par.over;
-  // lookup optionalDependencies: current
-  if (l.optional)
-    return l.optional;
-  // lookup dependencies (regular imports): current
-  if (l.reg)
-    return l.reg;
-  // lookup parent peer/global imports (peerDependencies, overrides)
-  if (l.peer){
-    if (par.reg)
-      return par.reg;
-    return l.peer;
-  }
-  // lookup devDependencies: current
-  if (l.dev)
-    return l.dev;
-  // last resort - parent imported it
-  if (par.reg)
-    return par.reg;
-  return ret_err('imp missing');
+  if (!resolved)
+    return ret_err('imp missing');
+  return resolved;
 }
 
 function tr_import_lpm({imp, imported, lfile_self, pkg}){
@@ -1001,7 +990,7 @@ async function cache_store_init(){
   cs.cache = await g_caches.open('lif-cache-v'+cache_ver);
   cs.inited = true;
 }
-await cache_store_init();
+is_browser && await cache_store_init();
 
 async function cache_store_get(request){
   let cs = cache_store;
@@ -1555,7 +1544,7 @@ function test_kernel(){
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
-  0 && t('npm/net', 'local/nodejs//net'); // needs iterative lpm_import_lookup
+  t('npm/net', 'local/nodejs//net');
   t = (pkg, lfile, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, lfile}));
   t({dependencies: {'lif-kernel': 'local:/lif-kernel//'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
