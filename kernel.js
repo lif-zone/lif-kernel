@@ -245,11 +245,11 @@ function lpm_import_lookup({lpm_pkg, lfile}){
   let _imp = lfile_ver_from_base(lfile, lpm_pkg.lmod);
   if (_imp)
     return _imp;
-  let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp: lfile});
+  let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, lfile});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let _l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, imp: lfile});
+    let _l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, lfile});
     par.reg ||= _l.reg;
     par.dev ||= _l.dev;
     par.over ||= _l.over;

@@ -261,9 +261,9 @@ function git_to_lfile(url){
 }
 
 // parse-package-name: package.json:dependencies
-export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
-  let lmod = T_lfile_lmod(imp);
-  let path = T_lfile_parse(imp).path;
+export function T_npm_import_parse({lmod_self, lfile, dep, pkg_name}){
+  let lmod = T_lfile_lmod(lfile);
+  let path = T_lfile_parse(lfile).path;
   let d = dep, v;
   if (d[0]=='/')
     return T_lfile_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
@@ -282,11 +282,11 @@ export function T_npm_import_parse({lmod_self, imp, dep, pkg_name}){
   if (v=str.starts(d, 'http://', 'https://'))
     return http_https_to_lfile(d)+path;
   if (v=str.starts(d, 'npm:', '.npm/')){
-    let lfile = 'npm/'+v.rest+path;
-    let u = lfile_parse(lfile);
+    let _lfile = 'npm/'+v.rest+path;
+    let u = lfile_parse(_lfile);
     if (u.name==pkg_name)
       return lmod_self+u.path;
-    return lfile;
+    return _lfile;
   }
   if (v=str.starts(d, 'node:'))
     return 'npm/node:'+v.rest+path;
@@ -753,18 +753,18 @@ export function pkg_transform_type(pkg, path){
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-export function pkg_import_lookup({lmod_self, pkg, imp/*lmod*/}){
-  let lmod_imp = T_lfile_lmod(imp);
+export function pkg_import_lookup({lmod_self, pkg, lfile}){
+  let lmod_imp = T_lfile_lmod(lfile);
   let npm_imp = T_lfile_to_npm(lmod_imp);
   function get_imp(deps, is_peer){
     let d, v;
     if (!(d = deps?.[npm_imp]))
       return;
-    if (v = npm_import_parse({lmod_self, imp, dep: d, pkg_name: pkg.name}))
+    if (v = npm_import_parse({lmod_self, lfile, dep: d, pkg_name: pkg.name}))
       return v;
     if (is_peer)
       return d; // we dont currently use peer's version range
-    !in_test && console.warn('invalid import('+pkg.name+') format '+imp, d);
+    !in_test && console.warn('invalid import('+pkg.name+') format '+lfile, d);
     return '';
   }
   let found = {};
@@ -987,7 +987,7 @@ function test_lpm(){
   t('mod@1.2.3', 'npm/self/a/b/file.js', '../../.lif.imp/mod@1.2.3');
   t('mod/b', 'npm/self/a/b/file.js', '../../.lif.imp/mod/b');
   t = (dep, v, opt={})=>assert_eq(v,
-    npm_import_parse({lmod_self: 'npm/self@4.5.6', imp: 'npm/xxx', dep, ...opt}));
+    npm_import_parse({lmod_self: 'npm/self@4.5.6', lfile: 'npm/xxx', dep, ...opt}));
   t('npm:react', 'npm/react');
   t('npm:react/index.js', 'npm/react/index.js');
   t('npm:@mod/sub@1.2.3/index.js', 'npm/@mod/sub@1.2.3/index.js');
@@ -1035,17 +1035,17 @@ function test_lpm(){
   t('file:./dir/pkg//', 'local/mod/dir/pkg//',
     {lmod_self: 'local/mod/'});
   t('file:./dir/pkg//', 'local/mod/dir/pkg//sub/file.js',
-    {lmod_self: 'local/mod/', imp: 'npm/xxx/sub/file.js'});
+    {lmod_self: 'local/mod/', lfile: 'npm/xxx/sub/file.js'});
   t('file:./dir/pkg//', 'local/mod/dir/pkg//package.json',
-    {lmod_self: 'local/mod/', imp: 'npm/xxx/package.json'});
+    {lmod_self: 'local/mod/', lfile: 'npm/xxx/package.json'});
   t('file:./dir/pkg//', 'local/mod/dir/pkg//sub/file.js',
-    {lmod_self: 'local/mod/', imp: 'npm/@scope/xxx/sub/file.js'});
+    {lmod_self: 'local/mod/', lfile: 'npm/@scope/xxx/sub/file.js'});
   t('file:./dir/pkg//', 'git/github.com/user/repo/mod/dir/pkg//sub/file.js',
-    {lmod_self: 'git/github.com/user/repo/mod/', imp: 'npm/xxx/sub/file.js'});
+    {lmod_self: 'git/github.com/user/repo/mod/', lfile: 'npm/xxx/sub/file.js'});
   t('file:./dir', 'local/mod//dir/sub/file.js',
-    {lmod_self: 'local/mod/', imp: 'npm/xxx/sub/file.js'});
+    {lmod_self: 'local/mod/', lfile: 'npm/xxx/sub/file.js'});
   t('file:./dir', 'npm/self@4.5.6/dir/sub/file.js',
-    {imp: 'npm/xxx/sub/file.js'});
+    {lfile: 'npm/xxx/sub/file.js'});
   t('./dir/index.js', 'npm/self@4.5.6/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self/dir/index.js');
   t('npm:self/dir/index.js', 'npm/self@4.5.6/dir/index.js',
@@ -1054,10 +1054,10 @@ function test_lpm(){
   t('node:path/a/b', 'npm/node:path/a/b');
   t('http://localhost:3000/lif-kernel', // XXX
     'http/localhost:3000/lif-kernel//util.js',
-    {imp: 'npm/lif-kernel/util.js'});
+    {lfile: 'npm/lif-kernel/util.js'});
   t('git://github.com/mochajs/mocha',
     'git/github.com/mochajs/mocha/mod.js',
-    {imp: 'npm/mochajs/mod.js'});
+    {lfile: 'npm/mochajs/mod.js'});
   t('lif:npm/react', 'npm/react');
   t('.lif/npm/react', 'npm/react');
   t('lif:git/github.com/npm/cli@v1.0.27','git/github.com/npm/cli@v1.0.27');
@@ -1066,10 +1066,10 @@ function test_lpm(){
   t('user/repo#', 'git/github.com/user/repo');
   t('/mod', 'local/mod/');
   t('/mod/', 'local/mod//');
-  t('/mod', 'local/mod//f', {imp: 'npm/MOD/f'});
-  0 && t('/mod/', 'local/mod//f', {imp: 'npm/MOD/f'});
-  t = (imp, dep, v)=>
-    assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', imp, dep}));
+  t('/mod', 'local/mod//f', {lfile: 'npm/MOD/f'});
+  0 && t('/mod/', 'local/mod//f', {lfile: 'npm/MOD/f'});
+  t = (lfile, dep, v)=>
+    assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', lfile, dep}));
   t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
   t('npm/react/file', '^18.3.1', 'npm/react@^18.3.1/file');
   t('npm/xxx', '/', 'local');
@@ -1391,9 +1391,9 @@ function test_lpm(){
     peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
     overrides: {glb: '1.2.0', overg: '1.0.0'},
   }};
-  t = (imp, v)=>{
+  t = (lfile, v)=>{
     let res = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg,
-      imp});
+      lfile});
     assert.eq(v.over, res.over);
     assert.eq(v.optional, res.optional);
     assert.eq(v.reg, res.reg);
