@@ -639,3 +639,13 @@ load_progress.js: load_error() and load_progress() now build and return the
 same structure, `ops`: {elm, remove()}. remove() sets ops.removed and does
 nothing on a second call, in both. Comments say what is returned.
 ---
+---
+USER:
+(lif-coin browser/app.jsx should use load_progress of lif-kernel)
+
+CLAUDE:
+load_progress.js: the "Loading… N" div gets pointer-events:none and a high
+z-index, as the copy in lif-coin browser/app.jsx had: there it is shown over
+a page that is already displayed, which must stay clickable and must not
+cover the text.
+---

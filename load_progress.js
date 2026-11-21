@@ -3,6 +3,7 @@ import {html_elm} from './util.js';
 
 // Shows "Loading… N" over the page, until remove(). N is the number of
 // files the kernel fetched since the call.
+// The page under it stays visible and takes the clicks.
 // opt.text: the text before the count. Default: 'Loading…'
 // Returns ops: {elm, remove()}
 // Usage, around a long import:
@@ -17,7 +18,7 @@ export function load_progress(opt={}){
   let elm = html_elm('div', {id: 'lif-loader', style:
     'position:fixed;top:0;left:0;width:100%;height:100%;display:flex;'
     +'align-items:center;justify-content:center;font-family:sans-serif;'
-    +'color:#888;font-size:14px'});
+    +'color:#888;font-size:14px;pointer-events:none;z-index:2147483646'});
   let txt = document.createTextNode(text);
   elm.appendChild(txt);
   document.body.appendChild(elm);
