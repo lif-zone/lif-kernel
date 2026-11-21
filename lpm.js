@@ -754,8 +754,11 @@ export function pkg_transform_type(pkg, path){
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
 export function pkg_import_lookup({lmod_self, pkg, lfile}){
-  let lmod_imp = T_lfile_lmod(lfile);
-  let npm_imp = T_lfile_to_npm(lmod_imp);
+  let u = T_lfile_parse(lfile);
+  if (u.reg!='npm')
+    return {};
+  let npm_imp = u.name;
+  let v = u.ver;
   function get_imp(deps, is_peer){
     let d, v;
     if (!(d = deps?.[npm_imp]))
@@ -770,6 +773,8 @@ export function pkg_import_lookup({lmod_self, pkg, lfile}){
   let found = {};
   found.over = get_imp(pkg.lif?.overrides);
   found.over ||= get_imp(pkg.overrides);
+  if (v)
+    return found;
   found.optional = get_imp(pkg.lif?.optionalDependencies);
   found.optional ||= get_imp(pkg.optionalDependencies);
   found.reg = get_imp(pkg.lif?.dependencies);
