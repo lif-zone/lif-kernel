@@ -762,7 +762,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   }
   // check for package.json overrides
   lpm_patch_pkg_json(lpm_pkg);
-  lpm_pkg.patches = pkg_patches_lmod(lpm_pkg.pkg);
+  lpm_pkg.patches = pkg_patches_lmod(lpm_pkg.pkg, lpm_pkg.lmod);
   return lpm_pkg;
 }); }
 
@@ -1694,7 +1694,7 @@ async function _do_app_pkg(boot_pkg){
   {
     lpm_pkg.lmod = lmod_root;
     lpm_pkg.pkg = boot_pkg;
-    lpm_pkg.patches = pkg_patches_lmod(boot_pkg);
+    lpm_pkg.patches = pkg_patches_lmod(boot_pkg, lmod_root);
     lpm_pkg.child = [];
     return lpm_pkg;
   });

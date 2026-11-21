@@ -798,12 +798,35 @@ export function pkg_import_lookup({lmod_self, pkg, lfile}){
 // github:user/repo, git://github.com/user/repo, lif:git/github.com/user/repo.
 // returns a copy keyed by the normalized lmod, so a module is looked up by
 // its lmod, with and without version
-export function pkg_patches_lmod(pkg){
+export function pkg_patches_lmod(pkg, lmod_self){
   let patches = pkg?.lif?.patches;
   if (!patches)
     return;
   let res = {};
   for (let [mod, files] of OE(patches)){
+    let v;
+    if (v=str.starts(mod, './')){
+      if (!lmod_self){
+        !in_test && console.error('relative lif.patches key without'
+          +' lmod_self: '+mod);
+        continue;
+      }
+      let rel = v.rest;
+      if (!rel){
+        res[lmod_self] = files;
+        continue;
+      }
+      let submod_end = rel.indexOf('//');
+      if (submod_end<0){
+        !in_test && console.error('relative lif.patches submod key'
+          +' missing //: '+mod);
+        continue;
+      }
+      let submod = rel.slice(0, submod_end);
+      let sep = lmod_self.endsWith('/') ? '' : '/';
+      res[lmod_self+sep+submod+'/'] = files;
+      continue;
+    }
     let u = npm_parse(mod);
     if (!u){
       !in_test && console.error('invalid lif.patches key: '+mod);
@@ -1391,6 +1414,27 @@ function test_lpm(){
   t({'lif:git/github.com/user/repo': 1}, {'git/github.com/user/repo': 1});
   t({'github:user/repo#5eea40e': 1}, {'git/github.com/user/repo@5eea40e': 1});
   t({'': 1, 'rxjs': 2}, {'npm/rxjs': 2});
+  // relative keys: ./ and ./sub/dir//
+  t = (patches, lmod_self, v)=>assert_obj(v,
+    pkg_patches_lmod({lif: {patches}}, lmod_self));
+  // ./ resolves to self
+  t({'./': 1}, 'local/bluewallet/', {'local/bluewallet/': 1});
+  t({'./': 1}, 'git/github.com/lif-zone/BlueWallet',
+    {'git/github.com/lif-zone/BlueWallet': 1});
+  t({'./': 1}, 'git/github.com/lif-zone/BlueWallet@5eea40e',
+    {'git/github.com/lif-zone/BlueWallet@5eea40e': 1});
+  t({'./': 1}, 'npm/my-pkg', {'npm/my-pkg': 1});
+  // ./sub// resolves to self + submod
+  t({'./blue_modules/bc-ur//': 1}, 'local/bluewallet/',
+    {'local/bluewallet/blue_modules/bc-ur/': 1});
+  t({'./blue_modules/bc-ur//': 1}, 'git/github.com/lif-zone/BlueWallet',
+    {'git/github.com/lif-zone/BlueWallet/blue_modules/bc-ur/': 1});
+  t({'./blue_modules/bc-ur//': 1},
+    'git/github.com/lif-zone/BlueWallet@5eea40e',
+    {'git/github.com/lif-zone/BlueWallet@5eea40e/blue_modules/bc-ur/': 1});
+  // mixed relative and absolute
+  t({'./': 1, 'rxjs': 2, './sub//': 3}, 'local/app/',
+    {'local/app/': 1, 'npm/rxjs': 2, 'local/app/sub/': 3});
   let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
     lif: {
       dependencies: {over: '2.0.0', optional: '^1.0.1'},
