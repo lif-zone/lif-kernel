@@ -269,11 +269,10 @@ export function T_npm_import_parse({lmod_self, lfile, dep, pkg_name}){
   if (v=str.starts(d, 'local:')){
     if (v.rest[0]!='/')
       throw Error('only local:/ supported: '+dep);
-    return T_lfile_str({reg: 'local',
-      submod: v.rest!='/' ? v.rest+'/' : '', path});
+    return lfile_append('local'+v.rest, path);
   }
   if (d[0]=='/')
-    return T_lfile_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
+    throw Error('use local: instead of /: '+dep);
   if (v=str.starts(d, './'))
     return lmod_self+(v.rest?'/'+v.rest:'')+path;
   if (v=str.starts(d, 'https://github.com/', 'github:'))
@@ -323,7 +322,7 @@ const git_host_t = Object.fromEntries(OE(git_reg_t).map(([k, v])=>[v, k]));
 export function _npm_parse(npm){
   let v, m;
   if (!npm)
-    return {rest: npm, err: 'invalid empty npm'};
+    return {rest: npm, error: 'invalid empty npm'};
   if (npm[0]=='/')
     return {reg: 'local', rest: npm.slice(1)};
   let {proto, proto_name, rest} = url_proto_parse(npm);
@@ -333,12 +332,12 @@ export function _npm_parse(npm){
   }
   if (proto=='lif:'){
     if (!(m = rest.match(/^([^\/]+)\//)))
-      return {rest: npm, err: 'invalid lif: '+npm};
+      return {rest: npm, error: 'invalid lif: '+npm};
     return {reg: m[1], rest: rest.slice(m[0].length)};
   }
   if (proto=='local:'){
     if (rest[0]!='/')
-      return {rest: npm, err: 'invalid local path: '+npm};
+      return {rest: npm, error: 'invalid local path: '+npm};
     return {reg: 'local', rest: rest.slice(1)};
   }
   if (v=git_reg_t[proto_name]){
@@ -360,15 +359,17 @@ export function _npm_parse(npm){
   if (proto=='http:' || proto=='https:'){
     // missing support for https://github.com gitlab.com bitbucket.org
     if (!(v=str.starts(rest, '//')))
-      return {rest: npm, err: 'invalid http/https host '+npm};
+      return {rest: npm, error: 'invalid http/https host '+npm};
     return {reg: proto_name, rest: v.rest};
   }
   if (proto)
-    return {rest: npm, err: 'invalid proto '+proto};
+    return {rest: npm, error: 'invalid proto '+proto};
   return {reg: 'npm', rest: npm};
 }
 export function npm_norm(npm){
   let p = _npm_parse(npm);
+  if (p.error)
+    throw Error(p.error);
   if (p.reg=='npm')
     return p.rest;
   if (p.reg)
@@ -377,8 +378,8 @@ export function npm_norm(npm){
 }
 export function T_npm_to_lfile(npm){
   let p = _npm_parse(npm);
-  if (p.err)
-    throw Error(p.err);
+  if (p.error)
+    throw Error(p.error);
   return p.reg+'/'+p.rest;
 }
 export const npm_to_lfile = Tf(T_npm_to_lfile);
