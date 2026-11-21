@@ -145,7 +145,11 @@ function res_send_file(res, _path){
   stream.pipe(res);
 }
 
-function res_send(res, {body, ext, ctype, status=200}){
+function res_send(res, {body, ext, ctype, json, status=200}){
+  if (json!==undefined){
+    body = JSON.stringify(json);
+    ext = 'json';
+  }
   ctype ||= ext2mime[ext]||'plain/text';
   let h = {};
   headers_set({h, ctype});
@@ -238,6 +242,8 @@ function http_listener(req, res){
     return http_pipe_lif(req, res, 'lifcoin/blockstream', {uri: '/'+v.rest});
   if (0) if (v=str.starts(req.url, '/blockstream/')) // obsolete
     return http_pipe({req, res, url: `http://localhost:8432/blockstream/${v.rest}`});
+  if (uri=='/.lif.net/coinbase/v2/prices/LIF-USD/spot')
+    return res_send(res, {json: {data: {amount: "0.01",base: "LIF",currency: "USD"}}});
   if (v=map_uri({uri, opt: g_opt}))
     return res_send_file(res, v);
   if (g_opt?.js_map && (v=str.starts(req.url, '/.lif/npm/')) && req.url.endsWith('.map'))
