@@ -629,3 +629,13 @@ calls load_error(error, {title: 'Lif Error'}).
 Tested: box is 90% x 90% over the running wallet, Retry and close work; 4211
 with a missing app shows "Error loading" with the stack.
 ---
+---
+USER:
+I want it to return an ops (operations) structure, with a 'remove' property
+on it. Just like the load_progress return value.
+
+CLAUDE:
+load_progress.js: load_error() and load_progress() now build and return the
+same structure, `ops`: {elm, remove()}. remove() sets ops.removed and does
+nothing on a second call, in both. Comments say what is returned.
+---

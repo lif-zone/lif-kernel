@@ -4,6 +4,7 @@ import {html_elm} from './util.js';
 // Shows "Loading… N" over the page, until remove(). N is the number of
 // files the kernel fetched since the call.
 // opt.text: the text before the count. Default: 'Loading…'
+// Returns ops: {elm, remove()}
 // Usage, around a long import:
 //   let l = load_progress();
 //   try {
@@ -31,20 +32,22 @@ export function load_progress(opt={}){
     last = all;
     txt.textContent = text+' '+(all-diff);
   }, 200);
-  return {
+  let ops = {
     elm,
     remove: function(){
-      if (this.removed)
+      if (ops.removed)
         return;
-      this.removed = true;
+      ops.removed = true;
       clearInterval(iv);
       elm.remove();
     },
   };
+  return ops;
 }
 
 // Shows a fatal error in a box over the page, covering 90% of the window.
-// The content of the page is not changed. Returns {elm, remove()}.
+// The content of the page is not changed.
+// Returns ops: {elm, remove()}, as load_progress() does.
 // err: an Error (its message and stack are shown) or a text
 // opt.title: default 'Error'
 // opt.retry: function. If set, a Retry button calls it
@@ -64,14 +67,19 @@ export function load_error(err, opt={}){
     +'box-sizing:border-box;padding:24px;overflow:auto;background:#fff;'
     +'color:#222;border:1px solid #e74c3c;border-radius:8px;'
     +'box-shadow:0 4px 24px rgba(0,0,0,0.3);font-family:sans-serif'});
-  let op = {
+  let ops = {
     elm,
-    remove: ()=>elm.remove(),
+    remove: function(){
+      if (ops.removed)
+        return;
+      ops.removed = true;
+      elm.remove();
+    },
   };
   let close = html_elm('div', {title: 'Close', style:
     'float:right;cursor:pointer;font-size:24px;line-height:24px;color:#888'});
   close.textContent = '×';
-  close.onclick = ()=>op.remove();
+  close.onclick = ()=>ops.remove();
   let title = html_elm('div', {style: 'font-size:24px;color:#e74c3c'});
   title.textContent = opt.title||'Error';
   let pre = html_elm('pre', {style:
@@ -88,5 +96,5 @@ export function load_error(err, opt={}){
   }
   elm.appendChild(pre);
   document.body.appendChild(elm);
-  return op;
+  return ops;
 }
