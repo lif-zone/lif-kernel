@@ -1474,7 +1474,7 @@ function test_kernel(){
   let lpm_pkg = {lmod: 'npm/self@1.2.3',
     pkg: {lif: {
       dependencies: {
-        mod: 'local:MOD',
+        mod: 'local:/MOD',
         mod2: '.lif/local/MOD/',
         http1: 'http://localhost:3000/MOD',
         http2: '.lif/http/localhost:3000/MOD/',
@@ -1522,7 +1522,7 @@ function test_kernel(){
           over: '18.0.0',
           glob2: '99.9.9',
           gparent: '22.0.0',
-          nodejs: 'local:nodejs/', // XXX should be local:nodejs//
+          nodejs: 'local:/nodejs/', // XXX should be local:/nodejs//
         },
       },
     },
@@ -1557,7 +1557,7 @@ function test_kernel(){
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
   0 && t('npm/net', 'local/nodejs//net'); // XXX returns npm/nodejs/net
   t = (pkg, lfile, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, lfile}));
-  t({dependencies: {'lif-kernel': 'local:lif-kernel'}}, 'npm/lif-kernel/util.js',
+  t({dependencies: {'lif-kernel': 'local:/lif-kernel'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
   t = (file, alt, v)=>assert_obj_f(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);

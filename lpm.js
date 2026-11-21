@@ -262,11 +262,16 @@ function git_to_lfile(url){
 
 // parse-package-name: package.json:dependencies
 export function T_npm_import_parse({lmod_self, lfile, dep, pkg_name}){
-  let lmod = T_lfile_lmod(lfile);
-  let path = T_lfile_parse(lfile).path;
+  let u = T_lfile_parse(lfile);
+  let lmod = u.lmod;
+  let path = u.path;
   let d = dep, v;
-  if (v=str.starts(d, 'local:'))
-    return T_lfile_str({reg: 'local', submod: v.rest ? '/'+v.rest+'/' : '', path});
+  if (v=str.starts(d, 'local:')){
+    if (v.rest[0]!='/')
+      throw Error('only local:/ supported: '+dep);
+    return T_lfile_str({reg: 'local',
+      submod: v.rest!='/' ? v.rest+'/' : '', path});
+  }
   if (d[0]=='/')
     return T_lfile_str({reg: 'local', submod: d=='/' ? '' : d+'/', path});
   if (v=str.starts(d, './'))
@@ -1075,10 +1080,10 @@ function test_lpm(){
   t('/mod/', 'local/mod//');
   t('/mod', 'local/mod//f', {lfile: 'npm/MOD/f'});
   0 && t('/mod/', 'local/mod//f', {lfile: 'npm/MOD/f'});
-  t('local:mod', 'local/mod/');
-  t('local:mod/', 'local/mod//');
-  t('local:mod', 'local/mod//f', {lfile: 'npm/MOD/f'});
-  0 && t('local:mod/', 'local/mod//f', {lfile: 'npm/MOD/f'});
+  t('local:/mod', 'local/mod/');
+  t('local:/mod/', 'local/mod//');
+  t('local:/mod', 'local/mod//f', {lfile: 'npm/MOD/f'});
+  0 && t('local:/mod/', 'local/mod//f', {lfile: 'npm/MOD/f'});
   t = (lfile, dep, v)=>
     assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', lfile, dep}));
   t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
@@ -1086,9 +1091,9 @@ function test_lpm(){
   t('npm/xxx', '/', 'local');
   t('npm/xxx/file', '/', 'local/file');
   t('npm/xxx/file', '/DIR', 'local/DIR//file');
-  t('npm/xxx', 'local:', 'local');
-  t('npm/xxx/file', 'local:', 'local/file');
-  t('npm/xxx/file', 'local:DIR', 'local/DIR//file');
+  t('npm/xxx', 'local:/', 'local');
+  t('npm/xxx/file', 'local:/', 'local/file');
+  t('npm/xxx/file', 'local:/DIR', 'local/DIR//file');
   t('npm/react', '18.3.1', 'npm/react@18.3.1');
   t('npm/react', '=18.3.1', 'npm/react@=18.3.1');
   t('npm/react', '>=18.3.1', 'npm/react@>=18.3.1');
