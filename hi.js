@@ -3,6 +3,7 @@ import {OE, html_elm, html_elm_frag_append, str, qs_append, qs_enc,
   lif_domain_parse, esleep,
 } from './util.js';
 import {hosts} from './hosts.js';
+import {load_progress} from './load_progress.js';
 let $lif = globalThis.$lif;
 
 function demo_index(){
@@ -139,22 +140,13 @@ async function wait_timeout(timeout, promise){
   return ret;
 }
 
-function div_loader(){
-  let elm = html_elm('div', {id: 'lif-loader', style:
-    'position:fixed;top:0;left:0;width:100%;height:100%;display:flex;'
-    +'align-items:center;justify-content:center;font-family:sans-serif;'
-    +'color:#888;font-size:14px'});
-  document.body.appendChild(elm);
-  return elm;
-}
-
 async function do_load_retry(){
   if (!await wait_timeout(2000, fetch('/.lif/kernel/cache_clear')))
     console.log('failed /.lif/kernel/cache_clear');
   await wait_timeout(2000, sw_unregister());
   window.location.reload(true);
 }
-async function page_load_retry(err){
+function page_load_retry(err){
   let err_lines = (''+err).split('\n').slice(0, 10).join('\n');
   let elm = html_elm('div', {id: 'lif-loader',
     style: 'padding:32px;cursor:pointer'});
@@ -168,41 +160,6 @@ async function page_load_retry(err){
   document.body.appendChild(elm);
 }
 
-function load_progress(){
-  let elm = div_loader();
-  let img = html_elm('img', {src: import.meta.resolve('./favicon.ico'),
-    style: 'height:14px;width:14px;margin-right:6px'});
-  if (0) elm.appendChild(img);
-  let txt = document.createTextNode('Loading…');
-  elm.appendChild(txt);
-  document.body.appendChild(elm);
-  let last, diff;
-  let iv = setInterval(async function(){
-    let stats = await $lif.boot.kernel_stats();
-    let all = stats?.fetch?.all;
-    if (all==null || all==last)
-      return;
-    if (last==null)
-      diff = all;
-    last = all;
-    txt.textContent = 'Loading… '+(all-diff);
-  }, 200);
-  let op = {
-    elm,
-    failed: function(err){
-      this.remove();
-      page_load_retry(err);
-    },
-    remove: function(){
-      if (this.removed)
-        return;
-      this.removed = true;
-      clearInterval(iv);
-      elm.remove();
-    },
-  };
-  return op;
-}
 async function life(){
   let w = await webapp_resolve();
   if (w?.error)
@@ -219,9 +176,10 @@ async function life(){
   try {
     return await $lif.boot.boot_app({lif: {webapp: w.site}});
   } catch(err){
-    l?.failed(err);
+    l.remove();
+    page_load_retry(err);
   } finally {
-    l?.remove();
+    l.remove();
   }
 }
 

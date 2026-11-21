@@ -587,3 +587,25 @@ compat/net.js: removed createSocket (export and default-export entry). It is
 not in the Node.js net API nor in react-native-tcp-socket, and has no callers
 (btcp defines its own createSocket from net.connect).
 ---
+---
+USER:
+I want the "Loading..." to be a 'utility' from lif-kernel/hi.js. an exported
+function that can be generically used manually by callers to around long
+await import() calls. this will allow removal of similar code committed to
+bluewallet/web
+(then:) go with new file load_progress.js. add to package.json exports:
+./load_progress: ./load_progress.js.
+
+CLAUDE:
+New load_progress.js: export function load_progress(opt) shows "Loading… N"
+over the page (N: files the kernel fetched since the call) and returns
+{elm, remove()}. opt.text: the text before the count.
+A new file and not hi.js, because hi.js ends with `await life()`: an app
+importing it would deadlock or boot itself again.
+hi.js: imports load_progress; div_loader() and its own load_progress() are
+removed (also the disabled favicon image); on a failed boot it calls
+l.remove() and page_load_retry(err) itself.
+package.json: "./load_progress": "./load_progress.js" in exports,
+load_progress.js in files.
+Tested: 4211 (hi.js) shows "Loading… N" and removes it when the app starts.
+---
