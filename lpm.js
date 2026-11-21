@@ -1064,6 +1064,10 @@ function test_lpm(){
   t('user/repo#ver', 'git/github.com/user/repo@ver');
   t('user/repo'); // notice: in NPM this is github:user/repo
   t('user/repo#', 'git/github.com/user/repo');
+  t('/mod', 'local/mod/');
+  t('/mod/', 'local/mod//');
+  t('/mod', 'local/mod//f', {imp: 'npm/MOD/f'});
+  0 && t('/mod/', 'local/mod//f', {imp: 'npm/MOD/f'});
   t = (imp, dep, v)=>
     assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', imp, dep}));
   t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
