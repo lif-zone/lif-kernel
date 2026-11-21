@@ -3,7 +3,7 @@ import {OE, html_elm, html_elm_frag_append, str, qs_append, qs_enc,
   lif_domain_parse, esleep,
 } from './util.js';
 import {hosts} from './hosts.js';
-import {load_progress} from './load_progress.js';
+import {load_progress, load_error} from './load_progress.js';
 let $lif = globalThis.$lif;
 
 function demo_index(){
@@ -53,19 +53,7 @@ function page_not_found(){
 
 function page_error(error){
   console.error(error);
-  let body = document.querySelector('body');
-  let elm = html_elm('div', {style: 'padding:32px'});
-  let title = html_elm('div', {style: 'font-size:24px;color:#e74c3c'});
-  let txt = error instanceof Error ? error.message : ''+error;
-  if (error?.stack)
-    txt += '\n'+error.stack;
-  let header = txt.split('\n')[0];
-  title.textContent = 'Lif Error: '+header;
-  let pre = html_elm('pre', {style: 'font-size:12px;white-space:pre-wrap'});
-  pre.textContent = txt.split('\n').slice(1).join('\n');
-  elm.appendChild(title);
-  elm.appendChild(pre);
-  body.appendChild(elm);
+  load_error(error, {title: 'Lif Error'});
   return error;
 }
 
@@ -146,20 +134,6 @@ async function do_load_retry(){
   await wait_timeout(2000, sw_unregister());
   window.location.reload(true);
 }
-function page_load_retry(err){
-  let err_lines = (''+err).split('\n').slice(0, 10).join('\n');
-  let elm = html_elm('div', {id: 'lif-loader',
-    style: 'padding:32px;cursor:pointer'});
-  let title = html_elm('div', {style: 'font-size:24px;color:#e74c3c'});
-  title.textContent = '🔄 Error loading';
-  let pre = html_elm('pre', {style: 'font-size:12px;white-space:pre-wrap'});
-  pre.textContent = err_lines;
-  elm.appendChild(title);
-  elm.appendChild(pre);
-  elm.onclick = ()=>do_load_retry();
-  document.body.appendChild(elm);
-}
-
 async function life(){
   let w = await webapp_resolve();
   if (w?.error)
@@ -177,7 +151,7 @@ async function life(){
     return await $lif.boot.boot_app({lif: {webapp: w.site}});
   } catch(err){
     l.remove();
-    page_load_retry(err);
+    load_error(err, {title: 'Error loading', retry: do_load_retry});
   } finally {
     l.remove();
   }

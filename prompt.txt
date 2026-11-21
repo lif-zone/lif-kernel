@@ -609,3 +609,23 @@ package.json: "./load_progress": "./load_progress.js" in exports,
 load_progress.js in files.
 Tested: 4211 (hi.js) shows "Loading… N" and removes it when the app starts.
 ---
+---
+USER:
+I want to add to lif-kernel/load_progress.js also load_error() export. This
+will be used to display fatal errors. ... a "floating div" above the existing
+content displayed, which will cover 90% of the window, and show the error
+inside of it. ... used generically in any application, without disturbing the
+HTML.
+
+CLAUDE:
+load_progress.js: new export load_error(err, opt). A fixed box (id
+lif-error) over the page, 90% of the window: title (opt.title, default
+'Error'), the message and stack of the error, a close "×", and a Retry button
+when opt.retry is given. Returns {elm, remove()}. The page content is not
+changed.
+hi.js: page_load_retry() is removed: a failed boot calls
+load_error(err, {title: 'Error loading', retry: do_load_retry}). page_error()
+calls load_error(error, {title: 'Lif Error'}).
+Tested: box is 90% x 90% over the running wallet, Retry and close work; 4211
+with a missing app shows "Error loading" with the stack.
+---
