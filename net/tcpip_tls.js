@@ -1,6 +1,6 @@
 // LIF Residential Gateway: a Hypernet between residences.
 // Zion Overlay Network. LICENSE_CODE JPL - JEM Jungo Public License
-//
+
 // TLS made at the client, over a byte pipe that is not trusted (a tcp_sock of
 // net/tcpip.js: the out node only makes the TCP connection, and sees
 // encrypted bytes only). The server certificate is verified here.
