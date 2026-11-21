@@ -753,7 +753,7 @@ export function pkg_transform_type(pkg, path){
 }
 
 // https://docs.npmjs.com/cli/v11/configuring-npm/package-json
-export function pkg_import_lookup({lmod_self, pkg, imp}){
+export function pkg_import_lookup({lmod_self, pkg, imp/*lmod*/}){
   let lmod_imp = T_lfile_lmod(imp);
   let npm_imp = T_lfile_to_npm(lmod_imp);
   function get_imp(deps, is_peer){

@@ -230,26 +230,26 @@ let lpm_pkg_t = {};
 let lpm_pkg_ver_t = {};
 let lpm_file_t = {};
 
-function lpm_import_lookup({lpm_pkg, imp}){
+function lpm_import_lookup({lpm_pkg, lfile}){
   let D = 0;
   let u;
   let ret_err = err=>{
-    D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+imp+': '+err);
+    D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+lfile+': '+err);
   };
-  if (!(u = lfile_parse(imp)))
+  if (!(u = lfile_parse(lfile)))
     return ret_err('invalid lpm uri import');
   // no need to lookup final versioned imports and local imports
   if (!lfile_ver_missing(u))
-    return imp;
+    return lfile;
   // if same package, use self
-  let _imp = lfile_ver_from_base(imp, lpm_pkg.lmod);
+  let _imp = lfile_ver_from_base(lfile, lpm_pkg.lmod);
   if (_imp)
     return _imp;
-  let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp});
+  let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, imp: lfile});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
   for (let p = lpm_pkg.parent; p; p = p.parent){
-    let _l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, imp});
+    let _l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, imp: lfile});
     par.reg ||= _l.reg;
     par.dev ||= _l.dev;
     par.over ||= _l.over;
@@ -848,7 +848,7 @@ async function lpm_pkg_resolve({log, imp, lmod_self}){
     lpm_self = lpm_pkg_app || lpm_pkg_root;
   // lookup for imports in parent
   let imp_lfile = T_lfile_str(T_lmod_parse(imp));
-  let _imp = lpm_import_lookup({lpm_pkg: lpm_self, imp: imp_lfile});
+  let _imp = lpm_import_lookup({lpm_pkg: lpm_self, lfile: imp_lfile});
   if (_imp)
     _imp = T_lfile_lmod(_imp);
   let lmod =_imp || imp;
@@ -874,7 +874,7 @@ async function lpm_import_get({log, imp, lmod_self}){
   if (lpm_pkg.pkg.name && (v=path_starts(imp, lpm_pkg.pkg.name)))
     return {redirect: lmod_self+v.rest};
   let lfile = T_npm_to_lfile(imp);
-  let _imp = lpm_import_lookup({lpm_pkg, imp: lfile});
+  let _imp = lpm_import_lookup({lpm_pkg, lfile});
   if (!_imp)
     _imp = lfile;
   let ver = await lpm_ver_resolve({log, lfile: _imp});
@@ -1527,9 +1527,9 @@ function test_kernel(){
       },
     },
   };
-  t = (imp, v)=>{
+  t = (lfile, v)=>{
     lpm_in_test(1);
-    assert_eq(v, lpm_import_lookup({lpm_pkg, imp}));
+    assert_eq(v, lpm_import_lookup({lpm_pkg, lfile}));
     lpm_in_test(0);
   };
   t('npm/self/dir/main.tsx', 'npm/self@1.2.3/dir/main.tsx');
@@ -1556,7 +1556,7 @@ function test_kernel(){
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
   0 && t('npm/net', 'local/nodejs//net'); // XXX returns npm/nodejs/net
-  t = (pkg, imp, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, imp}));
+  t = (pkg, lfile, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, lfile}));
   t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
   t = (file, alt, v)=>assert_obj_f(v, pkg_alt_get({lif: {alt}}, file));
