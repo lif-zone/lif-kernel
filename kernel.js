@@ -1474,7 +1474,7 @@ function test_kernel(){
   let lpm_pkg = {lmod: 'npm/self@1.2.3',
     pkg: {lif: {
       dependencies: {
-        mod: 'local:/MOD',
+        mod: 'local:/MOD//',
         mod2: '.lif/local/MOD/',
         http1: 'http://localhost:3000/MOD',
         http2: '.lif/http/localhost:3000/MOD/',
@@ -1522,7 +1522,7 @@ function test_kernel(){
           over: '18.0.0',
           glob2: '99.9.9',
           gparent: '22.0.0',
-          nodejs: 'local:/nodejs/', // XXX should be local:/nodejs//
+          nodejs: 'local:/nodejs//',
         },
       },
     },
@@ -1555,9 +1555,9 @@ function test_kernel(){
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
-  0 && t('npm/net', 'local/nodejs//net'); // XXX returns npm/nodejs/net
+  0 && t('npm/net', 'local/nodejs//net'); // needs iterative lpm_import_lookup
   t = (pkg, lfile, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, lfile}));
-  t({dependencies: {'lif-kernel': 'local:/lif-kernel'}}, 'npm/lif-kernel/util.js',
+  t({dependencies: {'lif-kernel': 'local:/lif-kernel//'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
   t = (file, alt, v)=>assert_obj_f(v, pkg_alt_get({lif: {alt}}, file));
   t('a/file.js', undefined, undefined);
@@ -1691,13 +1691,13 @@ async function _do_app_pkg(boot_pkg){
     !lif.overrides?.['lif-kernel'])
   {
     lif.overrides ||= {};
-    // shorten http/localhost:3000/lif-kernel -> local/lif-kernel,
+    // shorten http/localhost:3000/lif-kernel -> local/lif-kernel/,
     // so its nicer visually in devtools
     let u = T_url_parse(lif_kernel_base);
     let base = lif_kernel_base;
     if (u.origin==location.origin)
       base = u.path;
-    lif.overrides['lif-kernel'] = base;
+    lif.overrides['lif-kernel'] = 'local:'+base+'//';
   }
   // init root pkg
   lpm_pkg_root = await ecache({table: lpm_pkg_t, id: lmod_root},

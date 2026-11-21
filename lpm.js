@@ -324,7 +324,7 @@ export function _npm_parse(npm){
   if (!npm)
     return {rest: npm, error: 'invalid empty npm'};
   if (npm[0]=='/')
-    return {reg: 'local', rest: npm.slice(1)};
+    return {rest: npm, error: 'use local:/ instead of /'};
   let {proto, proto_name, rest} = url_proto_parse(npm);
   if (v=str.starts(npm, '.lif/')){
     proto = 'lif:';
@@ -928,9 +928,6 @@ function test_lpm(){
   t = (npm, v)=>assert_obj(v, npm_norm(npm));
   t('mod', 'mod');
   t('.lif/npm/mod', 'mod');
-  t('/', '.lif/local/');
-  t('/dir/file', '.lif/local/dir/file');
-  t('/mod//file', '.lif/local/mod//file');
   t('local:/mod//file', '.lif/local/mod//file');
   t('.lif/local/mod//file', '.lif/local/mod//file');
   t('git://github.com/user/repo', '.lif/git/github.com/user/repo');
@@ -1077,31 +1074,27 @@ function test_lpm(){
   t('user/repo#ver', 'git/github.com/user/repo@ver');
   t('user/repo'); // notice: in NPM this is github:user/repo
   t('user/repo#', 'git/github.com/user/repo');
-  t('/mod', 'local/mod/');
-  t('/mod/', 'local/mod//');
-  t('/mod', 'local/mod//f', {lfile: 'npm/MOD/f'});
-  0 && t('/mod/', 'local/mod//f', {lfile: 'npm/MOD/f'});
-  t('local:/mod', 'local/mod/');
-  t('local:/mod/', 'local/mod//');
-  t('local:/mod', 'local/mod//f', {lfile: 'npm/MOD/f'});
-  0 && t('local:/mod/', 'local/mod//f', {lfile: 'npm/MOD/f'});
+  t('local:/mod', 'local/mod');
+  t('local:/mod/', 'local/mod/');
+  t('local:/mod//', 'local/mod//');
+  t('local:/mod', 'local/mod/f', {lfile: 'npm/MOD/f'});
+  t('local:/mod/', 'local/mod/f', {lfile: 'npm/MOD/f'});
+  t('local:/mod//', 'local/mod//f', {lfile: 'npm/MOD/f'});
   t = (lfile, dep, v)=>
     assert_eq(v, npm_import_parse({lmod_self: 'npm/mod', lfile, dep}));
   t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
   t('npm/react/file', '^18.3.1', 'npm/react@^18.3.1/file');
-  t('npm/xxx', '/', 'local');
-  t('npm/xxx/file', '/', 'local/file');
-  t('npm/xxx/file', '/DIR', 'local/DIR//file');
-  t('npm/xxx', 'local:/', 'local');
+  t('npm/xxx', 'local:/', 'local/');
   t('npm/xxx/file', 'local:/', 'local/file');
-  t('npm/xxx/file', 'local:/DIR', 'local/DIR//file');
+  t('npm/xxx/file', 'local:/DIR', 'local/DIR/file');
+  t('npm/xxx/file', 'local:/DIR//', 'local/DIR//file');
   t('npm/react', '18.3.1', 'npm/react@18.3.1');
   t('npm/react', '=18.3.1', 'npm/react@=18.3.1');
   t('npm/react', '>=18.3.1', 'npm/react@>=18.3.1');
   t('npm/react', '^18.3.1', 'npm/react@^18.3.1');
   t('npm/react/index.js', '^18.3.1', 'npm/react@^18.3.1/index.js');
   t('npm/pages/_app.tsx', './pages', 'npm/mod/pages/_app.tsx');
-  t('npm/loc/file.js', '/loc', 'local/loc//file.js');
+  t('npm/loc/file.js', 'local:/loc//', 'local/loc//file.js');
   t('npm/rmod', 'npm:react@18.3.1', 'npm/react@18.3.1');
   t('npm/os/dir/index.js', '.lif/git/github.com/repo/mod',
     'git/github.com/repo/mod/dir/index.js');
@@ -1136,8 +1129,6 @@ function test_lpm(){
     'git/github.com/a_user/a_repo/dir/file');
   t('.lif/local/file.js', 'local/file.js');
   t('local:/file.js', 'local/file.js');
-  t('/file.js', 'local/file.js');
-  t('/mod//file.js', 'local/mod//file.js');
   t('.lif/local/file.js', 'local/file.js');
   t('.lif/local/mod//file.js', 'local/mod//file.js');
   t('http://site/dir', 'http/site/dir');
@@ -1406,7 +1397,7 @@ function test_lpm(){
       optionalDependencies: {optional: '1.0.0'},
       overrides: {overg: '2.0.0'},
     },
-    dependencies: {pages: './pages', loc: '/loc', react: '^18.3.1',
+    dependencies: {pages: './pages', loc: 'local:/loc//', react: '^18.3.1',
       dom: '>=18.3.1', os: '.lif/git/github.com/repo/mod', over: '1.0.0'},
     peerDependencies: {react_p: '^18.3.1', dom_p: '>=18.3.1'},
     overrides: {glb: '1.2.0', overg: '1.0.0'},

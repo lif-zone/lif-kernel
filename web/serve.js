@@ -9,7 +9,7 @@ let map = {};
 let pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 map['/lif-kernel'] = dirname+'/..';
 map['/index.html'] = {path: dirname+'/../index.html',
-  tr: {__WEBAPP__: '/'+pkg.name+'//', __TEMP__: 'false',
+  tr: {__WEBAPP__: 'local:/'+pkg.name+'//', __TEMP__: 'false',
     __BOOT_JS__: '/lif-kernel/boot.js'}};
 map['/'+pkg.name] = '.';
 let peers = [
