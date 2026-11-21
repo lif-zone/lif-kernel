@@ -7,7 +7,6 @@ export function connect(...args){
 }
 
 export const createConnection = connect;
-export const createSocket = connect;
 
 export function createServer(){
   throw Error('net.createServer is not supported in the browser');
@@ -22,5 +21,5 @@ export function isIPv4(host){ return ip4_re.test(host); }
 export function isIPv6(host){ return typeof host=='string' && host.includes(':'); }
 export function isIP(host){ return isIPv4(host) ? 4 : isIPv6(host) ? 6 : 0; }
 
-export default {Socket, connect, createConnection, createSocket, createServer,
-  Server, isIP, isIPv4, isIPv6};
+export default {Socket, connect, createConnection, createServer, Server,
+  isIP, isIPv4, isIPv6};
