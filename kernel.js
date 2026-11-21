@@ -242,9 +242,9 @@ function lpm_import_lookup({lpm_pkg, lfile}){
   if (!lfile_ver_missing(u))
     return lfile;
   // if same package, use self
-  let _imp = lfile_ver_from_base(lfile, lpm_pkg.lmod);
-  if (_imp)
-    return _imp;
+  let _lfile = lfile_ver_from_base(lfile, lpm_pkg.lmod);
+  if (_lfile)
+    return _lfile;
   let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, lfile});
   // collect parents info
   let par = {}; // in npm: peer==parent.children, dep==child==import
