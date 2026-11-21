@@ -577,3 +577,13 @@ below it. Click on the block still calls do_load_retry(). It no longer uses
 div_loader() (was a centered full-window overlay, so the click area is now the block,
 not the whole window). Syntax-checked only, not run in a browser.
 ---
+---
+USER:
+createSocket in compat/net.js: is it needed? Remove it and give me the commit
+command.
+
+CLAUDE:
+compat/net.js: removed createSocket (export and default-export entry). It is
+not in the Node.js net API nor in react-native-tcp-socket, and has no callers
+(btcp defines its own createSocket from net.connect).
+---
