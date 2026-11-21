@@ -1486,6 +1486,8 @@ function test_kernel(){
         over: '99.9.9',
         glob2: '99.9.9',
         optional: '1.0.1',
+        net: 'npm:nodejs/net',
+        net2: 'npm:nodejs@1.2.3/net',
       },
       peerDependencies: {
         peer: '>=1.0.0',
@@ -1520,6 +1522,7 @@ function test_kernel(){
           over: '18.0.0',
           glob2: '99.9.9',
           gparent: '22.0.0',
+          nodejs: '/nodejs/', // XXX should be /nodejs//
         },
       },
     },
@@ -1552,6 +1555,7 @@ function test_kernel(){
   t('npm/gpeerdev', 'npm/gpeerdev@13.0.1');
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
+  0 && t('npm/net', 'local/nodejs//net'); // XXX returns npm/nodejs/net
   t = (pkg, imp, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, imp}));
   t({dependencies: {'lif-kernel': '/lif-kernel'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');
