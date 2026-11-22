@@ -11,7 +11,7 @@ import {ewait, eslow, assert_eq, str,
 import {
   T_npm_to_lfile, T_npm_url_base, url_uri_type,
   T_lfile_parse, lfile_ver_from_base, T_npm_parse,
-  npm_norm, lfile_is_perm, __uri_parse,
+  npm_norm, lfile_is_perm, __uri_parse, patches_has,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -277,6 +277,41 @@ async function caches_open(){
   return caches_db;
 }
 
+// patches_t: copy of the kernel's patches_t (the lfiles patched by
+// lif.patches, see lpm.js). Never emptied: the kernel empties its own upon
+// every page load, also of another tab.
+// The kernel loads the package.json of a module, and of the modules that
+// import it, before any of its lfiles is requested. So upon the first lfile
+// of a module, the kernel knows all the patches on it: update the copy.
+let patches_t = {};
+let patches_tm = 0; // kernel time of the last update
+let patches_lmod_t = {}; // lmod -> wait of its update
+async function patches_update(){
+  try {
+    let res = await fetch('/.lif/kernel/patches?since='+patches_tm);
+    let v = await res.json();
+    if (!v.lfiles)
+      return false;
+    for (let lfile of v.lfiles)
+      patches_t[lfile] = 1;
+    patches_tm = Math.max(patches_tm, v.tm);
+    return true;
+  } catch(err){
+    console.error('failed kernel patches update', err);
+    return false;
+  }
+}
+
+// is the lfile patched. undefined: unknown (failed asking the kernel)
+async function patches_lfile_has(lfile){
+  let lmod = T_lfile_parse(lfile).lmod;
+  if (!await (patches_lmod_t[lmod] ||= patches_update())){
+    delete patches_lmod_t[lmod];
+    return;
+  }
+  return patches_has(patches_t, lfile);
+}
+
 let enable_cache = 1; // problematic until /.lif.imp/ and /.lif/local handled
 let cache_miss = 0;
 let cache_try = 0;
@@ -287,7 +322,11 @@ async function fetch_cache(url){
   // skip cache tests if nothing is found in cache 5 times (recheck everry 10)
   if (cache_miss>5 && !(cache_try%10))
     return await fetch(url);
-  if (!lfile_is_perm(str.starts(url, '/.lif/').rest))
+  let lfile = str.starts(url, '/.lif/').rest;
+  if (!lfile_is_perm(lfile))
+    return await fetch(url);
+  // patched lfile: the cache may hold its result of before the patch
+  if (await patches_lfile_has(qs_split(lfile).url)!==false)
     return await fetch(url);
   // XXX need to add page refresh detection in kernel and disable caching if so
   let cache = caches_db || await caches_open();

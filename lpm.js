@@ -837,6 +837,35 @@ export function pkg_patches_lmod(pkg, lmod_self){
   return res;
 }
 
+// patches_t: the lfiles that the lif.patches of the loaded packages patch.
+// A patched lfile is never read from the end-to-end cache (caches): the
+// cached result may be of before the patch. kernel.js fills it upon every
+// package.json load, boot.js copies it (/.lif/kernel/patches).
+// patches: result of pkg_patches_lmod(). returns the patched lfiles
+// (lmod+path), with version only if the lif.patches key has it
+export function patches_lfiles(patches){
+  let res = [];
+  for (let [lmod, files] of OE(patches||{})){
+    for (let [file] of OE(files||{})){
+      let v;
+      if (v=str.starts(file, './'))
+        res.push(lmod+'/'+v.rest);
+    }
+  }
+  return res;
+}
+
+// is lfile patched: by its version, or by all versions (lfile without ver)
+export function patches_has(patches_t, lfile){
+  if (patches_t[lfile])
+    return true;
+  let u = lfile_parse(lfile);
+  if (!u?.ver)
+    return false;
+  u.ver = '';
+  return !!patches_t[T_lfile_str(u)];
+}
+
 export function file_ctype_binary(path){
   let ext = _path_ext(path);
   let ctype = ctype_get(ext)?.ctype;
@@ -1435,6 +1464,36 @@ function test_lpm(){
   // mixed relative and absolute
   t({'./': 1, 'rxjs': 2, './sub//': 3}, 'local/app/',
     {'local/app/': 1, 'npm/rxjs': 2, 'local/app/sub/': 3});
+  t = (patches, lmod_self, v)=>assert_obj(v,
+    patches_lfiles(pkg_patches_lmod({lif: {patches}}, lmod_self)));
+  t(undefined, 'npm/app@1.0.0', []);
+  t({'./': {'./a/b.js': 1, './c.js': 1}}, 'git/github.com/u/r@5eea40e',
+    ['git/github.com/u/r@5eea40e/a/b.js', 'git/github.com/u/r@5eea40e/c.js']);
+  t({'./sub/dir//': {'./dist/a.js': 1}}, 'git/github.com/u/r@5eea40e',
+    ['git/github.com/u/r@5eea40e/sub/dir//dist/a.js']);
+  t({'rxjs': {'./dist/x.js': 1}, 'rxjs@7.8.2': {'./y.js': 1},
+    '@cycle/run': {'./package.json': 1}, 'github:user/repo': {'./z.js': 1}},
+    'npm/app@1.0.0', ['npm/rxjs/dist/x.js', 'npm/rxjs@7.8.2/y.js',
+    'npm/@cycle/run/package.json', 'git/github.com/user/repo/z.js']);
+  t({'rxjs': {'dist/x.js': 1}}, 'npm/app@1.0.0', []);
+  let patches_t = {
+    'npm/rxjs/dist/x.js': 1,
+    'npm/rxjs@7.8.2/y.js': 1,
+    'git/github.com/u/r@5eea40e/sub/dir//dist/a.js': 1,
+  };
+  t = (lfile, v)=>assert_eq(v, patches_has(patches_t, lfile));
+  t('npm/rxjs@7.8.2/dist/x.js', true);
+  t('npm/rxjs@7.0.0/dist/x.js', true);
+  t('npm/rxjs@7.8.2/dist/z.js', false);
+  t('npm/rxjs@7.8.2/y.js', true);
+  t('npm/rxjs@7.0.0/y.js', false);
+  t('npm/rx@7.8.2/dist/x.js', false);
+  t('git/github.com/u/r@5eea40e/sub/dir//dist/a.js', true);
+  t('git/github.com/u/r@5eea40f/sub/dir//dist/a.js', false);
+  t('git/github.com/u/r@5eea40e/sub/dir/dist/a.js', false);
+  t('local/app//a.js', false);
+  t = (lfile, v)=>assert_eq(v, patches_has({}, lfile));
+  t('npm/rxjs@7.8.2/dist/x.js', false);
   let lpm_pkg = {lmod: 'npm/lif_os', pkg: {
     lif: {
       dependencies: {over: '2.0.0', optional: '^1.0.1'},

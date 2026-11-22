@@ -656,3 +656,24 @@ the lif_l.svg - I want the color be much lighter blue: RGB (0, 195, 255)
 CLAUDE:
 lif_l.svg: the circle's fill changed from #2B2B56 to #00C3FF (0, 195, 255).
 The white background and the white L are unchanged.
+---
+---
+USER:
+(a file patched by lif.patches was served from the end-to-end cache as it
+was before the patch) ok. implement it in lif-kernel
+
+CLAUDE:
+A patched lfile is never read from, nor written to, the end-to-end cache
+(caches lif-cache-v30).
+lpm.js: patches_lfiles(patches) gives the patched lfiles (lmod+path) of a
+pkg_patches_lmod() result. patches_has(patches_t, lfile) looks an lfile up
+with its version and without it. Tests added.
+kernel.js: patches_t, filled by patches_add() upon every package.json load
+(lpm_pkg_get, boot pkg), emptied with lpm_pkg_t in _do_app_pkg. The cache
+read skips an lfile that is in it. The cache write skips a patched file
+(f.cache===false of lpm_patch_file is now used). New URL
+/.lif/kernel/patches?since=tm gives the lfiles added since tm.
+boot.js: fetch_cache() copies the kernel's table (one request upon the
+first lfile of every module) and skips caches.match() for a patched lfile.
+Not handled: alias URLs of a patched file, and a patch of the package.json
+of a dependency (affects all the files of its module).

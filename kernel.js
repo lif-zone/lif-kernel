@@ -17,7 +17,7 @@ const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   T_lfile_parse, T_lmod_parse, T_lfile_str, T_lmod_str,
   lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
-  pkg_patches_lmod, patch_replace_line,
+  pkg_patches_lmod, patch_replace_line, patches_lfiles, patches_has,
   pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
@@ -587,6 +587,27 @@ async function lpm_file_get_alt({log, lfile, alt}){
 // lookup the module with and without version, in the module itself (a
 // package may patch its own files) and in all its parents. the outermost
 // parent wins
+// patches_t: the lfiles patched by the lif.patches of the loaded packages
+// (see lpm.js), and when added. a patched lfile is never read from, nor
+// written to, cache_store
+let patches_t = {};
+function patches_add(patches){
+  let tm = Date.now();
+  for (let lfile of patches_lfiles(patches))
+    patches_t[lfile] ||= tm;
+}
+
+// /.lif/kernel/patches?since=tm for boot.js, that reads cache_store directly:
+// the patched lfiles added since tm (tm of its previous call)
+function lif_kernel_patches(since){
+  let tm = Date.now(), lfiles = [];
+  for (let [lfile, _tm] of OE(patches_t)){
+    if (_tm>=since)
+      lfiles.push(lfile);
+  }
+  return {tm, lfiles};
+}
+
 function lpm_patch_lookup(lpm_pkg, file){
   let u = T_lmod_parse(lpm_pkg.lmod);
   u.ver = '';
@@ -763,6 +784,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   // check for package.json overrides
   lpm_patch_pkg_json(lpm_pkg);
   lpm_pkg.patches = pkg_patches_lmod(lpm_pkg.pkg, lpm_pkg.lmod);
+  patches_add(lpm_pkg.patches);
   return lpm_pkg;
 }); }
 
@@ -1114,10 +1136,12 @@ async function responce_tr_send({f, qs, lfile}){
   }
   if (q.has('json'))
     ext = 'json';
+  // a patched file (lpm_patch_file) is not cached
+  let cache = f.cache===false ? 0 : 1;
   if (!q.has('mjs') && !q.has('imp') && !q.has('cjs') && !q.has('amd'))
-    return {body: f.blob, ext, cache: 1};
+    return {body: f.blob, ext, cache};
   if (str.is(ext, 'json', 'css', 'wasm', 'text'))
-    return {body: f.blob, ext, cache: 1};
+    return {body: f.blob, ext, cache};
   ext = 'js';
   let v;
   let js = await file_tsx_to_js(f);
@@ -1139,11 +1163,11 @@ async function responce_tr_send({f, qs, lfile}){
       return {body: mjs_import_cjs('/.lif/'+lfile, q), ext};
     if (type=='amd')
       return {body: mjs_import_amd('/.lif/'+lfile, q), ext};
-    return {body: file_tr_mjs(f, {worker}), ext, cache: 1};
+    return {body: file_tr_mjs(f, {worker}), ext, cache};
   }
   if (q.has('imp') && (type=='mjs' || !type)){
     return {body: mjs_import_mjs(meta.export_default,
-      '/.lif/'+lfile+'?mjs'+(worker?'&worker':'')), ext, cache: 1};
+      '/.lif/'+lfile+'?mjs'+(worker?'&worker':'')), ext, cache};
   }
   if (q.has('cjs') || (q.has('imp') && type=='cjs'))
     return {body: mjs_import_cjs('/.lif/'+lfile, q), ext};
@@ -1193,7 +1217,7 @@ async function fetch_lpm_meta({log, imp}){
     return do_ret({meta: {type}}); // error not js/jsx/ts/tsx
   await file_tsx_to_js(f);
   let meta = await file_js_to_meta(f);
-  return do_ret({meta, cache: 1});
+  return do_ret({meta, cache: f.cache===false ? 0 : 1});
 }
 
 async function fetch_lpm_meta_res({log, imp}){
@@ -1329,6 +1353,8 @@ async function lif_kernel_admin(request, path){
     res = await lif_kernel_cache_clear();
   else if (path=='/.lif/kernel/modules') // show loaded modules
     res = lif_kernel_modules();
+  else if (path=='/.lif/kernel/patches') // patched lfiles, for boot.js
+    res = lif_kernel_patches(+new URL(request.url).searchParams.get('since'));
   else
     return do_err('lif_kernel_admin path not found '+path);
   return send_res({body: json(res), ext: 'json', path});
@@ -1387,7 +1413,8 @@ async function _kernel_fetch(event){
   if (v=str.starts(path, '/.lif/')){
     let lfile = v.rest;
     log.imp = lfile;
-    if (lfile_is_perm(lfile)){
+    // patched lfile: the cache may hold its result of before the patch
+    if (lfile_is_perm(lfile) && !patches_has(patches_t, lfile)){
       let response = await cache_store_get(request);
       if (response)
         return response;
@@ -1671,6 +1698,7 @@ async function _do_app_pkg(boot_pkg){
   lpm_app_date = Date.now();
   lpm_pkg_root = undefined;
   lpm_pkg_t = {};
+  patches_t = {};
   if (refrash_clear_cache){
     lpm_pkg_ver_t = {};
     lpm_file_t = {};
@@ -1695,6 +1723,7 @@ async function _do_app_pkg(boot_pkg){
     lpm_pkg.lmod = lmod_root;
     lpm_pkg.pkg = boot_pkg;
     lpm_pkg.patches = pkg_patches_lmod(boot_pkg, lmod_root);
+    patches_add(lpm_pkg.patches);
     lpm_pkg.child = [];
     return lpm_pkg;
   });
