@@ -1229,6 +1229,8 @@ lif.boot = {
   //     'anki yhvh alohyk:la yhyh lk alohim ajrim el pny:la tsa at sm yhvh alohk lsva:zkor at yom hsbt lqdso:kbd at avik vat amk:la trxj:la tnaf:la tgnv:la tenh brek ed sqr:la tjmd byt rek:',
   //     'anki yhvh alohyk:la yhyh lk alohim aHrim el pny:la tsa at Sm yhvh alohk lSva:zkor at yom hSbt lqdSo:Kbd at avik vat amk:lo trXH:lo tnaf:lo tgnv:lo tenh brek ed Sqr:lo tHmd byt rek:',
   //     'anki yeve alueyk:la yeye lk alueim ahrim ol pny:la tsa at sm yeve aluek lsva:zkur at yum hsbt lqdsu:kbd at avik vat amk:la trxh:la tnaf:la tgnv:la tone brok od sqr:la thmd byt rok:',
+  // AABVGDHEVUZhtYIKkLMNCOOPFXQRSsT
+  // AaBbGDHeVuZhtYiKkLMNCOoPpXQRSsT
   lif,
   version: lif_version,
   process,
