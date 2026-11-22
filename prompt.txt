@@ -649,3 +649,10 @@ z-index, as the copy in lif-coin browser/app.jsx had: there it is shown over
 a page that is already displayed, which must stay clickable and must not
 cover the text.
 ---
+---
+USER:
+the lif_l.svg - I want the color be much lighter blue: RGB (0, 195, 255)
+
+CLAUDE:
+lif_l.svg: the circle's fill changed from #2B2B56 to #00C3FF (0, 195, 255).
+The white background and the white L are unchanged.
