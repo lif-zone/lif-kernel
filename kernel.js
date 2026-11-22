@@ -62,7 +62,7 @@ let idb_api = {
   },
 };
 
-let cache_ver = 30;
+let cache_ver = 31;
 let storage_bucket;
 // set by db_delete() (cache clear): the storage is being deleted and opened
 // again. storage users wait for it
@@ -599,6 +599,12 @@ function patches_add(patches){
 
 // /.lif/kernel/patches?since=tm for boot.js, that reads cache_store directly:
 // the patched lfiles added since tm (tm of its previous call)
+// the cached result of an alias holds facts of its final file (its meta,
+// has it a default export): not used if the final file is patched
+function response_final_patched(response){
+  let v = response.headers.get('lif-redirect');
+  return !!v && patches_has(patches_t, v);
+}
 function lif_kernel_patches(since){
   let tm = Date.now(), lfiles = [];
   for (let [lfile, _tm] of OE(patches_t)){
@@ -971,7 +977,7 @@ let coi_set_headers = h=>{
 // audio, audioworklet, document, embed, fencedframe, font, frame, iframe,
 // image, json, manifest, object, paintworklet, report, script,
 // sharedworker, style, track, video, worker, xslt
-function response_send({body, ext, ctype, cache}){
+function response_send({body, ext, ctype, cache, final}){
   let v, opt = {}, h = {};
   if (!ctype){
     let ct = ctype_get(ext);
@@ -990,6 +996,9 @@ function response_send({body, ext, ctype, cache}){
     h['date'] = new Date().toUTCString();
     h['last-modified'] = 'Sat, 01 Jan 2000 00:00:00 GMT';
   }
+  // result of an alias: the lfile of its final file
+  if (final)
+    h['lif-redirect'] = final;
   coi_set_headers(h);
   opt.headers = new Headers(h);
   return new Response(body, opt);
@@ -1228,6 +1237,8 @@ async function fetch_lpm_meta_res({log, imp}){
   else
     res.body = json(f);
   res.cache = f.cache;
+  if (f.redirect_file)
+    res.final = str.starts(f.redirect, '/.lif/').rest;
   return res;
 }
 
@@ -1236,7 +1247,10 @@ async function fetch_lpm_file({log, imp, qs}){
   if (str.is(u.reg, 'bitcoin', 'lifcoin'))
     return await lpm_file_get({log, lfile: imp, opt: {ctype: true, cache: 'pass'}});
   let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
-  return await responce_tr_send({f, qs, lfile: imp});
+  let res = await responce_tr_send({f, qs, lfile: imp});
+  if (res && f.redirect && f.redirect_file)
+    res.final = f.redirect;
+  return res;
 }
 
 function response_redirect({redirect, cache}){
@@ -1244,7 +1258,7 @@ function response_redirect({redirect, cache}){
 }
 
 async function send_res({err, not_exist, redirect, blob, body, ext, ctype,
-  path, cache})
+  path, cache, final})
 {
   body ||= blob;
   if (err && body==undefined){
@@ -1261,7 +1275,7 @@ async function send_res({err, not_exist, redirect, blob, body, ext, ctype,
   if (redirect)
     return response_redirect({redirect, cache});
   if (body)
-    return response_send({body, ext, ctype, cache});
+    return response_send({body, ext, ctype, cache, final});
   throw Error('invalid fetch_lpm response');
 }
 
@@ -1416,7 +1430,7 @@ async function _kernel_fetch(event){
     // patched lfile: the cache may hold its result of before the patch
     if (lfile_is_perm(lfile) && !patches_has(patches_t, lfile)){
       let response = await cache_store_get(request);
-      if (response)
+      if (response && !response_final_patched(response))
         return response;
     }
     let res;

@@ -677,3 +677,19 @@ boot.js: fetch_cache() copies the kernel's table (one request upon the
 first lfile of every module) and skips caches.match() for a patched lfile.
 Not handled: alias URLs of a patched file, and a patch of the package.json
 of a dependency (affects all the files of its module).
+---
+USER:
+An alias URL of a patched file: its cached answer holds facts of the final
+file (meta, default export). Check the final file in patches_t, in kernel.js
+and in boot.js.
+
+CLAUDE:
+- kernel.js: the answer of an alias (?mjs wrapper, ?meta&follow) gets a
+  response header lif-redirect: the lfile of its final file (send_res /
+  response_send get `final`, set in fetch_lpm_file and fetch_lpm_meta_res).
+  On a cache hit, response_final_patched(): the entry is not used if that
+  lfile is in patches_t.
+- boot.js: fetch_cache(): the same check on the header after caches.match().
+- cache_ver 30 -> 31 (kernel.js, boot.js): format of a cached entry changed.
+- Tested in the 4210 app: planted wrong entry for the alias of a patched file
+  is not used, for the alias of an unpatched file is used.

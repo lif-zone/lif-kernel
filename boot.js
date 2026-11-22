@@ -236,7 +236,7 @@ async function e_db_req(req){
   return await wait;
 }
 
-let cache_ver = 30;
+let cache_ver = 31;
 let storage_bucket;
 let g_indexedDB = globalThis.indexedDB;
 let g_caches = globalThis.caches;
@@ -333,6 +333,10 @@ async function fetch_cache(url){
   let res = await cache.match(url);
   if (res){
     cache_miss = 0;
+    // result of an alias: not used if its final file is patched
+    let v = res.headers.get('lif-redirect');
+    if (v && await patches_lfile_has(v)!==false)
+      return await fetch(url);
     return res;
   }
   cache_miss++;
