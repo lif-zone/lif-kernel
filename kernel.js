@@ -588,30 +588,19 @@ async function lpm_file_get_alt({log, lfile, alt}){
 // package may patch its own files) and in all its parents. the outermost
 // parent wins
 // patches_t: the lfiles patched by the lif.patches of the loaded packages
-// (see lpm.js), and when added. a patched lfile is never read from, nor
-// written to, cache_store
+// (see lpm.js). a patched lfile is never read from, nor written to,
+// cache_store
 let patches_t = {};
 function patches_add(patches){
-  let tm = Date.now();
   for (let lfile of patches_lfiles(patches))
-    patches_t[lfile] ||= tm;
+    patches_t[lfile] = 1;
 }
 
-// /.lif/kernel/patches?since=tm for boot.js, that reads cache_store directly:
-// the patched lfiles added since tm (tm of its previous call)
 // the cached result of an alias holds facts of its final file (its meta,
 // has it a default export): not used if the final file is patched
 function response_final_patched(response){
   let v = response.headers.get('lif-redirect');
   return !!v && patches_has(patches_t, v);
-}
-function lif_kernel_patches(since){
-  let tm = Date.now(), lfiles = [];
-  for (let [lfile, _tm] of OE(patches_t)){
-    if (_tm>=since)
-      lfiles.push(lfile);
-  }
-  return {tm, lfiles};
 }
 
 function lpm_patch_lookup(lpm_pkg, file){
@@ -1446,8 +1435,6 @@ async function lif_kernel_admin(request, path, client_id){
     res = await lif_kernel_cache_clear();
   else if (path=='/.lif/kernel/modules') // show loaded modules
     res = lif_kernel_modules();
-  else if (path=='/.lif/kernel/patches') // patched lfiles, for boot.js
-    res = lif_kernel_patches(+new URL(request.url).searchParams.get('since'));
   else
     return do_err('lif_kernel_admin path not found '+path);
   return send_res({body: json(res), ext: 'json', path});

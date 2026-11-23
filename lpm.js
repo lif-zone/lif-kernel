@@ -865,7 +865,7 @@ export function pkg_patches_lmod(pkg, lmod_self){
 // patches_t: the lfiles that the lif.patches of the loaded packages patch.
 // A patched lfile is never read from the end-to-end cache (caches): the
 // cached result may be of before the patch. kernel.js fills it upon every
-// package.json load, boot.js copies it (/.lif/kernel/patches).
+// package.json load.
 // patches: result of pkg_patches_lmod(). returns the patched lfiles
 // (lmod+path), with version only if the lif.patches key has it
 export function patches_lfiles(patches){

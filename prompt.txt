@@ -716,3 +716,26 @@ CLAUDE:
 - Tested in the 4210 BlueWallet app: mode on: 170 mod_follow requests, no
   meta/patches requests, no console errors. Mode off: as before (354 meta,
   152 patches requests).
+---
+USER:
+Remove the syncing of the patches table to boot.js. Only kernel.js tracks
+patches, for its own cache invalidation.
+
+CLAUDE:
+- boot.js: removed patches_t, patches_tm, patches_lmod_t, patches_update(),
+  patches_lfile_has(), and both checks in fetch_cache() (the patched lfile,
+  and the lif-redirect header of an alias).
+- kernel.js: removed lif_kernel_patches() and the /.lif/kernel/patches url.
+  patches_t holds 1 per lfile (no time).
+- lpm.js: comment.
+- Tested in the 4210 app: both modes load, no patches requests, no console
+  errors.
+---
+USER:
+Enable MOD_FOLLOW by default.
+
+CLAUDE:
+- boot.js: mod_follow = 1 by default; a stored ?MOD_FOLLOW=0 switches it off,
+  ?MOD_FOLLOW=1 on again. Logs only when the mode is off.
+- Tested in the 4210 app: with no stored flag the mode is on; ?MOD_FOLLOW=0
+  switches off and stays off; ?MOD_FOLLOW=1 switches on.
