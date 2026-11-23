@@ -18,7 +18,7 @@ const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   lfile_ver_missing, lfile_ver_final,
   pkg_import_lookup, pkg_exports_lookup, pkg_web_exports_lookup,
   pkg_patches_lmod, patch_replace_line, patches_lfiles, patches_has,
-  pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm,
+  pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm, imp_uri,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
 } = await import('./reg.js');
@@ -1229,6 +1229,85 @@ async function fetch_lpm_meta({log, imp}){
   return do_ret({meta, cache: f.cache===false ? 0 : 1});
 }
 
+// ?mod_follow: the lfile of a CJS/AMD require and the lfiles its requires
+// lead to, in one JSON: {lfiles: {lfile: entry}}. entry:
+// {redirect: lfile} | {meta, text} | {not_exist: true} | {err}
+// (no text for an mjs file: the browser imports it).
+// The requested lfile is always there. The others: only if not yet sent to
+// this client. Never cached: boot.js keeps the entries in memory (lfiles_t).
+let mod_follow_t = {}; // client id -> {lfile: 1}: lfiles sent to it
+async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
+  let meta, type = file_ctype(f.lfile);
+  if (type!='js')
+    meta = {type}; // not js/jsx/ts/tsx
+  else {
+    await file_tsx_to_js(f);
+    meta = await file_js_to_meta(f);
+  }
+  if (meta.type!='mjs')
+    e.text = await f.blob.text();
+  e.meta = meta;
+  if (str.is(meta.type, 'mjs', 'amd'))
+    return;
+  let wait = [];
+  for (let req of meta.requires||[]){
+    // only a require that always runs. a conditional one: boot.js evaluates
+    // its condition, and requests it
+    if (req.type!='program' || req.cond)
+      continue;
+    wait.push(mod_follow_require({log, lfile_self: lfile, imp: req.module,
+      lfiles, sent}));
+  }
+  await Promise.all(wait);
+}
+
+async function mod_follow_require({log, lfile_self, imp, lfiles, sent}){
+  try {
+    let v = str.starts(imp_uri('/.lif/'+lfile_self, imp), '/.lif/');
+    if (v)
+      await mod_follow_lfile({log, lfile: v.rest, lfiles, sent});
+  } catch(err){
+    // not sent: boot.js requests it, and gets the error
+    D && console.log('mod_follow '+lfile_self+' require('+imp+'): '+err);
+  }
+}
+
+async function mod_follow_lfile({log, lfile, lfiles, sent, force}){
+  if (lfiles[lfile] || !force && sent[lfile])
+    return;
+  sent[lfile] = 1;
+  let e = lfiles[lfile] = {};
+  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?meta',
+    follow: enable_follow});
+  if (f.not_exist)
+    return void(e.not_exist = true);
+  if (f.err)
+    return void(e.err = ''+f.err);
+  if (!f.redirect)
+    return await mod_follow_file({log, lfile, f, e, lfiles, sent});
+  e.redirect = f.redirect;
+  let _lfile = f.redirect;
+  if (!f.redirect_file || lfiles[_lfile] || sent[_lfile])
+    return;
+  sent[_lfile] = 1;
+  await mod_follow_file({log, lfile: _lfile, f: f.redirect_file,
+    e: lfiles[_lfile] = {}, lfiles, sent});
+}
+
+async function fetch_lpm_mod_follow({log, imp, client}){
+  let sent = mod_follow_t[client] ||= {};
+  let lfiles = {};
+  await mod_follow_lfile({log, lfile: imp, lfiles, sent, force: true});
+  // an lfile that failed: not sent
+  for (let [lfile, e] of OE(lfiles)){
+    if (OE(e).length)
+      continue;
+    delete lfiles[lfile];
+    delete sent[lfile];
+  }
+  return {body: json({lfiles}), ext: 'json'};
+}
+
 async function fetch_lpm_meta_res({log, imp}){
   let f = await fetch_lpm_meta({log, imp});
   let res = {ext: 'json'};
@@ -1335,7 +1414,7 @@ function lif_kernel_modules(){
   return res;
 }
 
-async function lif_kernel_admin(request, path){
+async function lif_kernel_admin(request, path, client_id){
   if (!path.startsWith('/.lif/kernel/'))
     return;
   function do_err(err){
@@ -1354,7 +1433,7 @@ async function lif_kernel_admin(request, path){
   }
   let res;
   if (path=='/.lif/kernel/version')
-    res = {version: lif_version};
+    res = {version: lif_version, client_id};
   else if (path=='/.lif/kernel/status')
     res = {version: lif_version, status: 'loading/loaded'};
   else if (path=='/.lif/kernel/app_pkg'){
@@ -1403,7 +1482,7 @@ async function _kernel_fetch(event){
   g_stats.fetch.all++;
   if (external)
     return fetch_pass(request, 'external');
-  if (v=await lif_kernel_admin(request, path))
+  if (v=await lif_kernel_admin(request, path, event.clientId))
     return v;
   if (request.method!='GET' && request.method!='HEAD')
     return fetch_pass(request, 'non-get');
@@ -1427,6 +1506,11 @@ async function _kernel_fetch(event){
   if (v=str.starts(path, '/.lif/')){
     let lfile = v.rest;
     log.imp = lfile;
+    if (q.has('mod_follow')){
+      let res = await fetch_lpm_mod_follow({log, imp: lfile,
+        client: q.get('client')||event.clientId});
+      return await send_res({...res, path});
+    }
     // patched lfile: the cache may hold its result of before the patch
     if (lfile_is_perm(lfile) && !patches_has(patches_t, lfile)){
       let response = await cache_store_get(request);

@@ -439,6 +439,31 @@ export function __uri_parse(uri, base){
   return u;
 }
 
+// the uri that a require()/import of imp in the file uri_self leads to.
+// uri_self: '/.lif/<lfile>' (or none). imp: as written in the code: a module
+// name, a relative path, a uri or a url (returned as is).
+// boot.js (npm_imp_uri) and kernel.js (?mod_follow) give the same uri
+export function imp_uri(uri_self, imp){
+  let t = url_uri_type(imp);
+  if (t=='url' || t=='uri')
+    return imp;
+  if (t=='rel'){
+    if (!uri_self)
+      throw Error('imp_uri('+imp+') rel without base');
+    return __uri_parse(imp, uri_self).path;
+  }
+  if (!uri_self)
+    return '/.lif/'+T_npm_to_lfile(imp);
+  let u_self = T_lfile_parse(str.starts(uri_self, '/.lif/').rest);
+  let u = T_npm_parse(imp);
+  if (u.lmod==u_self.lmod)
+    return '/.lif/'+T_npm_to_lfile(imp);
+  let with_ver = lfile_ver_from_base(u, u_self);
+  if (with_ver)
+    return '/.lif/'+with_ver;
+  return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
+}
+
 export function lfile_ver_missing(u){
   u = _lfile_parse(u);
   return str.is(u.reg, 'npm', 'git') ? !u.ver : false;
@@ -1307,6 +1332,22 @@ function test_lpm(){
   t('git/github.com/user/repo@1.2.3/file', {type: 'tag'});
   t('git/github.com/user/repo@v1.2.3/file', {type: 'tag'});
   t('git/github.com/user/repo@semver:1.2.3/file', {type: 'semver'});
+  t = (uri_self, imp, v)=>assert_eq(v, imp_uri(uri_self, imp));
+  t('/.lif/npm/mod@1.2.3/x', './a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/npm/mod@1.2.3/c/d', '../a/f', '/.lif/npm/mod@1.2.3/a/f');
+  t('/.lif/local/mod//x/y', './a/f', '/.lif/local/mod//x/a/f');
+  t('/.lif/npm/mod@1.2.3/x', 'MOD/f', '/.lif/npm/mod@1.2.3/.lif.imp/MOD/f');
+  t('/.lif/npm/mod@1.2.3/x', 'MOD@4.5.6/f',
+    '/.lif/npm/mod@1.2.3/.lif.imp/MOD@4.5.6/f');
+  t('/.lif/npm/mod@1.2.3/x', 'mod/f', '/.lif/npm/mod@1.2.3/f');
+  t('/.lif/npm/mod@1.2.3/x', 'mod@1.2.3/f', '/.lif/npm/mod@1.2.3/f');
+  t('/.lif/npm/mod@1.2.3/x', 'mod@4.5.6/f',
+    '/.lif/npm/mod@1.2.3/.lif.imp/mod@4.5.6/f');
+  t(null, 'mod/f', '/.lif/npm/mod/f');
+  t('/.lif/npm/mod@1.2.3/x', 'https://x.y/z', 'https://x.y/z');
+  t('/.lif/npm/mod@1.2.3/x', '/.lif/npm/mod@4.5.6/x', '/.lif/npm/mod@4.5.6/x');
+  t('/.lif/npm/mod@1.2.3/x', 'node:path/a/b',
+    '/.lif/npm/mod@1.2.3/.lif.imp/node:path/a/b');
   t = (lfile, base, v)=>assert_eq(v, lfile_ver_from_base(lfile, base));
   t('npm/mod/dir', 'npm/mod@1.2.3/file', 'npm/mod@1.2.3/dir');
   t('npm/mod/dir', 'npm/mod/file');

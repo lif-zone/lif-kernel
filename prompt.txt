@@ -693,3 +693,26 @@ CLAUDE:
 - cache_ver 30 -> 31 (kernel.js, boot.js): format of a cached entry changed.
 - Tested in the 4210 app: planted wrong entry for the alias of a patched file
   is not used, for the alias of an unpatched file is used.
+---
+USER:
+Implement the mod_follow mode: one request <lfile>?mod_follow for CJS/AMD
+in place of the meta and file requests of boot.js. JSON answer, never
+cached, with the entry of the lfile and entries of the lfiles its requires
+lead to. boot.js keeps the entries in memory. Off by default, switched by
+?MOD_FOLLOW=1/0 in the page url (kept in indexedDB). The kernel supports both
+modes.
+
+CLAUDE:
+- lpm.js: imp_uri(uri_self, imp): require name -> uri, shared by boot.js
+  (npm_imp_uri calls it) and kernel.js. Tests.
+- kernel.js: <lfile>?mod_follow -> {lfiles: {lfile: entry}}, entry:
+  {redirect} | {meta, text} | {not_exist} | {err}. mod_follow_t: per client
+  id (event.clientId, or &client=) the lfiles sent. Follows requires that
+  always run (not conditional ones), in parallel. No text for an mjs file.
+  /.lif/kernel/version also returns client_id.
+- boot.js: mod_follow flag (raw indexedDB 'lif-debug'), lfiles_t,
+  mod_follow_get_sync/async, mod_follow_meta, mod_follow_fetch_sync/async,
+  used at the six fetch points when the flag is on.
+- Tested in the 4210 BlueWallet app: mode on: 170 mod_follow requests, no
+  meta/patches requests, no console errors. Mode off: as before (354 meta,
+  152 patches requests).

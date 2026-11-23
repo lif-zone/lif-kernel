@@ -11,7 +11,7 @@ import {ewait, eslow, assert_eq, str,
 import {
   T_npm_to_lfile, T_npm_url_base, url_uri_type,
   T_lfile_parse, lfile_ver_from_base, T_npm_parse,
-  npm_norm, lfile_is_perm, __uri_parse, patches_has,
+  npm_norm, lfile_is_perm, __uri_parse, patches_has, imp_uri,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -134,34 +134,13 @@ function url_self_clean(url){
 function npm_imp_uri(uri_self, imp){
   if (uri_self)
     uri_self = url_self_clean(uri_self);
-  let t = url_uri_type(imp);
-  if (t=='url'){
+  if (url_uri_type(imp)=='url'){
     let u = T_url_parse(imp);
     if (u.origin==location.origin)
       return u.path;
     return imp;
   }
-  if (t=='uri')
-    return imp;
-  if (t=='rel'){
-    if (!uri_self)
-      throw Error('npm_imp_uri('+imp+') rel without base');
-    let u = __uri_parse(imp, uri_self);
-    return u.path;
-  }
-  assert(t=='mod');
-  if (uri_self){
-    let lfile_self = str.starts(uri_self, '/.lif/').rest;
-    let u_self = T_lfile_parse(lfile_self);
-    let u = T_npm_parse(imp);
-    if (u.lmod==u_self.lmod)
-      return '/.lif/'+T_npm_to_lfile(imp);
-    let with_ver = lfile_ver_from_base(u, u_self);
-    if (with_ver)
-      return '/.lif/'+with_ver;
-    return '/.lif/'+u_self.lmod+'/.lif.imp/'+imp;
-  }
-  return '/.lif/'+T_npm_to_lfile(imp);
+  return imp_uri(uri_self, imp);
 }
 
 function npm_imp_q(opt){
@@ -208,6 +187,13 @@ function require_cjs_load_meta_sync(m){
   let lfile = v.rest;
   let qs = {meta: '', follow: ''};
   let url = m.url+qs_enc(qs);
+  if (mod_follow){
+    if (!(m.meta = mod_follow_meta(mod_follow_get_sync(lfile)))){
+      console.error('no mod meta: '+url);
+      return do_ret('err');
+    }
+    return do_ret('done');
+  }
   let req;
   req = fetch_sync(url);
   if (req.status!=200){
@@ -275,6 +261,121 @@ async function caches_open(){
   // version 0 = never create
   caches_db = await g_caches.open('lif-cache-v'+cache_ver);
   return caches_db;
+}
+
+// mod_follow mode: one request to the kernel per CJS/AMD lfile:
+// <lfile>?mod_follow. Its answer: the entry of the lfile (a redirect, or its
+// meta and text, or not_exist), and entries of the lfiles its requires lead
+// to, that the kernel adds. All are kept in lfiles_t, which is looked up
+// before any request. The kernel does all the caching: no caches read here.
+// temporary: the mode is off, until validated. ?MOD_FOLLOW=1 (or 0) in the
+// page url sets it. kept in indexedDB: a worker has no localStorage
+let mod_follow = 0;
+async function mod_follow_init(){
+  let db = await new Promise(resolve=>{
+    let req = indexedDB.open('lif-debug', 1);
+    req.onupgradeneeded = ()=>req.result.createObjectStore('conf');
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>resolve();
+  });
+  if (!db)
+    return;
+  let v = new URLSearchParams(globalThis.location?.search).get('MOD_FOLLOW');
+  await new Promise(resolve=>{
+    let tx = db.transaction('conf', v==null ? 'readonly' : 'readwrite');
+    let store = tx.objectStore('conf');
+    if (v!=null)
+      store.put(+v, 'MOD_FOLLOW');
+    let req = store.get('MOD_FOLLOW');
+    req.onsuccess = ()=>mod_follow = +req.result||0;
+    tx.oncomplete = tx.onerror = tx.onabort = ()=>resolve();
+  });
+  db.close();
+  if (mod_follow)
+    console.log('boot.js: mod_follow mode');
+}
+await mod_follow_init();
+
+let lfiles_t = {}; // lfile -> entry, as received from the kernel
+// id of the page in the kernel: sent with a request, since a sync request of
+// the page is done by boot_worker, which is another client
+let client_id;
+function mod_follow_url(lfile){
+  return '/.lif/'+lfile+'?mod_follow'+(client_id ? '&client='+client_id : '');
+}
+function mod_follow_add(text){
+  let res;
+  try {
+    res = JSON.parse(text);
+  } catch(err){
+    console.error('mod_follow invalid json', err);
+    return;
+  }
+  for (let [lfile, e] of OE(res.lfiles||{}))
+    lfiles_t[lfile] ||= e;
+}
+function mod_follow_get_sync(lfile){
+  if (lfiles_t[lfile])
+    return lfiles_t[lfile];
+  let res = fetch_sync(mod_follow_url(lfile));
+  if (res.status==200)
+    mod_follow_add(res.text);
+  return lfiles_t[lfile];
+}
+async function mod_follow_get_async(lfile){
+  if (lfiles_t[lfile])
+    return lfiles_t[lfile];
+  if (!is_worker && client_id===undefined){
+    client_id = null;
+    try {
+      let res = await fetch('/.lif/kernel/version');
+      client_id = (await res.json()).client_id;
+    } catch(err){
+      console.error('failed kernel client_id', err);
+    }
+    if (lfiles_t[lfile])
+      return lfiles_t[lfile];
+  }
+  let res = await fetch(mod_follow_url(lfile));
+  if (res.status==200)
+    mod_follow_add(await res.text());
+  return lfiles_t[lfile];
+}
+// the meta of an lfile, as the ?meta request gives it
+function mod_follow_meta(e){
+  if (!e || e.not_exist || e.err)
+    return;
+  if (e.redirect)
+    return {redirect: '/.lif/'+e.redirect};
+  return e.meta;
+}
+// the text of a file, in place of its fetch. undefined: no entry of a text
+// (an mjs file, or not a /.lif/ url): fetch it
+function mod_follow_fetch_sync(url){
+  let v = str.starts(url, '/.lif/'), e;
+  if (!v)
+    return fetch_sync(url);
+  let lfile = v.rest;
+  for (let i=0; i<8 && (e = mod_follow_get_sync(lfile))?.redirect; i++)
+    lfile = e.redirect;
+  if (!e || e.not_exist || e.err)
+    return {status: 404};
+  if (typeof e.text!='string')
+    return fetch_sync(url);
+  return {status: 200, text: e.text};
+}
+async function mod_follow_fetch_async(url){
+  let v = str.starts(url, '/.lif/'), e;
+  if (!v)
+    return await fetch(url);
+  let lfile = v.rest;
+  for (let i=0; i<8 && (e = await mod_follow_get_async(lfile))?.redirect; i++)
+    lfile = e.redirect;
+  if (!e || e.not_exist || e.err)
+    return {status: 404};
+  if (typeof e.text!='string')
+    return await fetch(url);
+  return {status: 200, text: ()=>e.text};
 }
 
 // patches_t: copy of the kernel's patches_t (the lfiles patched by
@@ -368,6 +469,13 @@ async function require_cjs_load_meta_async(m){
   if (_m.wait)
     return await _m.wait;
   _m.wait = ewait();
+  if (mod_follow){
+    if (!(m.meta = mod_follow_meta(await mod_follow_get_async(lfile)))){
+      console.error('no mod meta: '+url);
+      return do_ret('err');
+    }
+    return do_ret('done');
+  }
   let req = await fetch_cache(url);
   if (req.status!=200){
     console.error('no mod meta: '+url);
@@ -391,7 +499,7 @@ async function require_cjs_load_file_sync(m){
   f.res = 'loading';
   let url = m.url;
   let req;
-  req = fetch_sync(url);
+  req = mod_follow ? mod_follow_fetch_sync(url) : fetch_sync(url);
   if (req.status==200)
     m.script = f.text = req.text;
   if (req.status!=200){
@@ -420,7 +528,8 @@ async function require_cjs_load_file_async(m){
   if (f.wait)
     return await f.wait;
   f.wait = ewait();
-  let req = await fetch_cache(url);
+  let req = await (mod_follow ? mod_follow_fetch_async(url) :
+    fetch_cache(url));
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
@@ -838,7 +947,8 @@ async function import_amd(uri_self, [imp, opt]){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await fetch_cache(url);
+    let response = await (mod_follow ? mod_follow_fetch_async(url) :
+      fetch_cache(url));
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
@@ -863,7 +973,8 @@ async function import_module_script({uri_self, imp}){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await fetch_cache(url);
+    let response = await (mod_follow ? mod_follow_fetch_async(url) :
+      fetch_cache(url));
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
