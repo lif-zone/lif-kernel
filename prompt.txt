@@ -906,3 +906,19 @@ Tested with lif-wallet (port 4211), kernel cache emptied, two loads: the
 filelists of jsdelivr (28) and the tree pages of gitlab.com (2) came from
 the cache of the browser, as the 163 files of cdn.jsdelivr.net.
 ---
+USER:
+[the generic "Loading..." of lif-kernel is small on android. html stuff is
+left to the final application: the loader has minimal affect on the html]
+[the loader enlarges its own text while the page has no viewport meta] yep
+
+CLAUDE:
+load_progress.js: font_scale(): no viewport meta and innerWidth larger than
+screen.width (a phone lays the page out wider than its screen) -> the ratio.
+load_progress() and load_error() set their own font size by it, and go back
+when the application sets its viewport (resize; load_progress() also checks
+in its interval). The sizes of the texts of the error box are in em of the
+box. The page is not changed.
+Tested (phone emulation 412x915, page with no viewport meta): layout width
+981 -> loader 57px (=24px seen); after a viewport meta is added: 18px. A
+desktop window: 24px as before.
+---
