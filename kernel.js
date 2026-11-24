@@ -561,7 +561,6 @@ function path_append(lfile, add){
   return lfile.at(-1)=='/' && add[0]=='/' ? lfile+add.slice(1) : lfile+add;
 }
 async function lpm_file_get_alt({log, lfile, alt}){
-  // fetch the file
   let first;
   alt = ['', ...(alt||[])];
   for (let a of alt){
@@ -571,9 +570,9 @@ async function lpm_file_get_alt({log, lfile, alt}){
     f = {...f};
     f.alt = a;
     if (f.not_exist)
-      continue;
+      continue; // next alt
     if (!f.err)
-      return f;
+      return f; // file found
     if (f.err)
       throw Error('fetch failed '+lfile+' '+(f.url||''));
   }
@@ -656,7 +655,6 @@ async function lpm_patch_file(f, lfile, lpm_pkg){
   f.cache = false;
 }
 
-// http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   D && clog('lpm_file_get_follow', lfile);
   let pkg;
