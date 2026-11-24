@@ -251,6 +251,16 @@ let reg_cdn = {
           get_data: data=>data.meta.sha,
         },
       ],
+      src_files: [
+        {
+          name: 'jsdeliver.net',
+          // package file listing+size+sha256
+          // https://data.jsdelivr.com/v1/packages/gh/jquery/jquery@3.7.1
+          // https://data.jsdelivr.com/v1/packages/gh/jquery/jquery@f79d5f1a337528940ab7029d4f8bbba72326f269
+          // https://data.jsdelivr.com/v1/packages/gh/lif-zone/lif-coin@de93ceccfe56b8e8631bef8f85f2f252e4d2bf0f
+          url: u=> `https://data.jsdelivr.com/v1/packages/gh/${u.name}${u.ver}`,
+        },
+      ],
     },
     'gitlab.com': {
       src: [{
