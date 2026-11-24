@@ -891,3 +891,18 @@ Tested from the lif-wallet page (port 4211): gitlab-runner@v17.0.0: two
 files from statically.io, a third where statically.io failed came from
 gitlab.com; a missing file 404.
 ---
+USER:
+before we add to reg.js a caching layer, lets first see if Chrome's native
+fetch() caching layer might be enough. [my suggestion: reg_http_get() passes
+cache: 'force-cache' when the lfile is perm] yes
+
+CLAUDE:
+reg.js: fetch_opt(url, perm) gives {cache: 'force-cache'} for a perm lfile:
+the http cache of the browser is the persistent cache of the filelists (and
+of the files of a perm lfile). reg_http_get(): an answer that is not 200 in
+this mode is asked again from the cdn (cache: 'reload'), since only the
+content is forever.
+Tested with lif-wallet (port 4211), kernel cache emptied, two loads: the
+filelists of jsdelivr (28) and the tree pages of gitlab.com (2) came from
+the cache of the browser, as the 163 files of cdn.jsdelivr.net.
+---

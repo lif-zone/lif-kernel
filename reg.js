@@ -372,9 +372,14 @@ export function reg_cache_enable(enable){
   cache_enable = enable;
 }
 
+// perm: the content of a perm lfile never changes. What the browser has
+// stored for its url (http cache) is used, however old, with no request.
+// This is the persistent cache of the filelists
 export function fetch_opt(url, perm){
   let no_cache = url.startsWith('/') ? !cache_enable : false;
-  return no_cache ? {headers: {'Cache-Control': 'no-cache'}} : {};
+  if (no_cache)
+    return {headers: {'Cache-Control': 'no-cache'}};
+  return perm ? {cache: 'force-cache'} : {};
 }
 
 export async function reg_http_get({log, url, perm}){
@@ -382,7 +387,12 @@ export async function reg_http_get({log, url, perm}){
   let slow = eslow(5000, 'fetch '+url);
   try {
     D && clog('fetch '+url+' for '+log.mod);
-    response = await fetch(url, fetch_opt(url, perm));
+    let opt = fetch_opt(url, perm);
+    response = await fetch(url, opt);
+    // a failure may be an old answer, stored by the browser: only the
+    // content is forever. ask the cdn itself
+    if (opt.cache=='force-cache' && response.status!=200)
+      response = await fetch(url, {cache: 'reload'});
   } catch(_err){
     // jsdelivr 503 is due to rate limit appear as fetch-throw
     err = 'module('+log.mod+') failed fetch('+url+'): '+_err;
