@@ -172,13 +172,14 @@ let reg_cdn = {
       {
         name: 'jsdeliver.net',
         // package file listing+size+sha256
-        // https://cdn.jsdelivr.net/npm/react@18.3.1/package.json
+        // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
         url: u=> `https://data.jsdelivr.com/v1/packages/npm/${u.name}${u.ver}`,
       },
       {
         name: 'unpkg.com',
         // package file listing+size+sha256
         // https://unpkg.com/react@18.3.1/?meta
+        // XXX need to change u to url, and add support for this format
         u: u=>`https://unpkg.com/${u.name}${u.ver}/?meta`,
       },
     ],
