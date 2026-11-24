@@ -1225,6 +1225,9 @@ async function fetch_lpm_meta({log, imp}){
 // (no text for an mjs file: the browser imports it).
 // The requested lfile is always there. The others: only if not yet sent to
 // this client. Never cached: boot.js keeps the entries in memory (lfiles_t).
+// 0: for debug. an answer holds only the requested lfile (and the file its
+// redirect leads to), not the lfiles its requires lead to
+let enable_mod_follow = 1;
 let mod_follow_t = {}; // client id -> {lfile: 1}: lfiles sent to it
 async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
   let meta, type = file_ctype(f.lfile);
@@ -1237,7 +1240,7 @@ async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
   if (meta.type!='mjs')
     e.text = await f.blob.text();
   e.meta = meta;
-  if (str.is(meta.type, 'mjs', 'amd'))
+  if (!enable_mod_follow || str.is(meta.type, 'mjs', 'amd'))
     return;
   let wait = [];
   for (let req of meta.requires||[]){

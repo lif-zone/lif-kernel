@@ -739,3 +739,22 @@ CLAUDE:
   ?MOD_FOLLOW=1 on again. Logs only when the mode is off.
 - Tested in the 4210 app: with no stored flag the mode is on; ?MOD_FOLLOW=0
   switches off and stays off; ?MOD_FOLLOW=1 switches on.
+---
+USER:
+now I want to remove the MOD_FOLLOW setting. All I want is: let
+enable_mod_follow = 1 in kernel.js. If disabled - ?mod_follow will return
+ONLY what was requested, without 'suggestions' (the sub-requires).
+#1 - yes - remove [the old code path in boot.js] completly.
+#2 - alias - should still follow. what is disabled is just the sub-modules.
+so it will behave (when disabled) like the old ?meta&follow
+
+CLAUDE:
+boot.js: always uses ?mod_follow. Removed the MOD_FOLLOW flag (lif-debug
+indexedDB), the ?meta&follow and raw file fetches of the CJS/AMD/worker
+script load, fetch_cache, enable_cache, caches_open, g_caches.
+kernel.js: let enable_mod_follow = 1. With 0, mod_follow_file() does not add
+the lfiles of the requires: the answer holds the requested lfile, and the
+file its redirect leads to.
+Tested in the 4210 app: 1 -> 167 ?mod_follow requests, 0 -> 852, both load
+to the wallets list with no console errors.
+---

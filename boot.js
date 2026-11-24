@@ -11,7 +11,7 @@ import {ewait, eslow, assert_eq, str,
 import {
   T_npm_to_lfile, T_npm_url_base, url_uri_type,
   T_lfile_parse, lfile_ver_from_base, T_npm_parse,
-  npm_norm, lfile_is_perm, __uri_parse, imp_uri,
+  npm_norm, __uri_parse, imp_uri,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -185,25 +185,8 @@ function require_cjs_load_meta_sync(m){
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
   let lfile = v.rest;
-  let qs = {meta: '', follow: ''};
-  let url = m.url+qs_enc(qs);
-  if (mod_follow){
-    if (!(m.meta = mod_follow_meta(mod_follow_get_sync(lfile)))){
-      console.error('no mod meta: '+url);
-      return do_ret('err');
-    }
-    return do_ret('done');
-  }
-  let req;
-  req = fetch_sync(url);
-  if (req.status!=200){
-    console.error('no mod meta: '+url);
-    return do_ret('err');
-  }
-  let text = req.text;
-  try {
-    m.meta = JSON.parse(text);
-  } catch(err){
+  if (!(m.meta = mod_follow_meta(mod_follow_get_sync(lfile)))){
+    console.error('no mod meta: '+m.url);
     return do_ret('err');
   }
   return do_ret('done');
@@ -225,7 +208,6 @@ async function e_db_req(req){
 let cache_ver = 31;
 let storage_bucket;
 let g_indexedDB = globalThis.indexedDB;
-let g_caches = globalThis.caches;
 async function storage_bucket_init(){
   let storageBuckets = navigator.storageBuckets; // chrome >=122
   if (!storageBuckets)
@@ -235,7 +217,6 @@ async function storage_bucket_init(){
     durability: 'relaxed',
   });
   g_indexedDB = storage_bucket.indexedDB;
-  g_caches = storage_bucket.caches;
 }
 await storage_bucket_init();
 async function db_open(){
@@ -254,48 +235,11 @@ async function cache_get(table, k){
     .objectStore(table).get(k));
 }
 
-let caches_db;
-async function caches_open(){
-  if (caches_db!==undefined)
-    return await caches_db;
-  // version 0 = never create
-  caches_db = await g_caches.open('lif-cache-v'+cache_ver);
-  return caches_db;
-}
-
-// mod_follow mode: one request to the kernel per CJS/AMD lfile:
+// one request to the kernel per CJS/AMD lfile:
 // <lfile>?mod_follow. Its answer: the entry of the lfile (a redirect, or its
 // meta and text, or not_exist), and entries of the lfiles its requires lead
 // to, that the kernel adds. All are kept in lfiles_t, which is looked up
 // before any request. The kernel does all the caching: no caches read here.
-// temporary: the mode is on by default. ?MOD_FOLLOW=0 (or 1) in the page url
-// sets it. kept in indexedDB: a worker has no localStorage
-let mod_follow = 1;
-async function mod_follow_init(){
-  let db = await new Promise(resolve=>{
-    let req = indexedDB.open('lif-debug', 1);
-    req.onupgradeneeded = ()=>req.result.createObjectStore('conf');
-    req.onsuccess = ()=>resolve(req.result);
-    req.onerror = ()=>resolve();
-  });
-  if (!db)
-    return;
-  let v = new URLSearchParams(globalThis.location?.search).get('MOD_FOLLOW');
-  await new Promise(resolve=>{
-    let tx = db.transaction('conf', v==null ? 'readonly' : 'readwrite');
-    let store = tx.objectStore('conf');
-    if (v!=null)
-      store.put(+v, 'MOD_FOLLOW');
-    let req = store.get('MOD_FOLLOW');
-    req.onsuccess = ()=>mod_follow = req.result==null ? 1 : +req.result;
-    tx.oncomplete = tx.onerror = tx.onabort = ()=>resolve();
-  });
-  db.close();
-  if (!mod_follow)
-    console.log('boot.js: mod_follow mode is off');
-}
-await mod_follow_init();
-
 let lfiles_t = {}; // lfile -> entry, as received from the kernel
 // id of the page in the kernel: sent with a request, since a sync request of
 // the page is done by boot_worker, which is another client
@@ -378,30 +322,6 @@ async function mod_follow_fetch_async(url){
   return {status: 200, text: ()=>e.text};
 }
 
-let enable_cache = 1; // problematic until /.lif.imp/ and /.lif/local handled
-let cache_miss = 0;
-let cache_try = 0;
-async function fetch_cache(url){
-  if (!enable_cache)
-    return await fetch(url);
-  cache_try++;
-  // skip cache tests if nothing is found in cache 5 times (recheck everry 10)
-  if (cache_miss>5 && !(cache_try%10))
-    return await fetch(url);
-  let lfile = str.starts(url, '/.lif/').rest;
-  if (!lfile_is_perm(lfile))
-    return await fetch(url);
-  // XXX need to add page refresh detection in kernel and disable caching if so
-  let cache = caches_db || await caches_open();
-  let res = await cache.match(url);
-  if (res){
-    cache_miss = 0;
-    return res;
-  }
-  cache_miss++;
-  return await fetch(url);
-}
-
 function sha256_hex(v){
   v = new Buffer(str_to_buf(v));
   return sha256.digest(v).toHex();
@@ -422,28 +342,11 @@ async function require_cjs_load_meta_async(m){
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
   let lfile = v.rest;
-  let qs = {meta: '', follow: ''};
-  let url = m.url+qs_enc(qs);
   if (_m.wait)
     return await _m.wait;
   _m.wait = ewait();
-  if (mod_follow){
-    if (!(m.meta = mod_follow_meta(await mod_follow_get_async(lfile)))){
-      console.error('no mod meta: '+url);
-      return do_ret('err');
-    }
-    return do_ret('done');
-  }
-  let req = await fetch_cache(url);
-  if (req.status!=200){
-    console.error('no mod meta: '+url);
-    return do_ret('err');
-  }
-  let text = await req.text();
-  try {
-    m.meta = JSON.parse(text);
-  } catch(err){
-    assert(0, 'invalid json meta '+url);
+  if (!(m.meta = mod_follow_meta(await mod_follow_get_async(lfile)))){
+    console.error('no mod meta: '+m.url);
     return do_ret('err');
   }
   return do_ret('done');
@@ -457,7 +360,7 @@ async function require_cjs_load_file_sync(m){
   f.res = 'loading';
   let url = m.url;
   let req;
-  req = mod_follow ? mod_follow_fetch_sync(url) : fetch_sync(url);
+  req = mod_follow_fetch_sync(url);
   if (req.status==200)
     m.script = f.text = req.text;
   if (req.status!=200){
@@ -486,8 +389,7 @@ async function require_cjs_load_file_async(m){
   if (f.wait)
     return await f.wait;
   f.wait = ewait();
-  let req = await (mod_follow ? mod_follow_fetch_async(url) :
-    fetch_cache(url));
+  let req = await mod_follow_fetch_async(url);
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
@@ -905,8 +807,7 @@ async function import_amd(uri_self, [imp, opt]){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await (mod_follow ? mod_follow_fetch_async(url) :
-      fetch_cache(url));
+    let response = await mod_follow_fetch_async(url);
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
@@ -931,8 +832,7 @@ async function import_module_script({uri_self, imp}){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await (mod_follow ? mod_follow_fetch_async(url) :
-      fetch_cache(url));
+    let response = await mod_follow_fetch_async(url);
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
