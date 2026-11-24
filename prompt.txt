@@ -968,3 +968,25 @@ Tested (lif-wallet, port 4211): react@18.3.1/index.js from the url of
 18.3.0; ipc.js of lif-kernel at gitlab.com from the gitlab.com url of
 another commit; no mismatch.
 ---
+USER:
+1) os.pub.site fails on reg.js:550 assert(reg.blob). 2) it is very slow,
+maybe 50-100% slower than before this commit. is the validation calculated
+only when fetching content for the first time?
+
+CLAUDE:
+reg.js:
+- a 403 of a cdn had no err: reg_get() returned a result with no blob and
+  no err, and reg_filelist_get() asserted. jsdelivr answers 403 for the
+  filelist of a repository of more than 50MB (lif-os). Now the 403 has an
+  err: the filelist is unknown, and the files are fetched without it.
+- force-cache only for a filelist and for a url of the hash table
+  (fetch_opt(url, force_cache)). It was for every fetch of a perm lfile, and
+  every answer that is not 200 (a 404 of an alt lookup) was then asked
+  twice.
+- the rows of the hash table are written in the background
+  (reg_hash_write()). enable_hash = 1: debug switch of the hash table.
+Tested (port 4211): files of lif-os@<commit> load after the 403. Cold load
+of lif-wallet: 10-13 s with the committed code, the fixed code, validation
+off, hash table off (no difference seen). BlueWallet cold load, one pair:
+63.6 s committed, 60.4 s fixed.
+---

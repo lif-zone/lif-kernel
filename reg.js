@@ -375,22 +375,25 @@ export function reg_cache_enable(enable){
   cache_enable = enable;
 }
 
-// perm: the content of a perm lfile never changes. What the browser has
-// stored for its url (http cache) is used, however old, with no request.
-// This is the persistent cache of the filelists
-export function fetch_opt(url, perm){
+// force_cache: what the browser has stored for the url (http cache) is
+// used, however old, with no request. For what never changes and is asked
+// again and again: a filelist of a perm lfile (the http cache is its
+// persistent store), and a url of the hash table.
+// Not for the fetch of a file by its own url: there the cache headers of the
+// cdn do (a year for a file, none for a 404)
+export function fetch_opt(url, force_cache){
   let no_cache = url.startsWith('/') ? !cache_enable : false;
   if (no_cache)
     return {headers: {'Cache-Control': 'no-cache'}};
-  return perm ? {cache: 'force-cache'} : {};
+  return force_cache ? {cache: 'force-cache'} : {};
 }
 
-export async function reg_http_get({log, url, perm}){
+export async function reg_http_get({log, url, force_cache}){
   let response, err, blob;
   let slow = eslow(5000, 'fetch '+url);
   try {
     D && clog('fetch '+url+' for '+log.mod);
-    let opt = fetch_opt(url, perm);
+    let opt = fetch_opt(url, force_cache);
     response = await fetch(url, opt);
     // a failure may be an old answer, stored by the browser: only the
     // content is forever. ask the cdn itself
@@ -407,8 +410,11 @@ export async function reg_http_get({log, url, perm}){
   if (response.status==404)
     return {status: response.status, not_exist: true};
   if (response.status==403){
-    cerror('403 cdn rate limit', url);
-    return {status: response.status, fail_cdn: true};
+    // a rate limit, or a refusal (jsdelivr: the filelist of a repository of
+    // more than 50MB)
+    err = 'cdn 403 (rate limit or refused) '+url;
+    cerror(err);
+    return {status: response.status, err, fail_cdn: true};
   }
   if (response.redirected){
     cwarn('reg_http_fetch('+url+') CDN bug: got 302 redirect');
@@ -604,6 +610,8 @@ export function reg_db_init(db){
 // sha256 is computed in any case when the filelist does not give it (no
 // filelist, or a filelist of git_sha1): its the canonical hash
 let enable_hash_validation = true;
+// 0: for debug. no hash table: a file is fetched from its own url
+let enable_hash = 1;
 const hash_git_kinds = ['git_sha1', 'git_sha256'];
 
 function hash_sha256(buf){
@@ -618,7 +626,7 @@ function hash_git_sha1(buf){
 
 // the row of the content of a file of the filelist (e: its entry)
 async function reg_hash_get(e){
-  if (!reg_db)
+  if (!reg_db || !enable_hash)
     return;
   try {
     let sha256 = e.sha256;
@@ -656,16 +664,23 @@ async function reg_hash_set(reg, e){
   }
   reg.sha256 = h.sha256;
   // content that is not as listed: not for other lfiles
-  if (!reg_db || !valid)
+  if (!reg_db || !enable_hash || !valid)
     return;
+  // in the background: the fetch does not wait for the db
+  reg_hash_write({...h, url: reg.url, lfile: reg.lfile});
+}
+
+async function reg_hash_write(row){
   try {
     for (let kind of hash_git_kinds){
-      if (h[kind])
-        await reg_db.set('reg_'+kind, {[kind]: h[kind], sha256: h.sha256});
+      if (row[kind]){
+        await reg_db.set('reg_'+kind,
+          {[kind]: row[kind], sha256: row.sha256});
+      }
     }
-    await reg_db.set('reg_hash', {...h, url: reg.url, lfile: reg.lfile});
+    await reg_db.set('reg_hash', row);
   } catch(err){
-    cerror('reg_hash_set', err);
+    cerror('reg_hash_write', err);
   }
 }
 
@@ -737,7 +752,7 @@ export async function reg_get({log, lfile, opt}){
   // url it was fetched from
   let h = is_content && fl && await reg_hash_get(fl);
   if (h){
-    ret = await reg_http_get({log, url: h.url, perm});
+    ret = await reg_http_get({log, url: h.url, force_cache: true});
     if (ret.blob){
       reg.url = h.url;
       reg.hash_lfile = h.lfile;
@@ -758,7 +773,7 @@ export async function reg_get({log, lfile, opt}){
     let url = url_fn(u);
     reg.url = url;
     reg.src_ver = _src;
-    ret = await reg_http_get({log, url, perm});
+    ret = await reg_http_get({log, url, force_cache: perm && get_files});
     if (ret.blob) // fetch OK
       break;
     if (ret.not_exist){
@@ -771,7 +786,7 @@ export async function reg_get({log, lfile, opt}){
     _src.fail = {url, err: ret.err, tm: Date.now()};
   }
   if (!(reg.blob = ret?.blob)){
-    reg.err = ret ? ret.err : 'all cdns failed';
+    reg.err = ret?.err || 'all cdns failed';
     return reg;
   }
   if (opt?.ctype)
