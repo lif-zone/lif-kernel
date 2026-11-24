@@ -25,7 +25,8 @@ const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
 const {tr_tsx_to_js, tr_js_to_meta} = await import('./ast.js');
 const {qw} = str;
 const clog = console.log.bind(console);
-const cerr = console.error.bind(console);
+const cerror = console.error.bind(console);
+const cwarn = console.warn.bind(console);
 const json = JSON.stringify;
 const sha256 = await import('./sha256.js');
 let lif_kernel_base;
@@ -170,7 +171,7 @@ async function storage_delete(prev){
       await caches_delete_all();
     }
   } catch(err){
-    console.log('failed deleting storage', err);
+    clog('failed deleting storage', err);
   }
   await cache_store_init();
 }
@@ -233,7 +234,7 @@ let lpm_file_t = {};
 
 function lpm_import_lookup({lpm_pkg, lfile}){
   function ret_err(err){
-    D && console.log('lpm_import_lookup('+lpm_pkg.lmod+') imp '+lfile+': '+err);
+    D && clog('lpm_import_lookup('+lpm_pkg.lmod+') imp '+lfile+': '+err);
   }
   let D = 0;
   let u;
@@ -416,7 +417,7 @@ async function npm_ver_get({log, lmod}){
   return await ecache({table: lpm_pkg_ver_t, id: lmod, opt: cache_opt},
     async function run(pv)
 {
-  D && console.log('npm_ver_get '+lmod);
+  D && clog('npm_ver_get '+lmod);
   pv.lmod = lmod;
   pv.log = log;
   let ver_file = pv.lmod+'/--ver';
@@ -510,11 +511,11 @@ async function lpm_ver_resolve({log, lfile}){
   } else
     return;
   if (v.not_exist){
-    console.error('pkg not found: '+lmod);
+    cerror('pkg not found: '+lmod);
     return v;
   }
   v += u.path;
-  D && console.log('redirect ver '+lfile+' -> '+v);
+  D && clog('redirect ver '+lfile+' -> '+v);
   return {redirect: v};
 }
 
@@ -526,7 +527,7 @@ async function lpm_file_get({log, lfile, opt={}}){
   return await ecache({table: lpm_file_t, id: lfile, opt},
     async function run(lpm_file)
 {
-  D && console.log('lpm_file_get', lfile);
+  D && clog('lpm_file_get', lfile);
   let f = is_c && await cache_get('lpm_file', [lfile]);
   if (f && (!f.not_exist || cache_not_exist))
     return f;
@@ -576,7 +577,7 @@ async function lpm_file_get_alt({log, lfile, alt}){
     if (f.err)
       throw Error('fetch failed '+lfile+' '+(f.url||''));
   }
-  console.error('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
+  cerror('module('+log.mod+(alt.length>1 ? ' alt '+alt.join(' ') : '')+
     ') failed fetch not exist '+lfile);
   return first; // not_exist
 }
@@ -632,7 +633,7 @@ async function lpm_patch_file(f, lfile, lpm_pkg){
   if (patch.replace_line){
     let res = patch_replace_line(text, patch);
     for (let from of res.missing){
-      console.error('patch '+lfile+' by '+patch_p.lmod+': line not found: '
+      cerror('patch '+lfile+' by '+patch_p.lmod+': line not found: '
         +from.substring(0, 80));
     }
     text = res.text;
@@ -641,12 +642,12 @@ async function lpm_patch_file(f, lfile, lpm_pkg){
     try {
       _json = patch_json(JSON.parse(text), patch);
     } catch(err){
-      console.error('patch '+lfile+' by '+patch_p.lmod+': invalid JSON');
+      cerror('patch '+lfile+' by '+patch_p.lmod+': invalid JSON');
       return;
     }
     text = json(_json);
   } else {
-    console.error('patch '+lfile+' by '+patch_p.lmod+': unknown patch system',
+    cerror('patch '+lfile+' by '+patch_p.lmod+': unknown patch system',
       patch);
     return;
   }
@@ -657,7 +658,7 @@ async function lpm_patch_file(f, lfile, lpm_pkg){
 
 // http://localhost:3001/.lif/local/lif-os//public/Program%20Files/Xterm.js/xterm.css
 async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
-  D && console.log('lpm_file_get_follow', lfile);
+  D && clog('lpm_file_get_follow', lfile);
   let pkg;
   let f = {lfile, lpm_pkg, log};
   pkg = f.pkg = lpm_pkg.pkg;
@@ -672,7 +673,7 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
       _uri = T_lfile_lmod(lfile)+_path.slice(1);
     else
       _uri = T_npm_to_lfile(_path);
-    D && console.log('redirect export '+lfile+' -> '+_uri);
+    D && clog('redirect export '+lfile+' -> '+_uri);
     return OA(f, {redirect: _uri});
   }
   if (alt)
@@ -682,7 +683,7 @@ async function lpm_file_get_follow({log, lfile, lpm_pkg, alt}){
   if (f_get.not_exist)
     return f_get;
   if (f_get.lfile!=lfile){
-    D && console.log('redirect alt '+lfile+' -> '+f_get.alt);
+    D && clog('redirect alt '+lfile+' -> '+f_get.alt);
     return OA(f, {redirect: f_get.lfile});
   }
   f.blob = f_get.blob;
@@ -701,7 +702,7 @@ function lpm_patch_pkg_json(lpm_pkg){
   lpm_pkg.pkg_orig = lpm_pkg.pkg;
   let pkg = patch_json(json_cp(lpm_pkg.pkg), patch);
   if (!pkg){
-    console.error('failed patch_json '+lpm_pkg.lmod+' by '+patch_p.lmod,
+    cerror('failed patch_json '+lpm_pkg.lmod+' by '+patch_p.lmod,
       patch);
     return;
   }
@@ -716,7 +717,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   return await ecache({table: lpm_pkg_t, id: lmod, opt},
     async function run(lpm_pkg)
 {
-  D && console.log('lpm_pkg_get', lmod, lmod_self);
+  D && clog('lpm_pkg_get', lmod, lmod_self);
   lpm_pkg.lmod = lmod;
   let u = T_lmod_parse(lmod);
   let lpm_self;
@@ -739,9 +740,9 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   let ver = await lpm_ver_resolve({log, lfile: lmod});
   if (ver){
     if (ver.redirect)
-      D && console.log('lpm_pkg_get '+lmod+' -> '+ver.redirect);
+      D && clog('lpm_pkg_get '+lmod+' -> '+ver.redirect);
     if (ver.not_exist)
-      console.error('lpm_pkg_get '+lmod+' ver not exist');
+      cerror('lpm_pkg_get '+lmod+' ver not exist');
     return OA(lpm_pkg, ver);
   }
   // fetch pkg
@@ -753,16 +754,16 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
       !allow_no_package_json)
     {
       lpm_pkg.not_exist = f.not_exist;
-      console.error('lpm_pkg_get('+pkg_json+') not found');
+      cerror('lpm_pkg_get('+pkg_json+') not found');
       return lpm_pkg;
     }
     let v = await git_ver_resolve({log, lmod});
     if (!v){
       lpm_pkg.not_exist = true;
-      console.error('lpm_pkg_get('+lmod+' raw) not found');
+      cerror('lpm_pkg_get('+lmod+' raw) not found');
       return lpm_pkg;
     }
-    console.warn('using raw package without package.json');
+    cwarn('using raw package without package.json');
     // minimal valid package.json
     f = {blob: new Blob([json({name: u.name.replaceAll('/', '-')})])};
   }
@@ -775,7 +776,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   } catch(err){
     throw Error('lmod('+pkg_json+') invalid JSON: '+err);
     lpm_pkg.pkg = {};
-    console.log('failed parse package.json', pkg_json);
+    clog('failed parse package.json', pkg_json);
   }
   // check for package.json overrides
   lpm_patch_pkg_json(lpm_pkg);
@@ -792,7 +793,7 @@ let local_dev_redirect_t = {
 };
 let local_dev_enable;
 if (local_dev_enable)
-  console.log('local dev enabled');
+  clog('local dev enabled');
 function lpm_local_dev_redirect(imp){
   if (!local_dev_enable)
     return imp;
@@ -800,7 +801,7 @@ function lpm_local_dev_redirect(imp){
   for (let [from, to] of OE(local_dev_redirect_t)){
     if (v = path_starts(imp, from)){
       let _imp = to+v.rest;
-      console.log('local dev redirect', imp, '->', _imp);
+      clog('local dev redirect', imp, '->', _imp);
       return _imp;
     }
   }
@@ -835,7 +836,7 @@ function lpm_local_dev_redirect(imp){
 // - load npm/lif-os --> need to get to local/lif-os/
 // - check componenets in local/lif-of/package.json
 async function lpm_pkg_resolve({log, imp, lmod_self}){
-  D && console.log('lpm_pkg_resolve', imp, lmod_self);
+  D && clog('lpm_pkg_resolve', imp, lmod_self);
   assert_lmod(imp);
   let lpm_self;
   if (lmod_self){
@@ -871,7 +872,7 @@ async function lpm_pkg_resolve({log, imp, lmod_self}){
 }
 
 async function lpm_import_get({log, imp, lmod_self}){
-  D && console.log('lpm_import_get', imp, lmod_self);
+  D && clog('lpm_import_get', imp, lmod_self);
   let lpm_pkg = await lpm_pkg_resolve_follow({log, imp: lmod_self});
   if (lpm_pkg.not_exist)
     return lpm_pkg;
@@ -887,10 +888,10 @@ async function lpm_import_get({log, imp, lmod_self}){
   let ver = await lpm_ver_resolve({log, lfile: _imp});
   if (ver){
     if (ver.not_exist){
-      console.error('import('+lpm_pkg.lmod+') missing: '+imp);
+      cerror('import('+lpm_pkg.lmod+') missing: '+imp);
       return {not_exist: 'missing import'};
     }
-    D && console.log('lpm_import_get '+imp+' -> '+ver.redirect);
+    D && clog('lpm_import_get '+imp+' -> '+ver.redirect);
     _imp = ver.redirect;
   }
   // lpm_pkg_resolve() needed for connecting lmod_self<->imp in module list
@@ -901,7 +902,7 @@ async function lpm_import_get({log, imp, lmod_self}){
 }
 
 async function lpm_file_resolve({log, imp, alt}){
-  D && console.log('lpm_file_resolve', imp);
+  D && clog('lpm_file_resolve', imp);
   let path = T_lfile_parse(imp).path;
   let lpm_pkg = await lpm_pkg_resolve({log, imp: T_lfile_lmod(imp)});
   if (lpm_pkg.not_exist)
@@ -925,13 +926,13 @@ async function lpm_pkg_resolve_follow({log, imp}){
     }
     return lpm_pkg;
   } catch(err){
-    console.error(err);
+    cerror(err);
     throw err;
   }
 }
 
 async function lpm_file_resolve_follow({log, imp, alt}){
-  D && console.log('lpm_file_resolve_follow '+imp);
+  D && clog('lpm_file_resolve_follow '+imp);
   let res = {};
   for (let i=0; i<max_redirect; i++){
     let f = await lpm_file_resolve({log, imp, alt});
@@ -971,7 +972,7 @@ function response_send({body, ext, ctype, cache, final}){
   if (!ctype){
     let ct = ctype_get(ext);
     if (!ct){
-      D && Donce('ext '+ext, ()=>console.log('no ctype for '+ext));
+      D && Donce('ext '+ext, ()=>clog('no ctype for '+ext));
       ct = ctype_get('text');
     }
     ctype = ct.ctype;
@@ -1020,7 +1021,7 @@ async function cache_store_get(request){
   let response = await cs.cache.match(request);
   if (!response)
     return;
-  D && console.log('cache_store hit', request.url);
+  D && clog('cache_store hit', request.url);
   return response;
 }
 
@@ -1030,7 +1031,7 @@ async function cache_store_set(request, response){
     return;
   if (0 && !response.headers.get('etag'))
     return;
-  D && console.log('cache_store set', request.url);
+  D && clog('cache_store set', request.url);
   await storage_wait;
   await cs.cache.put(request, response.clone());
   return response;
@@ -1044,7 +1045,7 @@ function lpm_redirect({f, qs, lfile}){
       q.set(k, v);
   }
   let redirect = qs_append('/.lif/'+f.redirect, q);
-  D && console.log('lpm_redirect '+lfile+' -> '+f.redirect, qs+' -> '+q);
+  D && clog('lpm_redirect '+lfile+' -> '+f.redirect, qs+' -> '+q);
   return {redirect};
 }
 
@@ -1239,7 +1240,7 @@ async function meta_require({log, lfile_self, imp, lfiles, sent}){
     await meta_lfile({log, lfile: v.rest, lfiles, sent});
   } catch(err){
     // not sent: boot.js requests it, and gets the error
-    D && console.log('meta '+lfile_self+' require('+imp+'): '+err);
+    D && clog('meta '+lfile_self+' require('+imp+'): '+err);
   }
 }
 
@@ -1298,11 +1299,11 @@ async function send_res({err, not_exist, redirect, blob, body, ext, ctype,
 {
   body ||= blob;
   if (err && body==undefined){
-    console.error('req '+path+': '+err);
+    cerror('req '+path+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
   }
   if (not_exist){
-    console.error('not found: '+path);
+    cerror('not found: '+path);
     return new Response('not found', {status: 404, statusText: 'not found'});
   }
   let v;
@@ -1337,10 +1338,10 @@ async function fetch_pass(request, type){
   let url = request.url;
   let slow = eslow('fetch_pass');
   try {
-    D && console.log('fetch '+type+': '+url);
+    D && clog('fetch '+type+': '+url);
     return await fetch(request); // type=='external' ? {mode: 'no-cors'} : {}
   } catch(err){
-    console.log('failed ext fetch_pass '+type+' '+url+': '+err);
+    clog('failed ext fetch_pass '+type+' '+url+': '+err);
     return new Response(''+err, {status: 500, statusText: ''+err});
   } finally {
     slow.end();
@@ -1367,7 +1368,7 @@ function lif_kernel_modules(){
       add(res[pkg.id], pkg.child);
     }
   }
-  console.log(res);
+  clog(res);
   return res;
 }
 
@@ -1432,7 +1433,7 @@ async function _kernel_fetch(event){
     request.mode=='navigate';
   let is_doc = request_is_doc(request);
   let v;
-  D && console.log('sw '+log.mod);
+  D && clog('sw '+log.mod);
   // external and non GET requests
   g_stats.fetch.all++;
   if (external)
@@ -1452,7 +1453,7 @@ async function _kernel_fetch(event){
   if (str.is(request.cache, 'no-cache', 'reload') &&
     (request.mode=='navigate' || is_doc))
   { 
-    console.log('cache_refresh', request.cache, request.mode, 
+    clog('cache_refresh', request.cache, request.mode, 
       request.destination, url);
     cache_refresh();
   }
@@ -1474,7 +1475,7 @@ async function _kernel_fetch(event){
     }
     let res = await fetch_lpm_file({log, imp: lfile, qs});
     if (res.err)
-      console.error('req '+url+': '+res.err);
+      cerror('req '+url+': '+res.err);
     let response = await send_res({...res, path});
     if (res.cache)
       cache_store_set(request, response); // background: no need to await
@@ -1497,13 +1498,13 @@ async function _kernel_fetch(event){
   else if (_path = pkg_web_exports_lookup(lpm_pkg_app.pkg, '.'+path)){
     if (_path.startsWith('./')){
       _path = '/.lif/'+lpm_app+_path.slice(1);
-      D && console.log('redirect '+path+' -> '+_path);
+      D && clog('redirect '+path+' -> '+_path);
       return Response.redirect(_path);
     }
     let lfile = T_npm_to_lfile(_path);
     return Response.redirect('/.lif/'+lfile);
   }
-  D && console.log('req default', url);
+  D && clog('req default', url);
   let response = await fetch(request);
   let h = Object.fromEntries(response.headers.entries());
   coi_set_headers(h);
@@ -1522,7 +1523,7 @@ async function kernel_fetch(event){
     slow.end();
     return res;
   } catch(err){
-    console.error('kernel_fetch err '+url, err);
+    cerror('kernel_fetch err '+url, err);
     slow.end();
     return new Response(''+err, {status: 500, statusText: ''+err});
   }
@@ -1644,13 +1645,13 @@ async function webapp_load({log, webapp}){
   try {
     _lpm_pkg_app = await lpm_pkg_resolve_follow({log, imp: _lpm_app});
   } catch(err){
-    console.error('webapp_load  '+webapp, err);
+    cerror('webapp_load  '+webapp, err);
     return {err};
   } finally {
     slow.end();
   }
   if (_lpm_pkg_app.not_exist){
-    console.error('webapp_load not found: '+webapp);
+    cerror('webapp_load not found: '+webapp);
     return {err: 'app not found: '+_lpm_app};
   }
   lpm_app = _lpm_app;
@@ -1665,7 +1666,7 @@ async function webapp_load({log, webapp}){
   while (v=str.starts(webapp_f, './'))
     webapp_f = v.rest;
   let res = {ok: true, webapp: T_lfile_to_npm(_lpm_app+'/'+webapp_f)};
-  console.log('webapp_load complete: '+res.webapp);
+  clog('webapp_load complete: '+res.webapp);
   return res;
 }
 
@@ -1703,7 +1704,7 @@ async function app_pkg_save(boot_pkg){
     let db = await app_db_open();
     await db.put('app_pkg', boot_pkg, 'boot_pkg');
   } catch(err){
-    console.error('failed saving app_pkg', err);
+    cerror('failed saving app_pkg', err);
   }
 }
 
@@ -1712,7 +1713,7 @@ async function app_pkg_load(){
     let db = await app_db_open();
     return await db.get('app_pkg', 'boot_pkg');
   } catch(err){
-    console.error('failed loading app_pkg', err);
+    cerror('failed loading app_pkg', err);
   }
 }
 
@@ -1720,11 +1721,11 @@ async function app_restore(){
   let boot_pkg = await app_pkg_load();
   if (!boot_pkg)
     return;
-  console.log('restore app_pkg on sw start');
+  clog('restore app_pkg on sw start');
   try {
     await _do_app_pkg(boot_pkg);
   } catch(err){
-    console.error('failed restore app_pkg', err);
+    cerror('failed restore app_pkg', err);
   }
 }
 
@@ -1810,7 +1811,7 @@ export function boot(sw_boot){
   };
   sw_boot.on_fetch = event=>kernel_fetch(event);
   app_restore_wait = app_restore();
-  console.log('lif kernel inited: '+lif_kernel_base
+  clog('lif kernel inited: '+lif_kernel_base
     +' sw '+sw_boot.version+' util '+util.version);
 }
 

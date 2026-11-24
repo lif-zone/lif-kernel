@@ -30,11 +30,13 @@ let process = globalThis.process ||= {
   version: lif_version,
 };
 let is_worker = typeof window=='undefined';
+const clog = console.log.bind(console);
+const cerror = console.error.bind(console);
 
 async function fetch_text(url){
   let req = await fetch(url);
   if (req.status!=200){
-    console.error('failed fetch: '+url);
+    cerror('failed fetch: '+url);
     return;
   }
   let text = await req.text();
@@ -59,7 +61,7 @@ function fetch_sync_main(url, opt){
   assert(ipc.read, 'no ipc_sync setup');
   assert(ipc.write, 'no ipc_sync setup');
   if (boot_worker_fail){
-    console.error('fetch_sync ipc in fail state');
+    cerror('fetch_sync ipc in fail state');
     return {status: 500};
   }
   let header, body, state;
@@ -72,7 +74,7 @@ function fetch_sync_main(url, opt){
     body = ipc.read.read('string', url);
   } catch(err){
     boot_worker_fail = state;
-    console.error('fetch_sync_main('+url+') req err: '+err);
+    cerror('fetch_sync_main('+url+') req err: '+err);
     return {status: 500};
   }
   let res;
@@ -80,7 +82,7 @@ function fetch_sync_main(url, opt){
     res = JSON.parse(header);
   } catch(err){
     boot_worker_fail = 'json';
-    console.error('ipc bad json');
+    cerror('ipc bad json');
     return {status: 500};
   }
   if (!res.body)
@@ -106,9 +108,9 @@ async function boot_worker_sync_connect(){
   boot_worker.addEventListener("message", event=>{
     if (event.data.fetch_inited)
       return wait.return();
-    console.error('boot_worker unknown message', event.data, event);
+    cerror('boot_worker unknown message', event.data, event);
   });
-  D && console.log('master worker started');
+  D && clog('master worker started');
   // read and write are reveresed
   boot_worker.postMessage({fetch_init:
     {sab: {write: ipc.read.sab, read: ipc.write.sab}}});
@@ -184,7 +186,7 @@ function require_cjs_load_meta_sync(m){
     return do_ret('done');
   let lfile = v.rest;
   if (!(m.meta = meta_from_entry(meta_get_sync(lfile)))){
-    console.error('no mod meta: '+m.url);
+    cerror('no mod meta: '+m.url);
     return do_ret('err');
   }
   return do_ret('done');
@@ -207,7 +209,7 @@ function meta_add(text){
   try {
     res = JSON.parse(text);
   } catch(err){
-    console.error('meta invalid json', err);
+    cerror('meta invalid json', err);
     return;
   }
   for (let [lfile, e] of OE(res.lfiles||{}))
@@ -230,7 +232,7 @@ async function meta_get_async(lfile){
       let res = await fetch('/.lif/kernel/version');
       client_id = (await res.json()).client_id;
     } catch(err){
-      console.error('failed kernel client_id', err);
+      cerror('failed kernel client_id', err);
     }
     if (lfiles_t[lfile])
       return lfiles_t[lfile];
@@ -296,7 +298,7 @@ async function require_cjs_load_meta_async(m){
     return await _m.wait;
   _m.wait = ewait();
   if (!(m.meta = meta_from_entry(await meta_get_async(lfile)))){
-    console.error('no mod meta: '+m.url);
+    cerror('no mod meta: '+m.url);
     return do_ret('err');
   }
   return do_ret('done');
@@ -314,14 +316,14 @@ async function require_cjs_load_file_sync(m){
   if (req.status==200)
     m.script = f.text = req.text;
   if (req.status!=200){
-    console.error('no mod meta: '+url);
+    cerror('no mod meta: '+url);
     return do_ret('err');
   }
   try {
     if (m.is_json)
       m.json = f.json = JSON.parse(f.text);
   } catch(err){
-    console.error('invalid json module: '+url);
+    cerror('invalid json module: '+url);
     return do_ret('err');
   }
   return do_ret('done');
@@ -343,7 +345,7 @@ async function require_cjs_load_file_async(m){
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
-    console.error('no mod meta: '+url);
+    cerror('no mod meta: '+url);
     return do_ret('err');
   }
   try {
@@ -381,10 +383,10 @@ function require_cjs_cond_static(req, text){
     let f = _f = new Function('return '+_else+'('+cond+');');
     _static = f();
   } catch(err){
-    console.error('require cjs cond'+_else+'('+cond+'): '+err);
+    cerror('require cjs cond'+_else+'('+cond+'): '+err);
     return false;
   }
-  D && console.log('require cjs cond'+_else+'('+cond+'): '+_static);
+  D && clog('require cjs cond'+_else+'('+cond+'): '+_static);
   return _static;
 }
 
@@ -422,7 +424,7 @@ function define_amd_run(m){
       m.exports = m.define.factory(...m.load_requires);
   } catch(err){
     m.run = 'err';
-    console.error('define('+m.url+') failed eval', err);
+    cerror('define('+m.url+') failed eval', err);
     return m.run;
   }
   m.loaded = true;
@@ -467,7 +469,7 @@ function require_cjs_run(m){
     eval?.(js); // script return value is ignored
   } catch(err){
     m.run = 'err';
-    console.error('require('+m.url+') failed eval', err);
+    cerror('require('+m.url+') failed eval', err);
     return m.run;
   }
   m.loaded = true;
@@ -494,7 +496,7 @@ function mod_add(_m){
 
 function require_cjs_load_follow_sync({uri_self, imp}){
   let url = npm_imp_uri(uri_self, imp);
-  D>=2 && console.log('sync load', uri_self, imp);
+  D>=2 && clog('sync load', uri_self, imp);
   uri_self ||= '';
   let m;
   if (!(m=mod_t[url]))
@@ -504,7 +506,7 @@ function require_cjs_load_follow_sync({uri_self, imp}){
   if (m.run || m.load_requires || m.loading)
     return m;
   m.loading = 1;
-  D && console.log('sync load', uri_self, url);
+  D && clog('sync load', uri_self, url);
   require_cjs_load_meta_sync(m);
   if (m._meta.res!='done')
     return m;
@@ -637,18 +639,18 @@ function import_amd_run_define(m, loading){
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
-    console.error('import('+m.url+') failed eval', err, err?.stack);
+    cerror('import('+m.url+') failed eval', err, err?.stack);
     throw err;
   } finally {
     eval_completed = true;
   }
   if (!m.define.reqs)
-    console.log('AMD module '+m.url+' did not call define()');
+    clog('AMD module '+m.url+' did not call define()');
 }
 
 async function require_cjs_load_follow_async({uri_self, imp, loading}){
   let url = npm_imp_uri(uri_self, imp);
-  D>=2 && console.log('async load check ', uri_self, imp);
+  D>=2 && clog('async load check ', uri_self, imp);
   uri_self ||= '';
   let m;
   if (!(m=mod_t[url]))
@@ -661,7 +663,7 @@ async function require_cjs_load_follow_async({uri_self, imp, loading}){
   if (loading.includes(m))
     return m;
   loading.push(m);
-  D && console.log('async load', uri_self, imp);
+  D && clog('async load', uri_self, imp);
   await require_cjs_load_meta_async(m);
   if (m._meta.res!='done')
     return m;
@@ -702,16 +704,16 @@ async function require_cjs_load_async({m, loading}){
 
 function require_cjs_sync(uri_self, imp){
   let url = npm_imp_uri(uri_self, imp);
-  D && console.log('require_cjs_sync '+(uri_self||'')+' -> '+imp);
+  D && clog('require_cjs_sync '+(uri_self||'')+' -> '+imp);
   if (!mod_t[url])
-    console.log('dynamic sync require('+imp+') in '+uri_self);
+    clog('dynamic sync require('+imp+') in '+uri_self);
   let m = require_cjs_load_follow_sync({uri_self, imp});
   require_cjs_run(m);
   return m.exports;
 }
 
 async function require_cjs_async(uri_self, imp){
-  D && console.log('require_cjs_async '+(uri_self||'')+' -> '+imp);
+  D && clog('require_cjs_async '+(uri_self||'')+' -> '+imp);
   let m = await require_cjs_load_follow_async({uri_self, imp, loading: []});
   require_cjs_run(m);
   return m.exports;
@@ -736,7 +738,7 @@ function define_amd_get_mod(url){
 }
 
 async function import_amd(uri_self, [imp, opt]){
-  D && console.log('import_amd', imp, uri_self);
+  D && clog('import_amd', imp, uri_self);
   let url = npm_imp_uri(uri_self, imp);
   let m;
   if (m = mod_t[url])
@@ -748,7 +750,7 @@ async function import_amd(uri_self, [imp, opt]){
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
   } catch(err){
-    console.error('import('+url+') failed', err);
+    cerror('import('+url+') failed', err);
     throw m.wait.throw(err);
   }
   m.wait = ewait();
@@ -773,14 +775,14 @@ async function import_module_script({uri_self, imp}){
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
   } catch(err){
-    console.error('import('+url+') failed', err);
+    cerror('import('+url+') failed', err);
     throw m.wait.throw(err);
   }
   let js = `(function(){ ${m.script}\n}());\n//# sourceURL=${url}\n`;
   try {
     eval?.(js); // script return value is ignored
   } catch(err){
-    console.error('import('+url+') failed eval', err, err?.stack);
+    cerror('import('+url+') failed eval', err, err?.stack);
     throw m.wait.throw(err);
   }
   await m.wait;
@@ -818,7 +820,7 @@ async function import_esm(uri_self, [imp, opt={}]){
   let slow;
   try {
     slow = eslow(15000, 'import_esm('+url+')');
-    D && console.log('boot.js: import '+url);
+    D && clog('boot.js: import '+url);
     let ret;
     if (is_worker && opt?.type=='script')
       ret = await import_worker({uri_self, imp, opt});
@@ -829,7 +831,7 @@ async function import_esm(uri_self, [imp, opt={}]){
     }
     return ret;
   } catch(err){
-    console.error('import_esm('+url+' '+uri_self+')', err);
+    cerror('import_esm('+url+' '+uri_self+')', err);
     throw err;
   } finally {
     slow.end();
@@ -870,7 +872,7 @@ function init_worker(){
   if (init_worker.inited)
     return;
   init_worker.inited = true;
-  console.log('lif init_worker '+location+' '+(globalThis.name||''));
+  clog('lif init_worker '+location+' '+(globalThis.name||''));
   globalThis.orig_importScripts = globalThis.importScripts;
   globalThis.importScripts = new_importScripts;
 }
@@ -878,25 +880,25 @@ function init_worker(){
 let lif_kernel_base = import.meta.resolve('./x').slice(0, -2);
 async function boot_kernel(){
   if (boot_kernel.wait){
-    console.log('lif boot: waiting to complete');
+    clog('lif boot: waiting to complete');
     return await boot_kernel.wait;
   }
-  console.log('lif boot version: '+lif_version+' util '+util_version
+  clog('lif boot version: '+lif_version+' util '+util_version
     +' from '+lif_kernel_base);
   let wait = boot_kernel.wait = ewait();
   try {
     let serviceWorker = navigator.serviceWorker;
     const conn_kernel = async()=>{
-      console.log('conn kernel');
+      clog('conn kernel');
       if (kernel_chan){
-        console.log('conn closing');
+        clog('conn closing');
         kernel_chan.close();
         kernel_chan = null;
       }
       kernel_chan = null;
       let controller = serviceWorker.controller;
       if (!controller){
-        console.log('no sw controllier - reloading');
+        clog('no sw controllier - reloading');
         window.location.reload();
         return;
       }
@@ -904,17 +906,17 @@ async function boot_kernel(){
       kernel_chan.connect(controller);
       kernel_chan.method('version', ()=>({version: lif_version}));
       let slow = eslow('conn_kernel chan');
-      D && console.log('conn_kernel chan start');
-      console.log('lif kernel sw version: '+
+      D && clog('conn_kernel chan start');
+      clog('lif kernel sw version: '+
         (await kernel_chan.call('version')).version);
       slow.end();
       if (0 && performance.getEntriesByType('navigation')[0].type=='reload'){
-        console.log('page reload - clear kernel cache');
+        clog('page reload - clear kernel cache');
         await kernel_chan.call('reload');
       }
       slow = eslow('boot_worker chan');
       let res = await boot_worker_sync_connect();
-      D && console.log('conn_kernel chan end');
+      D && clog('conn_kernel chan end');
       slow.end();
       wait.return();
     };
@@ -935,15 +937,15 @@ async function boot_kernel(){
         newWorker.addEventListener('statechange', ()=>{
           // New service worker is ready
           if (newWorker.state=='installed')
-            console.log('new worker ready');
+            clog('new worker ready');
         });
       });
     }
     registration.addEventListener('updatefound', ()=>{
-      console.log('sw updatefound', event);
+      clog('sw updatefound', event);
     });
     serviceWorker.addEventListener('statechange', ()=>{
-      console.log('sw statechange', event);
+      clog('sw statechange', event);
     });
     slow = eslow(1000, 'sw register ready'); // this is where it gets normally stuck
     const sw = await serviceWorker.ready;
@@ -958,7 +960,7 @@ async function boot_kernel(){
     slow.end();
     return await wait;
   } catch(err){
-    console.error('ServiceWorker registration failed', err, err.stack);
+    cerror('ServiceWorker registration failed', err, err.stack);
     throw wait.throw(err);
   }
 }
@@ -976,11 +978,11 @@ function run_html_text(html){
 }
 
 async function run_html(webapp){
-  console.log('run_html start '+webapp);
+  clog('run_html start '+webapp);
   let url = '/.lif/'+T_npm_to_lfile(webapp);
   let html = await T_fetch_text(url);
   run_html_text(html);
-  console.log('run_html complete');
+  clog('run_html complete');
 }
 
 async function boot_app(boot_pkg){
@@ -992,7 +994,7 @@ async function boot_app(boot_pkg){
   let webapp = pkg.lif?.webapp||pkg.webapp;
   if (webapp)
     webapp = npm_norm(webapp);
-  console.log('boot: webapp '+webapp);
+  clog('boot: webapp '+webapp);
   npm_root = webapp;
   let slow = eslow('app_pkg');
   let res = await kernel_chan.call('app_pkg', pkg);
@@ -1000,7 +1002,7 @@ async function boot_app(boot_pkg){
   if (!webapp)
     return;
   if (res.webapp && res.webapp!=webapp){
-    console.log('resolved: '+webapp+' -> '+res.webapp);
+    clog('resolved: '+webapp+' -> '+res.webapp);
     webapp = res.webapp;
   }
   // load app
@@ -1017,10 +1019,10 @@ async function boot_app(boot_pkg){
     else
       throw Error('no app type found: '+webapp);
   } catch(err){
-    console.error('boot: app('+webapp+') failed: '+err);
+    cerror('boot: app('+webapp+') failed: '+err);
     throw err;
   }
-  console.log('boot: boot complete: '+webapp);
+  clog('boot: boot complete: '+webapp);
   return ret;
 }
 
@@ -1033,7 +1035,7 @@ function mainthread_setup(){
   }
   class lif_Worker extends Worker {
     constructor(url, opt){
-      console.log('Worker start', url);
+      clog('Worker start', url);
       let _url = imp_url(url, opt);
       let worker = super(_url, ...[...arguments].slice(1));
     }
@@ -1042,7 +1044,7 @@ function mainthread_setup(){
   globalThis.Worker = lif_Worker;
   class lif_SharedWorker extends SharedWorker {
     constructor(url, opt){
-      console.log('SharedWorker start', url);
+      clog('SharedWorker start', url);
       let _url = imp_url(url, opt);
       let worker = super(_url, ...[...arguments].slice(1));
     }
