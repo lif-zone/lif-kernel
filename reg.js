@@ -265,6 +265,17 @@ let reg_cdn = {
           // https://data.jsdelivr.com/v1/packages/gh/lif-zone/lif-coin@de93ceccfe56b8e8631bef8f85f2f252e4d2bf0f
           url: u=> `https://data.jsdelivr.com/v1/packages/gh/${u.name}${u.ver}`,
           get_data: data=>filelist_jsdelivr(data.files||[], '/', {}),
+          // answers 403 for a repository of more than 50MB
+        },
+        {
+          name: 'api.github.com',
+          // the whole repository in one answer: tree[i].path, .type
+          // (blob/tree/commit), .sha (git hash), .size. truncated: true
+          // above 100,000 entries. 60 requests per hour without a login
+          // https://api.github.com/repos/lif-zone/lif-os/git/trees/76aaf454f4fde9b27e584be96cda153302b2a2a4?recursive=1
+          url: u=>`https://api.github.com/repos/${u.name}/git/trees/${u.ver.slice(1)}?recursive=1`,
+          // a list that was cut is not a filelist
+          get_data: data=>!data.truncated && filelist_git(data.tree, 'sha'),
         },
       ],
     },
@@ -298,7 +309,7 @@ let reg_cdn = {
         // one directory:
         // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab-runner/repository/tree?ref=main&path=docs
         url: u=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(u.name)}/repository/tree?ref=${u.ver.slice(1)}&recursive=true&per_page=100&page=${u.page}`,
-        get_data: data=>filelist_gitlab(data),
+        get_data: data=>filelist_git(data, 'id'),
         // the answer is in pages: is there a page after this one
         page_next: data=>data.length==100,
         // a larger repository: no filelist
@@ -471,7 +482,9 @@ function filelist_unpkg(files){
   }
   return dirs;
 }
-function filelist_gitlab(files){
+// a list of a git source: [{path, type: 'blob'|'tree'|'commit', size}], and
+// the git hash in the field of name id
+function filelist_git(files, id){
   let dirs = {'/': {}};
   for (let f of files){
     let parts = f.path.split('/'), dir = '/';
@@ -481,12 +494,16 @@ function filelist_gitlab(files){
       dirs[dir] ||= {};
     }
     let name = parts.at(-1);
+    let hash = {[f[id]?.length==64 ? 'git_sha256' : 'git_sha1']: f[id]};
     if (f.type=='tree'){
-      dirs[dir][name] = {type: 'dir', git_sha1: f.id};
+      dirs[dir][name] = {type: 'dir', ...hash};
       dirs[dir+name+'/'] ||= {};
     }
     else if (f.type=='blob')
-      dirs[dir][name] = {type: 'file', git_sha1: f.id};
+      dirs[dir][name] = {type: 'file', size: f.size, ...hash};
+    // 'commit': a submodule. a dir that is not listed: not known
+    else
+      dirs[dir][name] = {type: 'dir'};
   }
   return dirs;
 }
@@ -564,7 +581,10 @@ async function reg_filelist_get({log, lfile, opt}){
       return do_ret('parse err');
     }
     // XXX handle invalid data (get_data throws)
-    for (let [dir, d] of OE(src.get_data(body)))
+    let data = src.get_data(body);
+    if (!data)
+      return do_ret('no data');
+    for (let [dir, d] of OE(data))
       dirs[dir] = {...dirs[dir], ...d};
     if (!src.page_next?.(body))
       break;

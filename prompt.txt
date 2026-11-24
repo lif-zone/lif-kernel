@@ -990,3 +990,19 @@ of lif-wallet: 10-13 s with the committed code, the fixed code, validation
 off, hash table off (no difference seen). BlueWallet cold load, one pair:
 63.6 s committed, 60.4 s fixed.
 ---
+USER:
+[lif-os has no filelist: jsdelivr refuses a repository of more than 50MB]
+first implement the github.com src_files
+
+CLAUDE:
+reg.js: reg_cdn.git['github.com'].src_files: second source api.github.com,
+the tree API with recursive=1 (the whole repository in one answer; a list
+that is truncated is not used). filelist_git(files, id) replaces
+filelist_gitlab(): one parser for gitlab.com (id) and api.github.com (sha);
+keeps size, a 64 characters id goes to git_sha256, a submodule is a dir that
+is not listed. reg_filelist_get(): get_data that returns no data -> the
+filelist is unknown.
+Tested (port 4211) on lif-os@<commit>: jsdelivr 403, then the tree of
+api.github.com; existing files 200, files that do not exist 404 with no
+request to a cdn.
+---
