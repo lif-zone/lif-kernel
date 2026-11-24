@@ -781,15 +781,18 @@ export async function reg_get({log, lfile, opt}){
     else
       ret = undefined;
   }
-  src = src.toSorted((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
-  for (let [i, _src] of OE(src)){
-    if (_src.fail && _src.fail.tm+3000>Date.now())
-      continue;
+  let now = Date.now();
+  src = src.toSorted((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0)).filter(_src=>{
+    if (_src.fail && _src.fail.tm+3000>now)
+      return;
     if (_src.must_exist && !opt?.must_exist)
-      continue;
+      return;
+    if (!_src.url)
+      return;
+    return true;
+  });
+  for (let [i, _src] of OE(src)){
     let url_fn = _src.url;
-    if (!url_fn)
-      continue;
     let url = url_fn(u);
     reg.url = url;
     reg.src_ver = _src;
