@@ -564,7 +564,8 @@ async function lpm_file_get_alt({log, lfile, alt}){
   let first;
   alt = ['', ...(alt||[])];
   for (let a of alt){
-    let f = await lpm_file_get({log, lfile: path_append(lfile, a)});
+    let f = await lpm_file_get({log, lfile: path_append(lfile, a),
+      opt: {must_exist: false}});
     first ||= f;
     f = {...f};
     f.alt = a;
@@ -717,7 +718,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
 {
   D && console.log('lpm_pkg_get', lmod, lmod_self);
   lpm_pkg.lmod = lmod;
-  assert_lmod(lmod);
+  let u = T_lmod_parse(lmod);
   let lpm_self;
   if (lmod_self){
     assert_lmod(lmod_self);
@@ -745,9 +746,9 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   }
   // fetch pkg
   let pkg_json = lmod+'/package.json';
-  let f = await lpm_file_get({log, lfile: pkg_json});
+  let f = await lpm_file_get({log, lfile: pkg_json,
+    opt: {must_exist: !u.submod}});
   if (f.not_exist){
-    let u = T_lmod_parse(lmod);
     if (u.reg!='git' || u.submod || u.ver_type!='final' ||
       !allow_no_package_json)
     {

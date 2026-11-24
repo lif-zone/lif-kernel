@@ -114,12 +114,17 @@ export function gh_ver(u){
 function _gh_ver(u){
   let ver = gh_ver(u);
   let _ver = ver.replace(/^@/, '');
-  if (!ver)
+  if (!_ver)
     return 'latest';
-  return ver;
+  return _ver;
 }
 let reg_cdn = {
   npm: {
+    src_ping: {
+      lfile: 'npm/react@18.3.1/index.js',
+      len: 190,
+      url: 'https://unpkg.com/react@18.3.1/index.js',
+    },
     src: [
       {
         name: 'jsdeliver.net',
@@ -137,6 +142,7 @@ let reg_cdn = {
         name: 'statically.io',
         // https://cdn.statically.io/npm/react@18.3.1/package.json
         url: u=>`https://cdn.statically.io/npm/${u.name}${u.ver}${u.submod_path}`,
+        must_exist: true,
       },
     ],
     src_ver: [
@@ -176,14 +182,27 @@ let reg_cdn = {
   },
   git: {
     'github.com': {
+      src_ping: {
+        lfile: 'git/github.com/react/react@d9c1dbd61772f8f8ab0cdf389e70463d704c480b/packages/react/npm/index.js',
+        lfile_ver: 'git/github.com/react/react@v18.3.1/packages/react/npm/index.js',
+        len: 190,
+        url: 'https://raw.githubusercontent.com/react/react/refs/tags/v18.3.1/packages/react/npm/index.js',
+        url_ver: 'https://raw.githubusercontent.com/react/react/d9c1dbd61772f8f8ab0cdf389e70463d704c480b/packages/react/npm/index.js',
+      },
       src: [
         {
           name: 'jsdeliver.net',
           url: u=>`https://cdn.jsdelivr.net/gh/${u.name}${gh_ver(u)}${u.submod_path}`
+          // returns 403 on rate limit
         },
         {
           name: 'statically.io',
           url: u=>`https://cdn.statically.io/gh/${u.name}${gh_ver(u)}${u.submod_path}`,
+          // returns 403 on rate limit, but without CORS
+          // answers 403 404 without cors, causes fetch() throw, so you cannot
+          // know if not_exist or forbidden (rate limit).
+          // therefore can only be used as 'positive' cdn when filelist
+          must_exist: true, // should only be used on files that exist
         },
         {
           name: 'raw.githubusercontent.com',
@@ -468,9 +487,11 @@ export async function reg_get({log, lfile, opt}){
     }
   }
   let ret;
-  src.sort((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
+  src = src.toSorted((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
   for (let [i, _src] of OE(src)){
     if (_src.fail && _src.fail.tm+3000>Date.now())
+      continue;
+    if (_src.must_exist && !opt?.must_exist)
       continue;
     let url_fn = _src.url;
     if (!url_fn)
@@ -487,7 +508,7 @@ export async function reg_get({log, lfile, opt}){
     }
     assert(ret.fail_cdn);
     console.warn('cdn failed '+_src.name+'. '+
-      'switching cdn '+(src[i+1]?.name || 'all cdns failed'));
+      'switching cdn '+(src[+i+1]?.name || 'all cdns failed'));
     _src.fail = {url, err: ret.err, tm: Date.now()};
   }
   if (!(reg.blob = ret?.blob)){
