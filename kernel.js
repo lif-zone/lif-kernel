@@ -63,7 +63,7 @@ let idb_api = {
   },
 };
 
-let cache_ver = 31;
+let cache_ver = 32;
 let storage_bucket;
 // set by db_delete() (cache clear): the storage is being deleted and opened
 // again. storage users wait for it
