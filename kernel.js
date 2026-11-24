@@ -21,6 +21,7 @@ const {lfile_ver_from_base, lfile_to_sw_passthrough, lpm_in_test,
   pkg_transform_type, npm_ver_lookup, patch_json, lfile_is_perm, imp_uri,
 } = await import('./lpm.js');
 const {reg_cache_enable, gh_ver, reg_get, reg_http_get, reg_file_t,
+  reg_db_init,
 } = await import('./reg.js');
 const {tr_tsx_to_js, tr_js_to_meta} = await import('./ast.js');
 const {qw} = str;
@@ -63,7 +64,7 @@ let idb_api = {
   },
 };
 
-let cache_ver = 32;
+let cache_ver = 33;
 let storage_bucket;
 // set by db_delete() (cache clear): the storage is being deleted and opened
 // again. storage users wait for it
@@ -112,6 +113,10 @@ async function _db_open(){
       db_upgrade(db, 'tsx_to_js', {keyPath: ['h_tsx'], ...opt});
       db_upgrade(db, 'lpm_file', {keyPath: ['lfile'], ...opt});
       db_upgrade(db, 'lpm_ver', {keyPath: ['lmod'], ...opt});
+      // the hash table of reg.js
+      db_upgrade(db, 'reg_hash', {keyPath: ['sha256'], ...opt});
+      db_upgrade(db, 'reg_git_sha1', {keyPath: ['git_sha1'], ...opt});
+      db_upgrade(db, 'reg_git_sha256', {keyPath: ['git_sha256'], ...opt});
     }
   });
 }
@@ -207,6 +212,8 @@ async function cache_set(table, v, k){
   let db = await db_open();
   await db.put(table, {...v, cache_tm: Date.now()}, k);
 }
+
+reg_db_init({get: cache_get, set: cache_set});
 
 let cache_opt = {refresh_tm: Date.now()};
 function cache_refresh(){
@@ -561,8 +568,9 @@ async function lpm_file_get({log, lfile, opt={}}){
   if (opt.ctype)
     lpm_file.ctype = reg.ctype;
   if (is_c){
-    const buf = await lpm_file.blob.arrayBuffer();
-    let h_body = sha256_hex(buf);
+    // reg.js gives the sha256 of the content of a perm lfile
+    let h_body = reg.sha256 ||
+      sha256_hex(await lpm_file.blob.arrayBuffer());
     cache_set('lpm_file', {lfile, blob: lpm_file.blob,
       h_body, url: lpm_file.url});
   }

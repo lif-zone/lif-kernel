@@ -40,6 +40,7 @@
     "lif-kernel": "bin/lif-kernel.js"
   },
   "files": [
+    "sha1.js",
     "sha256.js",
     "sha256lif.js",
     "util/etask.js",
@@ -108,6 +109,7 @@
     "./lpm.js": "./lpm.js",
     "./ast.js": "./ast.js",
     "./etask": "./util/etask.js",
+    "./sha1": "./sha1.js",
     "./sha256": "./sha256.js",
     "./sha256lif": "./sha256lif.js",
     "./web/server_lib.js": "./web/server_lib.js",

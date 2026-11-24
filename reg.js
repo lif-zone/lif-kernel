@@ -3,7 +3,10 @@ let reg_version = '2026.10.19';
 export const version = reg_version;
 let D = 0; // Debug
 
-const {str, assert, OE, ecache, eslow, ewait} = await import('./util.js');
+const {str, assert, OE, ecache, eslow, ewait, str_to_buf,
+  } = await import('./util.js');
+const sha256 = await import('./sha256.js');
+const sha1 = await import('./sha1.js');
 const {T_lfile_parse, lfile_ver_missing, lfile_is_perm
   } = await import('./lpm.js');
 const clog = console.log.bind(console);
@@ -427,18 +430,20 @@ export async function reg_http_get({log, url, perm}){
   return {blob, ctype};
 }
 let reg_filelist_t = {};
-// filelist of a package: {dir: {name: {type: 'file'|'dir', size, hash}}}
-// dir: '/', '/cjs/'. hash: sha256 of the file, in base64.
+// filelist of a package: {dir: {name: {type: 'file'|'dir', size, sha256,
+// git_sha1}}}. dir: '/', '/cjs/'. The hashes: those the source gives.
+// sha256: of the content of the file, in hex.
 // A source may list all the directories at once (npm), or not (git, in the
 // future): a directory that was not listed yet is not in the table.
-// hash_git: the git hash of a file or a directory (a source of git).
+// git_sha1: the id of the file or directory in git, in hex (for a file:
+// see hash_git_sha1()).
 // get_data of a src_files source: its answer (a page of it, for a source
 // that answers in pages) -> filelist
 function filelist_jsdelivr(files, dir, dirs){
   let d = dirs[dir] = {};
   for (let f of files){
     if (f.type=='file')
-      d[f.name] = {type: 'file', size: f.size, hash: f.hash};
+      d[f.name] = {type: 'file', size: f.size, sha256: base64_hex(f.hash)};
     else if (f.type=='directory'){
       d[f.name] = {type: 'dir'};
       filelist_jsdelivr(f.files||[], dir+f.name+'/', dirs);
@@ -456,7 +461,7 @@ function filelist_unpkg(files){
       dirs[dir] ||= {};
     }
     dirs[dir][parts.at(-1)] = {type: 'file', size: f.size,
-      hash: str.starts(f.integrity||'', 'sha256-')?.rest};
+      sha256: base64_hex(str.starts(f.integrity||'', 'sha256-')?.rest)};
   }
   return dirs;
 }
@@ -471,16 +476,24 @@ function filelist_gitlab(files){
     }
     let name = parts.at(-1);
     if (f.type=='tree'){
-      dirs[dir][name] = {type: 'dir', hash_git: f.id};
+      dirs[dir][name] = {type: 'dir', git_sha1: f.id};
       dirs[dir+name+'/'] ||= {};
     }
     else if (f.type=='blob')
-      dirs[dir][name] = {type: 'file', hash_git: f.id};
+      dirs[dir][name] = {type: 'file', git_sha1: f.id};
   }
   return dirs;
 }
-// true: path is a file. false: it does not exist (for sure: not in the
-// list). undefined: not known (its directory was not listed)
+function base64_hex(v){
+  if (!v)
+    return;
+  let hex = '';
+  for (let c of atob(v))
+    hex += c.charCodeAt(0).toString(16).padStart(2, '0');
+  return hex;
+}
+// the entry of the file of path. false: it does not exist (for sure: not in
+// the list). undefined: not known (its directory was not listed)
 function filelist_lookup(dirs, path){
   let parts = path.split('/').slice(1), dir = '/';
   for (let i=0; i<parts.length; i++){
@@ -489,7 +502,7 @@ function filelist_lookup(dirs, path){
       return;
     let e = d[parts[i]];
     if (i==parts.length-1)
-      return e?.type=='file';
+      return e?.type=='file' ? e : false;
     if (e?.type!='dir')
       return false;
     dir += parts[i]+'/';
@@ -555,7 +568,8 @@ async function reg_filelist_get({log, lfile, opt}){
   t.dirs = dirs;
   return do_ret();
 }
-// true: exists. false: does not exist, for sure. undefined: not known
+// the entry of the lfile in the filelist: exists. false: does not exist,
+// for sure. undefined: not known
 async function reg_filelist_has({log, lfile, opt}){
   if (!enable_filelist)
     return;
@@ -565,6 +579,94 @@ async function reg_filelist_has({log, lfile, opt}){
     return;
   // the list is of the whole package: the path includes the submod
   return filelist_lookup(t.dirs, u.submod.replace(/\/$/, '')+u.path);
+}
+
+// The hash table: the content that was already fetched, by its hash.
+// A new version of a package has mostly the files of the version before it:
+// the filelist gives the hash of a file, and a file of that hash that was
+// fetched (under another lfile) is taken from the url it was fetched from,
+// which the browser has in its http cache (best effort: if it does not, the
+// url is fetched again).
+// sha256 (of the content, hex) is the canonical hash. The tables:
+//   reg_hash: sha256 -> {sha256, git_sha1, git_sha256, url, lfile}
+//   reg_git_sha1: git_sha1 -> {git_sha1, sha256}
+//   reg_git_sha256: git_sha256 -> {git_sha256, sha256} (no source gives it)
+// They are tables of the db of the kernel, which hands its access:
+// reg_db_init({get(table, key), set(table, val)})
+let reg_db;
+export function reg_db_init(db){
+  reg_db = db;
+}
+// development: true. the hashes that the filelist gives of the content of
+// a perm lfile (sha256, git_sha1) are computed from the fetched content and
+// compared.
+// false: a hash of the filelist is trusted.
+// sha256 is computed in any case when the filelist does not give it (no
+// filelist, or a filelist of git_sha1): its the canonical hash
+let enable_hash_validation = true;
+const hash_git_kinds = ['git_sha1', 'git_sha256'];
+
+function hash_sha256(buf){
+  return sha256.digest(new sha256.Buffer(buf)).toHex();
+}
+// the id of a file in git: git hashes the object it stores, which is the
+// content after a header: 'blob <length>\0'
+function hash_git_sha1(buf){
+  let head = new sha1.Buffer(str_to_buf('blob '+buf.byteLength+'\0'));
+  return sha1.multi(head, new sha1.Buffer(buf)).toHex();
+}
+
+// the row of the content of a file of the filelist (e: its entry)
+async function reg_hash_get(e){
+  if (!reg_db)
+    return;
+  try {
+    let sha256 = e.sha256;
+    for (let kind of hash_git_kinds){
+      if (!sha256 && e[kind])
+        sha256 = (await reg_db.get('reg_'+kind, [e[kind]]))?.sha256;
+    }
+    if (sha256)
+      return await reg_db.get('reg_hash', [sha256]);
+  } catch(err){
+    cerror('reg_hash_get', err);
+  }
+}
+
+// content was fetched (reg.blob, from reg.url): sets reg.sha256, and adds
+// the content to the hash table. e: the entry of the file in the filelist,
+// if known
+async function reg_hash_set(reg, e){
+  let h = {sha256: e?.sha256, git_sha1: e?.git_sha1,
+    git_sha256: e?.git_sha256};
+  let valid = true;
+  if (enable_hash_validation || !h.sha256){
+    let buf = await reg.blob.arrayBuffer();
+    let calc = {sha256: hash_sha256(buf)};
+    if (enable_hash_validation && h.git_sha1)
+      calc.git_sha1 = hash_git_sha1(buf);
+    for (let [kind, v] of OE(calc)){
+      if (h[kind] && h[kind]!=v){
+        valid = false;
+        cerror('reg hash mismatch '+kind+' '+reg.lfile+' '+reg.url+
+          ': filelist '+h[kind]+' content '+v);
+      }
+      h[kind] = v;
+    }
+  }
+  reg.sha256 = h.sha256;
+  // content that is not as listed: not for other lfiles
+  if (!reg_db || !valid)
+    return;
+  try {
+    for (let kind of hash_git_kinds){
+      if (h[kind])
+        await reg_db.set('reg_'+kind, {[kind]: h[kind], sha256: h.sha256});
+    }
+    await reg_db.set('reg_hash', {...h, url: reg.url, lfile: reg.lfile});
+  } catch(err){
+    cerror('reg_hash_set', err);
+  }
 }
 
 export async function reg_git_get({log, lfile}){ assert(0); }
@@ -586,7 +688,7 @@ export async function reg_get({log, lfile, opt}){
   return await ecache({table: reg_file_t, id: lfile, opt},
     async function run(reg)
 {
-  let wait, u, get_ver, get_files;
+  let wait, u, get_ver, get_files, fl;
   reg.lfile = lfile;
   reg.log = log;
   u = reg.u = T_lfile_parse(reg.lfile);
@@ -620,8 +722,8 @@ export async function reg_get({log, lfile, opt}){
     // check filelist to avoid unnecessary fetches for alt searches.
     // only a perm lfile has a filelist that is final
     if (perm && reg.cdn.src_files){
-      let fl = await reg_filelist_has({log, lfile, opt});
-      if (fl==false){
+      fl = await reg_filelist_has({log, lfile, opt});
+      if (fl===false){
         // not in the filelist: does not exist, for sure and forever
         reg.not_exist = reg.not_exist_perm = true;
         return reg;
@@ -629,6 +731,21 @@ export async function reg_get({log, lfile, opt}){
     }
   }
   let ret;
+  // the content of a perm lfile is hashed, and kept in the hash table
+  let is_content = perm && !get_ver && !get_files;
+  // a file of this hash was already fetched, under another lfile: from the
+  // url it was fetched from
+  let h = is_content && fl && await reg_hash_get(fl);
+  if (h){
+    ret = await reg_http_get({log, url: h.url, perm});
+    if (ret.blob){
+      reg.url = h.url;
+      reg.hash_lfile = h.lfile;
+      src = [];
+    }
+    else
+      ret = undefined;
+  }
   src = src.toSorted((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0));
   for (let [i, _src] of OE(src)){
     if (_src.fail && _src.fail.tm+3000>Date.now())
@@ -659,6 +776,8 @@ export async function reg_get({log, lfile, opt}){
   }
   if (opt?.ctype)
     reg.ctype = ret.ctype;
+  if (is_content)
+    await reg_hash_set(reg, fl);
   D && clog('fetch OK '+lfile);
   return reg;
 }); }

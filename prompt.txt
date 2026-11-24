@@ -922,3 +922,49 @@ Tested (phone emulation 412x915, page with no viewport meta): layout width
 981 -> loader 57px (=24px seen); after a viewport meta is added: 18px. A
 desktop window: 24px as before.
 ---
+USER:
+[every new npm version / git commit downloads all files, though most did
+not change. reg.js remembers the hashes of the content it fetched: sha256 is
+the canonical hash; columns sha256, git_sha1, git_sha256, url; best effort,
+the content stays in the http cache of the browser; enable_hash_validation,
+default false, true during development; add sha1.js in the coding of
+sha256.js] yes - implement it
+
+CLAUDE:
+sha1.js: new, SHA1 in the form of sha256.js.
+reg.js:
+- filelist entries hold sha256 (hex) and git_sha1 (were hash, hash_git).
+- hash table, in the db of the kernel (reg_db_init({get, set})): reg_hash
+  (sha256 -> sha256, git_sha1, git_sha256, url, lfile), reg_git_sha1 and
+  reg_git_sha256 (-> sha256). Separate tables per hash kind: the db api of
+  the kernel is get/put by key.
+- reg_get() of the content of a perm lfile: the hash of its filelist entry is
+  looked up (reg_hash_get); found: the url of the row is fetched
+  (force-cache), else the lfile's own url. After the fetch reg_hash_set()
+  sets reg.sha256 and writes the rows.
+- enable_hash_validation = true (development): sha256 and git_sha1 are
+  computed for every such content and compared with the filelist;
+  console.error on a mismatch, and the content is not added to the table.
+kernel.js: cache_ver 33; the three tables; reg_db_init(); lpm_file_get()
+takes h_body from reg.sha256.
+Tested with lif-wallet (port 4211): react@18.3.1/index.js and (after a
+kernel restart) react@18.2.0/index.js were fetched from the url of 18.3.0;
+a file of lif-kernel at gitlab.com, by git_sha1, from the jsdelivr url of
+another commit of it at github.com; no mismatch reported.
+---
+USER:
+with validation on - we validate what the filelist gave us. If the filelist
+gave us git_sha1, we calculate git_sha1 on the content to validate it. if
+the filelist gave us sha256, we calc sha256. when validation is disabled,
+only sha256 is calculated, and ONLY when we fetched the content via a
+backend without filelist, or the filelist has git_sha1.
+
+CLAUDE:
+reg.js reg_hash_set(): git_sha1 is computed only with
+enable_hash_validation and when the filelist gave a git_sha1 (before: for
+every content, when validation was on). sha256: with validation, or when
+the filelist did not give it.
+Tested (lif-wallet, port 4211): react@18.3.1/index.js from the url of
+18.3.0; ipc.js of lif-kernel at gitlab.com from the gitlab.com url of
+another commit; no mismatch.
+---
