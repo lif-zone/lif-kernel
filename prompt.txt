@@ -878,3 +878,16 @@ Tested from the lif-wallet page (port 4211): gitlab-runner by commit id, by
 request to api.github.com for it. By tag: resolved to its commit, the file
 then failed since cdn.statically.io answered 429.
 ---
+USER:
+[GitLab's own raw file API] yes - if it supports CORS add it as a second
+source
+
+CLAUDE:
+reg.js: reg_cdn.git['gitlab.com'].src: second source 'gitlab.com', the raw
+file API of gitlab.com (repository/files/<path>/raw?ref=<commit>). It
+answers with CORS, 404 for a file that does not exist, content-type always
+text/plain.
+Tested from the lif-wallet page (port 4211): gitlab-runner@v17.0.0: two
+files from statically.io, a third where statically.io failed came from
+gitlab.com; a missing file 404.
+---

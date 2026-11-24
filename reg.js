@@ -269,6 +269,12 @@ let reg_cdn = {
       src: [{
         name: 'statically.io',
         url: u=>`https://cdn.statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
+        // answers 429 on rate limit
+      }, {
+        name: 'gitlab.com',
+        // content-type is always text/plain
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab-runner/repository/files/docs%2F_index.md/raw?ref=d41e103b8f560e2e1c84f40e30063ed9f53e205e
+        url: u=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(u.name)}/repository/files/${encodeURIComponent(u.submod_path.slice(1))}/raw?ref=${u.ver.slice(1)}`,
       }],
       src_ver: [{
         name: "gitlab.com",
