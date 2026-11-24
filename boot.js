@@ -277,11 +277,6 @@ async function meta_fetch_async(url){
   return {status: 200, text: ()=>e.text};
 }
 
-function sha256_hex(v){
-  v = new Buffer(str_to_buf(v));
-  return sha256.digest(v).toHex();
-}
-
 async function require_cjs_load_meta_async(m){
   let _m = m._meta;
   function do_ret(res){
