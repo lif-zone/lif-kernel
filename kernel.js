@@ -1255,10 +1255,11 @@ async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
 }
 
 async function mod_follow_require({log, lfile_self, imp, lfiles, sent}){
+  let v = str.starts(imp_uri('/.lif/'+lfile_self, imp), '/.lif/');
+  if (!v)
+    return;
   try {
-    let v = str.starts(imp_uri('/.lif/'+lfile_self, imp), '/.lif/');
-    if (v)
-      await mod_follow_lfile({log, lfile: v.rest, lfiles, sent});
+    await mod_follow_lfile({log, lfile: v.rest, lfiles, sent});
   } catch(err){
     // not sent: boot.js requests it, and gets the error
     D && console.log('mod_follow '+lfile_self+' require('+imp+'): '+err);
