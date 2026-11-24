@@ -571,8 +571,8 @@ function filelist_lookup(dirs, path){
 }
 let enable_filelist = 1;
 // fetches a list that comes in pages (page_next of the source), from
-// lfile_page(page), all from one source. on_data(data): the get_data of a
-// page. Returns an error text, or undefined
+// lfile_page(page). on_data(data): the get_data of a page.
+// Returns an error text, or undefined
 async function filelist_pages_get({log, opt, lfile_page, on_data}){
   let src;
   for (let page=1;; page++){
@@ -587,8 +587,6 @@ async function filelist_pages_get({log, opt, lfile_page, on_data}){
     if (reg.not_exist)
       return 'not_found';
     assert(reg.blob);
-    if (src && src!=reg.src_ver)
-      return 'src changed';
     src = reg.src_ver;
     let body;
     try { body = JSON.parse(await reg.blob.text()); }
@@ -607,9 +605,9 @@ async function filelist_pages_get({log, opt, lfile_page, on_data}){
   }
 }
 
-// the filelist of the package of lfile: t.dirs. The full list is fetched,
-// from a source that gives it (page N of it: the lfile --files/N). If there
-// is none, or it failed: by a tree walk (t.walk), if a source gives it:
+// the filelist of the package of lfile: t.dirs, from the first source of
+// src_files that works. A source of the full list: page N of the list is
+// the lfile --files/<source index>/N. A source of a tree walk (t.walk):
 // t.dirs is filled a directory at a time, by filelist_walk()
 async function reg_filelist_get({log, lfile, opt}){
   let u = T_lfile_parse(lfile);
@@ -632,41 +630,43 @@ async function reg_filelist_get({log, lfile, opt}){
   }
   t = reg_filelist_t[pkg_lmod] = {lmod: pkg_lmod, dirs: null,
     wait: ewait()};
-  let src = (reg_get_cdn(lfile).src_files||[]).filter(_src=>_src.url);
-  let full = src.some(_src=>!_src.walk), walk = src.some(_src=>_src.walk);
-  if (!full && !walk)
-    return do_ret('no_src');
-  let err = 'no full list';
-  if (full){
-    let dirs = {};
-    err = await filelist_pages_get({log, opt,
-      lfile_page: page=>pkg_lmod+'/--files'+(page>1 ? '/'+page : ''),
-      on_data: data=>{
-        for (let [dir, d] of OE(data))
-          dirs[dir] = {...dirs[dir], ...d};
-      }});
-    if (!err){
-      t.dirs = dirs;
-      return do_ret();
+  // the sources, by their order in src_files: the first that works is
+  // used. t.src: its index
+  let err = 'no_src';
+  for (let [i, src] of (reg_get_cdn(lfile).src_files||[]).entries()){
+    if (!src.url)
+      continue;
+    t.src = i;
+    t.dirs = {};
+    if (src.walk){
+      t.walk = {}; // dir -> the wait of its fetch
+      // the root: every lookup needs it, and it tells if the source works
+      err = await filelist_dir_get({log, opt, t, dir: '/'});
+    } else {
+      t.walk = null;
+      err = await filelist_pages_get({log, opt,
+        lfile_page: page=>pkg_lmod+'/--files/'+i+'/'+page,
+        on_data: data=>{
+          for (let [dir, d] of OE(data))
+            t.dirs[dir] = {...t.dirs[dir], ...d};
+        }});
     }
+    if (!err)
+      return do_ret();
+    cwarn('reg_filelist '+pkg_lmod+' source '+src.name+': '+err);
   }
-  if (!walk)
-    return do_ret(err);
-  if (full)
-    cwarn('reg_filelist '+pkg_lmod+': '+err+'. using tree walk');
-  t.walk = {}; // dir -> the wait of its fetch
-  t.dirs = {};
-  return do_ret();
+  t.dirs = null;
+  return do_ret(err);
 }
 
 // tree walk: fetches the directory dir ('/', '/web/') of the filelist t.
 // hash: the git hash of the directory (none: the root).
-// Page N of the directory is the lfile --dir/N<dir>.
+// Page N of the directory is the lfile --dir/<source index>/N<dir>.
 // Returns an error text, or undefined
 async function filelist_dir_get({log, opt, t, dir, hash}){
   let d = {};
   let err = await filelist_pages_get({log, opt: {...opt, dir_hash: hash},
-    lfile_page: page=>t.lmod+'/--dir/'+page+dir,
+    lfile_page: page=>t.lmod+'/--dir/'+t.src+'/'+page+dir,
     on_data: data=>Object.assign(d, data)});
   if (err)
     cwarn('reg_filelist dir fetch failed '+t.lmod+dir+': '+err);
@@ -854,19 +854,22 @@ export async function reg_get({log, lfile, opt}){
     if (u.ver)
       throw Error('reg_get invalid --ver: '+lfile);
   } else if (v=str.starts(u.path, '/--dir/')){
-    // a directory of the filelist, by a tree walk: --dir/<page><dir>
+    // a directory of the filelist, by a tree walk, from one source:
+    // --dir/<source index>/<page><dir>
     get_files = true;
-    let i = v.rest.indexOf('/');
-    u.page = +v.rest.slice(0, i);
-    u.dir = v.rest.slice(i);
+    let [i, page] = v.rest.split('/');
+    u.page = +page;
+    u.dir = v.rest.slice(i.length+page.length+1);
     u.dir_hash = opt?.dir_hash;
-    src = reg.cdn.src_files.filter(_src=>_src.walk);
+    src = [reg.cdn.src_files[i]];
     u.submod = '';
     u.path = '';
-  } else if (u.path=='/--files' || (v=str.starts(u.path, '/--files/'))){
+  } else if (v=str.starts(u.path, '/--files/')){
+    // the full filelist, from one source: --files/<source index>/<page>
     get_files = true;
-    u.page = v ? +v.rest : 1;
-    src = reg.cdn.src_files.filter(_src=>!_src.walk);
+    let [i, page] = v.rest.split('/');
+    u.page = +page;
+    src = [reg.cdn.src_files[i]];
     u.submod = '';
     u.path = '';
     if (lfile_ver_missing(u))

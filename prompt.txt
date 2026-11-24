@@ -1032,3 +1032,22 @@ github.com: 5 tree requests for a file 4 directories deep, files 200, files
 that do not exist 404 with no request to a cdn; lif-kernel at gitlab.com:
 root and web. Then with the walk off: as before.
 ---
+USER:
+why not walk vs full tree according to the order of appearance in
+src_files? is it not simply by the order src_list appears? i.e. when we will
+add direct git over lifnet, it will just be another source, and its
+priority will be first, if we put it first?
+
+CLAUDE:
+reg.js: the filelist is taken from the sources of src_files one by one, by
+their order: the first that works is used (reg_filelist_get(); t.src is its
+index). A walk source works if its root directory is listed. The lfile of a
+filelist request names its source: --files/<source index>/<page> and
+--dir/<source index>/<page><dir>; reg_get() fetches it from that source
+only.
+Tested (port 4211): as committed: lif-os at github.com: jsdelivr 403, then
+the full tree of api.github.com; lif-kernel at gitlab.com: the full list.
+With all sources on and the walk entry of gitlab.com listed first:
+gitlab.com by the walk (root, web), github.com by its second source, its
+walk (third) not used.
+---
