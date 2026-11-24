@@ -1,3 +1,30 @@
 Low priority
 ------------
 - add support for ipv6
+
+reg.js: open questions (to return to at the end of the filelist work)
+---------------------------------------------------------------------
+- double request on a stored failure: a fetch in the forced cache mode
+  (a filelist, a url of the hash table) that is not 200 is asked again from
+  the cdn (cache: 'reload'). jsdelivr answers 403 for the filelist of a
+  repository of more than 50MB (lif-os) and marks it cacheable for a year:
+  chrome answers the first fetch from its cache, and the retry is a real
+  request, at every start of the kernel. Suggested: remove the retry, and
+  with opt.no_cache fetch a failed filelist with cache: 'reload'.
+- enable_hash_validation is 0. With 1 the hashes that the filelist gives
+  are computed from the content and compared.
+- page_max of the gitlab.com full list is 50 pages (5,000 entries): a
+  larger repository has no filelist from it.
+- nothing passes opt.no_cache to reg_get() yet: kernel.js uses its
+  refresh_tm.
+- the unpkg.com entry of the file contents (reg_cdn.npm.src) has the key
+  u: and is off. Only its src_files entry is on.
+- a cdn that failed is skipped for 3 seconds: filelists of other github.com
+  packages asked in that time go to api.github.com (60 requests per hour
+  per ip without a login).
+- git_ver_resolve() (kernel.js) is to move into reg.js, by src_ver of
+  reg_cdn (#6).
+- a content that was fetched under a filelist of sha256 (jsdelivr, unpkg)
+  is not found by a filelist of git_sha1 (gitlab.com, api.github.com), and
+  the other way: only the hash kind of the filelist is in the hash table,
+  and sha256.

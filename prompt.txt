@@ -1006,3 +1006,29 @@ Tested (port 4211) on lif-os@<commit>: jsdelivr 403, then the tree of
 api.github.com; existing files 200, files that do not exist 404 with no
 request to a cdn.
 ---
+USER:
+[#5 tree walk] in reg_cdn we define both filelist sources (tree walk and
+full list), and each time disable one of them, by renaming url: to x_url:.
+yes - implement #5
+
+CLAUDE:
+reg.js:
+- reg_cdn: a src_files source with walk: true lists one directory per
+  request. github.com: the tree API by the git hash of the directory (the
+  root: by the commit). gitlab.com: the tree API by the path of the
+  directory, in pages. Both are committed switched off (x_url).
+- reg_filelist_get(): the full list, from a source that gives it; if there
+  is none or it failed, and a walk source is on: t.walk, and t.dirs is
+  filled a directory at a time. filelist_pages_get(): the fetch of a list
+  in pages, shared by both.
+- filelist_walk(): the lookup of a path; a directory on the way that was
+  not listed is fetched (filelist_dir_get(), one fetch for all that wait).
+  The lfile of page N of a directory: <lmod>/--dir/N<dir>; reg_get() gives
+  url(u) the u.dir, u.dir_hash, u.page.
+- filelist_git_dir(): get_data of a walk source. A submodule: a dir with
+  no_list (not known).
+Tested (port 4211) with the walk on and the full lists of git off: lif-os at
+github.com: 5 tree requests for a file 4 directories deep, files 200, files
+that do not exist 404 with no request to a cdn; lif-kernel at gitlab.com:
+root and web. Then with the walk off: as before.
+---

@@ -277,6 +277,16 @@ let reg_cdn = {
           // a list that was cut is not a filelist
           get_data: data=>!data.truncated && filelist_git(data.tree, 'sha'),
         },
+        {
+          // tree walk: one directory, by its git hash (the root: by the
+          // commit). tree[i].path is the name
+          // https://api.github.com/repos/lif-zone/lif-kernel/git/trees/67865560c3301522343abf53dc49ee23c359279d
+          name: 'api.github.com',
+          walk: true,
+          x_url: u=>`https://api.github.com/repos/${u.name}/git/trees/${u.dir_hash||u.ver.slice(1)}`,
+          get_data: data=>!data.truncated &&
+            filelist_git_dir(data.tree, 'sha', 'path'),
+        },
       ],
     },
     'gitlab.com': {
@@ -313,6 +323,15 @@ let reg_cdn = {
         // the answer is in pages: is there a page after this one
         page_next: data=>data.length==100,
         // a larger repository: no filelist
+        page_max: 50,
+      }, {
+        // tree walk: one directory, by its path, 100 entries per page
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab-runner/repository/tree?ref=main&path=docs&per_page=100&page=1
+        name: 'gitlab.com',
+        walk: true,
+        x_url: u=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(u.name)}/repository/tree?ref=${u.ver.slice(1)}&path=${encodeURIComponent(u.dir.slice(1, -1))}&per_page=100&page=${u.page}`,
+        get_data: data=>filelist_git_dir(data, 'id', 'name'),
+        page_next: data=>data.length==100,
         page_max: 50,
       }],
     },
@@ -450,12 +469,15 @@ let reg_filelist_t = {};
 // filelist of a package: {dir: {name: {type: 'file'|'dir', size, sha256,
 // git_sha1}}}. dir: '/', '/cjs/'. The hashes: those the source gives.
 // sha256: of the content of the file, in hex.
-// A source may list all the directories at once (npm), or not (git, in the
-// future): a directory that was not listed yet is not in the table.
+// A source lists all the directories at once (the full list), or one
+// directory per request (walk: true, a source of git): a directory that was
+// not listed yet is not in the table.
+// A source is switched off by the name of its url: x_url.
 // git_sha1: the id of the file or directory in git, in hex (for a file:
 // see hash_git_sha1()).
 // get_data of a src_files source: its answer (a page of it, for a source
-// that answers in pages) -> filelist
+// that answers in pages) -> filelist. Of a walk source: -> the entries of
+// the directory, {name: entry}
 function filelist_jsdelivr(files, dir, dirs){
   let d = dirs[dir] = {};
   for (let f of files){
@@ -503,9 +525,24 @@ function filelist_git(files, id){
       dirs[dir][name] = {type: 'file', size: f.size, ...hash};
     // 'commit': a submodule. a dir that is not listed: not known
     else
-      dirs[dir][name] = {type: 'dir'};
+      dirs[dir][name] = {type: 'dir', no_list: true};
   }
   return dirs;
+}
+// one directory of a git source (tree walk): [{type, size}], the name of an
+// entry in the field of name name, its git hash in the field of name id
+function filelist_git_dir(files, id, name){
+  let d = {};
+  for (let f of files){
+    let hash = {[f[id]?.length==64 ? 'git_sha256' : 'git_sha1']: f[id]};
+    if (f.type=='tree')
+      d[f[name]] = {type: 'dir', ...hash};
+    else if (f.type=='blob')
+      d[f[name]] = {type: 'file', size: f.size, ...hash};
+    else
+      d[f[name]] = {type: 'dir', no_list: true};
+  }
+  return d;
 }
 function base64_hex(v){
   if (!v)
@@ -533,6 +570,47 @@ function filelist_lookup(dirs, path){
   return false;
 }
 let enable_filelist = 1;
+// fetches a list that comes in pages (page_next of the source), from
+// lfile_page(page), all from one source. on_data(data): the get_data of a
+// page. Returns an error text, or undefined
+async function filelist_pages_get({log, opt, lfile_page, on_data}){
+  let src;
+  for (let page=1;; page++){
+    let reg;
+    try {
+      reg = await reg_get({log, opt, lfile: lfile_page(page)});
+    } catch(e){
+      return ''+e;
+    }
+    if (reg.err)
+      return reg.err;
+    if (reg.not_exist)
+      return 'not_found';
+    assert(reg.blob);
+    if (src && src!=reg.src_ver)
+      return 'src changed';
+    src = reg.src_ver;
+    let body;
+    try { body = JSON.parse(await reg.blob.text()); }
+    catch(e){
+      return 'parse err';
+    }
+    // XXX handle invalid data (get_data throws)
+    let data = src.get_data(body);
+    if (!data)
+      return 'no data';
+    on_data(data);
+    if (!src.page_next?.(body))
+      return;
+    if (page>=src.page_max)
+      return 'too many pages';
+  }
+}
+
+// the filelist of the package of lfile: t.dirs. The full list is fetched,
+// from a source that gives it (page N of it: the lfile --files/N). If there
+// is none, or it failed: by a tree walk (t.walk), if a source gives it:
+// t.dirs is filled a directory at a time, by filelist_walk()
 async function reg_filelist_get({log, lfile, opt}){
   let u = T_lfile_parse(lfile);
   let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
@@ -552,48 +630,77 @@ async function reg_filelist_get({log, lfile, opt}){
     t.wait = null;
     return t;
   }
-  t = reg_filelist_t[pkg_lmod] = {dirs: null, wait: ewait()};
-  let cdn = reg_get_cdn(lfile);
-  if (!cdn.src_files)
+  t = reg_filelist_t[pkg_lmod] = {lmod: pkg_lmod, dirs: null,
+    wait: ewait()};
+  let src = (reg_get_cdn(lfile).src_files||[]).filter(_src=>_src.url);
+  let full = src.some(_src=>!_src.walk), walk = src.some(_src=>_src.walk);
+  if (!full && !walk)
     return do_ret('no_src');
-  // a source that answers in pages (page_next): page N is --files/N
-  let dirs = {}, src;
-  for (let page=1;; page++){
-    let reg;
-    try {
-      reg = await reg_get({log, opt,
-        lfile: pkg_lmod+'/--files'+(page>1 ? '/'+page : '')});
-    } catch(e){
-      return do_ret(''+e);
+  let err = 'no full list';
+  if (full){
+    let dirs = {};
+    err = await filelist_pages_get({log, opt,
+      lfile_page: page=>pkg_lmod+'/--files'+(page>1 ? '/'+page : ''),
+      on_data: data=>{
+        for (let [dir, d] of OE(data))
+          dirs[dir] = {...dirs[dir], ...d};
+      }});
+    if (!err){
+      t.dirs = dirs;
+      return do_ret();
     }
-    if (reg.err)
-      return do_ret(reg.err);
-    if (reg.not_exist)
-      return do_ret('not_found');
-    assert(reg.blob);
-    // the pages of a list: all from one source
-    if (src && src!=reg.src_ver)
-      return do_ret('src changed');
-    src = reg.src_ver;
-    let body;
-    try { body = JSON.parse(await reg.blob.text()); }
-    catch(e){
-      return do_ret('parse err');
-    }
-    // XXX handle invalid data (get_data throws)
-    let data = src.get_data(body);
-    if (!data)
-      return do_ret('no data');
-    for (let [dir, d] of OE(data))
-      dirs[dir] = {...dirs[dir], ...d};
-    if (!src.page_next?.(body))
-      break;
-    if (page>=src.page_max)
-      return do_ret('too many pages');
   }
-  t.dirs = dirs;
+  if (!walk)
+    return do_ret(err);
+  if (full)
+    cwarn('reg_filelist '+pkg_lmod+': '+err+'. using tree walk');
+  t.walk = {}; // dir -> the wait of its fetch
+  t.dirs = {};
   return do_ret();
 }
+
+// tree walk: fetches the directory dir ('/', '/web/') of the filelist t.
+// hash: the git hash of the directory (none: the root).
+// Page N of the directory is the lfile --dir/N<dir>.
+// Returns an error text, or undefined
+async function filelist_dir_get({log, opt, t, dir, hash}){
+  let d = {};
+  let err = await filelist_pages_get({log, opt: {...opt, dir_hash: hash},
+    lfile_page: page=>t.lmod+'/--dir/'+page+dir,
+    on_data: data=>Object.assign(d, data)});
+  if (err)
+    cwarn('reg_filelist dir fetch failed '+t.lmod+dir+': '+err);
+  else
+    t.dirs[dir] = d;
+  return err;
+}
+
+// filelist_lookup() by a tree walk: a directory on the way that was not
+// listed yet is fetched
+async function filelist_walk({log, opt, t, path}){
+  let parts = path.split('/').slice(1), dir = '/', hash;
+  for (let i=0; i<parts.length; i++){
+    if (!t.dirs[dir]){
+      // one fetch of a directory, for all that wait for it
+      let wait = t.walk[dir] ||= filelist_dir_get({log, opt, t, dir, hash});
+      let err = await wait;
+      delete t.walk[dir];
+      if (err)
+        return;
+    }
+    let e = t.dirs[dir][parts[i]];
+    if (i==parts.length-1)
+      return e?.type=='file' ? e : false;
+    if (e?.type!='dir')
+      return false;
+    if (e.no_list)
+      return;
+    hash = e.git_sha1||e.git_sha256;
+    dir += parts[i]+'/';
+  }
+  return false;
+}
+
 // the entry of the lfile in the filelist: exists. false: does not exist,
 // for sure. undefined: not known
 async function reg_filelist_has({log, lfile, opt}){
@@ -604,7 +711,10 @@ async function reg_filelist_has({log, lfile, opt}){
   if (!t.dirs)
     return;
   // the list is of the whole package: the path includes the submod
-  return filelist_lookup(t.dirs, u.submod.replace(/\/$/, '')+u.path);
+  let path = u.submod.replace(/\/$/, '')+u.path;
+  if (t.walk)
+    return await filelist_walk({log, opt, t, path});
+  return filelist_lookup(t.dirs, path);
 }
 
 // The hash table: the content that was already fetched, by its hash.
@@ -743,10 +853,20 @@ export async function reg_get({log, lfile, opt}){
     u.path = '';
     if (u.ver)
       throw Error('reg_get invalid --ver: '+lfile);
+  } else if (v=str.starts(u.path, '/--dir/')){
+    // a directory of the filelist, by a tree walk: --dir/<page><dir>
+    get_files = true;
+    let i = v.rest.indexOf('/');
+    u.page = +v.rest.slice(0, i);
+    u.dir = v.rest.slice(i);
+    u.dir_hash = opt?.dir_hash;
+    src = reg.cdn.src_files.filter(_src=>_src.walk);
+    u.submod = '';
+    u.path = '';
   } else if (u.path=='/--files' || (v=str.starts(u.path, '/--files/'))){
     get_files = true;
     u.page = v ? +v.rest : 1;
-    src = reg.cdn.src_files;
+    src = reg.cdn.src_files.filter(_src=>!_src.walk);
     u.submod = '';
     u.path = '';
     if (lfile_ver_missing(u))
