@@ -865,3 +865,16 @@ Tested from the lif-wallet page (port 4211): files of
 git/gitlab.com/gitlab-org/gitlab-runner@<commit>: 19 pages fetched, existing
 files 200, missing files 404 with no request to a cdn.
 ---
+USER:
+[for a GitLab lfile the kernel asks api.github.com about the commit]
+fix it to support gitlab too
+
+CLAUDE:
+kernel.js git_ver_resolve(): for host gitlab.com the commit of a ref is
+asked from the gitlab.com API (repository/commits/<ref>, its id), for the
+others from api.github.com as before.
+Tested from the lif-wallet page (port 4211): gitlab-runner by commit id, by
+@main and with no version: 200; a branch that does not exist: 404; no
+request to api.github.com for it. By tag: resolved to its commit, the file
+then failed since cdn.statically.io answered 429.
+---

@@ -457,23 +457,32 @@ async function git_ver_resolve({log, lmod}){
 {
   let u = T_lmod_parse(lmod);
   let url, v;
+  // the commit of a ref (branch, tag, commit id, HEAD), and the commit id
+  // in its answer
+  let commit_url = ref=>`https://api.github.com/repos/${u.name}/commits/${ref}`;
+  let commit_id = data=>data.sha;
+  if (u.host=='gitlab.com'){
+    commit_url = ref=>'https://gitlab.com/api/v4/projects/'+
+      encodeURIComponent(u.name)+'/repository/commits/'+ref;
+    commit_id = data=>data.id;
+  }
   // XXX add support for getting branch+date lpm_app_date
   let _ver = u.ver.slice(1);
   let is_c = cache_enable>=1;
   if (!u.ver || _ver=='latest')
-    url = `https://api.github.com/repos/${u.name}/commits/HEAD`;
+    url = commit_url('HEAD');
   else if (str.is(u.ver_type, 'final_commitish',  'final')){
-    url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
+    url = commit_url(_ver);
     if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
       u.ver = v.ver;
       return T_lmod_str(u);
     }
   } else if (u.ver_type=='tag')
-    url = `https://api.github.com/repos/${u.name}/commits/${_ver}`;
+    url = commit_url(_ver);
   else if (u.ver_type=='semver'){
     // XXX need proper semver handling
     let semver = _ver.replace(/^.*semver:[=^~]?/, '');
-    url = `https://api.github.com/repos/${u.name}/commits/v${semver}`;
+    url = commit_url('v'+semver);
   } else
     assert(0, 'invalid ver_type');
   let reg = await reg_http_get({log, url});
@@ -487,8 +496,8 @@ async function git_ver_resolve({log, lmod}){
   } catch(err){
     throw Error('git '+url+' invalid JSON: '+err);
   }
-  let sha = v.sha;
-  if (sha.length!=40 && sha.length!=64)
+  let sha = commit_id(v);
+  if (sha?.length!=40 && sha?.length!=64)
     throw Error('git '+url+' sha invalid: '+sha);
   u.ver = '@'+sha;
   if (is_c && str.is(u.ver_type, 'final_commitish', 'final'))
