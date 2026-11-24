@@ -174,13 +174,14 @@ let reg_cdn = {
         // package file listing+size+sha256
         // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
         url: u=> `https://data.jsdelivr.com/v1/packages/npm/${u.name}${u.ver}`,
+        get_data: data=>filelist_jsdelivr(data.files||[], '', {}),
       },
       {
         name: 'unpkg.com',
         // package file listing+size+sha256
         // https://unpkg.com/react@18.3.1/?meta
-        // XXX need to change u to url, and add support for this format
-        u: u=>`https://unpkg.com/${u.name}${u.ver}/?meta`,
+        url: u=>`https://unpkg.com/${u.name}${u.ver}/?meta`,
+        get_data: data=>filelist_unpkg(data.files||[]),
       },
     ],
   },
@@ -260,6 +261,7 @@ let reg_cdn = {
           // https://data.jsdelivr.com/v1/packages/gh/jquery/jquery@f79d5f1a337528940ab7029d4f8bbba72326f269
           // https://data.jsdelivr.com/v1/packages/gh/lif-zone/lif-coin@de93ceccfe56b8e8631bef8f85f2f252e4d2bf0f
           url: u=> `https://data.jsdelivr.com/v1/packages/gh/${u.name}${u.ver}`,
+          get_data: data=>filelist_jsdelivr(data.files||[], '', {}),
         },
       ],
     },
@@ -395,13 +397,21 @@ export async function reg_http_get({log, url, perm}){
   return {blob, ctype};
 }
 let reg_filelist_t = {};
-function filelist_flatten(files, prefix, t){
+// get_data of a src_files source: its answer -> {path: true} of the files
+function filelist_jsdelivr(files, prefix, t){
   for (let f of files){
     if (f.type=='file')
-      t.files[prefix+'/'+f.name] = true;
+      t[prefix+'/'+f.name] = true;
     else if (f.type=='directory' && f.files)
-      filelist_flatten(f.files, prefix+'/'+f.name, t);
+      filelist_jsdelivr(f.files, prefix+'/'+f.name, t);
   }
+  return t;
+}
+function filelist_unpkg(files){
+  let t = {};
+  for (let f of files)
+    t[f.path] = true;
+  return t;
 }
 let enable_filelist = 1;
 async function reg_filelist_get({log, lfile}){
@@ -440,8 +450,8 @@ async function reg_filelist_get({log, lfile}){
   catch(e){
     return do_ret('parse err');
   }
-  t.files = {};
-  filelist_flatten(body.files||[], '', t);
+  // XXX handle invalid data (get_data throws)
+  t.files = reg.src_ver.get_data(body);
   return do_ret();
 }
 async function reg_filelist_has({log, lfile}){

@@ -810,3 +810,19 @@ boot.js: removed the redirect_file checks and require_cjs_meta_add() (the
 (e_db_req, storage_bucket_init, db_open, cache_get, cache_ver: boot.js reads
 no cache), and four unused lpm.js imports.
 ---
+USER:
+#0: add support for npm unpkg.com src_files. change u to url, and add in
+both (jsdelivr and unpkg) callback functions that lookup the files. [the
+try/catch of the JSON parse separate from get_data(), which (for now) is
+not in a try/catch]
+
+CLAUDE:
+reg.js: each src_files source has a get_data(data) that returns {path: true}
+of the files: filelist_jsdelivr() (was filelist_flatten; npm and git
+entries) and filelist_unpkg(). The unpkg src_files entry is on (url).
+reg_filelist_get() calls get_data of the source that answered
+(reg.src_ver), outside the try/catch of JSON.parse.
+Tested with lif-wallet (port 4211, empty cache): 28 filelists from jsdelivr;
+with the jsdelivr npm entry switched off: 27 from unpkg; no response other
+than 200, page loads.
+---
