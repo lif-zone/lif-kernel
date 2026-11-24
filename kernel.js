@@ -943,12 +943,11 @@ async function lpm_file_resolve_follow({log, imp, alt}){
       if (!enable_follow)
         return {redirect: f.redirect};
       res.redirect = f.redirect;
-      res.redirects ||= [];
-      res.redirects.push(f.redirect);
+      (res.redirects ||= []).push(f.redirect); // just for debug log
       imp = f.redirect;
       continue;
     }
-    if (res.redirects){
+    if (res.redirect){
       res.redirect_file = f;
       return res;
     }
