@@ -9,9 +9,7 @@ import {ewait, eslow, assert_eq, str,
   version as util_version, T_url_parse,
 } from './util.js';
 import {
-  T_npm_to_lfile, T_npm_url_base, url_uri_type,
-  T_lfile_parse, lfile_ver_from_base, T_npm_parse,
-  npm_norm, __uri_parse, imp_uri,
+  T_npm_to_lfile, T_npm_url_base, url_uri_type, npm_norm, imp_uri,
 } from './lpm.js';
 import {ipc_sync} from './ipc.js';
 import {ipc_postmessage} from './rpc.js';
@@ -190,49 +188,6 @@ function require_cjs_load_meta_sync(m){
     return do_ret('err');
   }
   return do_ret('done');
-}
-
-let idb_db;
-async function e_db_req(req){
-  if (!req)
-    return req;
-  let wait = ewait();
-  req.onsuccess = res=>wait.return(res.target.result);
-  req.onerror = err=>{
-    console.error('e_db_req: '+err);
-    wait.return();
-  };
-  return await wait;
-}
-
-let cache_ver = 31;
-let storage_bucket;
-let g_indexedDB = globalThis.indexedDB;
-async function storage_bucket_init(){
-  let storageBuckets = navigator.storageBuckets; // chrome >=122
-  if (!storageBuckets)
-    return;
-  storage_bucket = await storageBuckets.open('lif-bucket-v'+cache_ver, {
-    persisted: false,
-    durability: 'relaxed',
-  });
-  g_indexedDB = storage_bucket.indexedDB;
-}
-await storage_bucket_init();
-async function db_open(){
-  if (idb_db)
-    return idb_db;
-  // version 0 = never create
-  idb_db = await e_db_req(g_indexedDB.open('lif-kernel-v'+cache_ver));
-  return idb_db;
-}
-
-async function cache_get(table, k){
-  let db = idb_db || await db_open();
-  if (!db)
-    return;
-  return await e_db_req(db.transaction(table, 'readonly')
-    .objectStore(table).get(k));
 }
 
 // one request to the kernel per CJS/AMD lfile:
@@ -559,8 +514,6 @@ function require_cjs_load_follow_sync({uri_self, imp}){
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
-    if (m.meta.redirect_file)
-      require_cjs_meta_add({imp: m.meta.redirect, uri_self, meta: m.meta.redirect_file});
     m.redirect = require_cjs_load_follow_sync({imp: m.meta.redirect});
     return m.redirect;
   }
@@ -698,16 +651,6 @@ function import_amd_run_define(m, loading){
     console.log('AMD module '+m.url+' did not call define()');
 }
 
-function require_cjs_meta_add({imp, uri_self, meta}){
-  let url = npm_imp_uri(uri_self, imp);
-  if (mod_t[url])
-    return;
-  let m = mod_add({url, imp, uri_self});
-  m.meta = meta;
-  m._meta = {res: 'done'};
-  return m;
-}
-
 async function require_cjs_load_follow_async({uri_self, imp, loading}){
   let url = npm_imp_uri(uri_self, imp);
   D>=2 && console.log('async load check ', uri_self, imp);
@@ -728,8 +671,6 @@ async function require_cjs_load_follow_async({uri_self, imp, loading}){
   if (m._meta.res!='done')
     return m;
   if (m.meta.redirect){
-    if (m.meta.redirect_file)
-      require_cjs_meta_add({imp: m.meta.redirect, uri_self, meta: m.meta.redirect_file});
     m.redirect = await require_cjs_load_follow_async({
       imp: m.meta.redirect, loading});
     return m.redirect;

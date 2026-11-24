@@ -801,3 +801,12 @@ kernel.js: fetch_lpm_meta, meta_file, meta_require, meta_lfile, meta_sent_t,
 enable_meta_follow.
 lpm.js: the comment of imp_uri() names ?meta.
 ---
+USER:
+remove the dead code
+
+CLAUDE:
+boot.js: removed the redirect_file checks and require_cjs_meta_add() (the
+?meta answer has no redirect_file), the storage bucket / indexedDB code
+(e_db_req, storage_bucket_init, db_open, cache_get, cache_ver: boot.js reads
+no cache), and four unused lpm.js imports.
+---
