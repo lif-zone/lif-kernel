@@ -1181,7 +1181,7 @@ async function fetch_lpm_follow({log, imp, qs}){
   let v, f, redirect, _imp = imp;
   let q = new URLSearchParams(qs);
   let u = T_lfile_parse(imp);
-  let alt = q.has('imp') || q.has('mjs') || q.has('meta');
+  let alt = q.has('imp') || q.has('mjs') || q.has('mod_follow');
   if (v=str.starts(u.path, '/.lif.imp/')){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
     if (!enable_follow || !f.redirect)
@@ -1195,28 +1195,6 @@ async function fetch_lpm_follow({log, imp, qs}){
     return {redirect_file: f, redirect};
   }
   return f;
-}
-
-// meta is used for cjs
-async function fetch_lpm_meta({log, imp}){
-  let f = await fetch_lpm_follow({log, imp, qs: '?meta'});
-  if (f.redirect)
-    f.redirect = '/.lif/'+f.redirect;
-  if (f.not_exist || (f.redirect && !f.redirect_file))
-    return f;
-  let do_ret = ret=>ret;
-  if (f.redirect){
-    let _f = f;
-    f = f.redirect_file;
-    do_ret = ret=>({redirect: _f.redirect, redirects: _f.redirects,
-      redirect_file: ret.meta, cache: ret.cache});
-  }
-  let type = file_ctype(f.lfile);
-  if (type!='js')
-    return do_ret({meta: {type}}); // error not js/jsx/ts/tsx
-  await file_tsx_to_js(f);
-  let meta = await file_js_to_meta(f);
-  return do_ret({meta, cache: f.cache===false ? 0 : 1});
 }
 
 // ?mod_follow: the lfile of a CJS/AMD require and the lfiles its requires
@@ -1271,7 +1249,7 @@ async function mod_follow_lfile({log, lfile, lfiles, sent, force}){
     return;
   sent[lfile] = 1;
   let e = lfiles[lfile] = {};
-  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?meta'});
+  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?mod_follow'});
   if (f.not_exist)
     return void(e.not_exist = true);
   if (f.err)
@@ -1299,19 +1277,6 @@ async function fetch_lpm_mod_follow({log, imp, client}){
     delete sent[lfile];
   }
   return {body: json({lfiles}), ext: 'json'};
-}
-
-async function fetch_lpm_meta_res({log, imp}){
-  let f = await fetch_lpm_meta({log, imp});
-  let res = {ext: 'json'};
-  if (f.meta)
-    res.body = json(f.meta);
-  else
-    res.body = json(f);
-  res.cache = f.cache;
-  if (f.redirect_file)
-    res.final = str.starts(f.redirect, '/.lif/').rest;
-  return res;
 }
 
 async function fetch_lpm_file({log, imp, qs}){
@@ -1508,11 +1473,7 @@ async function _kernel_fetch(event){
       if (response && !response_final_patched(response))
         return response;
     }
-    let res;
-    if (q.has('meta'))
-      res = await fetch_lpm_meta_res({log, imp: lfile, qs});
-    else
-      res = await fetch_lpm_file({log, imp: lfile, qs});
+    let res = await fetch_lpm_file({log, imp: lfile, qs});
     if (res.err)
       console.error('req '+url+': '+res.err);
     let response = await send_res({...res, path});

@@ -285,7 +285,7 @@ async function mod_follow_get_async(lfile){
     mod_follow_add(await res.text());
   return lfiles_t[lfile];
 }
-// the meta of an lfile, as the ?meta request gives it
+// the meta of an lfile, from its entry
 function mod_follow_meta(e){
   if (!e || e.not_exist || e.err)
     return;

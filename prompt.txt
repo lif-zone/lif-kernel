@@ -767,3 +767,13 @@ kernel.js: removed the follow parameter of fetch_lpm_follow() and
 lpm_file_resolve_follow(): both read the global enable_follow. Its three
 callers do not pass it.
 ---
+USER:
+why is ?meta in kernel.js? I thought there is no more qs ?meta
+#1 - yes. #2 - instead of ?meta just pass ?mod_follow. no?
+
+CLAUDE:
+kernel.js: removed the ?meta url handler, fetch_lpm_meta() and
+fetch_lpm_meta_res() (nothing requests ?meta anymore). mod_follow_lfile()
+passes qs '?mod_follow' to fetch_lpm_follow(), whose alt test is now
+imp/mjs/mod_follow. boot.js: a comment that named the ?meta request.
+---
