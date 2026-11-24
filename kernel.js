@@ -1181,7 +1181,7 @@ async function fetch_lpm_follow({log, imp, qs}){
   let v, f, redirect, _imp = imp;
   let q = new URLSearchParams(qs);
   let u = T_lfile_parse(imp);
-  let alt = q.has('imp') || q.has('mjs') || q.has('mod_follow');
+  let alt = q.has('imp') || q.has('mjs') || q.has('meta');
   if (v=str.starts(u.path, '/.lif.imp/')){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
     if (!enable_follow || !f.redirect)
@@ -1197,7 +1197,7 @@ async function fetch_lpm_follow({log, imp, qs}){
   return f;
 }
 
-// ?mod_follow: the lfile of a CJS/AMD require and the lfiles its requires
+// ?meta: the lfile of a CJS/AMD require and the lfiles its requires
 // lead to, in one JSON: {lfiles: {lfile: entry}}. entry:
 // {redirect: lfile} | {meta, text} | {not_exist: true} | {err}
 // (no text for an mjs file: the browser imports it).
@@ -1205,9 +1205,9 @@ async function fetch_lpm_follow({log, imp, qs}){
 // this client. Never cached: boot.js keeps the entries in memory (lfiles_t).
 // 0: for debug. an answer holds only the requested lfile (and the file its
 // redirect leads to), not the lfiles its requires lead to
-let enable_mod_follow = 1;
-let mod_follow_t = {}; // client id -> {lfile: 1}: lfiles sent to it
-async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
+let enable_meta_follow = 1;
+let meta_sent_t = {}; // client id -> {lfile: 1}: lfiles sent to it
+async function meta_file({log, lfile, f, e, lfiles, sent}){
   let meta, type = file_ctype(f.lfile);
   if (type!='js')
     meta = {type}; // not js/jsx/ts/tsx
@@ -1218,7 +1218,7 @@ async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
   if (meta.type!='mjs')
     e.text = await f.blob.text();
   e.meta = meta;
-  if (!enable_mod_follow || str.is(meta.type, 'mjs', 'amd'))
+  if (!enable_meta_follow || str.is(meta.type, 'mjs', 'amd'))
     return;
   let wait = [];
   for (let req of meta.requires||[]){
@@ -1226,49 +1226,49 @@ async function mod_follow_file({log, lfile, f, e, lfiles, sent}){
     // its condition, and requests it
     if (req.type!='program' || req.cond)
       continue;
-    wait.push(mod_follow_require({log, lfile_self: lfile, imp: req.module,
+    wait.push(meta_require({log, lfile_self: lfile, imp: req.module,
       lfiles, sent}));
   }
   await Promise.all(wait);
 }
 
-async function mod_follow_require({log, lfile_self, imp, lfiles, sent}){
+async function meta_require({log, lfile_self, imp, lfiles, sent}){
   let v = str.starts(imp_uri('/.lif/'+lfile_self, imp), '/.lif/');
   if (!v)
     return;
   try {
-    await mod_follow_lfile({log, lfile: v.rest, lfiles, sent});
+    await meta_lfile({log, lfile: v.rest, lfiles, sent});
   } catch(err){
     // not sent: boot.js requests it, and gets the error
-    D && console.log('mod_follow '+lfile_self+' require('+imp+'): '+err);
+    D && console.log('meta '+lfile_self+' require('+imp+'): '+err);
   }
 }
 
-async function mod_follow_lfile({log, lfile, lfiles, sent, force}){
+async function meta_lfile({log, lfile, lfiles, sent, force}){
   if (lfiles[lfile] || !force && sent[lfile])
     return;
   sent[lfile] = 1;
   let e = lfiles[lfile] = {};
-  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?mod_follow'});
+  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?meta'});
   if (f.not_exist)
     return void(e.not_exist = true);
   if (f.err)
     return void(e.err = ''+f.err);
   if (!f.redirect)
-    return await mod_follow_file({log, lfile, f, e, lfiles, sent});
+    return await meta_file({log, lfile, f, e, lfiles, sent});
   e.redirect = f.redirect;
   let _lfile = f.redirect;
   if (!f.redirect_file || lfiles[_lfile] || sent[_lfile])
     return;
   sent[_lfile] = 1;
-  await mod_follow_file({log, lfile: _lfile, f: f.redirect_file,
+  await meta_file({log, lfile: _lfile, f: f.redirect_file,
     e: lfiles[_lfile] = {}, lfiles, sent});
 }
 
-async function fetch_lpm_mod_follow({log, imp, client}){
-  let sent = mod_follow_t[client] ||= {};
+async function fetch_lpm_meta({log, imp, client}){
+  let sent = meta_sent_t[client] ||= {};
   let lfiles = {};
-  await mod_follow_lfile({log, lfile: imp, lfiles, sent, force: true});
+  await meta_lfile({log, lfile: imp, lfiles, sent, force: true});
   // an lfile that failed: not sent
   for (let [lfile, e] of OE(lfiles)){
     if (OE(e).length)
@@ -1462,8 +1462,8 @@ async function _kernel_fetch(event){
   if (v=str.starts(path, '/.lif/')){
     let lfile = v.rest;
     log.imp = lfile;
-    if (q.has('mod_follow')){
-      let res = await fetch_lpm_mod_follow({log, imp: lfile,
+    if (q.has('meta')){
+      let res = await fetch_lpm_meta({log, imp: lfile,
         client: q.get('client')||event.clientId});
       return await send_res({...res, path});
     }

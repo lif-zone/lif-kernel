@@ -777,3 +777,27 @@ fetch_lpm_meta_res() (nothing requests ?meta anymore). mod_follow_lfile()
 passes qs '?mod_follow' to fetch_lpm_follow(), whose alt test is now
 imp/mjs/mod_follow. boot.js: a comment that named the ?meta request.
 ---
+USER:
+now - that ?meta is gone, we can now rename ?mod_follow to ?meta. because it
+MAINLY brings back meta data. it ALSO brings back data - but even that - it
+brings as json.
+
+CLAUDE:
+The request is now <lfile>?meta: boot.js mod_follow_url(), kernel.js url
+handler, the qs mod_follow_lfile() passes and the alt test of
+fetch_lpm_follow(). Function names (mod_follow_*) and enable_mod_follow are
+unchanged.
+---
+USER:
+you forgot "grep mod_follow". in lpm.js there is a comment. [names of the
+functions] apply name changes. dont remove dead code. we will handle dead
+code seperatly
+
+CLAUDE:
+No mod_follow name is left in the code.
+boot.js: meta_url, meta_add, meta_get_sync/async, meta_fetch_sync/async,
+meta_from_entry.
+kernel.js: fetch_lpm_meta, meta_file, meta_require, meta_lfile, meta_sent_t,
+enable_meta_follow.
+lpm.js: the comment of imp_uri() names ?meta.
+---

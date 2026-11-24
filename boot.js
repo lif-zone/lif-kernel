@@ -185,7 +185,7 @@ function require_cjs_load_meta_sync(m){
   if (!(v=str.starts(m.url, '/.lif/')))
     return do_ret('done');
   let lfile = v.rest;
-  if (!(m.meta = mod_follow_meta(mod_follow_get_sync(lfile)))){
+  if (!(m.meta = meta_from_entry(meta_get_sync(lfile)))){
     console.error('no mod meta: '+m.url);
     return do_ret('err');
   }
@@ -236,7 +236,7 @@ async function cache_get(table, k){
 }
 
 // one request to the kernel per CJS/AMD lfile:
-// <lfile>?mod_follow. Its answer: the entry of the lfile (a redirect, or its
+// <lfile>?meta. Its answer: the entry of the lfile (a redirect, or its
 // meta and text, or not_exist), and entries of the lfiles its requires lead
 // to, that the kernel adds. All are kept in lfiles_t, which is looked up
 // before any request. The kernel does all the caching: no caches read here.
@@ -244,29 +244,29 @@ let lfiles_t = {}; // lfile -> entry, as received from the kernel
 // id of the page in the kernel: sent with a request, since a sync request of
 // the page is done by boot_worker, which is another client
 let client_id;
-function mod_follow_url(lfile){
-  return '/.lif/'+lfile+'?mod_follow'+(client_id ? '&client='+client_id : '');
+function meta_url(lfile){
+  return '/.lif/'+lfile+'?meta'+(client_id ? '&client='+client_id : '');
 }
-function mod_follow_add(text){
+function meta_add(text){
   let res;
   try {
     res = JSON.parse(text);
   } catch(err){
-    console.error('mod_follow invalid json', err);
+    console.error('meta invalid json', err);
     return;
   }
   for (let [lfile, e] of OE(res.lfiles||{}))
     lfiles_t[lfile] ||= e;
 }
-function mod_follow_get_sync(lfile){
+function meta_get_sync(lfile){
   if (lfiles_t[lfile])
     return lfiles_t[lfile];
-  let res = fetch_sync(mod_follow_url(lfile));
+  let res = fetch_sync(meta_url(lfile));
   if (res.status==200)
-    mod_follow_add(res.text);
+    meta_add(res.text);
   return lfiles_t[lfile];
 }
-async function mod_follow_get_async(lfile){
+async function meta_get_async(lfile){
   if (lfiles_t[lfile])
     return lfiles_t[lfile];
   if (!is_worker && client_id===undefined){
@@ -280,13 +280,13 @@ async function mod_follow_get_async(lfile){
     if (lfiles_t[lfile])
       return lfiles_t[lfile];
   }
-  let res = await fetch(mod_follow_url(lfile));
+  let res = await fetch(meta_url(lfile));
   if (res.status==200)
-    mod_follow_add(await res.text());
+    meta_add(await res.text());
   return lfiles_t[lfile];
 }
 // the meta of an lfile, from its entry
-function mod_follow_meta(e){
+function meta_from_entry(e){
   if (!e || e.not_exist || e.err)
     return;
   if (e.redirect)
@@ -295,12 +295,12 @@ function mod_follow_meta(e){
 }
 // the text of a file, in place of its fetch. undefined: no entry of a text
 // (an mjs file, or not a /.lif/ url): fetch it
-function mod_follow_fetch_sync(url){
+function meta_fetch_sync(url){
   let v = str.starts(url, '/.lif/'), e;
   if (!v)
     return fetch_sync(url);
   let lfile = v.rest;
-  for (let i=0; i<8 && (e = mod_follow_get_sync(lfile))?.redirect; i++)
+  for (let i=0; i<8 && (e = meta_get_sync(lfile))?.redirect; i++)
     lfile = e.redirect;
   if (!e || e.not_exist || e.err)
     return {status: 404};
@@ -308,12 +308,12 @@ function mod_follow_fetch_sync(url){
     return fetch_sync(url);
   return {status: 200, text: e.text};
 }
-async function mod_follow_fetch_async(url){
+async function meta_fetch_async(url){
   let v = str.starts(url, '/.lif/'), e;
   if (!v)
     return await fetch(url);
   let lfile = v.rest;
-  for (let i=0; i<8 && (e = await mod_follow_get_async(lfile))?.redirect; i++)
+  for (let i=0; i<8 && (e = await meta_get_async(lfile))?.redirect; i++)
     lfile = e.redirect;
   if (!e || e.not_exist || e.err)
     return {status: 404};
@@ -345,7 +345,7 @@ async function require_cjs_load_meta_async(m){
   if (_m.wait)
     return await _m.wait;
   _m.wait = ewait();
-  if (!(m.meta = mod_follow_meta(await mod_follow_get_async(lfile)))){
+  if (!(m.meta = meta_from_entry(await meta_get_async(lfile)))){
     console.error('no mod meta: '+m.url);
     return do_ret('err');
   }
@@ -360,7 +360,7 @@ async function require_cjs_load_file_sync(m){
   f.res = 'loading';
   let url = m.url;
   let req;
-  req = mod_follow_fetch_sync(url);
+  req = meta_fetch_sync(url);
   if (req.status==200)
     m.script = f.text = req.text;
   if (req.status!=200){
@@ -389,7 +389,7 @@ async function require_cjs_load_file_async(m){
   if (f.wait)
     return await f.wait;
   f.wait = ewait();
-  let req = await mod_follow_fetch_async(url);
+  let req = await meta_fetch_async(url);
   if (req.status==200)
     m.script = f.text = await req.text();
   if (req.status!=200){
@@ -807,7 +807,7 @@ async function import_amd(uri_self, [imp, opt]){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await mod_follow_fetch_async(url);
+    let response = await meta_fetch_async(url);
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();
@@ -832,7 +832,7 @@ async function import_module_script({uri_self, imp}){
     return await m.wait;
   m = mod_add({url, imp, wait: ewait(), uri_self, loaded: false});
   try {
-    let response = await mod_follow_fetch_async(url);
+    let response = await meta_fetch_async(url);
     if (response.status!=200)
       throw Error('sw import_module('+url+') failed fetch');
     m.script = await response.text();

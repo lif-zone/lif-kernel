@@ -442,7 +442,7 @@ export function __uri_parse(uri, base){
 // the uri that a require()/import of imp in the file uri_self leads to.
 // uri_self: '/.lif/<lfile>' (or none). imp: as written in the code: a module
 // name, a relative path, a uri or a url (returned as is).
-// boot.js (npm_imp_uri) and kernel.js (?mod_follow) give the same uri
+// boot.js (npm_imp_uri) and kernel.js (?meta) give the same uri
 export function imp_uri(uri_self, imp){
   let t = url_uri_type(imp);
   if (t=='url' || t=='uri')
