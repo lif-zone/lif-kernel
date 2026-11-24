@@ -758,3 +758,12 @@ file its redirect leads to.
 Tested in the 4210 app: 1 -> 167 ?mod_follow requests, 0 -> 852, both load
 to the wallets list with no console errors.
 ---
+USER:
+why is 'follow' passed down to functions? there is a global enable_follow
+yes - remove it
+
+CLAUDE:
+kernel.js: removed the follow parameter of fetch_lpm_follow() and
+lpm_file_resolve_follow(): both read the global enable_follow. Its three
+callers do not pass it.
+---

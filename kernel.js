@@ -930,7 +930,7 @@ async function lpm_pkg_resolve_follow({log, imp}){
   }
 }
 
-async function lpm_file_resolve_follow({log, imp, alt, follow}){
+async function lpm_file_resolve_follow({log, imp, alt}){
   D && console.log('lpm_file_resolve_follow '+imp);
   let res = {};
   for (let i=0; i<max_redirect; i++){
@@ -940,7 +940,7 @@ async function lpm_file_resolve_follow({log, imp, alt, follow}){
       return res;
     }
     if (f.redirect){
-      if (!follow)
+      if (!enable_follow)
         return {redirect: f.redirect};
       res.redirect = f.redirect;
       res.redirects ||= [];
@@ -1177,18 +1177,18 @@ async function responce_tr_send({f, qs, lfile}){
 }
 
 let enable_follow = true;
-async function fetch_lpm_follow({log, imp, qs, follow}){
+async function fetch_lpm_follow({log, imp, qs}){
   let v, f, redirect, _imp = imp;
   let q = new URLSearchParams(qs);
   let u = T_lfile_parse(imp);
   let alt = q.has('imp') || q.has('mjs') || q.has('meta');
   if (v=str.starts(u.path, '/.lif.imp/')){
     f = await lpm_import_get({log, lmod_self: u.lmod, imp: v.rest});
-    if (!follow || !f.redirect)
+    if (!enable_follow || !f.redirect)
       return f;
     imp = redirect = f.redirect;
   }
-  f = await lpm_file_resolve_follow({log, imp, alt, follow});
+  f = await lpm_file_resolve_follow({log, imp, alt});
   if (redirect && !f.redirect){
     if (f.not_exist)
       return {not_exist: true, redirect};
@@ -1199,7 +1199,7 @@ async function fetch_lpm_follow({log, imp, qs, follow}){
 
 // meta is used for cjs
 async function fetch_lpm_meta({log, imp}){
-  let f = await fetch_lpm_follow({log, imp, qs: '?meta', follow: enable_follow});
+  let f = await fetch_lpm_follow({log, imp, qs: '?meta'});
   if (f.redirect)
     f.redirect = '/.lif/'+f.redirect;
   if (f.not_exist || (f.redirect && !f.redirect_file))
@@ -1271,8 +1271,7 @@ async function mod_follow_lfile({log, lfile, lfiles, sent, force}){
     return;
   sent[lfile] = 1;
   let e = lfiles[lfile] = {};
-  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?meta',
-    follow: enable_follow});
+  let f = await fetch_lpm_follow({log, imp: lfile, qs: '?meta'});
   if (f.not_exist)
     return void(e.not_exist = true);
   if (f.err)
@@ -1319,7 +1318,7 @@ async function fetch_lpm_file({log, imp, qs}){
   let u = T_lfile_parse(imp);
   if (str.is(u.reg, 'bitcoin', 'lifcoin'))
     return await lpm_file_get({log, lfile: imp, opt: {ctype: true, cache: 'pass'}});
-  let f = await fetch_lpm_follow({log, imp, qs, follow: enable_follow});
+  let f = await fetch_lpm_follow({log, imp, qs});
   let res = await responce_tr_send({f, qs, lfile: imp});
   if (res && f.redirect && f.redirect_file)
     res.final = f.redirect;
