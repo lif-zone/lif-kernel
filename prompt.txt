@@ -848,3 +848,20 @@ Tested: both formats give the same table for react@18.3.1; lif-wallet (port
 4211, empty cache) loads, 27 npm + 1 git filelists, no response other than
 200.
 ---
+USER:
+[gitlab filelist API] so support it now. add for it its src_files. also
+github we use now the 'recursive' API that fetches everything. in the
+future, when we will add directory walk - we will add it for both github
+and gitlab.
+
+CLAUDE:
+reg.js: reg_cdn.git['gitlab.com'].src_files: the repository tree API of
+gitlab.com, recursive, 100 entries per page. A source that answers in pages
+has page_next(data) and page_max (50); url(u) gets u.page. Page N of a
+filelist is the lfile <lmod>/--files/N; reg_filelist_get() fetches the pages
+one after the other and merges them (all from one source).
+filelist_gitlab(): entries with hash_git (the git hash of the file or dir).
+Tested from the lif-wallet page (port 4211): files of
+git/gitlab.com/gitlab-org/gitlab-runner@<commit>: 19 pages fetched, existing
+files 200, missing files 404 with no request to a cdn.
+---

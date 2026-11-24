@@ -281,6 +281,20 @@ let reg_cdn = {
         url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/commits/${b}`,
         get_data: data=>data.id,
       }],
+      src_files: [{
+        name: 'gitlab.com',
+        // the whole repository, 100 entries per page: [i].path, [i].type
+        // (blob/tree), [i].id (git hash)
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab-runner/repository/tree?ref=main&recursive=true&per_page=100&page=1
+        // one directory:
+        // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab-runner/repository/tree?ref=main&path=docs
+        url: u=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(u.name)}/repository/tree?ref=${u.ver.slice(1)}&recursive=true&per_page=100&page=${u.page}`,
+        get_data: data=>filelist_gitlab(data),
+        // the answer is in pages: is there a page after this one
+        page_next: data=>data.length==100,
+        // a larger repository: no filelist
+        page_max: 50,
+      }],
     },
   },
   ipfs: {src: [
@@ -401,7 +415,9 @@ let reg_filelist_t = {};
 // dir: '/', '/cjs/'. hash: sha256 of the file, in base64.
 // A source may list all the directories at once (npm), or not (git, in the
 // future): a directory that was not listed yet is not in the table.
-// get_data of a src_files source: its answer -> filelist
+// hash_git: the git hash of a file or a directory (a source of git).
+// get_data of a src_files source: its answer (a page of it, for a source
+// that answers in pages) -> filelist
 function filelist_jsdelivr(files, dir, dirs){
   let d = dirs[dir] = {};
   for (let f of files){
@@ -425,6 +441,25 @@ function filelist_unpkg(files){
     }
     dirs[dir][parts.at(-1)] = {type: 'file', size: f.size,
       hash: str.starts(f.integrity||'', 'sha256-')?.rest};
+  }
+  return dirs;
+}
+function filelist_gitlab(files){
+  let dirs = {'/': {}};
+  for (let f of files){
+    let parts = f.path.split('/'), dir = '/';
+    for (let i=0; i<parts.length-1; i++){
+      dirs[dir][parts[i]] ||= {type: 'dir'};
+      dir += parts[i]+'/';
+      dirs[dir] ||= {};
+    }
+    let name = parts.at(-1);
+    if (f.type=='tree'){
+      dirs[dir][name] = {type: 'dir', hash_git: f.id};
+      dirs[dir+name+'/'] ||= {};
+    }
+    else if (f.type=='blob')
+      dirs[dir][name] = {type: 'file', hash_git: f.id};
   }
   return dirs;
 }
@@ -469,24 +504,39 @@ async function reg_filelist_get({log, lfile, opt}){
   let cdn = reg_get_cdn(lfile);
   if (!cdn.src_files)
     return do_ret('no_src');
-  let reg;
-  try {
-    reg = await reg_get({log, lfile: pkg_lmod+'/--files', opt});
-  } catch(e){
-    return do_ret(''+e);
+  // a source that answers in pages (page_next): page N is --files/N
+  let dirs = {}, src;
+  for (let page=1;; page++){
+    let reg;
+    try {
+      reg = await reg_get({log, opt,
+        lfile: pkg_lmod+'/--files'+(page>1 ? '/'+page : '')});
+    } catch(e){
+      return do_ret(''+e);
+    }
+    if (reg.err)
+      return do_ret(reg.err);
+    if (reg.not_exist)
+      return do_ret('not_found');
+    assert(reg.blob);
+    // the pages of a list: all from one source
+    if (src && src!=reg.src_ver)
+      return do_ret('src changed');
+    src = reg.src_ver;
+    let body;
+    try { body = JSON.parse(await reg.blob.text()); }
+    catch(e){
+      return do_ret('parse err');
+    }
+    // XXX handle invalid data (get_data throws)
+    for (let [dir, d] of OE(src.get_data(body)))
+      dirs[dir] = {...dirs[dir], ...d};
+    if (!src.page_next?.(body))
+      break;
+    if (page>=src.page_max)
+      return do_ret('too many pages');
   }
-  if (reg.err)
-    return do_ret(reg.err);
-  if (reg.not_exist)
-    return do_ret('not_found');
-  assert(reg.blob);
-  let body;
-  try { body = JSON.parse(await reg.blob.text()); }
-  catch(e){
-    return do_ret('parse err');
-  }
-  // XXX handle invalid data (get_data throws)
-  t.dirs = reg.src_ver.get_data(body);
+  t.dirs = dirs;
   return do_ret();
 }
 // true: exists. false: does not exist, for sure. undefined: not known
@@ -540,8 +590,9 @@ export async function reg_get({log, lfile, opt}){
     u.path = '';
     if (u.ver)
       throw Error('reg_get invalid --ver: '+lfile);
-  } else if (u.path=='/--files'){
+  } else if (u.path=='/--files' || (v=str.starts(u.path, '/--files/'))){
     get_files = true;
+    u.page = v ? +v.rest : 1;
     src = reg.cdn.src_files;
     u.submod = '';
     u.path = '';
