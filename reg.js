@@ -6,6 +6,9 @@ let D = 0; // Debug
 const {str, assert, OE, ecache, eslow, ewait} = await import('./util.js');
 const {T_lfile_parse, lfile_ver_missing, lfile_is_perm
   } = await import('./lpm.js');
+const clog = console.log.bind(console);
+const cerror = console.error.bind(console);
+const cwarn = console.warn.bind(console);
 
 // br: lif-os/pages/index.tsx
 //     /.lif/npm/lif-os/pages/index.tsx
@@ -345,12 +348,12 @@ export async function reg_http_get({log, url, perm}){
   let response, err, blob;
   let slow = eslow(5000, 'fetch '+url);
   try {
-    D && console.log('fetch '+url+' for '+log.mod);
+    D && clog('fetch '+url+' for '+log.mod);
     response = await fetch(url, fetch_opt(url, perm));
   } catch(_err){
     // jsdelivr 503 is due to rate limit appear as fetch-throw
     err = 'module('+log.mod+') failed fetch('+url+'): '+_err;
-    console.log(err);
+    clog(err);
     return {err, status: 0, fail_cdn: true};
   } finally {
     slow.end();
@@ -358,16 +361,16 @@ export async function reg_http_get({log, url, perm}){
   if (response.status==404)
     return {status: response.status, not_exist: true};
   if (response.status==403){
-    console.error('403 cdn rate limit', url);
+    cerror('403 cdn rate limit', url);
     return {status: response.status, fail_cdn: true};
   }
   if (response.redirected){
-    console.warn('reg_http_fetch('+url+') CDN bug: got 302 redirect');
+    cwarn('reg_http_fetch('+url+') CDN bug: got 302 redirect');
     return {status: response.status, not_exist: true};
   }
   if (response.status!=200){
     err = 'cdn failed fetch '+response.status+' '+url;
-    console.log(err);
+    clog(err);
     return {status: response.status, err, fail_cdn: true};
   }
   let ctype = response.headers.get('content-type');
@@ -375,7 +378,7 @@ export async function reg_http_get({log, url, perm}){
     blob = await response.blob();
   } catch(err){
     err = 'fetch('+url+'): '+err;
-    console.log(err);
+    clog(err);
     return {err, fail_cdn: true};
   }
   return {blob, ctype};
@@ -400,7 +403,7 @@ async function reg_filelist_get({log, lfile}){
     return await t.wait;
   function do_ret(err){
     if (err)
-      console.warn('reg_filelist fetch failed '+lfile+': '+err);
+      cwarn('reg_filelist fetch failed '+lfile+': '+err);
     t.err = err;
     t.wait.return(t);
     t.wait = null;
@@ -507,7 +510,7 @@ export async function reg_get({log, lfile, opt}){
       return reg;
     }
     assert(ret.fail_cdn);
-    console.warn('cdn failed '+_src.name+'. '+
+    cwarn('cdn failed '+_src.name+'. '+
       'switching cdn '+(src[+i+1]?.name || 'all cdns failed'));
     _src.fail = {url, err: ret.err, tm: Date.now()};
   }
@@ -517,7 +520,7 @@ export async function reg_get({log, lfile, opt}){
   }
   if (opt?.ctype)
     reg.ctype = ret.ctype;
-  D && console.log('fetch OK '+lfile);
+  D && clog('fetch OK '+lfile);
   return reg;
 }); }
 

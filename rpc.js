@@ -7,6 +7,8 @@ let D = 0; // Debug
 
 const {eslow, ewait, assert, CE, CEL, OE, str} = await import('./util.js');
 const EventEmitter = (await import(is_node ? 'events' : './compat/events.js')).default;
+const clog = console.log.bind(console);
+const cerror = console.error.bind(console);
 
 export class rpc_base extends EventEmitter {
   method_fn = {};
@@ -25,7 +27,7 @@ export class rpc_base extends EventEmitter {
     if (opt.D)
       this.D = 1;
     this.pre = opt.pre||'rpc';
-    this.D && console.log(this.pre+'>>connect');
+    this.D && clog(this.pre+'>>connect');
     if (opt.is_json)
       this.is_json = opt.is_json;
     if (opt.is_connect!=undefined)
@@ -73,7 +75,7 @@ export class rpc_base extends EventEmitter {
       if (!await this._wait_open)
         throw Error('rpc not open');
       this.send(request, opt);
-      this.D && console.log(this.pre+id+'>> '+method, params);
+      this.D && clog(this.pre+id+'>> '+method, params);
       let ret = await req.wait;
       if (ret?.error)
         res = ret;
@@ -82,12 +84,12 @@ export class rpc_base extends EventEmitter {
       else
         res = {error: 'invalid msg: no result or error'};
     } catch(err){ CE(err);
-      console.error('rpc failed '+method+' call:', err, request);
+      cerror('rpc failed '+method+' call:', err, request);
       res = {error: ''+err};
     } finally {
       slow.end();
     }
-    0 && this.D && console.log(
+    0 && this.D && clog(
       this.pre+id+'>< '+(res.error ? 'error ' : '')+method, res);
     return res;
   }
@@ -103,9 +105,9 @@ export class rpc_base extends EventEmitter {
   async _emit_res(msg, opt){
     let {id} = msg, req;
     if (typeof id!='string' && typeof id!='number')
-      return console.error('rpc: invalid msg id', msg);
+      return cerror('rpc: invalid msg id', msg);
     if (!(req = this.req[id]))
-      return console.error('rpc: unexpected msg id', msg);
+      return cerror('rpc: unexpected msg id', msg);
     delete this.req[id];
     req.wait.return(msg);
   }
@@ -116,7 +118,7 @@ export class rpc_base extends EventEmitter {
     let res;
     if (this.jsonrpc)
       msg.jsonrpc ??= this.jsonrpc;
-    this.D && console.log(this.pre+_id+'<> '+method, params);
+    this.D && clog(this.pre+_id+'<> '+method, params);
     let slow = eslow('rpc on handler '+method);
     try {
       if (!method_fn)
@@ -131,14 +133,14 @@ export class rpc_base extends EventEmitter {
       else
         res = {result: ret};
     } catch(err){ CE(err);
-      console.error(err);
+      cerror(err);
       res = {error: ''+err};
     } finally {
       slow.end();
     }
     res = {...res, id};
     if (this.D || res?.error){
-      console.log(this.pre+_id+'<< '
+      clog(this.pre+_id+'<< '
         +(res.error ? 'err ' : '')+method, /*params,*/
         res.error||res.result);
     }
@@ -148,22 +150,22 @@ export class rpc_base extends EventEmitter {
     let {method, params} = msg;
     let method_fn = this.method_fn[method] || this.method_fn[''];
     if (!method_fn)
-      return console.error('rpc: invalid cmd', method);
-    this.D && console.log(this.pre+'<= '+method, params);
+      return cerror('rpc: invalid cmd', method);
+    this.D && clog(this.pre+'<= '+method, params);
     let slow = eslow('rpc notify '+method);
     try {
       await method_fn(msg);
     } catch(err){ CE(err);
-      console.error('rpc failed notify', msg, err);
+      cerror('rpc failed notify', msg, err);
     } finally {
       slow.end();
     }
   }
   emit_msg(msg, opt){
     if (this.jsonrpc && !msg.jsonrpc)
-      return console.error('rpc: not jsonrpc msg', msg);
+      return cerror('rpc: not jsonrpc msg', msg);
     if (!msg)
-      return console.error('rpc: invalid empty msg');
+      return cerror('rpc: invalid empty msg');
     let fn;
     if (Array.isArray(msg.id)){
       let key = JSON.stringify(msg.id[0]);
@@ -192,7 +194,7 @@ export class rpc_base extends EventEmitter {
   emit_error(err){
     if (str.is(this.state, 'error', 'close'))
       return;
-    this.D && console.log(this.pre+'>! error: '+err);
+    this.D && clog(this.pre+'>! error: '+err);
     this.state = 'error';
     this.error = err || 'rpc error';
     this._wait_open.throw(err||'error');
@@ -202,7 +204,7 @@ export class rpc_base extends EventEmitter {
   destroy(){
     if (this.state=='close')
       return;
-    this.D && console.log(this.pre+'>! close');
+    this.D && clog(this.pre+'>! close');
     this.state = 'close';
     this._wait_open.throw('close');
     for (let [id, req] of OE(this.req)){
@@ -297,7 +299,7 @@ export class rpc_sock extends rpc_base {
   req = {};
   send(msg, opt){
     if (this.state=='close')
-      return void console.log(this.pre+': send() after close', msg);
+      return void clog(this.pre+': send() after close', msg);
     let inner = msg.id;
     let id;
     if (inner==null)
@@ -320,7 +322,7 @@ export class rpc_sock extends rpc_base {
     let key = JSON.stringify(this._id[0]);
     this.rpc.on_id(key, ({msg, opt, close})=>{
       if (close){
-        this.D && console.log(this.pre+': parent close closing id', this._id);
+        this.D && clog(this.pre+': parent close closing id', this._id);
         return this.destroy();
       }
       let rest = msg.id.slice(1);
@@ -339,7 +341,7 @@ export class rpc_sock extends rpc_base {
       if (inner_id!=null || _msg.method!=null)
         this.emit_msg(_msg, opt);
       if (msg.close){
-        this.D && console.log(this.pre+': msg.close received', msg);
+        this.D && clog(this.pre+': msg.close received', msg);
         this.destroy();
       }
     });
@@ -355,7 +357,7 @@ export class rpc_sock extends rpc_base {
     }
     this._id = [{[this.rpc.is_connect ? 'c' : 's']: this.rpc.id_get()}];
     this.set_events();
-    console.log('rpc_sock connect '+method);
+    clog('rpc_sock connect '+method);
     return await this._call(method, params);
   }
   accept({rpc, msg}){
@@ -470,13 +472,13 @@ export class rpc_websocket extends rpc_base {
   }
   send(msg, opt){
     if (this.state=='close')
-      return void console.error(this.pre+': send after close');
+      return void cerror(this.pre+': send after close');
     // protect against undefined in JSON making property disappear
     msg = {...msg};
     if ('result' in msg && msg.result===undefined)
       msg.result = null;
     if (this.ws.readyState!=1)
-      console.error(this.pre+': ws send close state', this.ws.readyState);
+      cerror(this.pre+': ws send close state', this.ws.readyState);
     let send_q = {msg: (opt?.bin ? ' ' : '')+JSON.stringify(msg)};
     if (opt?.bin){
       assert(opt.bin instanceof ArrayBuffer, 'invalid websocket bin');
@@ -510,7 +512,7 @@ export class rpc_websocket extends rpc_base {
         let err = 'expected '+(this.bin_wait ? 'bin' : 'text')+' got '+
           (is_bin ? 'bin' : 'text');
         this.emit_error(err);
-        return console.error(err);
+        return cerror(err);
       }
       if (this.bin_wait){
         this.emit_msg(this.bin_msg, {bin: data});
@@ -521,9 +523,9 @@ export class rpc_websocket extends rpc_base {
       try {
         msg = JSON.parse(data);
       } catch(e){
-        console.log(data);
+        clog(data);
         this.emit_error('invalid json');
-        return console.error('invalid ipc json', data);
+        return cerror('invalid ipc json', data);
       }
       if (data[0]==' '){
         this.bin_wait = true;
@@ -582,7 +584,7 @@ export function rpc_sock_pipe(c, s, opt={}){
       }
     });
     _c.on('error', err=>{
-      console.error('rpc_sock_pipe error', err);
+      cerror('rpc_sock_pipe error', err);
     });
     if (close)
       _c.on('close', ()=>_s.close());
@@ -602,7 +604,7 @@ export function sock_pair(c, s){
 }
 
 export function sock_error_log(error, ...args){
-  console.error(error, ...args);
+  cerror(error, ...args);
   return {error};
 }
 
@@ -637,7 +639,7 @@ export function websocket_pipe(c, s){
     _c.on_message(({data})=>_s.send(data));
     _c.on('close', ()=>_s.close());
     _c.on('error', err=>{
-      console.error('websocket pipe error: %s', err.message);
+      cerror('websocket pipe error: %s', err.message);
       _s.close();
     });
   }
