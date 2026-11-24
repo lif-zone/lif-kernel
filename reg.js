@@ -609,7 +609,7 @@ export function reg_db_init(db){
 // false: a hash of the filelist is trusted.
 // sha256 is computed in any case when the filelist does not give it (no
 // filelist, or a filelist of git_sha1): its the canonical hash
-let enable_hash_validation = true;
+let enable_hash_validation = 0;
 // 0: for debug. no hash table: a file is fetched from its own url
 let enable_hash = 1;
 const hash_git_kinds = ['git_sha1', 'git_sha256'];
