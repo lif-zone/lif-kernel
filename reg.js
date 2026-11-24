@@ -174,7 +174,7 @@ let reg_cdn = {
         // package file listing+size+sha256
         // https://data.jsdelivr.com/v1/packages/npm/react@18.3.1
         url: u=> `https://data.jsdelivr.com/v1/packages/npm/${u.name}${u.ver}`,
-        get_data: data=>filelist_jsdelivr(data.files||[], '', {}),
+        get_data: data=>filelist_jsdelivr(data.files||[], '/', {}),
       },
       {
         name: 'unpkg.com',
@@ -261,7 +261,7 @@ let reg_cdn = {
           // https://data.jsdelivr.com/v1/packages/gh/jquery/jquery@f79d5f1a337528940ab7029d4f8bbba72326f269
           // https://data.jsdelivr.com/v1/packages/gh/lif-zone/lif-coin@de93ceccfe56b8e8631bef8f85f2f252e4d2bf0f
           url: u=> `https://data.jsdelivr.com/v1/packages/gh/${u.name}${u.ver}`,
-          get_data: data=>filelist_jsdelivr(data.files||[], '', {}),
+          get_data: data=>filelist_jsdelivr(data.files||[], '/', {}),
         },
       ],
     },
@@ -397,31 +397,66 @@ export async function reg_http_get({log, url, perm}){
   return {blob, ctype};
 }
 let reg_filelist_t = {};
-// get_data of a src_files source: its answer -> {path: true} of the files
-function filelist_jsdelivr(files, prefix, t){
+// filelist of a package: {dir: {name: {type: 'file'|'dir', size, hash}}}
+// dir: '/', '/cjs/'. hash: sha256 of the file, in base64.
+// A source may list all the directories at once (npm), or not (git, in the
+// future): a directory that was not listed yet is not in the table.
+// get_data of a src_files source: its answer -> filelist
+function filelist_jsdelivr(files, dir, dirs){
+  let d = dirs[dir] = {};
   for (let f of files){
     if (f.type=='file')
-      t[prefix+'/'+f.name] = true;
-    else if (f.type=='directory' && f.files)
-      filelist_jsdelivr(f.files, prefix+'/'+f.name, t);
+      d[f.name] = {type: 'file', size: f.size, hash: f.hash};
+    else if (f.type=='directory'){
+      d[f.name] = {type: 'dir'};
+      filelist_jsdelivr(f.files||[], dir+f.name+'/', dirs);
+    }
   }
-  return t;
+  return dirs;
 }
 function filelist_unpkg(files){
-  let t = {};
-  for (let f of files)
-    t[f.path] = true;
-  return t;
+  let dirs = {'/': {}};
+  for (let f of files){
+    let parts = f.path.split('/').slice(1), dir = '/';
+    for (let i=0; i<parts.length-1; i++){
+      dirs[dir][parts[i]] ||= {type: 'dir'};
+      dir += parts[i]+'/';
+      dirs[dir] ||= {};
+    }
+    dirs[dir][parts.at(-1)] = {type: 'file', size: f.size,
+      hash: str.starts(f.integrity||'', 'sha256-')?.rest};
+  }
+  return dirs;
+}
+// true: path is a file. false: it does not exist (for sure: not in the
+// list). undefined: not known (its directory was not listed)
+function filelist_lookup(dirs, path){
+  let parts = path.split('/').slice(1), dir = '/';
+  for (let i=0; i<parts.length; i++){
+    let d = dirs[dir];
+    if (!d)
+      return;
+    let e = d[parts[i]];
+    if (i==parts.length-1)
+      return e?.type=='file';
+    if (e?.type!='dir')
+      return false;
+    dir += parts[i]+'/';
+  }
+  return false;
 }
 let enable_filelist = 1;
-async function reg_filelist_get({log, lfile}){
-  if (!enable_filelist)
-    return;
+async function reg_filelist_get({log, lfile, opt}){
   let u = T_lfile_parse(lfile);
   let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
   let t;
-  if (t=reg_filelist_t[pkg_lmod])
-    return await t.wait;
+  if (t=reg_filelist_t[pkg_lmod]){
+    if (t.wait)
+      return await t.wait;
+    // a failed fetch of the list is temporary: no_cache retries it
+    if (t.dirs || !opt?.no_cache)
+      return t;
+  }
   function do_ret(err){
     if (err)
       cwarn('reg_filelist fetch failed '+lfile+': '+err);
@@ -430,13 +465,13 @@ async function reg_filelist_get({log, lfile}){
     t.wait = null;
     return t;
   }
-  t = reg_filelist_t[pkg_lmod] = {files: null, wait: ewait()};
+  t = reg_filelist_t[pkg_lmod] = {dirs: null, wait: ewait()};
   let cdn = reg_get_cdn(lfile);
   if (!cdn.src_files)
     return do_ret('no_src');
   let reg;
   try {
-    reg = await reg_get({log, lfile: pkg_lmod+'/--files'});
+    reg = await reg_get({log, lfile: pkg_lmod+'/--files', opt});
   } catch(e){
     return do_ret(''+e);
   }
@@ -451,23 +486,37 @@ async function reg_filelist_get({log, lfile}){
     return do_ret('parse err');
   }
   // XXX handle invalid data (get_data throws)
-  t.files = reg.src_ver.get_data(body);
+  t.dirs = reg.src_ver.get_data(body);
   return do_ret();
 }
-async function reg_filelist_has({log, lfile}){
-  let u = T_lfile_parse(lfile);
-  let pkg_lmod = u.lmod.slice(0, -u.submod.length || undefined);
-  let t;
-  if (!(t=reg_filelist_t[pkg_lmod]))
-    t = await reg_filelist_get({log, lfile});
-  if (!t.files)
+// true: exists. false: does not exist, for sure. undefined: not known
+async function reg_filelist_has({log, lfile, opt}){
+  if (!enable_filelist)
     return;
-  return t.files[u.path] || false;
+  let u = T_lfile_parse(lfile);
+  let t = await reg_filelist_get({log, lfile, opt});
+  if (!t.dirs)
+    return;
+  // the list is of the whole package: the path includes the submod
+  return filelist_lookup(t.dirs, u.submod.replace(/\/$/, '')+u.path);
 }
 
 export async function reg_git_get({log, lfile}){ assert(0); }
 export async function reg_bittorrent_get({log, lfile}){ assert(0); }
+// a result that is final: of a perm lfile, its content, or a not_exist by
+// the filelist. Any other result is temporary (a failure, a 404 of a cdn,
+// which may be a problem of the cdn, a list of versions)
+function reg_is_final(reg){
+  return lfile_is_perm(reg.lfile) && !!(reg.blob || reg.not_exist_perm);
+}
+
+// opt.no_cache: a result that is not final is fetched again
 export async function reg_get({log, lfile, opt}){
+  if (opt?.no_cache){
+    let reg = ecache.get_sync(reg_file_t, lfile);
+    if (reg && !reg_is_final(reg))
+      delete reg_file_t[lfile];
+  }
   return await ecache({table: reg_file_t, id: lfile, opt},
     async function run(reg)
 {
@@ -501,11 +550,13 @@ export async function reg_get({log, lfile, opt}){
   } else {
     if (lfile_ver_missing(u))
       throw Error('reg_get missing ver: '+lfile);
-    // check filelist to avoid unnecessary fetches for alt searches
-    if (reg.cdn.src_files){
-      let fl = await reg_filelist_has({log, lfile});
+    // check filelist to avoid unnecessary fetches for alt searches.
+    // only a perm lfile has a filelist that is final
+    if (perm && reg.cdn.src_files){
+      let fl = await reg_filelist_has({log, lfile, opt});
       if (fl==false){
-        reg.not_exist = true;
+        // not in the filelist: does not exist, for sure and forever
+        reg.not_exist = reg.not_exist_perm = true;
         return reg;
       }
     }

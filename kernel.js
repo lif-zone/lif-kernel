@@ -541,7 +541,10 @@ async function lpm_file_get({log, lfile, opt={}}){
     return reg;
   if (reg.not_exist){
     f = {lfile, not_exist: true};
-    cache_not_exist && is_c && cache_set('lpm_file', f);
+    // only a not_exist by the filelist is for sure. a 404 of a cdn may be
+    // a temporary problem of the cdn: not stored
+    cache_not_exist && is_c && reg.not_exist_perm &&
+      cache_set('lpm_file', f);
     return f;
   }
   // create result lpm file, and cache it
