@@ -28,3 +28,13 @@ reg.js: open questions (to return to at the end of the filelist work)
   is not found by a filelist of git_sha1 (gitlab.com, api.github.com), and
   the other way: only the hash kind of the filelist is in the hash table,
   and sha256.
+- the version table of git (src_ver of github.com: git/matching-refs) is
+  fetched by reg_get('<lmod>/--ver') but nothing uses it yet: kernel.js
+  resolves a ref by a request of one ref. To do with it: semver ranges of
+  git by its tags (today: the tag v<version> is guessed). The table is cut
+  at 100 refs (more: true), an annotated tag has the sha of the tag and not
+  of its commit, and gitlab.com has no table source (branches and tags are
+  two lists there).
+- versions: when the sources failed, the stored answer of the browser is
+  asked (force-cache). When nothing is stored this is one more request to
+  the source that just failed.

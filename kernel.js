@@ -463,51 +463,44 @@ async function git_ver_resolve({log, lmod}){
     async function run(pv)
 {
   let u = T_lmod_parse(lmod);
-  let url, v;
-  // the commit of a ref (branch, tag, commit id, HEAD), and the commit id
-  // in its answer
-  let commit_url = ref=>`https://api.github.com/repos/${u.name}/commits/${ref}`;
-  let commit_id = data=>data.sha;
-  if (u.host=='gitlab.com'){
-    commit_url = ref=>'https://gitlab.com/api/v4/projects/'+
-      encodeURIComponent(u.name)+'/repository/commits/'+ref;
-    commit_id = data=>data.id;
-  }
+  let ref, v;
   // XXX add support for getting branch+date lpm_app_date
   let _ver = u.ver.slice(1);
   let is_c = cache_enable>=1;
   if (!u.ver || _ver=='latest')
-    url = commit_url('HEAD');
+    ref = 'HEAD';
   else if (str.is(u.ver_type, 'final_commitish',  'final')){
-    url = commit_url(_ver);
+    ref = _ver;
     if (is_c && (v=await cache_get('lpm_ver', [lmod]))){
       u.ver = v.ver;
       return T_lmod_str(u);
     }
   } else if (u.ver_type=='tag')
-    url = commit_url(_ver);
+    ref = _ver;
   else if (u.ver_type=='semver'){
-    // XXX need proper semver handling
-    let semver = _ver.replace(/^.*semver:[=^~]?/, '');
-    url = commit_url('v'+semver);
+    // XXX need proper semver handling: by the version table of reg.js
+    ref = 'v'+_ver.replace(/^.*semver:[=^~]?/, '');
   } else
     assert(0, 'invalid ver_type');
-  let reg = await reg_http_get({log, url});
+  // the commit of the ref, from reg.js (src_ver of reg_cdn)
+  let ver_file = u.reg+'/'+u.host+'/'+u.name+'@'+ref+'/--ver';
+  let reg = await reg_get({log, lfile: ver_file, opt: cache_opt});
   if (reg.not_exist)
     return reg;
   if (!reg.blob)
-    throw 'failed git ver fetch '+url;
+    throw 'failed git ver fetch '+ver_file+': '+reg.err;
   let body = await reg.blob.text();
+  let sha;
   try {
-    v = JSON.parse(body);
+    sha = reg.src_ver.get_data(JSON.parse(body));
   } catch(err){
-    throw Error('git '+url+' invalid JSON: '+err);
+    throw Error('git '+reg.url+' invalid answer: '+err);
   }
-  let sha = commit_id(v);
   if (sha?.length!=40 && sha?.length!=64)
-    throw Error('git '+url+' sha invalid: '+sha);
+    throw Error('git '+reg.url+' sha invalid: '+sha);
   u.ver = '@'+sha;
-  if (is_c && str.is(u.ver_type, 'final_commitish', 'final'))
+  // a stale answer (the source failed) is not kept
+  if (is_c && !reg.stale && str.is(u.ver_type, 'final_commitish', 'final'))
     cache_set('lpm_ver', {lmod, ver: u.ver});
   return T_lmod_str(u);
 }); }

@@ -243,17 +243,30 @@ let reg_cdn = {
           // lookup branch+date: [0].sha
           // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:17Z&sha=main
           // https://api.github.com/repos/lif-zone/lif-kernel/commits?per_page=1&until=2025-12-19T19:49:18Z&sha=main
-          url: u=>`https://api.github.com/repos/${u.name}/branches/${u.ver||'main'}`,
-          get_data: data=>data.commit.sha,
-          _uri_branch: u=>`https://api.github.com/repos/${u.name}/git/ref/heads/${u.ver||'main'}`,
-          _uri_tag: u=>`https://api.github.com/repos/${u.name}/git/ref/tags/${u.ver||'main'}`,
-          _uri_branch_date: u=>`https://api.github.com/repos/${u.name}/commits?per_page=1&until={u.date}&sha=${u.ver||'main'}`,
-          _get_data: data=>data.object.sha,
+          // ref: the commit of one ref (u.ref: a branch, a tag, a commit id
+          // that may be partial, HEAD)
+          ref: true,
+          url: u=>`https://api.github.com/repos/${u.name}/commits/${u.ref}`,
+          get_data: data=>data.sha,
+          // its answer for a ref that does not exist
+          not_exist_status: 422,
         },
         {
+          // off: its answer holds also the whole filelist
           name: 'ungh.cc',
-          url: u=>`https://ungh.cc/repos/${u.name}/files/${u.ver||'main'}`,
+          ref: true,
+          x_url: u=>`https://ungh.cc/repos/${u.name}/files/${u.ref}`,
           get_data: data=>data.meta.sha,
+        },
+        {
+          // the version table: all the refs (branches, tags), 100 at most
+          // [i].ref ('refs/heads/main', 'refs/tags/v1.0'), [i].object.sha,
+          // [i].object.type ('commit', or 'tag': an annotated tag, its sha
+          // is of the tag and not of its commit)
+          // https://api.github.com/repos/lif-zone/lif-kernel/git/matching-refs/
+          name: 'api.github.com',
+          url: u=>`https://api.github.com/repos/${u.name}/git/matching-refs/?per_page=100`,
+          get_data: data=>ver_table_github(data),
         },
       ],
       src_files: [
@@ -308,7 +321,8 @@ let reg_cdn = {
         // specific tag/branch: id
         // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/master
         // https://gitlab.com/api/v4/projects/gitlab-org%2Fgitlab/repository/commits/v18.11.2-ee
-        url: (o, r, b)=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(o+'/'+r)}/repository/commits/${b}`,
+        ref: true,
+        url: u=>`https://gitlab.com/api/v4/projects/${encodeURIComponent(u.name)}/repository/commits/${u.ref}`,
         get_data: data=>data.id,
       }],
       src_files: [{
@@ -370,6 +384,29 @@ let reg_cdn = {
   ]}},
 };
 
+// src_ver: the versions of a package. They are not final: versions and tags
+// are added, and a branch (or a tag of git) moves.
+// - the version table, the lfile <lmod with no version>/--ver: all the
+//   versions. npm: the document of the registry (versions, time,
+//   dist-tags). git: its refs, by get_data: {refs: {'heads/main': {sha,
+//   type}, 'tags/v1.0': ...}, more: true if the table was cut}
+// - one ref (a source with ref: true), the lfile <lmod>@<ref>/--ver: get_data
+//   gives its commit id
+// reg.js fetches; the caller (lpm) parses, by get_data of the source that
+// answered (reg.src_ver), and resolves.
+// The http cache of the browser is the cache: an answer is used while the
+// source says its fresh. If the sources failed, the last answer the browser
+// has stored is used, however old (reg.stale). opt.no_cache: asked again
+// from the source.
+function ver_table_github(data){
+  let refs = {};
+  for (let r of data){
+    refs[str.starts(r.ref, 'refs/').rest] = {sha: r.object.sha,
+      type: r.object.type};
+  }
+  return {refs, more: data.length==100};
+}
+
 function reg_get_cdn(u){
   let cdn = reg_cdn;
   if (typeof u=='string')
@@ -405,29 +442,32 @@ export function reg_cache_enable(enable){
   cache_enable = enable;
 }
 
-// force_cache: what the browser has stored for the url (http cache) is
+// cache: the cache mode of fetch().
+// 'force-cache': what the browser has stored for the url (http cache) is
 // used, however old, with no request. For what never changes and is asked
 // again and again: a filelist of a perm lfile (the http cache is its
 // persistent store), and a url of the hash table.
 // Not for the fetch of a file by its own url: there the cache headers of the
-// cdn do (a year for a file, none for a 404)
-export function fetch_opt(url, force_cache){
+// cdn do (a year for a file, none for a 404).
+// 'no-cache': the source is asked, also if the stored answer is fresh
+export function fetch_opt(url, cache){
   let no_cache = url.startsWith('/') ? !cache_enable : false;
   if (no_cache)
     return {headers: {'Cache-Control': 'no-cache'}};
-  return force_cache ? {cache: 'force-cache'} : {};
+  return cache ? {cache} : {};
 }
 
-export async function reg_http_get({log, url, force_cache}){
+// retry: (cache: 'force-cache') an answer that is not 200 is asked again,
+// from the source
+export async function reg_http_get({log, url, cache, retry}){
   let response, err, blob;
   let slow = eslow(5000, 'fetch '+url);
   try {
     D && clog('fetch '+url+' for '+log.mod);
-    let opt = fetch_opt(url, force_cache);
-    response = await fetch(url, opt);
+    response = await fetch(url, fetch_opt(url, cache));
     // a failure may be an old answer, stored by the browser: only the
     // content is forever. ask the cdn itself
-    if (opt.cache=='force-cache' && response.status!=200)
+    if (retry && response.status!=200)
       response = await fetch(url, {cache: 'reload'});
   } catch(_err){
     // jsdelivr 503 is due to rate limit appear as fetch-throw
@@ -847,12 +887,12 @@ export async function reg_get({log, lfile, opt}){
   reg.cdn = reg_get_cdn(u);
   let src = reg.cdn.src;
   if (u.path=='/--ver'){
+    // with no version: the version table. with one: the commit of this ref
     get_ver = true;
-    src = reg.cdn.src_ver;
+    u.ref = u.ver ? u.ver.slice(1) : undefined;
+    src = (reg.cdn.src_ver||[]).filter(_src=>!!_src.ref==!!u.ref);
     u.submod = '';
     u.path = '';
-    if (u.ver)
-      throw Error('reg_get invalid --ver: '+lfile);
   } else if (v=str.starts(u.path, '/--dir/')){
     // a directory of the filelist, by a tree walk, from one source:
     // --dir/<source index>/<page><dir>
@@ -895,7 +935,8 @@ export async function reg_get({log, lfile, opt}){
   // url it was fetched from
   let h = is_content && fl && await reg_hash_get(fl);
   if (h){
-    ret = await reg_http_get({log, url: h.url, force_cache: true});
+    ret = await reg_http_get({log, url: h.url, cache: 'force-cache',
+      retry: true});
     if (ret.blob){
       reg.url = h.url;
       reg.hash_lfile = h.lfile;
@@ -919,10 +960,15 @@ export async function reg_get({log, lfile, opt}){
     let url = url_fn(u);
     reg.url = url;
     reg.src_ver = _src;
-    ret = await reg_http_get({log, url, force_cache: perm && get_files});
+    if (perm && get_files)
+      ret = await reg_http_get({log, url, cache: 'force-cache', retry: true});
+    else if (get_ver && opt?.no_cache)
+      ret = await reg_http_get({log, url, cache: 'no-cache'});
+    else
+      ret = await reg_http_get({log, url});
     if (ret.blob) // fetch OK
       break;
-    if (ret.not_exist){
+    if (ret.not_exist || ret.status && ret.status==_src.not_exist_status){
       reg.not_exist = true;
       return reg;
     }
@@ -930,6 +976,20 @@ export async function reg_get({log, lfile, opt}){
     cwarn('cdn failed '+_src.name+'. '+
       'switching cdn '+(src[+i+1]?.name || 'all cdns failed'));
     _src.fail = {url, err: ret.err, tm: Date.now()};
+  }
+  // versions: the sources failed. the last answer that the browser has
+  // stored, however old
+  for (let _src of !ret?.blob && get_ver ? src : []){
+    let url = _src.url(u);
+    let stale = await reg_http_get({log, url, cache: 'force-cache'});
+    if (!stale.blob)
+      continue;
+    cwarn('reg '+lfile+': '+_src.name+' failed, using its stored answer');
+    ret = stale;
+    reg.url = url;
+    reg.src_ver = _src;
+    reg.stale = true;
+    break;
   }
   if (!(reg.blob = ret?.blob)){
     reg.err = ret?.err || 'all cdns failed';

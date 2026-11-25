@@ -1051,3 +1051,30 @@ With all sources on and the walk entry of gitlab.com listed first:
 gitlab.com by the walk (root, web), github.com by its second source, its
 walk (third) not used.
 ---
+USER:
+[#6] move the fetching of the version table of a package to reg.js.
+continue to have single git (over http cors) requests for single refs,
+cached; in addition the capability of a full fetch when possible, also
+cached; both fall back to stale results if the update did not succeed.
+best effort is enough. implement it
+
+CLAUDE:
+reg.js:
+- src_ver: a source with ref: true gives the commit of one ref (the lfile
+  <lmod>@<ref>/--ver, url(u) gets u.ref); the others give the version table
+  (<lmod>/--ver). github.com: api.github.com commits/<ref> (422 = the ref
+  does not exist: not_exist_status), ungh.cc (off), and the table by
+  git/matching-refs (ver_table_github()). gitlab.com: commits/<ref>.
+- reg_get() of versions: a normal fetch (the http cache of the browser by
+  the freshness the source gives); opt.no_cache: cache 'no-cache'; if the
+  sources failed: the stored answer of the browser (force-cache), reg.stale.
+- reg_http_get({log, url, cache, retry}) replaces force_cache.
+kernel.js git_ver_resolve(): asks reg_get('<lmod>@<ref>/--ver') and takes
+the commit by get_data of the source that answered. No url of github or
+gitlab in kernel.js. A stale answer is not kept in lpm_ver.
+tasks.txt: two open questions added.
+Tested (port 4211): github.com and gitlab.com by branch, tag, no version
+(HEAD), a partial commit id, a ref that does not exist (404, one request).
+The stale answer was not shown: the request that the test blocked is blocked
+also for the cache.
+---
