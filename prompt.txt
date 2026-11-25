@@ -1128,3 +1128,24 @@ Tested: the collect/reset logic with a controlled clock; port 4211:
 lif-wallet loads; after the 403 of jsdelivr for the filelist of lif-os the
 filelists of two other github.com repositories came from api.github.com.
 ---
+USER:
+./electrum.js:import {rpc_websocket} from 'lif-kernel/rpc.js';
+--> add rpc to the exports of lif-kernel, so the import can be lif-kernel/rpc
+
+CLAUDE:
+package.json: added the export "./rpc": "./rpc.js" (the "./rpc.js" export
+stays, lif-wallet imports it by that name). In BlueWallet web/electrum.js the
+import is now 'lif-kernel/rpc'.
+---
+USER:
+I want to publish an npm version of lif-kernel. I already in the past did npm
+publish. So why am I asking you? becuase I since added many files, and I need
+the additional missing files section in package json to be updated
+
+CLAUDE:
+Traced the imports from every file in "files", the exports, the bin and the
+webapp. One imported file was not listed: util/node_util.js (imported by
+net/lifcoin_s.js and net/tcpip_s.js). Added it to "files". The other new
+net/ and util/ files are not imported by any published file and were left
+out.
+---

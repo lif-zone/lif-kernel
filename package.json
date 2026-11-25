@@ -44,6 +44,7 @@
     "sha256.js",
     "sha256lif.js",
     "util/etask.js",
+    "util/node_util.js",
     "util.js",
     "ipc.js",
     "ipc_fetch.js",
