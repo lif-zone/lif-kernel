@@ -921,7 +921,7 @@ export async function reg_get({log, lfile, opt}){
     // only a perm lfile has a filelist that is final
     if (perm && reg.cdn.src_files){
       fl = await reg_filelist_has({log, lfile, opt});
-      if (fl===false){
+      if (fl==false){
         // not in the filelist: does not exist, for sure and forever
         reg.not_exist = reg.not_exist_perm = true;
         return reg;
