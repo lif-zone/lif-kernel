@@ -1078,3 +1078,28 @@ Tested (port 4211): github.com and gitlab.com by branch, tag, no version
 The stale answer was not shown: the request that the test blocked is blocked
 also for the cache.
 ---
+USER:
+[statically.io answers failures with no cors: fetch() throws, status 0. a
+ping tells if the cdn is alive: src_ping (lfile, len), by the url of the
+source, with no browser cache] #1 only src_ping for now. #2 a good ping
+right after a status=0: return not_exist, not to go to a different source.
+#3 3 seconds. #5 all files in filelist pass must_exist. package.json: only
+npm needs must_exist=true. implement it
+
+CLAUDE:
+reg.js:
+- reg_ping({log, cdn, src}): the ping lfile of the registry (cdn.src_ping:
+  lfile, len) is fetched from the cdn of the source (src.url), cache
+  'no-store'; ok: status 200 and the length. A good ping is trusted for 3
+  seconds (src.ping_tm).
+- reg_get(): fetch() threw (status 0) at a must_exist source of src: good
+  ping -> not_exist; bad ping -> the cdn failed (skipped for 3 seconds), as
+  before.
+- a file that is in the filelist is asked as must_exist: also a must_exist
+  source (statically.io) is used for it.
+kernel.js: package.json is must_exist only for npm.
+Tested (port 4211, npm content only from statically.io): lif-wallet loads,
+its listed files come from statically.io; a package that does not exist:
+status 0, ping ok, 404, and no second ping within 3 seconds; with a wrong
+ping length: 'cdn ping failed', the cdn failed.
+---

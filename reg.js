@@ -465,6 +465,34 @@ export function fetch_opt(url, cache){
   return cache ? {cache} : {};
 }
 
+// Is the cdn of a source alive. A cdn that answers a failure with no cors
+// (statically.io: 404, 429) makes fetch() throw: a file that does not exist
+// and a cdn that failed look the same (status 0). The ping tells: the ping
+// lfile of the registry (src_ping: lfile, len) is asked from this cdn, by
+// the url of the source, with no cache of the browser, and its length is
+// checked. A good ping is trusted for 3 seconds.
+// src_ping is of the sources of src. XXX src_ver_ping, src_files_ping
+async function reg_ping({log, cdn, src}){
+  let ping = cdn.src_ping;
+  if (!ping)
+    return false;
+  if (src.ping_tm && src.ping_tm+3000>Date.now())
+    return true;
+  let u = T_lfile_parse(ping.lfile);
+  u.submod_path = u.submod.replace(/\/$/, '')+u.path;
+  let url = src.url(u), ok = false;
+  try {
+    D && clog('ping '+url+' for '+log.mod);
+    let response = await fetch(url, {cache: 'no-store'});
+    ok = response.status==200 && (await response.blob()).size==ping.len;
+  } catch(err){}
+  if (ok)
+    src.ping_tm = Date.now();
+  else
+    cwarn('cdn ping failed '+src.name+' '+url);
+  return ok;
+}
+
 // retry: (cache: 'force-cache') an answer that is not 200 is asked again,
 // from the source
 export async function reg_http_get({log, url, cache, retry}){
@@ -937,6 +965,8 @@ export async function reg_get({log, lfile, opt}){
     }
   }
   let ret;
+  // a file that is in the filelist exists: also a source of must_exist does
+  let must_exist = opt?.must_exist || !!fl;
   // the content of a perm lfile is hashed, and kept in the hash table
   let is_content = perm && !get_ver && !get_files;
   // a file of this hash was already fetched, under another lfile: from the
@@ -957,7 +987,7 @@ export async function reg_get({log, lfile, opt}){
   src = src.toSorted((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0)).filter(_src=>{
     if (_src.fail && _src.fail.tm+3000>now)
       return;
-    if (_src.must_exist && !opt?.must_exist)
+    if (_src.must_exist && !must_exist)
       return;
     if (!_src.url)
       return;
@@ -981,6 +1011,14 @@ export async function reg_get({log, lfile, opt}){
       return reg;
     }
     assert(ret.fail_cdn);
+    // fetch() threw, at a source that is asked only for a file that exists:
+    // its cdn is alive (ping): then its this file that it does not have
+    if (ret.status===0 && _src.must_exist && !get_ver && !get_files &&
+      await reg_ping({log, cdn: reg.cdn, src: _src}))
+    {
+      reg.not_exist = true;
+      return reg;
+    }
     cwarn('cdn failed '+_src.name+'. '+
       'switching cdn '+(src[+i+1]?.name || 'all cdns failed'));
     _src.fail = {url, err: ret.err, tm: Date.now()};

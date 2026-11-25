@@ -759,7 +759,8 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
   // fetch pkg
   let pkg_json = lmod+'/package.json';
   let f = await lpm_file_get({log, lfile: pkg_json,
-    opt: {must_exist: !u.submod}});
+    // only a package of npm must have a package.json
+    opt: {must_exist: u.reg=='npm' && !u.submod}});
   if (f.not_exist){
     if (u.reg!='git' || u.submod || u.ver_type!='final' ||
       !allow_no_package_json)
