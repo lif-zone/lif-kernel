@@ -303,10 +303,18 @@ let reg_cdn = {
       ],
     },
     'gitlab.com': {
+      src_ping: {
+        lfile: 'git/gitlab.com/lif-zone/lif-kernel@72caf1daefea6effbaf27e3ebfeb9c993b1a42c0/lif-kernel.service',
+        lfile_ver: 'git/gitlab.com/lif-zone/lif-kernel@v2.0.0/lif-kernel.service',
+        len: 397,
+        url: 'https://gitlab.com/lif-zone/lif-kernel/-/raw/72caf1daefea6effbaf27e3ebfeb9c993b1a42c0/lif-kernel.service',
+        url_ver: 'https://gitlab.com/lif-zone/lif-kernel/-/raw/v2.0.0/lif-kernel.service?ref_type=tags',
+      },
       src: [{
         name: 'statically.io',
         url: u=>`https://cdn.statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
         // answers 429 (without cors) on rate limit
+        must_exist: true,
       }, {
         name: 'gitlab.com',
         // content-type is always text/plain
