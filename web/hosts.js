@@ -50,7 +50,7 @@ add_domains_hosts({ip: '50.7.177.142',
 });
 // ns1.zon.life ns2.zon.life 216.227.189.196
 add_domains_hosts({ip: '216.227.189.196',
-  domains: 'zon.life lif-coin.com bright.life',
+  domains: 'zon.life lif.net lif-coin.com bright.life',
   hosts: 'lifcoin-node-1 ns1 ns2',
 });
 add_domains_hosts({ip: '50.7.176.34',
