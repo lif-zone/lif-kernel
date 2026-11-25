@@ -1,5 +1,5 @@
 // LIF Kernel: Service Worker BIOS (Basic Input Output System)
-export const lif_version = '2026.11.26';
+export const lif_version = '2026.11.25';
 let D = 0; // debug
 const $lif = globalThis.$lif ||= {};
 const is_browser = globalThis.process?.versions?.node===undefined;
