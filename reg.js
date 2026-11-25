@@ -465,6 +465,24 @@ export function fetch_opt(url, cache){
   return cache ? {cache} : {};
 }
 
+// cdn_fail: a source whose cdn failed is marked: src.cdn_fail = Date.now().
+// It is left out, until all the sources of its list failed: then the list
+// (the array in reg_cdn) gets cdn_fail_reset_tm = Date.now(), which brings
+// them all back. There is no time limit
+function src_active(list, src){
+  return !(src.cdn_fail>(list.cdn_fail_reset_tm||0));
+}
+// the sources of list to use: those with a url that filter(src) accepts,
+// and that did not fail. All of them failed: all of them are back
+function src_collect(list, filter){
+  let srcs = list.filter(src=>src.url && (!filter || filter(src)));
+  let active = srcs.filter(src=>src_active(list, src));
+  if (active.length || !srcs.length)
+    return active;
+  list.cdn_fail_reset_tm = Date.now();
+  return srcs;
+}
+
 // Is the cdn of a source alive. A cdn that answers a failure with no cors
 // (statically.io: 404, 429) makes fetch() throw: a file that does not exist
 // and a cdn that failed look the same (status 0). The ping tells: the ping
@@ -491,6 +509,18 @@ async function reg_ping({log, cdn, src}){
   else
     cwarn('cdn ping failed '+src.name+' '+url);
   return ok;
+}
+
+// the ping of a cdn failed: the other sources of its list are pinged, and
+// those that fail are marked too (all failed: the connection is down, and
+// the list is reset when its collected)
+async function reg_ping_others({log, cdn, list, src}){
+  let others = list.filter(_src=>_src!=src && _src.url && !_src.walk &&
+    src_active(list, _src));
+  await Promise.all(others.map(async _src=>{
+    if (!await reg_ping({log, cdn, src: _src}))
+      _src.cdn_fail = Date.now();
+  }));
 }
 
 // retry: (cache: 'force-cache') an answer that is not 200 is asked again,
@@ -709,9 +739,9 @@ async function reg_filelist_get({log, lfile, opt}){
   // the sources, by their order in src_files: the first that works is
   // used. t.src: its index
   let err = 'no_src';
-  for (let [i, src] of (reg_get_cdn(lfile).src_files||[]).entries()){
-    if (!src.url)
-      continue;
+  let list = reg_get_cdn(lfile).src_files||[];
+  for (let src of src_collect(list)){
+    let i = list.indexOf(src);
     t.src = i;
     t.dirs = {};
     if (src.walk){
@@ -921,12 +951,15 @@ export async function reg_get({log, lfile, opt}){
   //   http://cdn.jsdelivr.net/npm/react@18.3.0/index.js
   let pkg, v;
   reg.cdn = reg_get_cdn(u);
-  let src = reg.cdn.src;
+  // the sources are collected from list, those that filter accepts. src:
+  // the sources, when the request names its one source
+  let src, list = reg.cdn.src, filter;
   if (u.path=='/--ver'){
     // with no version: the version table. with one: the commit of this ref
     get_ver = true;
     u.ref = u.ver ? u.ver.slice(1) : undefined;
-    src = (reg.cdn.src_ver||[]).filter(_src=>!!_src.ref==!!u.ref);
+    list = reg.cdn.src_ver||[];
+    filter = _src=>!!_src.ref==!!u.ref;
     u.submod = '';
     u.path = '';
   } else if (v=str.starts(u.path, '/--dir/')){
@@ -937,7 +970,8 @@ export async function reg_get({log, lfile, opt}){
     u.page = +page;
     u.dir = v.rest.slice(i.length+page.length+1);
     u.dir_hash = opt?.dir_hash;
-    src = [reg.cdn.src_files[i]];
+    list = reg.cdn.src_files;
+    src = [list[i]];
     u.submod = '';
     u.path = '';
   } else if (v=str.starts(u.path, '/--files/')){
@@ -945,7 +979,8 @@ export async function reg_get({log, lfile, opt}){
     get_files = true;
     let [i, page] = v.rest.split('/');
     u.page = +page;
-    src = [reg.cdn.src_files[i]];
+    list = reg.cdn.src_files;
+    src = [list[i]];
     u.submod = '';
     u.path = '';
     if (lfile_ver_missing(u))
@@ -983,16 +1018,8 @@ export async function reg_get({log, lfile, opt}){
     else
       ret = undefined;
   }
-  let now = Date.now();
-  src = src.toSorted((a, b)=>(a.fail?.tm||0) - (b.fail?.tm||0)).filter(_src=>{
-    if (_src.fail && _src.fail.tm+3000>now)
-      return;
-    if (_src.must_exist && !must_exist)
-      return;
-    if (!_src.url)
-      return;
-    return true;
-  });
+  src ||= src_collect(list, _src=>(!filter || filter(_src)) &&
+    (!_src.must_exist || must_exist));
   for (let [i, _src] of OE(src)){
     let url_fn = _src.url;
     let url = url_fn(u);
@@ -1013,15 +1040,16 @@ export async function reg_get({log, lfile, opt}){
     assert(ret.fail_cdn);
     // fetch() threw, at a source that is asked only for a file that exists:
     // its cdn is alive (ping): then its this file that it does not have
-    if (ret.status===0 && _src.must_exist && !get_ver && !get_files &&
-      await reg_ping({log, cdn: reg.cdn, src: _src}))
-    {
-      reg.not_exist = true;
-      return reg;
+    if (ret.status===0 && _src.must_exist && !get_ver && !get_files){
+      if (await reg_ping({log, cdn: reg.cdn, src: _src})){
+        reg.not_exist = true;
+        return reg;
+      }
+      await reg_ping_others({log, cdn: reg.cdn, list, src: _src});
     }
     cwarn('cdn failed '+_src.name+'. '+
       'switching cdn '+(src[+i+1]?.name || 'all cdns failed'));
-    _src.fail = {url, err: ret.err, tm: Date.now()};
+    _src.cdn_fail = Date.now();
   }
   // versions: the sources failed. the last answer that the browser has
   // stored, however old

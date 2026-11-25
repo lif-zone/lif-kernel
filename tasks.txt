@@ -19,9 +19,15 @@ reg.js: open questions (to return to at the end of the filelist work)
   refresh_tm.
 - the unpkg.com entry of the file contents (reg_cdn.npm.src) has the key
   u: and is off. Only its src_files entry is on.
-- a cdn that failed is skipped for 3 seconds: filelists of other github.com
-  packages asked in that time go to api.github.com (60 requests per hour
-  per ip without a login).
+- a source whose cdn failed is left out until all the sources of its list
+  failed (cdn_fail, cdn_fail_reset_tm). A refusal of one package marks it
+  too: the 403 of jsdelivr for the filelist of lif-os sends the filelists of
+  all the other github.com packages to api.github.com (60 requests per hour
+  per ip without a login), until that one fails too.
+- pings: only src_ping (of src). No src_ver_ping, src_files_ping.
+- statically.io answers a version of an npm package that does not exist
+  with a file of another version (react@18.3.99/package.json: 200, of
+  react 19.3.1).
 - git_ver_resolve() (kernel.js) is to move into reg.js, by src_ver of
   reg_cdn (#6).
 - a content that was fetched under a filelist of sha256 (jsdelivr, unpkg)

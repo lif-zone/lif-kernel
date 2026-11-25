@@ -1103,3 +1103,28 @@ its listed files come from statically.io; a package that does not exist:
 status 0, ping ok, 404, and no second ping within 3 seconds; with a wrong
 ping length: 'cdn ping failed', the cdn failed.
 ---
+USER:
+cdns marked with cdn_fail are removed from the list. once ALL cdns are
+removed, they are all added back in: no time limit. cdn_fail: tm of the
+marking; the cdn list array has cdn_fail_reset_tm, set to Date.now() when
+all are filtered out. Every failure marks, also in a list with no ping.
+When the ping of a cdn fails, ping all our cdns with src_ping. implement it
+
+CLAUDE:
+reg.js:
+- src_active(list, src), src_collect(list, filter): the sources of a list
+  that did not fail (src.cdn_fail not later than list.cdn_fail_reset_tm);
+  when none is left the reset tm of the list (the array of reg_cdn) is set,
+  and all are back. The skip of 3 seconds and the sort by the time of the
+  failure are removed.
+- reg_get(): collects from src (with the must_exist rule) or src_ver (one
+  ref / the table); a failure sets _src.cdn_fail. After a bad ping:
+  reg_ping_others() pings the other sources of the list and marks those
+  that fail.
+- reg_filelist_get(): goes over src_collect(src_files).
+tasks.txt: the open question of the 3 seconds replaced; pings and the
+statically.io version answer added.
+Tested: the collect/reset logic with a controlled clock; port 4211:
+lif-wallet loads; after the 403 of jsdelivr for the filelist of lif-os the
+filelists of two other github.com repositories came from api.github.com.
+---
