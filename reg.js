@@ -306,7 +306,7 @@ let reg_cdn = {
       src: [{
         name: 'statically.io',
         url: u=>`https://cdn.statically.io/gl/${u.name}${gh_ver(u)}${u.submod_path}`,
-        // answers 429 on rate limit
+        // answers 429 (without cors) on rate limit
       }, {
         name: 'gitlab.com',
         // content-type is always text/plain
