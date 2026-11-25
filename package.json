@@ -105,6 +105,7 @@
     "./util.js": "./util.js",
     "./load_progress": "./load_progress.js",
     "./ipc.js": "./ipc.js",
+    "./rpc": "./rpc.js",
     "./rpc.js": "./rpc.js",
     "./lpm.js": "./lpm.js",
     "./ast.js": "./ast.js",
