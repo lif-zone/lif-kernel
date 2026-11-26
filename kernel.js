@@ -3,6 +3,7 @@ export const lif_version = '2026.11.25';
 let D = 0; // debug
 const $lif = globalThis.$lif ||= {};
 const is_browser = globalThis.process?.versions?.node===undefined;
+// testing
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
