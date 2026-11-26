@@ -58,7 +58,7 @@ async function boot_full(conf){
 }
 
 let conf = __CONF__;
-if (+localStorage.getItem('LIF_BOOT_SIMPLE'))
+if (+localStorage.getItem('LIF_BOOT_SIMPLE') || conf.boot_simple)
   await boot_simple(conf);
 else
   await boot_full(conf);
