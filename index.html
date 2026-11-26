@@ -1,53 +1,68 @@
 <html>
   <head>
     <script type=module>
-      let lif;
-      let has_sw = !!navigator.serviceWorker.controller;
-      let retry = +localStorage.getItem('lif.boot.retry')||0;
-      async function load_err(){
-        if (lif || !navigator.serviceWorker.controller)
-          return;
-        console.log('lif boot failed loading - unreegister sw');
-        if (localStorage.getItem('lif.boot.disable_load_err'))
-          return;
-        navigator.serviceWorker.controller.postMessage(
-          {type: 'sw_boot_terminate'});
-        let reg = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(reg.map(r=>r.update()));
-        await Promise.all(reg.map(r=>r.unregister()));
-        localStorage.setItem('lif.boot.retry', ''+Date.now());
-        if (!retry || Date.now()-retry>10000){
-          console.log('lif boot retry');
-          window.location.reload(true);
-        }
-      }
-      async function load_timeout(){
-        if (lif || !navigator.serviceWorker.controller)
-          return;
-        let res, _err;
-        setTimeout(()=>fetch_err(), 2000);
-        try {
-          res = await fetch('__BOOT_JS__');
-        } catch(err){
-          _err = err;
-        }
-        function fetch_err(){
-          if (res)
-            return;
-          load_err();
-        }
-      }
-      if (has_sw)
-        setTimeout(()=>load_timeout(), 2000);
-      try {
-        lif = (await import('__BOOT_JS__')).default;
-      } catch(err){
-        console.error('index.html boot', err);
-        if (has_sw)
-          await load_err();
-        throw err;
-      }
-      await lif.boot.boot_app({lif: {webapp: '__WEBAPP__', temp: __TEMP__}});
+
+async function boot_simple(conf){
+  let lif = import(conf.boot_js); // local dev
+  await lif.boot.boot_app(conf.boot_pkg);
+}
+
+async function boot_full(conf){
+  let lif;
+  let has_sw = !!navigator.serviceWorker.controller;
+  let retry = +localStorage.getItem('lif.boot.retry')||0;
+  async function load_err(){
+    if (lif || !navigator.serviceWorker.controller)
+      return;
+    console.log('lif boot failed loading - unreegister sw');
+    if (localStorage.getItem('lif.boot.disable_load_err'))
+      return;
+    navigator.serviceWorker.controller.postMessage(
+      {type: 'sw_boot_terminate'});
+    let reg = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(reg.map(r=>r.update()));
+    await Promise.all(reg.map(r=>r.unregister()));
+    localStorage.setItem('lif.boot.retry', ''+Date.now());
+    if (!retry || Date.now()-retry>10000){
+      console.log('lif boot retry');
+      window.location.reload(true);
+    }
+  }
+  async function load_timeout(){
+    if (lif || !navigator.serviceWorker.controller)
+      return;
+    let res, _err;
+    setTimeout(()=>fetch_err(), 2000);
+    try {
+      res = await fetch(conf.boot_js);
+    } catch(err){
+      _err = err;
+    }
+    function fetch_err(){
+      if (res)
+        return;
+      load_err();
+    }
+  }
+  if (has_sw)
+    setTimeout(()=>load_timeout(), 2000);
+  try {
+    lif = (await import(conf.boot_js)).default;
+  } catch(err){
+    console.error('index.html boot', err);
+    if (has_sw)
+      await load_err();
+    throw err;
+  }
+  await lif.boot.boot_app(conf.boot_pkg);
+}
+
+let conf = __CONF__;
+if (+localStorage.getItem('LIF_BOOT_SIMPLE'))
+  await boot_simple(conf);
+else
+  await boot_full(conf);
+
     </script>
   </head>
   <body>

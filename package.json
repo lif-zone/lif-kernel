@@ -55,7 +55,6 @@
     "semver.js",
     "semver_full.js",
     "sw_boot.js",
-    "serve_index.html",
     "lif_kernel_sw.js",
     "lif-kernel.service",
     "lif.svg",

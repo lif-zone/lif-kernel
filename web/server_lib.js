@@ -136,8 +136,11 @@ function res_send_file(res, _path){
   if (opt?.tr){
     let _body = fs.readFileSync(_path, 'utf8');
     let body = _body;
-    for (let [search, replace] of OE(opt.tr))
+    for (let [search, replace] of OE(opt.tr)){
+      if (typeof replace!='string')
+        replace = JSON.stringify(replace);
       body = body.replaceAll(search, replace);
+    }
     return res_send(res, {body, ext});
   }
   res.writeHead(200, h);
@@ -330,8 +333,7 @@ async function run(opt){
   g_opt.js_map = true;
   argv.shift();
   argv.shift();
-  while ((a=argv[0])!=undefined){
-    argv.shift();
+  while ((a=argv.shift())!=undefined){
     if (a=='-p' || a=='--port')
       g_opt.port = +argv.shift();
     else if (a=='-m' || a=='--map')
@@ -348,7 +350,8 @@ async function run(opt){
     } else if (a=='--peer'){
       let peer_url = argv.shift();
       g_opt.peers = [...(g_opt.peers||[]), peer_url];
-    } else
+    } else if (a=='--local-dev'); // handled elsewhere
+    else
       throw 'invalid arg '+a;
   }
   if (argv.length)

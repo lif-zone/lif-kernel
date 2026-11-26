@@ -8,9 +8,14 @@ let root = process.cwd();
 let map = {};
 let pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 map['/lif-kernel'] = dirname+'/..';
-map['/index.html'] = {path: dirname+'/../index.html',
-  tr: {__WEBAPP__: 'local:/'+pkg.name+'//', __TEMP__: 'false',
-    __BOOT_JS__: '/lif-kernel/boot.js'}};
+let conf = {
+  boot_js: '/lif-kernel/boot.js', // 'https://unpkg.com/lif-kernel@latest/boot.js',
+  boot_pkg: {lif: {
+    webapp: 'local:/'+pkg.name+'//',
+    temp: false, // loading directly the final app
+  }},
+};
+map['/index.html'] = {path: dirname+'/../index.html', tr: {__CONF__: conf}};
 map['/'+pkg.name] = '.';
 let peers = [
   'ws://localhost:1842/.lif.net',

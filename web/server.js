@@ -3,21 +3,24 @@ import server from './server_lib.js';
 let root = import.meta.dirname+'/..';
 let map = {};
 map['/lif-kernel'] = '.';
-map['/index.html'] = {path: './index.html', tr: {
-  __WEBAPP__: 'lif-kernel/hi.js',
-  // hi.js is just a loader of the final application: not persisted by kernel
-  __TEMP__: 'true',
-  // __BOOT_JS__: 'https://unpkg.com/lif-kernel@latest/boot.js',
-  __BOOT_JS__: '/lif-kernel/boot.js',
-}};
-// local dev
-map['/lif-basic'] = './lif-basic';
-map['/lif-os'] = '../lif-os';
-map['/lif-coin'] = '../lif-coin';
-map['/lif-net'] = '../lif-net';
-map['/lif-wallet'] = '../lif-wallet';
-map['/lif-explorer'] = '../lif-explorer';
-map['/lif-start'] = '../lif-start';
+let conf = {
+  boot_js: '/lif-kernel/boot.js', // 'https://unpkg.com/lif-kernel@latest/boot.js',
+  boot_pkg: {lif: {
+    webapp: 'lif-kernel/hi.js',
+    temp: true, // hi.js is just a loader of the final application: not persisted by kernel
+  }},
+};
+map['/index.html'] = {path: './index.html', tr: {__CONF__: conf}};
+if (process.argv.includes('--local-dev')){
+  console.log('local dev enabled');
+  map['/lif-basic'] = './lif-basic';
+  map['/lif-os'] = '../lif-os';
+  map['/lif-coin'] = '../lif-coin';
+  map['/lif-net'] = '../lif-net';
+  map['/lif-wallet'] = '../lif-wallet';
+  map['/lif-explorer'] = '../lif-explorer';
+  map['/lif-start'] = '../lif-start';
+}
 let peers = [
   'https://lifnet.net/.lif.net',
   'https://zon.life/.lif.net',
