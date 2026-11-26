@@ -1210,6 +1210,12 @@ function test_lpm(){
   t('.lif/local/mod//file.js', 'local/mod//file.js');
   t('http://site/dir', 'http/site/dir');
   t('https://site/dir', 'https/site/dir');
+  // XXX need to make _npm_parse more strict
+  0 && t('npm:a space');
+  0 && t('a space');
+  0 && t('npm:..');
+  0 && t('..');
+  0 && t(':x');
   t = (lfile, v)=>assert_eq(v, lfile_to_npm(lfile));
   t('npm/mod', 'mod');
   t('npm/mod/file.js', 'mod/file.js');
