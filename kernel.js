@@ -3,7 +3,6 @@ export const lif_version = '2026.11.25';
 let D = 0; // debug
 const $lif = globalThis.$lif ||= {};
 const is_browser = globalThis.process?.versions?.node===undefined;
-// testing
 
 const util = await import('./util.js');
 const {str, OE, OA, OV, assert, ecache, json_cp, ewait, Donce,
@@ -1533,12 +1532,12 @@ async function kernel_fetch(event){
     slow = eslow(15000, '_kernel_fetch '+url);
     await app_restore_wait;
     let res = await _kernel_fetch(event);
-    slow.end();
     return res;
   } catch(err){
     cerror('kernel_fetch err '+url, err);
-    slow.end();
     return new Response(''+err, {status: 500, statusText: ''+err});
+  } finally {
+    slow.end();
   }
 }
 
