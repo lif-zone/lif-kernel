@@ -1162,3 +1162,10 @@ as express, of the body after the replacements) for a file with tr.
 req_not_modified(): if-none-match / if-modified-since that match are
 answered 304 with no body. res_send() takes extra headers.
 ---
+USER:
+for those you do not calculate crypto etag, do an etag of file length+date
+
+CLAUDE:
+web/server_lib.js: a file of the disk (no tr) also gets an etag:
+W/"<size hex>-<mtime ms hex>", as express. last-modified stays.
+---

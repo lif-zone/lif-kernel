@@ -135,9 +135,9 @@ function req_not_modified(req, {etag, lmod}){
   return false;
 }
 
-// a file of the disk has last-modified. A file with tr has an etag: its
-// body is also made of the replacements, that the time of the file does
-// not tell
+// a file of the disk has last-modified, and an etag of its length and its
+// time (as express). A file with tr has only an etag, of its body: the body
+// is also made of the replacements, that the time of the file does not tell
 function res_send_file(req, res, _path){
   let opt;
   if (_path.path){
@@ -166,8 +166,10 @@ function res_send_file(req, res, _path){
       return res.writeHead(304, h).end();
     return res_send(res, {body, ext, headers: {etag}});
   }
+  let etag = h['etag'] = 'W/"'+e.size.toString(16)+'-'+
+    Math.floor(e.mtimeMs).toString(16)+'"';
   h['last-modified'] = e.mtime.toUTCString();
-  if (req_not_modified(req, {lmod: e.mtimeMs}))
+  if (req_not_modified(req, {etag, lmod: e.mtimeMs}))
     return res.writeHead(304, h).end();
   res.writeHead(200, h);
   let stream = fs.createReadStream(_path);
