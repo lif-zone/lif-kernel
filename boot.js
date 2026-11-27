@@ -924,10 +924,7 @@ async function boot_kernel(){
       slow.end();
       wait.return();
     };
-    let slow = eslow('sw register');
-    // index.html has registered the kernel, with the base of its files
     let registration = await serviceWorker.getRegistration();
-    slow.end();
     if (0){
       registration.update();
       // Listen for new service worker
