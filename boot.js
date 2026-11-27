@@ -949,7 +949,7 @@ async function boot_kernel(){
     serviceWorker.addEventListener('statechange', ()=>{
       clog('sw statechange', event);
     });
-    slow = eslow(1000, 'sw register ready'); // this is where it gets normally stuck
+    let slow = eslow(1000, 'sw register ready'); // this is where it gets normally stuck
     const sw = await serviceWorker.ready;
     slow.end();
     // this boots the app if the SW has been installed before or
