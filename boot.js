@@ -925,6 +925,10 @@ async function boot_kernel(){
       wait.return();
     };
     let registration = await serviceWorker.getRegistration();
+    if (!registration){
+      cerror('lif boot: kernel is not registered');
+      throw Error('lif boot: kernel is not registered');
+    }
     if (0){
       registration.update();
       // Listen for new service worker
@@ -939,7 +943,7 @@ async function boot_kernel(){
         });
       });
     }
-    registration?.addEventListener('updatefound', ()=>{
+    registration.addEventListener('updatefound', ()=>{
       clog('sw updatefound', event);
     });
     serviceWorker.addEventListener('statechange', ()=>{

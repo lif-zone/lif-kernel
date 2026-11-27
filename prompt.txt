@@ -1273,3 +1273,13 @@ boot.js boot_kernel(): the branch that registered the kernel
 index.html does all three. boot_kernel() only takes the registration
 (getRegistration()). Nothing else of boot_kernel() is changed.
 ---
+USER:
+registration?.addEventListener: the ? does not guard, it makes the bug
+harder to find. Immediately after getRegistration, if the result is null,
+then cerr() and throw.
+
+CLAUDE:
+boot.js boot_kernel(): no registration after getRegistration(): cerror()
+and throw ('lif boot: kernel is not registered'). The ? of
+registration?.addEventListener() is removed.
+---
