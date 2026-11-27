@@ -799,7 +799,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
 
 let local_dev_redirect_t = {
   'git/github.com/lif-zone/lif-coin@latest': 'local/lif-coin/',
-  'git/github.com/lif-zone/lif-kernel@latest': 'local/lif-kernel/',
+  'git/github.com/lif-zone/lif-kernel@latest': 'local/.lif.lif-kernel/',
   'git/github.com/lif-zone/lif-os@latest': 'local/lif-os/',
   'git/github.com/lif-zone/lif-net@latest': 'local/lif-net/',
 };
@@ -1163,7 +1163,7 @@ async function responce_tr_send({f, qs, lfile}){
   let meta = await file_js_to_meta(f);
   if (meta.err)
     return {body: f.blob, ext, err: 'meta err: '+meta.err};
-  // XXX is passthrough for /lif-kernel/boot.js still needed?
+  // XXX is passthrough for /.lif.lif-kernel/boot.js still needed?
   if (v=passthrough_lfile({pkg: f.lpm_pkg.pkg, lfile}))
     return {body: mjs_import_mjs(meta.export_default, v), ext};
   let type = meta.type;
@@ -1778,7 +1778,7 @@ async function _do_app_pkg(boot_pkg){
     !lif.overrides?.['lif-kernel'])
   {
     lif.overrides ||= {};
-    // shorten http/localhost:3000/lif-kernel -> local/lif-kernel/,
+    // shorten http/localhost:3000/.lif.lif-kernel -> local/.lif.lif-kernel/,
     // so its nicer visually in devtools
     let u = T_url_parse(lif_kernel_base);
     let base = lif_kernel_base;

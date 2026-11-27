@@ -1188,3 +1188,17 @@ CLAUDE:
 The target of the override is as before: local:<lif_kernel_base>//. Who
 gives another target (npm@ver, git@commit) is not done.
 ---
+USER:
+lets rename /lif-kenrel/ on the server to be /.lif.lif-kernel/ (so its lmod
+is local/.lif.lif-kernel/). this will match the /.lif.kernet_sw.js way) so
+its updating the map
+
+CLAUDE:
+The files of the kernel are served at /.lif.lif-kernel/ (was /lif-kernel/):
+- web/server_lib.js, web/serve.js, web/server.js: the map key, and boot_js:
+  '/.lif.lif-kernel/boot.js'.
+- kernel.js: local_dev_redirect_t leads to local/.lif.lif-kernel/, comments.
+- test/browser.js: GET /.lif.lif-kernel/hi.js.
+/lif-kernel/ is not served any more: a browser that holds a service worker
+of the old path has to register again.
+---

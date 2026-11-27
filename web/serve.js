@@ -7,9 +7,10 @@ let dirname = import.meta.dirname;
 let root = process.cwd();
 let map = {};
 let pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-map['/lif-kernel'] = dirname+'/..';
+map['/.lif.lif-kernel'] = dirname+'/..';
 let conf = {
-  boot_js: '/lif-kernel/boot.js', // 'https://unpkg.com/lif-kernel@latest/boot.js',
+  // 'https://unpkg.com/lif-kernel@latest/boot.js'
+  boot_js: '/.lif.lif-kernel/boot.js',
   boot_pkg: {lif: {
     webapp: 'local:/'+pkg.name+'//',
     temp: false, // loading directly the final app

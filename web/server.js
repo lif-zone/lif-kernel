@@ -2,9 +2,10 @@
 import server from './server_lib.js';
 let root = import.meta.dirname+'/..';
 let map = {};
-map['/lif-kernel'] = '.';
+map['/.lif.lif-kernel'] = '.';
 let conf = {
-  boot_js: '/lif-kernel/boot.js', // 'https://unpkg.com/lif-kernel@latest/boot.js',
+  // 'https://unpkg.com/lif-kernel@latest/boot.js'
+  boot_js: '/.lif.lif-kernel/boot.js',
   boot_pkg: {lif: {
     webapp: 'lif-kernel/hi.js',
     temp: true, // hi.js is just a loader of the final application: not persisted by kernel

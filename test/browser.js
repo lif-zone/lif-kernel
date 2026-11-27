@@ -23,8 +23,9 @@ describe('browser', function(){
     browser?.close();
     proc?.kill();
   });
-  it('GET /lif-kernel/hi.js', async()=>{
-    await fetch_test({url: url_base+'/lif-kernel/hi.js', search: 'hi world'});
+  it('GET /.lif.lif-kernel/hi.js', async()=>{
+    await fetch_test({url: url_base+'/.lif.lif-kernel/hi.js',
+      search: 'hi world'});
   });
   it('page /?/lif-kernel/basic', async function(){
     this.timeout(30000);

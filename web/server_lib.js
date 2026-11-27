@@ -339,8 +339,8 @@ async function server_init({port, ssl}){
 async function start_web(){
   let lif_kernel;
   let map = g_opt.map;
-  if (!(lif_kernel = map['/lif-kernel']))
-    map['/lif-kernel'] = lif_kernel = import.meta.dirname;
+  if (!(lif_kernel = map['/.lif.lif-kernel']))
+    map['/.lif.lif-kernel'] = lif_kernel = import.meta.dirname;
   if (!map['/.lif.kernel_sw.js'])
     map['/.lif.kernel_sw.js'] = lif_kernel+'/lif_kernel_sw.js';
   if (!map['/index.html'])
