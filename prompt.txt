@@ -1217,3 +1217,17 @@ CLAUDE:
 - kernel.js: the import of boot.js added to a worker of an app is
   /.lif/npm/lif-kernel/boot.js too.
 ---
+USER:
+putting the kernel built-in root pkg as first layer, and the webapp call as
+a layer above it. can item 1 be fixed in the code, tested and committed?
+
+CLAUDE:
+kernel.js: the pkgs are layers. The built-in pkg (local/.lif.kernel/,
+lpm_pkg_builtin, builtin_pkg_set()) is made once at the start of the
+kernel, with the override of lif-kernel, and is put back in lpm_pkg_t each
+time an app is set. The root pkg (the boot_pkg of boot_app()) is its child:
+_do_app_pkg() does not add the override to the boot_pkg any more.
+/.lif/npm/lif-kernel/ is resolved by the built-in pkg. With no app set, an
+import is resolved by the built-in pkg (was: by a root pkg made of an empty
+boot_pkg). The rule of the lookup is not changed.
+---

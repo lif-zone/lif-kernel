@@ -741,7 +741,7 @@ async function lpm_pkg_get({log, lmod, lmod_self}){
     lpm_self = lpm_pkg_t[lmod_self];
   }
   if (!lpm_self)
-    lpm_self = lpm_pkg_app || lpm_pkg_root;
+    lpm_self = lpm_pkg_app || lpm_pkg_root || lpm_pkg_builtin;
   assert(lpm_self, 'module('+lmod+') req before app set');
   // add to tree
   for (let p=lpm_self; p; p = p.parent)
@@ -869,11 +869,11 @@ async function lpm_pkg_resolve({log, imp, lmod_self}){
     if (lmod_self==imp)
       return lpm_self;
   } else if (imp=='npm/lif-kernel'){
-    // /.lif/npm/lif-kernel/: the files of the kernel itself. By the override
-    // of the root pkg, whatever the app depends on
-    lpm_self = lpm_pkg_root;
+    // /.lif/npm/lif-kernel/: the files of the kernel itself. By the built-in
+    // pkg, whatever the root pkg and the app say
+    lpm_self = lpm_pkg_builtin;
   } else
-    lpm_self = lpm_pkg_app || lpm_pkg_root;
+    lpm_self = lpm_pkg_app || lpm_pkg_root || lpm_pkg_builtin;
   // lookup for imports in parent
   let imp_lfile = T_lfile_str(T_lmod_parse(imp));
   let _imp = lpm_import_lookup({lpm_pkg: lpm_self, lfile: imp_lfile});
@@ -1380,7 +1380,7 @@ function lif_kernel_modules(){
   if (lpm_pkg_root)
     res.root_id = lpm_pkg_root.id;
   res.root = {};
-  add(res.root, lpm_pkg_root.child);
+  add(res.root, lpm_pkg_root?.child);
   let lpm_self = lpm_pkg_app || lpm_pkg_root;
   function add(res, root){
     for (let pkg of OV(root)){
@@ -1737,17 +1737,41 @@ async function app_pkg_load(){
   }
 }
 
-// the built-in root pkg: what the kernel has before an app is set. No app:
-// only the root pkg, with its override of lif-kernel (_do_app_pkg() adds
-// it), which is where /.lif/npm/lif-kernel/ leads to. For what boot.js
-// loads before it sets the app: boot_worker.js
-let boot_pkg_builtin = {lif: {temp: true}};
+// the pkgs that an import is resolved by are layers, each the parent of the
+// next:
+// - the built-in pkg (local/.lif.kernel/): of the kernel itself, there from
+//   its start to its end. Its override of lif-kernel is where the files of
+//   the kernel are, and where /.lif/npm/lif-kernel/ leads to.
+// - the root pkg (local/.lif.boot/): what the page gave by boot_app().
+// - the app: the package.json of the webapp, and the pkgs it depends on.
+// What a pkg does not say is left to its parents (lpm_import_lookup()): a
+// root pkg with its own lif-kernel is used, one without leaves it as it is.
+let lmod_builtin = 'local/.lif.kernel/';
+let lpm_pkg_builtin;
+// lpm_pkg_t was emptied (an app is set): the built-in pkg is put back
+function builtin_pkg_set(){
+  if (!lpm_pkg_builtin){
+    // shorten http/localhost:3000/.lif.lif-kernel -> local/.lif.lif-kernel/,
+    // so its nicer visually in devtools
+    let u = T_url_parse(lif_kernel_base);
+    let base = u.origin==location.origin ? u.path : lif_kernel_base;
+    // as an entry of ecache()
+    let t = lpm_pkg_builtin = {id: lmod_builtin, tm: Date.now(),
+      wait: ewait(), wait_complete: true, lmod: lmod_builtin,
+      pkg: {lif: {overrides: {'lif-kernel': 'local:'+base+'//'}}}};
+    t.wait.return(t);
+  }
+  lpm_pkg_builtin.child = [];
+  lpm_pkg_t[lmod_builtin] = lpm_pkg_builtin;
+}
+
 async function app_restore(){
   let boot_pkg = await app_pkg_load();
-  if (boot_pkg)
-    clog('restore app_pkg on sw start');
+  if (!boot_pkg)
+    return;
+  clog('restore app_pkg on sw start');
   try {
-    await _do_app_pkg(boot_pkg||boot_pkg_builtin);
+    await _do_app_pkg(boot_pkg);
   } catch(err){
     cerror('failed restore app_pkg', err);
   }
@@ -1772,25 +1796,13 @@ async function _do_app_pkg(boot_pkg){
   lpm_app_date = Date.now();
   lpm_pkg_root = undefined;
   lpm_pkg_t = {};
+  builtin_pkg_set();
   patches_t = {};
   if (refrash_clear_cache){
     lpm_pkg_ver_t = {};
     lpm_file_t = {};
   }
-  // add lif-kernel package
-  if (!boot_pkg.overrides?.['lif-kernel'] &&
-    !lif.overrides?.['lif-kernel'])
-  {
-    lif.overrides ||= {};
-    // shorten http/localhost:3000/.lif.lif-kernel -> local/.lif.lif-kernel/,
-    // so its nicer visually in devtools
-    let u = T_url_parse(lif_kernel_base);
-    let base = lif_kernel_base;
-    if (u.origin==location.origin)
-      base = u.path;
-    lif.overrides['lif-kernel'] = 'local:'+base+'//';
-  }
-  // init root pkg
+  // init root pkg: a layer above the built-in pkg
   lpm_pkg_root = await ecache({table: lpm_pkg_t, id: lmod_root},
     async function run(lpm_pkg)
   {
@@ -1799,6 +1811,8 @@ async function _do_app_pkg(boot_pkg){
     lpm_pkg.patches = pkg_patches_lmod(boot_pkg, lmod_root);
     patches_add(lpm_pkg.patches);
     lpm_pkg.child = [];
+    lpm_pkg.parent = lpm_pkg_builtin;
+    lpm_pkg_builtin.child.push(lpm_pkg);
     return lpm_pkg;
   });
   // load webapp
@@ -1834,6 +1848,7 @@ export function boot(sw_boot){
       return;
   };
   sw_boot.on_fetch = event=>kernel_fetch(event);
+  builtin_pkg_set();
   app_restore_wait = app_restore();
   clog('lif kernel inited: '+lif_kernel_base
     +' sw '+sw_boot.version+' util '+util.version);
