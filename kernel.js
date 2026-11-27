@@ -243,6 +243,17 @@ let lpm_pkg_t = {};
 let lpm_pkg_ver_t = {};
 let lpm_file_t = {};
 
+// an override of lfile: of the pkg itself, or of the nearest parent
+function lpm_over_lookup(lpm_pkg, lfile){
+  for (let p = lpm_pkg; p; p = p.parent){
+    let l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, lfile});
+    if (l.over)
+      return l.over;
+  }
+}
+
+// As npm: an override (of the pkg, or of a parent) comes before the
+// dependencies of the pkg itself.
 function lpm_import_lookup({lpm_pkg, lfile}){
   function ret_err(err){
     D && clog('lpm_import_lookup('+lpm_pkg.lmod+') imp '+lfile+': '+err);
@@ -256,22 +267,32 @@ function lpm_import_lookup({lpm_pkg, lfile}){
   let _lfile = lfile_ver_from_base(lfile, lpm_pkg.lmod);
   if (_lfile)
     return _lfile;
-  // self: over -> optional -> reg -> peer -> dev
-  let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg, lfile});
-  let resolved = l.over || l.optional || l.reg || l.peer || l.dev;
-  let is_peer = !l.over && !l.optional && !l.reg && !!l.peer;
-  // parents: over and reg only
+  let is_peer;
+  let resolved = lpm_over_lookup(lpm_pkg, lfile);
+  if (!resolved){
+    // self: optional -> reg -> peer -> dev
+    let l = pkg_import_lookup({lmod_self: lpm_pkg.lmod, pkg: lpm_pkg.pkg,
+      lfile});
+    resolved = l.optional || l.reg || l.peer || l.dev;
+    is_peer = !l.optional && !l.reg && !!l.peer;
+  }
+  // parents: what self left open (nothing, a peer, or another npm name
+  // without a version): over and then reg
   for (let p = lpm_pkg.parent; p; p = p.parent){
     if (resolved && !is_peer){
       let ru = lfile_parse(resolved);
       if (!ru || ru.reg!='npm' || !lfile_ver_missing(ru))
         break;
     }
-    l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg,
-      lfile: is_peer ? lfile : resolved || lfile});
-    if (l.over)
-      resolved = l.over;
-    else if (l.reg){
+    let name = is_peer ? lfile : resolved || lfile;
+    let over = name!=lfile && lpm_over_lookup(p, name);
+    if (over){
+      resolved = over;
+      is_peer = false;
+      continue;
+    }
+    let l = pkg_import_lookup({lmod_self: p.lmod, pkg: p.pkg, lfile: name});
+    if (l.reg){
       resolved = l.reg;
       is_peer = false;
     }
@@ -1574,6 +1595,7 @@ function test_kernel(){
         optional: '1.0.1',
         net: 'npm:nodejs/net',
         net2: 'npm:nodejs@1.2.3/net',
+        galias: 'npm:gtarget/sub',
       },
       peerDependencies: {
         peer: '>=1.0.0',
@@ -1603,6 +1625,7 @@ function test_kernel(){
           gparent2: '99.9.9',
           gpeer: '13.0.1',
           gpeerdev: '13.0.1',
+          gtarget: '1.0.0',
         },
         overrides: {
           over: '18.0.0',
@@ -1610,6 +1633,9 @@ function test_kernel(){
           gparent: '22.0.0',
           nodejs: 'local:/nodejs//',
         },
+      },
+      parent: {lmod: 'npm/gpar',
+        pkg: {overrides: {gtarget: '2.0.0'}},
       },
     },
   };
@@ -1631,6 +1657,7 @@ function test_kernel(){
   t('local/file', 'local/file');
   t('npm/dir', 'npm/self@1.2.3/DIR');
   t('npm/peer', 'npm/peer@1.1.1');
+  t('npm/over', 'npm/over@18.0.0');
   t('npm/gmod', 'npm/gmod@21.0.0');
   t('npm/gparent', 'npm/gparent@22.0.0');
   t('npm/gparent2', 'npm/gparent2@99.9.9');
@@ -1642,6 +1669,7 @@ function test_kernel(){
   t('npm/GIT/dir/file', 'git/github.com/user/repo@v1/dir/file');
   t('git/github.com/user/repo@vX', 'git/github.com/user/repo@vX');
   t('npm/net', 'local/nodejs//net');
+  t('npm/galias', 'npm/gtarget@2.0.0/sub');
   t = (pkg, lfile, v)=>assert_eq(v, lpm_import_lookup({lpm_pkg: {pkg}, lfile}));
   t({dependencies: {'lif-kernel': 'local:/lif-kernel//'}}, 'npm/lif-kernel/util.js',
     'local/lif-kernel//util.js');

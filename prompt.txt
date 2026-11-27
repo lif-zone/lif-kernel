@@ -1231,3 +1231,26 @@ _do_app_pkg() does not add the override to the boot_pkg any more.
 import is resolved by the built-in pkg (was: by a root pkg made of an empty
 boot_pkg). The rule of the lookup is not changed.
 ---
+USER:
+overrides: lets do it the npm way (an override of a parent comes before the
+dependencies of a child pkg). check existing overrides first.
+
+CLAUDE:
+kernel.js lpm_import_lookup(): an override is looked up first, in the pkg
+itself and then in its parents (the nearest wins: lpm_over_lookup()), and
+only then the dependencies of the pkg itself (was: the dependencies of the
+pkg came before an override of a parent). The same for a name the pkg maps
+to another npm name without a version. Test added (npm/over). Checked on
+real loads with a temporary old/new comparison: in BlueWallet and
+lif-wallet only their own lif-kernel/... imports changed (the built-in
+override instead of github main).
+---
+USER:
+add a test for the second case too
+
+CLAUDE:
+kernel.js test_kernel(): npm/galias: the pkg maps it to npm:gtarget/sub
+(no version), the parent has the dependency gtarget 1.0.0, and the parent
+of the parent has the override gtarget 2.0.0: the override wins
+(npm/gtarget@2.0.0/sub; the old rule gave npm/gtarget@1.0.0/sub).
+---
