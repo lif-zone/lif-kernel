@@ -2,9 +2,37 @@
   <head>
     <script type=module>
 
+// conf.lif_kernel_base: where the files of the kernel are: on this server
+// (/.lif.lif-kernel), or a url of a cdn.
+// boot_simple: boot.js is imported from there, and registers the kernel.
+// boot_full: the kernel (the service worker) is registered here, with that
+// base, and boot.js and what it imports are loaded by the kernel:
+// /.lif/npm/lif-kernel/. Where the kernel fetches them from is its business.
+let boot_js = '/.lif/npm/lif-kernel/boot.js';
+
 async function boot_simple(conf){
-  let lif = import(conf.boot_js); // local dev
+  let lif = (await import(conf.lif_kernel_base+'/boot.js')).default;
   await lif.boot.boot_app(conf.boot_pkg);
+}
+
+async function kernel_register(conf){
+  let sw = navigator.serviceWorker;
+  let q = new URLSearchParams({lif_kernel_base:
+    new URL(conf.lif_kernel_base, location.href).href});
+  if (localStorage.getItem('local_dev_enable'))
+    q.set('local_dev_enable', 1);
+  let url = new URL('/.lif.kernel_sw.js?'+q, location.href).href;
+  await sw.register(url);
+  await sw.ready;
+  // a first load, or a kernel of another base: until this kernel takes the
+  // page (its clients.claim())
+  for (let i=0; i<100 && sw.controller?.scriptURL!=url; i++)
+    await new Promise(resolve=>setTimeout(resolve, 100));
+  if (sw.controller)
+    return;
+  console.log('no sw controller - reloading');
+  location.reload();
+  await new Promise(()=>{});
 }
 
 async function boot_full(conf){
@@ -34,7 +62,7 @@ async function boot_full(conf){
     let res, _err;
     setTimeout(()=>fetch_err(), 2000);
     try {
-      res = await fetch(conf.boot_js);
+      res = await fetch(boot_js);
     } catch(err){
       _err = err;
     }
@@ -47,7 +75,8 @@ async function boot_full(conf){
   if (has_sw)
     setTimeout(()=>load_timeout(), 2000);
   try {
-    lif = (await import(conf.boot_js)).default;
+    await kernel_register(conf);
+    lif = (await import(boot_js)).default;
   } catch(err){
     console.error('index.html boot', err);
     if (has_sw)

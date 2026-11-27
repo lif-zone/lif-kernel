@@ -30,7 +30,11 @@ const cerror = console.error.bind(console);
 const cwarn = console.warn.bind(console);
 const json = JSON.stringify;
 const sha256 = await import('./sha256.js');
+// where the kernel itself fetches its files from: the server, or a cdn
 let lif_kernel_base;
+// boot.js for a page and for a worker: by the kernel, as index.html does:
+// one url, so one copy of it
+let boot_js = '/.lif/npm/lif-kernel/boot.js';
 
 let g_indexedDB = globalThis.indexedDB;
 let g_caches = globalThis.caches;
@@ -329,7 +333,7 @@ function file_tr_mjs_worker(f, opt){
     globalThis.addEventListener('message', lif_worker.cb);
     // Chrome 148 Worker bug: must use dynamic import() to force correct order
     // see also lif-coin/browser/node_env.js
-    let lif = (await  import(${json(lif_kernel_base+'/boot.js')})).default;
+    let lif = (await  import(${json(boot_js)})).default;
     let importScripts = (...mods)=>lif.boot._importScripts(import.meta.url, mods);
     let import_lif = function(){
       return globalThis.$lif.boot.import_esm(import.meta.url, arguments);
@@ -368,7 +372,7 @@ function mjs_import_cjs(path, q){
     // double space between await and import, to prevent tr import_module
     js += `let $lif_message = {q: [], fn: e=>$lif_message.q.push(e)}; `;
     js += `globalThis.addEventListener('message', $lif_message.fn); `;
-    js += `let lif = (await  import(${json(lif_kernel_base+'/boot.js')})).default; `;
+    js += `let lif = (await  import(${json(boot_js)})).default; `;
   }
   js += `let exports = (await globalThis.$lif.boot.require_cjs_async(null, ${json(path)}));\n`;
   if (q.has('worker')){

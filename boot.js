@@ -925,11 +925,19 @@ async function boot_kernel(){
       wait.return();
     };
     let slow = eslow('sw register');
-    let kernel_opt = {lif_kernel_base};
-    if (localStorage.getItem('local_dev_enable'))
-      kernel_opt.local_dev_enable = 1;
-    const registration = await serviceWorker.register(
-      '/.lif.kernel_sw.js'+qs_enc(kernel_opt));
+    let registration;
+    // this file was loaded by the kernel (/.lif/npm/lif-kernel/): index.html
+    // has registered the kernel, with the base of its files. Loaded by its
+    // own url: the kernel is registered here, the base is where this file is
+    if (lif_kernel_base.endsWith('/.lif/npm/lif-kernel'))
+      registration = await serviceWorker.getRegistration();
+    else {
+      let kernel_opt = {lif_kernel_base};
+      if (localStorage.getItem('local_dev_enable'))
+        kernel_opt.local_dev_enable = 1;
+      registration = await serviceWorker.register(
+        '/.lif.kernel_sw.js'+qs_enc(kernel_opt));
+    }
     slow.end();
     if (0){
       registration.update();
@@ -945,7 +953,7 @@ async function boot_kernel(){
         });
       });
     }
-    registration.addEventListener('updatefound', ()=>{
+    registration?.addEventListener('updatefound', ()=>{
       clog('sw updatefound', event);
     });
     serviceWorker.addEventListener('statechange', ()=>{

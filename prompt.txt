@@ -1202,3 +1202,18 @@ The files of the kernel are served at /.lif.lif-kernel/ (was /lif-kernel/):
 /lif-kernel/ is not served any more: a browser that holds a service worker
 of the old path has to register again.
 ---
+USER:
+now make index.html load boot.js via /.lif/npm/lif-kernel
+
+CLAUDE:
+- index.html: kernel_register(): registers the kernel (service worker) with
+  conf.lif_kernel_base, and waits until it controls the page. Then boot.js
+  is imported from /.lif/npm/lif-kernel/boot.js: it and what it imports are
+  loaded by the kernel. boot_simple imports lif_kernel_base/boot.js itself.
+- web/serve.js, web/server.js: conf.lif_kernel_base ('/.lif.lif-kernel')
+  in place of conf.boot_js.
+- boot.js: loaded by the kernel, it does not register the kernel again
+  (index.html did); loaded by its own url, it registers as before.
+- kernel.js: the import of boot.js added to a worker of an app is
+  /.lif/npm/lif-kernel/boot.js too.
+---

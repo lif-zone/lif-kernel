@@ -4,8 +4,8 @@ let root = import.meta.dirname+'/..';
 let map = {};
 map['/.lif.lif-kernel'] = '.';
 let conf = {
-  // 'https://unpkg.com/lif-kernel@latest/boot.js'
-  boot_js: '/.lif.lif-kernel/boot.js',
+  // or a cdn: 'https://unpkg.com/lif-kernel@latest'
+  lif_kernel_base: '/.lif.lif-kernel',
   boot_pkg: {lif: {
     webapp: 'lif-kernel/hi.js',
     temp: true, // hi.js is just a loader of the final application: not persisted by kernel
