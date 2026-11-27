@@ -29,7 +29,7 @@ async function kernel_register(conf){
   await new Promise(()=>{});
 }
 
-async function boot_full(conf){
+async function boot_sw(conf){
   let lif;
   let has_sw = !!navigator.serviceWorker.controller;
   let retry = +localStorage.getItem('lif.boot.retry')||0;
@@ -81,7 +81,7 @@ async function boot_full(conf){
 }
 
 let conf = __CONF__;
-await boot_full(conf);
+await boot_sw(conf);
 
     </script>
   </head>
