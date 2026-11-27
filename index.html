@@ -15,7 +15,6 @@ async function kernel_register(conf){
   let q = new URLSearchParams({lif_kernel_base});
   if (localStorage.getItem('local_dev_enable'))
     q.set('local_dev_enable', 1);
-  // by new URL(): the same form as the scriptURL it is compared with
   let url = new URL('/.lif.kernel_sw.js?'+q, location.href).href;
   await sw.register(url);
   await sw.ready;

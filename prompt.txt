@@ -1283,3 +1283,12 @@ boot.js boot_kernel(): no registration after getRegistration(): cerror()
 and throw ('lif boot: kernel is not registered'). The ? of
 registration?.addEventListener() is removed.
 ---
+USER:
+do the URL creation with new URL so there wont be a string comparison
+issue.
+
+CLAUDE:
+index.html kernel_register(): the url of the service worker is made by
+new URL() again (was: location.origin+path), so it is in the same form as
+sw.controller.scriptURL, which it is compared with.
+---
