@@ -4,6 +4,7 @@ import https from 'https';
 import process from 'process';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import {ext2mime} from '../mime_db.js';
 import '../compat/browser_env.js';
 import {esleep, assert_obj, path_starts, path_join, path_dots, qs_enc, OE,
@@ -118,7 +119,26 @@ function headers_set({h, ctype}){
   }
 }
 
-function res_send_file(res, _path){
+// the browser holds this answer already: it gets a 304, with no body.
+// etag: as express does for a body: its length and its sha1.
+// lmod: the time of the file, in ms. if-modified-since holds seconds
+function etag_get(body){
+  return 'W/"'+Buffer.byteLength(body).toString(16)+'-'+
+    crypto.createHash('sha1').update(body).digest('base64').slice(0, 27)+'"';
+}
+function req_not_modified(req, {etag, lmod}){
+  let v;
+  if (etag && (v=req.headers['if-none-match']))
+    return v.split(',').some(s=>s.trim()==etag);
+  if (lmod && (v=Date.parse(req.headers['if-modified-since'])))
+    return Math.floor(lmod/1000)*1000<=v;
+  return false;
+}
+
+// a file of the disk has last-modified. A file with tr has an etag: its
+// body is also made of the replacements, that the time of the file does
+// not tell
+function res_send_file(req, res, _path){
   let opt;
   if (_path.path){
     opt = _path;
@@ -141,14 +161,20 @@ function res_send_file(res, _path){
         replace = JSON.stringify(replace);
       body = body.replaceAll(search, replace);
     }
-    return res_send(res, {body, ext});
+    let etag = h['etag'] = etag_get(body);
+    if (req_not_modified(req, {etag}))
+      return res.writeHead(304, h).end();
+    return res_send(res, {body, ext, headers: {etag}});
   }
+  h['last-modified'] = e.mtime.toUTCString();
+  if (req_not_modified(req, {lmod: e.mtimeMs}))
+    return res.writeHead(304, h).end();
   res.writeHead(200, h);
   let stream = fs.createReadStream(_path);
   stream.pipe(res);
 }
 
-function res_send(res, {body, ext, ctype, json, status=200}){
+function res_send(res, {body, ext, ctype, json, status=200, headers}){
   if (json!==undefined){
     body = JSON.stringify(json);
     ext = 'json';
@@ -156,6 +182,7 @@ function res_send(res, {body, ext, ctype, json, status=200}){
   ctype ||= ext2mime[ext]||'plain/text';
   let h = {};
   headers_set({h, ctype});
+  OA(h, headers);
   res.writeHead(status, h);
   res.end(body);
 }
@@ -248,13 +275,13 @@ function http_listener(req, res){
   if (uri=='/.lif.net/coinbase/v2/prices/LIF-USD/spot')
     return res_send(res, {json: {data: {amount: "0.01",base: "LIF",currency: "USD"}}});
   if (v=map_uri({uri, opt: g_opt}))
-    return res_send_file(res, v);
+    return res_send_file(req, res, v);
   if (g_opt?.js_map && (v=str.starts(req.url, '/.lif/npm/')) && req.url.endsWith('.map'))
     return res.writeHead(302, {Location: `https://unpkg.com/${v.rest}`}).end();
   if (str.starts(uri, '/.lif/', '/.lif.'))
     return res_err(res, 404, 'invalid /.lif/ uri');
   if (spa)
-    return res_send_file(res, map_uri({uri: '/', opt: g_opt}));
+    return res_send_file(req, res, map_uri({uri: '/', opt: g_opt}));
   0 && console.log(req.headers);
   return res_err(res, 404, 'no map found');
 }

@@ -1149,3 +1149,16 @@ net/lifcoin_s.js and net/tcpip_s.js). Added it to "files". The other new
 net/ and util/ files are not imported by any published file and were left
 out.
 ---
+USER:
+I want to add to ~/lif-kernel/web/server_lib.js etag and lmod. the lmod can
+be the file itself it reads (time on dist). only the responses that are
+fetch from the disk (via the 'map').
+ok - so etag for 'tr' files. lmod for the others.
+
+CLAUDE:
+web/server_lib.js: res_send_file() (now gets req) sends last-modified (the
+time of the file) for a file of the disk, and an etag (W/"<length>-<sha1>",
+as express, of the body after the replacements) for a file with tr.
+req_not_modified(): if-none-match / if-modified-since that match are
+answered 304 with no body. res_send() takes extra headers.
+---
