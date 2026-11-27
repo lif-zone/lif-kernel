@@ -864,6 +864,10 @@ async function lpm_pkg_resolve({log, imp, lmod_self}){
     // same package?
     if (lmod_self==imp)
       return lpm_self;
+  } else if (imp=='npm/lif-kernel'){
+    // /.lif/npm/lif-kernel/: the files of the kernel itself. By the override
+    // of the root pkg, whatever the app depends on
+    lpm_self = lpm_pkg_root;
   } else
     lpm_self = lpm_pkg_app || lpm_pkg_root;
   // lookup for imports in parent
@@ -1729,13 +1733,17 @@ async function app_pkg_load(){
   }
 }
 
+// the built-in root pkg: what the kernel has before an app is set. No app:
+// only the root pkg, with its override of lif-kernel (_do_app_pkg() adds
+// it), which is where /.lif/npm/lif-kernel/ leads to. For what boot.js
+// loads before it sets the app: boot_worker.js
+let boot_pkg_builtin = {lif: {temp: true}};
 async function app_restore(){
   let boot_pkg = await app_pkg_load();
-  if (!boot_pkg)
-    return;
-  clog('restore app_pkg on sw start');
+  if (boot_pkg)
+    clog('restore app_pkg on sw start');
   try {
-    await _do_app_pkg(boot_pkg);
+    await _do_app_pkg(boot_pkg||boot_pkg_builtin);
   } catch(err){
     cerror('failed restore app_pkg', err);
   }

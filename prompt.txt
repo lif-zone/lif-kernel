@@ -1169,3 +1169,22 @@ CLAUDE:
 web/server_lib.js: a file of the disk (no tr) also gets an etag:
 W/"<size hex>-<mtime ms hex>", as express. last-modified stays.
 ---
+USER:
+/.lif/npm/lif-kernel gets redirect to a perm npm version npm/lif-kernel@1.2.3
+or perm github version git/github.com/lif-zone/lif-kernel@COMMITID or to a
+'non versioned' version on the server itself local/lif-kernel/... this
+'redirection' is a root "built it pkg" in the kernel {lif: {overrides:
+"lif-kernel": npm/git/local}}. who and when is this provided? thats another
+questions... yes - write it.
+
+CLAUDE:
+- kernel.js: a built-in root pkg (boot_pkg_builtin) is set at the start of
+  the kernel when no app_pkg was kept: the root pkg, with its override of
+  lif-kernel, exists before an app is set.
+- kernel.js lpm_pkg_resolve(): npm/lif-kernel that no module asked for
+  (/.lif/npm/lif-kernel/FILE) is resolved by the root pkg, not by the app.
+- boot.js: the sync worker is started on /.lif/npm/lif-kernel/boot_worker.js
+  by the Worker of the browser.
+The target of the override is as before: local:<lif_kernel_base>//. Who
+gives another target (npm@ver, git@commit) is not done.
+---

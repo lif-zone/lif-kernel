@@ -102,7 +102,11 @@ async function boot_worker_sync_connect(){
   ipc.read = new ipc_sync();
   ipc.write = new ipc_sync();
   let controller = navigator.serviceWorker.controller;
-  boot_worker = new Worker(lif_kernel_base+'/boot_worker.js',
+  // the files of the kernel itself, by the kernel: where they are fetched
+  // from (the server, a cdn) is its business. By the Worker of the browser:
+  // the file as it is, not as a worker of an app
+  let _Worker = globalThis.orig_Worker||Worker;
+  boot_worker = new _Worker('/.lif/npm/lif-kernel/boot_worker.js',
     {type: 'module'});
   let wait = ewait();
   boot_worker.addEventListener("message", event=>{
