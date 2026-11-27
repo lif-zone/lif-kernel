@@ -11,11 +11,11 @@ let boot_js = '/.lif/npm/lif-kernel/boot.js';
 
 async function kernel_register(conf){
   let sw = navigator.serviceWorker;
-  let q = new URLSearchParams({lif_kernel_base:
-    new URL(conf.lif_kernel_base, location.href).href});
+  let lif_kernel_base = new URL(conf.lif_kernel_base, location.href).href;
+  let q = new URLSearchParams({lif_kernel_base});
   if (localStorage.getItem('local_dev_enable'))
     q.set('local_dev_enable', 1);
-  let url = new URL('/.lif.kernel_sw.js?'+q, location.href).href;
+  let url = location.origin+'/.lif.kernel_sw.js?'+q;
   await sw.register(url);
   await sw.ready;
   // a first load, or a kernel of another base: until this kernel takes the
