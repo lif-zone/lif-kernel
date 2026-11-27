@@ -1254,3 +1254,12 @@ kernel.js test_kernel(): npm/galias: the pkg maps it to npm:gtarget/sub
 of the parent has the override gtarget 2.0.0: the override wins
 (npm/gtarget@2.0.0/sub; the old rule gave npm/gtarget@1.0.0/sub).
 ---
+USER:
+if we leave registration inside index.html, there is no logic in 'simple'
+and 'full'. so remove boot_simple and leave one path
+
+CLAUDE:
+index.html: boot_simple() and its switch (localStorage LIF_BOOT_SIMPLE,
+conf.boot_simple) are removed: the only path is boot_full() (the kernel is
+registered in index.html, and boot.js is loaded by the kernel).
+---

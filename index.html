@@ -4,16 +4,10 @@
 
 // conf.lif_kernel_base: where the files of the kernel are: on this server
 // (/.lif.lif-kernel), or a url of a cdn.
-// boot_simple: boot.js is imported from there, and registers the kernel.
-// boot_full: the kernel (the service worker) is registered here, with that
-// base, and boot.js and what it imports are loaded by the kernel:
+// The kernel (the service worker) is registered here, with that base, and
+// boot.js and what it imports are loaded by the kernel:
 // /.lif/npm/lif-kernel/. Where the kernel fetches them from is its business.
 let boot_js = '/.lif/npm/lif-kernel/boot.js';
-
-async function boot_simple(conf){
-  let lif = (await import(conf.lif_kernel_base+'/boot.js')).default;
-  await lif.boot.boot_app(conf.boot_pkg);
-}
 
 async function kernel_register(conf){
   let sw = navigator.serviceWorker;
@@ -87,10 +81,7 @@ async function boot_full(conf){
 }
 
 let conf = __CONF__;
-if (+localStorage.getItem('LIF_BOOT_SIMPLE') || conf.boot_simple)
-  await boot_simple(conf);
-else
-  await boot_full(conf);
+await boot_full(conf);
 
     </script>
   </head>
