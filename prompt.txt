@@ -1263,3 +1263,13 @@ index.html: boot_simple() and its switch (localStorage LIF_BOOT_SIMPLE,
 conf.boot_simple) are removed: the only path is boot_full() (the kernel is
 registered in index.html, and boot.js is loaded by the kernel).
 ---
+USER:
+keep registration in index.html. remove the dead code from boot.js (discuss
+any feature it does beyond the actual registration before removing it)
+
+CLAUDE:
+boot.js boot_kernel(): the branch that registered the kernel
+(/.lif.kernel_sw.js with lif_kernel_base and local_dev_enable) is removed:
+index.html does all three. boot_kernel() only takes the registration
+(getRegistration()). Nothing else of boot_kernel() is changed.
+---
