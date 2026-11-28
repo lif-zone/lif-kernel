@@ -68,6 +68,8 @@ async function _on_fetch(event){
     return await fetch(request);
   }
   console.warn('sw pending fetch('+event.request.url+') event before inited');
+  // XXX need to add a safety 10 second timer, that dequeues them with 500
+  // if the SW module process fails, or terminated - must close these events
   fetch_queue.add(event);
   await wait_activate;
   fetch_queue.delete(event);
