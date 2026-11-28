@@ -1307,3 +1307,23 @@ deletes the data of the kernel only (lif-bucket-* storage buckets, or
 lif-cache-* caches and lif-kernel-* indexedDBs: never the data of the
 application) and reloads.
 ---
+USER:
+?webapp= (and its shortcut) are old features: fix them to work nicely, by a
+tmp webapp (tmp.js). hi.js allocates for a webapp string a tmp domain
+(tmp--1.<current origin>, tmp--2...: a separate origin, so its own
+localStorage), remembers the assignments in its localStorage, so the same
+webapp gets the same domain again, and redirects there with ?webapp=. tmp.js
+stores its webapp in its localStorage. tmp.js from the running kernel;
+always redirect; a tmp domain asked for a different webapp than the one it
+stored shows a menu: keep the current (reload without the webapp param), or
+change to the new one (the localStorage is updated, then reload).
+
+CLAUDE:
+hosts.js: tmp is lif-kernel/tmp.js (was the github main copy).
+hi.js: tmp_webapp_url(): the tmp domain of a webapp, kept in localStorage
+lif.tmp_webapps ({webapp: n}; a new one gets the highest n plus 1).
+webapp_resolve(): on the root domain ?webapp=X and the shortcut ?X redirect
+to tmp--n.<host>/?webapp=X (was: the webapp was booted on the root domain).
+tmp.js: webapp_conflict(): the menu for a ?webapp= that differs from the
+stored one (the names are put as text, not html).
+---

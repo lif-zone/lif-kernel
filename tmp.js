@@ -30,6 +30,31 @@ async function input_webapp(){
   input.addEventListener('keydown', e=>{ if (e.key=='Enter') go(); });
 }
 
+// This tmp domain is registered to another webapp than the one asked for
+function webapp_conflict(cur, req){
+  let body = document.body;
+  let add = (tag, text)=>{
+    let e = document.createElement(tag);
+    e.textContent = text;
+    body.appendChild(e);
+    return e;
+  };
+  add('h1', 'This domain is registered to a different webapp');
+  add('h2', 'Registered: '+cur);
+  add('h2', 'Requested: '+req);
+  add('button', 'Keep '+cur).onclick = ()=>{
+    let q = new URLSearchParams(location.search);
+    q.delete('webapp');
+    let qs = ''+q;
+    window.location = location.origin+location.pathname+(qs ? '?'+qs : '')
+      +location.hash;
+  };
+  add('button', 'Change to '+req).onclick = ()=>{
+    localStorage.setItem('tmp_webapp', req);
+    window.location.reload();
+  };
+}
+
 let clean_url = false;
 async function tmp_webapp_resolve(){
   let q = new URLSearchParams(location.search);
@@ -38,7 +63,7 @@ async function tmp_webapp_resolve(){
   let qs = q.get('webapp');
   if (qs){
     if (ls && qs!=ls)
-      console.warn('changing webapp '+ls+' -> '+v);
+      return webapp_conflict(ls, qs);
     webapp = qs;
     localStorage.setItem('tmp_webapp', webapp);
     if (clean_url){

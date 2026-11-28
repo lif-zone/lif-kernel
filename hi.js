@@ -72,6 +72,29 @@ async function lif_kv_get(key){
   return kv.val;
 }
 
+// A webapp given by ?webapp= is played on a tmp domain of its own: tmp--1,
+// tmp--2... of the current origin (a separate origin, so its own
+// localStorage). The assignments are kept, so the same webapp gets the same
+// domain again.
+function tmp_webapp_url(webapp){
+  let t = {};
+  let s = localStorage.getItem('lif.tmp_webapps');
+  if (s){
+    try {
+      t = JSON.parse(s);
+    } catch(err){
+      console.error('invalid lif.tmp_webapps: '+s, err);
+    }
+  }
+  let n = t[webapp];
+  if (!n){
+    n = t[webapp] = Math.max(0, ...Object.values(t))+1;
+    localStorage.setItem('lif.tmp_webapps', JSON.stringify(t));
+  }
+  return location.protocol+'//tmp--'+n+'.'+location.host+'/'
+    +qs_enc({webapp});
+}
+
 async function webapp_resolve(){
   let v, sub;
   if (sub = lif_domain_parse(location.hostname).sub){
@@ -92,15 +115,11 @@ async function webapp_resolve(){
   if (location.pathname!='/')
     return {page: ()=>page_not_found()};
   let q = new URLSearchParams(location.search);
-  // XXX in the future, if ?webapp=github:... then lookup in localStorage,
-  // assign to existing or new webapp--1 webapp--2... and redirect
-  // (or maybe tmp--1.lifnet.com/?webapp=github:... tmp--2...)
-  // if in development mode - dont redirect: allow playground on parent domain
   if (v=q.get('webapp'))
-    return {site: v};
+    return {redirect: tmp_webapp_url(v)};
   let qe = [...q.entries()];
   if (qe.length==1 && qe[0][0] && !qe[0][1])
-    return {site: qe[0][0]};
+    return {redirect: tmp_webapp_url(qe[0][0])};
   let redirect = hosts[''].redirect;
   let u = new URL(redirect, location);
   u.protocol = location.protocol;
