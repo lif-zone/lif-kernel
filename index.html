@@ -14,8 +14,7 @@ const sw = navigator.serviceWorker;
 let boot_js = '/.lif/npm/lif-kernel/boot.js';
 
 async function sw_unregister(){
-  sw.controller.postMessage(
-    {type: 'sw_boot_terminate'});
+  sw.controller?.postMessage({type: 'sw_boot_terminate'});
   let reg = await sw.getRegistrations();
   await Promise.all(reg.map(r=>r.update()));
   await Promise.all(reg.map(r=>r.unregister()));
@@ -58,7 +57,7 @@ async function kernel_register(conf){
   });
   // at first load, or a kernel of another base: until this kernel takes the
   // page (its clients.claim())
-  for (let i=0; i<5; i+=100){
+  for (let i=0; i<5000; i+=100){
     if (sw.controller?.scriptURL==url){
       clog('sw loaded '+url);
       return 'ok';
@@ -84,7 +83,7 @@ async function load_error(err){
   in_load_error = 1;
   clog('lif boot failed loading');
   sw_unregister();
-  // show here UI in the HTML from load_progress.js:load_error()
+  progress_error(err);
 }
 
 async function load_timeout(){
@@ -119,8 +118,66 @@ async function boot_sw(conf){
   await lif.boot.boot_app(conf.boot_pkg);
 }
 
+// The data of the kernel only (its storage bucket, or its caches and
+// indexedDBs): never the data of the application
+async function kernel_data_clear(){
+  let sb = navigator.storageBuckets;
+  if (sb){
+    for (let name of await sb.keys()){
+      if (name.startsWith('lif-bucket-'))
+        await sb.delete(name);
+    }
+    return;
+  }
+  for (let name of await caches.keys()){
+    if (name.startsWith('lif-cache-'))
+      await caches.delete(name);
+  }
+  for (let db of await indexedDB.databases?.()||[]){
+    if (db.name.startsWith('lif-kernel-'))
+      indexedDB.deleteDatabase(db.name);
+  }
+}
+
+// A micro version of load_progress.js:load_error(): nothing is imported,
+// since the kernel may be what failed.
 function progress_error(err){
-  // UI for displaying error, and button to clear stuff and restart
+  let text = err instanceof Error ? err.message : ''+err;
+  let stack = err?.stack;
+  if (stack)
+    text = stack.includes(text) ? stack : text+'\n'+stack;
+  // a phone shows a page without a viewport meta smaller: enlarge the text
+  let w = screen.width;
+  let scale = w && innerWidth>w ? innerWidth/w : 1;
+  let elm = document.createElement('div');
+  elm.id = 'lif-error';
+  elm.style.cssText = 'position:fixed;top:5%;left:5%;width:90%;height:90%;'
+    +'z-index:2147483647;box-sizing:border-box;padding:24px;overflow:auto;'
+    +'background:#fff;color:#222;border:1px solid #e74c3c;border-radius:8px;'
+    +'font-family:sans-serif;font-size:'+16*scale+'px';
+  let title = document.createElement('div');
+  title.style.cssText = 'font-size:1.5em;color:#e74c3c';
+  title.textContent = 'Load Error';
+  let btn = document.createElement('button');
+  btn.style.cssText = 'margin-top:12px;padding:6px 16px;font-size:0.875em;'
+    +'cursor:pointer';
+  btn.textContent = 'Clear and restart';
+  btn.onclick = async()=>{
+    btn.disabled = true;
+    try {
+      await sw_unregister();
+      await kernel_data_clear();
+    } catch(err){
+      cerror('clear failed', err);
+    }
+    location.reload();
+  };
+  let pre = document.createElement('pre');
+  pre.style.cssText = 'font-size:0.75em;white-space:pre-wrap;'
+    +'word-break:break-word';
+  pre.textContent = text;
+  elm.append(title, btn, pre);
+  document.body.appendChild(elm);
 }
 
 /* eslint-disable-next-line no-undef */

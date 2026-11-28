@@ -1292,3 +1292,18 @@ index.html kernel_register(): the url of the service worker is made by
 new URL() again (was: location.origin+path), so it is in the same form as
 sw.controller.scriptURL, which it is compared with.
 ---
+USER:
+I want to add to index.html an error page in load_error. see the comment.
+it should NOT require load_progress or anything else. just a micro version
+of it. if it needs any functions - bring it into the html, so its all
+stand-alone
+
+CLAUDE:
+index.html: progress_error(err): a stand-alone micro version of
+load_progress.js:load_error() (a box over the page: 'Load Error', the text
+and stack of the error, a 'Clear and restart' button), called by
+load_error(). kernel_data_clear(): the button unregisters the kernel,
+deletes the data of the kernel only (lif-bucket-* storage buckets, or
+lif-cache-* caches and lif-kernel-* indexedDBs: never the data of the
+application) and reloads.
+---
