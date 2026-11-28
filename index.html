@@ -16,6 +16,8 @@ async function kernel_register(conf){
   if (localStorage.getItem('local_dev_enable'))
     q.set('local_dev_enable', 1);
   let url = new URL('/.lif.kernel_sw.js?'+q, location.href).href;
+  if (sw.controller?.scriptURL==url)
+    return;
   await sw.register(url);
   await sw.ready;
   // a first load, or a kernel of another base: until this kernel takes the
