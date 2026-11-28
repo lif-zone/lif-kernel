@@ -77,18 +77,14 @@ async function kernel_register(conf){
 
 let lif;
 let retry = +localStorage.getItem('lif.boot.retry')||0;
-async function load_err(){
-  if (lif)
+let in_load_error = 0;
+async function load_error(err){
+  if (lif || in_load_error)
     return;
-  clog('lif boot failed loading - unreegister sw');
-  if (localStorage.getItem('lif.boot.disable_load_err'))
-    return;
-  await sw_unregister();
-  localStorage.setItem('lif.boot.retry', ''+Date.now());
-  if (!retry || Date.now()-retry>10000){
-    clog('lif boot retry');
-    window.location.reload(true);
-  }
+  in_load_error = 1;
+  clog('lif boot failed loading');
+  sw_unregister();
+  // show here UI in the HTML from load_progress.js:load_error()
 }
 
 async function load_timeout(){
@@ -104,7 +100,7 @@ async function load_timeout(){
   function fetch_err(){
     if (res)
       return;
-    load_err();
+    load_error('fetch_failed');
   }
 }
 
@@ -117,7 +113,7 @@ async function boot_sw(conf){
     lif = (await import(boot_js)).default;
   } catch(err){
     cerror('index.html boot failed', err);
-    await load_err();
+    await load_error(err);
     throw err;
   }
   await lif.boot.boot_app(conf.boot_pkg);
@@ -133,7 +129,7 @@ try {
   await boot_sw(conf);
 } catch(err){
   cerror(err);
-  progress_error(err);
+  load_error(err);
 }
 
     </script>
