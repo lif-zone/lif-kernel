@@ -31,43 +31,45 @@ async function kernel_register(conf){
   await new Promise(()=>{});
 }
 
+let lif;
+let retry = +localStorage.getItem('lif.boot.retry')||0;
+async function load_err(){
+  if (lif || !navigator.serviceWorker.controller)
+    return;
+  console.log('lif boot failed loading - unreegister sw');
+  if (localStorage.getItem('lif.boot.disable_load_err'))
+    return;
+  navigator.serviceWorker.controller.postMessage(
+    {type: 'sw_boot_terminate'});
+  let reg = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(reg.map(r=>r.update()));
+  await Promise.all(reg.map(r=>r.unregister()));
+  localStorage.setItem('lif.boot.retry', ''+Date.now());
+  if (!retry || Date.now()-retry>10000){
+    console.log('lif boot retry');
+    window.location.reload(true);
+  }
+}
+
+async function load_timeout(){
+  if (lif || !navigator.serviceWorker.controller)
+    return;
+  let res, _err;
+  setTimeout(()=>fetch_err(), 2000);
+  try {
+    res = await fetch(boot_js);
+  } catch(err){
+    _err = err;
+  }
+  function fetch_err(){
+    if (res)
+      return;
+    load_err();
+  }
+}
+
 async function boot_sw(conf){
-  let lif;
   let has_sw = !!navigator.serviceWorker.controller;
-  let retry = +localStorage.getItem('lif.boot.retry')||0;
-  async function load_err(){
-    if (lif || !navigator.serviceWorker.controller)
-      return;
-    console.log('lif boot failed loading - unreegister sw');
-    if (localStorage.getItem('lif.boot.disable_load_err'))
-      return;
-    navigator.serviceWorker.controller.postMessage(
-      {type: 'sw_boot_terminate'});
-    let reg = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(reg.map(r=>r.update()));
-    await Promise.all(reg.map(r=>r.unregister()));
-    localStorage.setItem('lif.boot.retry', ''+Date.now());
-    if (!retry || Date.now()-retry>10000){
-      console.log('lif boot retry');
-      window.location.reload(true);
-    }
-  }
-  async function load_timeout(){
-    if (lif || !navigator.serviceWorker.controller)
-      return;
-    let res, _err;
-    setTimeout(()=>fetch_err(), 2000);
-    try {
-      res = await fetch(boot_js);
-    } catch(err){
-      _err = err;
-    }
-    function fetch_err(){
-      if (res)
-        return;
-      load_err();
-    }
-  }
   if (has_sw)
     setTimeout(()=>load_timeout(), 2000);
   try {
@@ -82,6 +84,7 @@ async function boot_sw(conf){
   await lif.boot.boot_app(conf.boot_pkg);
 }
 
+/* eslint-disable-next-line no-undef */
 let conf = __CONF__;
 await boot_sw(conf);
 

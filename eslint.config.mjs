@@ -4,8 +4,11 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import js from '@eslint/js';
 import json from '@eslint/json';
+import html from "eslint-plugin-html";
+
+// by new URL(): the same form as the scriptURL it is compared with
 export default [{
-  plugins: {},
+  plugins: {html},
   languageOptions: {
     globals: {
       // import restricted from "confusing-browser-globals";
@@ -26,7 +29,7 @@ export default [{
   linterOptions: {
     reportUnusedDisableDirectives: false,
   },
-  files: ['**/*.jsx', '**/*.js', '**/*.jsm', '**/*.tsx'],
+  files: ['**/*.jsx', '**/*.js', '**/*.jsm', '**/*.tsx', '**/*.html'],
   rules: {
     'no-debugger': 'warn',
     'no-cond-assign': 'off',
