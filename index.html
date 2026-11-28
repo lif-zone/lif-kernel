@@ -2,6 +2,10 @@
   <head>
     <script type=module>
 
+const clog = console.log.bind(console);
+const cerror = console.error.bind(console);
+const sw = navigator.serviceWorker;
+
 // conf.lif_kernel_base: where the files of the kernel are: on this server
 // (/.lif.lif-kernel), or a url of a cdn.
 // The kernel (the service worker) is registered here, with that base, and
@@ -9,50 +13,86 @@
 // /.lif/npm/lif-kernel/. Where the kernel fetches them from is its business.
 let boot_js = '/.lif/npm/lif-kernel/boot.js';
 
+async function sw_unregister(){
+  sw.controller.postMessage(
+    {type: 'sw_boot_terminate'});
+  let reg = await sw.getRegistrations();
+  await Promise.all(reg.map(r=>r.update()));
+  await Promise.all(reg.map(r=>r.unregister()));
+}
+
 async function kernel_register(conf){
-  let sw = navigator.serviceWorker;
   let lif_kernel_base = new URL(conf.lif_kernel_base, location.href).href;
   let q = new URLSearchParams({lif_kernel_base});
   if (localStorage.getItem('local_dev_enable'))
     q.set('local_dev_enable', 1);
   let url = new URL('/.lif.kernel_sw.js?'+q, location.href).href;
   if (sw.controller?.scriptURL==url)
-    return;
+    return 'ok';
+  sw.addEventListener('statechange', ()=>{
+    clog('sw statechange', event);
+  });
+  sw.addEventListener('controllerchange', ()=>{
+    clog('sw controllerchange', event);
+  });
   await sw.register(url);
   await sw.ready;
-  // a first load, or a kernel of another base: until this kernel takes the
+  let registration = await sw.getRegistration();
+  if (!registration){
+    cerror('sw failed registration '+url);
+    await sw_unregister();
+    return 'fail_register';
+  }
+  await registration.update();
+  // Listen for new service worker
+  registration.addEventListener('updatefound', ()=>{
+    clog('sw update found');
+    const newWorker = registration.installing;
+    if (!newWorker)
+      return;
+    newWorker.addEventListener('statechange', event=>{
+      clog('sw new worker event', event);
+      if (newWorker.state=='installed')
+        clog('new worker ready');
+    });
+  });
+  // at first load, or a kernel of another base: until this kernel takes the
   // page (its clients.claim())
-  for (let i=0; i<100 && sw.controller?.scriptURL!=url; i++)
+  for (let i=0; i<5; i+=100){
+    if (sw.controller?.scriptURL==url){
+      clog('sw loaded '+url);
+      return 'ok';
+    }
     await new Promise(resolve=>setTimeout(resolve, 100));
-  if (sw.controller)
-    return;
-  console.log('no sw controller - reloading');
-  location.reload();
-  await new Promise(()=>{});
+  }
+  if (!sw.controller){
+    cerror('sw controller did not load');
+    await sw_unregister();
+    return 'no_sw';
+  }
+  cerror('sw did not change '+sw.controller.scriptURL+' -> '+url);
+  await sw_unregister();
+  return 'wrong_ver';
 }
 
 let lif;
 let retry = +localStorage.getItem('lif.boot.retry')||0;
 async function load_err(){
-  if (lif || !navigator.serviceWorker.controller)
+  if (lif)
     return;
-  console.log('lif boot failed loading - unreegister sw');
+  clog('lif boot failed loading - unreegister sw');
   if (localStorage.getItem('lif.boot.disable_load_err'))
     return;
-  navigator.serviceWorker.controller.postMessage(
-    {type: 'sw_boot_terminate'});
-  let reg = await navigator.serviceWorker.getRegistrations();
-  await Promise.all(reg.map(r=>r.update()));
-  await Promise.all(reg.map(r=>r.unregister()));
+  await sw_unregister();
   localStorage.setItem('lif.boot.retry', ''+Date.now());
   if (!retry || Date.now()-retry>10000){
-    console.log('lif boot retry');
+    clog('lif boot retry');
     window.location.reload(true);
   }
 }
 
 async function load_timeout(){
-  if (lif || !navigator.serviceWorker.controller)
+  if (lif)
     return;
   let res, _err;
   setTimeout(()=>fetch_err(), 2000);
@@ -69,24 +109,32 @@ async function load_timeout(){
 }
 
 async function boot_sw(conf){
-  let has_sw = !!navigator.serviceWorker.controller;
-  if (has_sw)
-    setTimeout(()=>load_timeout(), 2000);
+  let res = await kernel_register(conf);
+  if (res!='ok')
+    throw res;
+  setTimeout(()=>load_timeout(), 2000);
   try {
-    await kernel_register(conf);
     lif = (await import(boot_js)).default;
   } catch(err){
-    console.error('index.html boot', err);
-    if (has_sw)
-      await load_err();
+    cerror('index.html boot failed', err);
+    await load_err();
     throw err;
   }
   await lif.boot.boot_app(conf.boot_pkg);
 }
 
+function progress_error(err){
+  // UI for displaying error, and button to clear stuff and restart
+}
+
 /* eslint-disable-next-line no-undef */
 let conf = __CONF__;
-await boot_sw(conf);
+try {
+  await boot_sw(conf);
+} catch(err){
+  cerror(err);
+  progress_error(err);
+}
 
     </script>
   </head>
